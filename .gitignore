@@ -1,0 +1,10 @@
+bin/
+obj/
+*.dll
+*.pdb
+*.mdb
+*.exe
+!GameData/**/*.dll
+.vs/
+*.user
+KSP_DIR.props.user
