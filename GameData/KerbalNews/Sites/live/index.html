@@ -1,0 +1,38 @@
+<html><body>
+{{> netbar}}
+<div class="top"><span class="logo">live<b>.kb</b></span>{{#live}}<span class="onair">LIVE</span><span class="title">{{agencyName}}: {{vessel}}</span><span class="spacer"></span><span class="viewers">{{viewers}} watching</span>{{/live}}{{#idle}}<span class="title">Official agency livestreams</span>{{/idle}}</div>
+<div class="wrap">
+{{#result}}<p class="result">{{result}}</p>{{/result}}
+{{#idle}}
+  <div class="offair">
+    <h2>Nothing is live right now</h2>
+    {{#canStart}}<p>Stream the flight of <b>{{vessel}}</b>. Viewers watch your telemetry and chat about it in real time; the press hears about streams that draw a crowd.</p>
+      {{#silent}}<p class="warn">{{vessel}} is set to silent. Streaming it shows the public its telemetry.</p>{{/silent}}
+      <a class="go" href="action:stream-start">Go live</a>{{/canStart}}
+    {{^canStart}}<p class="muted">Open this page during a flight to go live.</p>{{/canStart}}
+  </div>
+{{/idle}}
+{{#live}}
+  <div class="stage">
+    <div class="main">
+      <img class="video" src="kblive:frame" style="width: 100%; aspect-ratio: 16/9">
+      <div class="bar"><span class="met">{{met}}</span><span class="spacer"></span><span class="muted">peak {{peak}}</span><a class="end" href="action:stream-end">End stream</a></div>
+      <div class="tele">{{#tele}}<div class="stat"><div class="l">{{label}}</div><div class="v">{{value}}</div></div>{{/tele}}</div>
+      {{#trace.0}}<div class="graph"><div class="gl">Altitude</div><div class="bars">{{#trace}}<div class="b" style="height: {{h}}"></div>{{/trace}}</div></div>{{/trace.0}}
+      {{#moments.0}}<div class="moments"><h4>On stream</h4>{{#moments}}<p>{{.}}</p>{{/moments}}</div>{{/moments.0}}
+    </div>
+    <div class="chat">
+      <div class="chead">Stream chat</div>
+      <div class="lines">{{#chat}}{{#system}}<p class="sys">{{text}}</p>{{/system}}{{^system}}<p class="line"><span class="who" style="color: {{color}}">{{author}}</span>{{#agency}} <span class="badge">OFFICIAL</span>{{/agency}}: {{text}}</p>{{/system}}{{/chat}}</div>
+      <div class="say">
+        <input name="chat" value="" placeholder="Say something">
+        <div class="btns"><button class="btn official" data-action="action:stream-say/agency">As {{agencyName}}</button>
+          <input name="handle" value="{{handle}}" placeholder="handle"><button class="btn" data-action="action:stream-say/anon">Anonymously</button></div>
+      </div>
+    </div>
+  </div>
+{{/live}}
+{{#archives.0}}<h3>Past streams</h3>
+  {{#archives}}<a class="arch" href="{{url}}"><b>{{vessel}}</b> <span class="muted">{{date}} &middot; {{length}} &middot; peak {{peak}} viewers &middot; max altitude {{maxAlt}}</span></a>{{/archives}}{{/archives.0}}
+</div>
+</body></html>

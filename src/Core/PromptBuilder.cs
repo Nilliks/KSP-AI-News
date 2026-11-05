@@ -297,6 +297,42 @@ namespace KerbalNews
             return author;
         }
 
+        // ------------------------------------------------------------ livestream chat
+
+        public static string StreamSystem(NewsState state, string agency)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("You simulate the live chat of " + agency + "'s official livestream of a rocket flight in the Kerbin universe (kerbals, the Mun, Minmus, Duna...). Viewers are members of the public: fans, engineers, skeptics, kids, trolls, regulars from the agency's comment sections.");
+            sb.AppendLine("Chat style: short lines (most under 15 words), lowercase is common, some emoji-free hype, questions to the agency, jokes, rare caps. React to what the telemetry shows right now. Never invent events the telemetry does not show. Kerbal names end in Kerman.");
+            sb.AppendLine(SillinessText(state.Silliness));
+            sb.AppendLine("Reply with JSON only.");
+            return sb.ToString();
+        }
+
+        public static string StreamUser(NewsEngine eng, StreamSession st, List<string> moments, List<ChatMessage> said)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("STREAM: " + st.VesselName + ", live for " + ((st.Last != null ? st.Last.UT : st.StartUT) - st.StartUT).ToString("0", Inv) + " seconds of mission time, about " + st.Viewers.ToString(Inv) + " viewers.");
+            sb.AppendLine("PUBLIC MOOD: " + eng.State.Mood.Describe());
+            if (st.Previous != null) sb.AppendLine("Telemetry " + (st.Last.UT - st.Previous.UT).ToString("0", Inv) + " s ago: " + st.Previous.Describe());
+            if (st.Last != null) sb.AppendLine("Telemetry now: " + st.Last.Describe());
+            if (moments.Count > 0) sb.AppendLine("Just happened on stream: " + string.Join("; ", moments.ToArray()) + ".");
+            var recent = st.Chat.Where(c => !c.System).Skip(Math.Max(0, st.Chat.Count - 12)).ToList();
+            if (recent.Count > 0)
+            {
+                sb.AppendLine("Recent chat:");
+                foreach (var c in recent.Skip(Math.Max(0, recent.Count - 12))) sb.AppendLine("- " + c.Author + (c.Agency ? " [OFFICIAL]" : "") + ": " + Clip(c.Text, 160));
+            }
+            foreach (var m in said)
+                sb.AppendLine(m.Agency ? "The agency's official account just wrote in chat: \"" + m.Text + "\". Viewers notice and react; some ask it questions."
+                    : "A viewer called " + m.Author + " just wrote: \"" + m.Text + "\". Nobody knows it is the agency. Some reply to them by name.");
+            int n = moments.Count > 0 || said.Count > 0 ? 16 : 10;
+            sb.AppendLine();
+            sb.AppendLine("Write the next " + n + " chat messages, oldest first, from many different viewers (a few regulars may speak twice). Also estimate the viewer count now: it rises with drama and big moments, falls when nothing happens.");
+            sb.AppendLine("JSON SCHEMA: {\"viewers\":1234,\"messages\":[{\"author\":\"handle\",\"text\":\"...\"}]}");
+            return sb.ToString();
+        }
+
         /// <summary>Recent articles that writers may cite, always including the latest Daily Kraken piece.</summary>
         public static List<Article> RecentForCites(NewsState state, double now, int n)
         {
@@ -365,6 +401,7 @@ namespace KerbalNews
             string at = e.Body != "" ? " " + e.Body : "";
             switch (e.Type)
             {
+                case EventTypes.Livestream: return "The agency livestreamed the flight of " + v + ": " + e.Detail + ".";
                 case EventTypes.Launch: return v + " launched" + crew + (e.Detail != "" ? " from " + e.Detail : "") + ".";
                 case EventTypes.Orbit: return v + " reached a stable orbit around" + at + crew + "." + DetailText(e);
                 case EventTypes.Soi: return v + " entered the sphere of influence of" + at + crew + "." + DetailText(e);

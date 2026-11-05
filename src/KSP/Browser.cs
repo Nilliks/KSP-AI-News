@@ -105,6 +105,7 @@ namespace KerbalNews.KSP
             {
                 Sys.Engine.ArticlesPublished += OnPublished;
                 Sys.Engine.CommunityChanged += MarkDirty;
+                Sys.Engine.StreamChanged += OnStreamChanged;
                 Sys.Sites.Changed += MarkDirty;
             }
             if (visible) Show();
@@ -120,6 +121,7 @@ namespace KerbalNews.KSP
             {
                 Sys.Engine.ArticlesPublished -= OnPublished;
                 Sys.Engine.CommunityChanged -= MarkDirty;
+                Sys.Engine.StreamChanged -= OnStreamChanged;
                 Sys.Sites.Changed -= MarkDirty;
             }
             InputLockManager.RemoveControlLock(HoverLock);
@@ -128,6 +130,13 @@ namespace KerbalNews.KSP
         }
 
         void OnPublished(List<Article> fresh) { MarkDirty(); }
+
+        bool streamDirty;
+        float nextStreamRender;
+        /// <summary>Chat arrives a line at a time; redraw the live page at most once a second.</summary>
+        void OnStreamChanged() { if (url.StartsWith(Sites.LiveHost)) streamDirty = true; }
+        public bool Showing { get { return visible; } }
+        public string Url { get { return url; } }
         void MarkDirty() { dirty = true; }
 
         void AddButton()
@@ -190,6 +199,7 @@ namespace KerbalNews.KSP
             float width = viewportRt.rect.width;
             if (Math.Abs(width - lastWidth) > 1f) wantRender = true;
             bool typing = fields.Values.Any(f => f != null && f.isFocused) || chromeFields.Any(f => f != null && f.isFocused);
+            if (streamDirty && Time.realtimeSinceStartup > nextStreamRender) { streamDirty = false; dirty = true; nextStreamRender = Time.realtimeSinceStartup + 1f; }
             // Live pages refresh when news arrives; never while the player is typing into the page.
             if (dirty && !typing) { dirty = false; wantRender = true; }
             if (wantRender && width > 10) { wantRender = false; Render(true); }
@@ -868,6 +878,13 @@ namespace KerbalNews.KSP
                 var go = Item("img", im.X, im.Y, im.W, im.H);
                 var raw = go.AddComponent<RawImage>();
                 raw.raycastTarget = false;
+                if (im.Src == "kblive:frame")
+                {
+                    // The stream's video: a render texture the stream driver keeps drawing into.
+                    if (StreamDriver.Frame != null) raw.texture = StreamDriver.Frame;
+                    else raw.color = Color.black;
+                    continue;
+                }
                 var tex = LoadImage(im.Src);
                 if (tex != null) raw.texture = tex;
                 else raw.color = Col("#d9d2c1", Color.grey);

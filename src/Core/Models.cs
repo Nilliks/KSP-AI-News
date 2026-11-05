@@ -20,6 +20,7 @@ namespace KerbalNews
         public const string ContractFailed = "contractFailed";
         public const string ContractAccepted = "contractAccepted";
         public const string PressRelease = "pressRelease";
+        public const string Livestream = "livestream";
     }
 
     /// <summary>One thing that happened in the save, captured the moment it happened.</summary>
@@ -639,6 +640,8 @@ namespace KerbalNews
         public List<ForumThread> Forum = new List<ForumThread>();
         public List<PressRelease> Releases = new List<PressRelease>();
         public List<GalleryShot> Gallery = new List<GalleryShot>();
+        /// <summary>Finished livestreams: highlights for the archive and the press.</summary>
+        public List<StreamArchive> Streams = new List<StreamArchive>();
         public List<CommunityJob> CommunityJobs = new List<CommunityJob>();
         /// <summary>The handle the player last used to post anonymously.</summary>
         public string AnonHandle = "";
@@ -732,6 +735,8 @@ namespace KerbalNews
             foreach (var r in Releases) r.Save(pr.AddNode("RELEASE"));
             var ga = n.AddNode("GALLERY");
             foreach (var g in Gallery) g.Save(ga.AddNode("SHOT"));
+            var lv = n.AddNode("STREAMS");
+            foreach (var a in Streams) a.Save(lv.AddNode("STREAM"));
             var jo = n.AddNode("COMMUNITYJOBS");
             foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
         }
@@ -799,6 +804,8 @@ namespace KerbalNews
             if (pr != null) foreach (var rn in pr.GetNodes("RELEASE")) s.Releases.Add(PressRelease.Load(rn));
             var ga = n.GetNode("GALLERY");
             if (ga != null) foreach (var gn in ga.GetNodes("SHOT")) s.Gallery.Add(GalleryShot.Load(gn));
+            var lv = n.GetNode("STREAMS");
+            if (lv != null) foreach (var an in lv.GetNodes("STREAM")) s.Streams.Add(StreamArchive.Load(an));
             var jo = n.GetNode("COMMUNITYJOBS");
             if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
             return s;

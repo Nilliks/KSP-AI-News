@@ -108,6 +108,46 @@ namespace KerbalNews
         }
 
         /// <summary>Template replies to the player's post when no AI is available.</summary>
+        static readonly string[] StreamHandles = { "jebfan_42", "munwatcher", "orbit_or_bust", "taxpayer_ted", "dr_linmy", "kiddo_kerman", "snackhatch", "debriscounter", "truth_orbiter", "first_timer", "rocket_bob", "valfan" };
+
+        /// <summary>Livestream chat without AI: reactions to the telemetry, moments and anything the player wrote.</summary>
+        public static List<ChatMessage> StreamChat(NewsEngine eng, StreamSession st, List<string> moments, List<ChatMessage> said)
+        {
+            var rng = new Random(StableHash(st.VesselId + st.Batches));
+            var list = new List<ChatMessage>();
+            Func<string> who = () => StreamHandles[rng.Next(StreamHandles.Length)];
+            var t = st.Last;
+            foreach (var m in moments)
+            {
+                string ml = m.ToLowerInvariant();
+                if (ml.Contains("explo") || ml.Contains("destroyed") || ml.Contains("lost"))
+                    list.AddRange(new[] { "NO NO NO", "was that supposed to happen??", "oh no", "f in the chat", "rapid unscheduled disassembly", "is the crew ok?" }.OrderBy(x => rng.Next()).Take(4).Select(x => new ChatMessage { Author = who(), Text = x }));
+                else if (ml.Contains("stage") || ml.Contains("separat"))
+                    list.AddRange(new[] { "clean separation!", "staging looked good", "bye bye booster", "there goes the first stage", "nominal!!" }.OrderBy(x => rng.Next()).Take(3).Select(x => new ChatMessage { Author = who(), Text = x }));
+                else if (ml.Contains("orbit"))
+                    list.AddRange(new[] { "WE'RE IN ORBIT", "orbit confirmed!!", "gg", "beautiful" }.OrderBy(x => rng.Next()).Take(3).Select(x => new ChatMessage { Author = who(), Text = x }));
+                else if (ml.Contains("liftoff") || ml.Contains("launch"))
+                    list.AddRange(new[] { "LIFTOFF", "go go go", "here we go!", "goosebumps", "look at that plume" }.OrderBy(x => rng.Next()).Take(3).Select(x => new ChatMessage { Author = who(), Text = x }));
+                else
+                    list.Add(new ChatMessage { Author = who(), Text = "did everyone see that? " + m });
+            }
+            foreach (var m in said)
+                list.Add(new ChatMessage { Author = who(), Text = m.Agency ? Pick(rng, "the official account is here!", "hi " + eng.AgencyName + "! how's the crew?", "can you share the delta-v?", "thanks for streaming this") : "@" + m.Author + " " + Pick(rng, "true", "lol", "source?", "agreed", "you sound like you work there") });
+            if (t != null)
+            {
+                string alt = TelemetrySample.Km(t.Altitude);
+                var idle = new List<string> { "altitude " + alt + " already", t.Speed.ToString("N0") + " m/s, wow", "how much fuel is left?", "first time watching one of these live", "hi from Kerbin City", "the music on this stream is great", "where is it going?", "taxes at work", "go " + st.VesselName + "!" };
+                if (t.FuelPct >= 0 && t.FuelPct < 15) idle.Add("fuel is getting low...");
+                if (t.Situation == "ORBITING") idle.Add("so peaceful up there");
+                foreach (var line in idle.OrderBy(x => rng.Next()))
+                {
+                    if (list.Count >= 8) break;
+                    list.Add(new ChatMessage { Author = who(), Text = line });
+                }
+            }
+            return list.Take(18).ToList();
+        }
+
         public static List<Comment> CommunityReplies(NewsEngine eng, CommunityJob job)
         {
             var rng = new Random(StableHash(job.Target + job.CommentId + job.UT.ToString("R", Inv)));

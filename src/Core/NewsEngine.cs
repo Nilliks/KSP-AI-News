@@ -80,6 +80,8 @@ namespace KerbalNews
         /// <summary>Record an event. Returns the story it joined.</summary>
         public Story Ingest(NewsEvent e)
         {
+            if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream)
+                StreamMoment(StreamMomentText(e), lastRealTime);
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;
             // A silent vessel only makes news through what anyone can see from the ground.
             if (State.IsSilent(e.VesselId) && !VisibleFromGround(e)) return null;

@@ -124,7 +124,7 @@ namespace KerbalNews.Web
                     State.SilentByDefault = arg == "silent";
                     break;
                 default:
-                    var cr = HandleCommunity(verb, arg, form) ?? HandlePress(verb, arg, form);
+                    var cr = HandleCommunity(verb, arg, form) ?? HandlePress(verb, arg, form) ?? HandleLive(verb, arg, form);
                     if (cr != null) return cr;
                     r.Refresh = false;
                     break;

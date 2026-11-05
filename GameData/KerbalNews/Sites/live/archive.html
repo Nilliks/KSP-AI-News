@@ -1,0 +1,12 @@
+<html><body>
+{{> netbar}}
+{{#archive}}
+<div class="top"><span class="logo">live<b>.kb</b></span><span class="title">Replay: {{vessel}}</span><span class="spacer"></span><span class="viewers">peak {{peak}} viewers</span></div>
+<div class="wrap">
+  <p><a href="live.kb">&larr; All streams</a></p>
+  <p class="muted">{{date}} &middot; {{length}} &middot; max altitude {{maxAlt}}</p>
+  {{#moments.0}}<div class="moments"><h4>What happened</h4>{{#moments}}<p>{{.}}</p>{{/moments}}</div>{{/moments.0}}
+  <div class="chat"><div class="chead">Chat highlights</div><div class="lines">{{#chat}}<p class="line"><span class="who" style="color: {{color}}">{{author}}</span>{{#agency}} <span class="badge">OFFICIAL</span>{{/agency}}: {{text}}</p>{{/chat}}</div></div>
+</div>
+{{/archive}}
+</body></html>

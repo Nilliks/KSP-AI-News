@@ -37,7 +37,7 @@ namespace UnityEngine
     public class WaitForEndOfFrame : YieldInstruction { }
     public static class ScreenCapture { public static void CaptureScreenshot(string file) { } public static Texture2D CaptureScreenshotAsTexture() { return null; } }
     public enum KeyCode { F8, F9 }
-    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
+    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
     public class Transform : Component { public Vector3 position; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
@@ -210,6 +210,7 @@ public static class GameEvents
     public static EventData<FromToAction<Part, Part>> onPartCouple;
     public static EventData<Vessel> onVesselWillDestroy;
     public static EventData<Part> onPartDie;
+    public static EventData<int> onStageActivate;
     public static EventData<ProtoVessel, bool> onVesselRecovered;
     public static EventData<ProtoVessel, KSP.UI.Screens.MissionRecoveryDialog, float> onVesselRecoveryProcessing;
     public static EventData<ProtoVessel> onVesselTerminated;
@@ -263,7 +264,10 @@ public class Vessel : UnityEngine.MonoBehaviour
     public List<Part> parts;
     public Guid id;
     public uint persistentId;
-    public double altitude, horizontalSrfSpeed;
+    public double altitude, horizontalSrfSpeed, srfSpeed, obt_speed, geeForce;
+    public int currentStage;
+    public bool loaded;
+    public Orbit orbit;
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
     public float GetTotalMass() { return 0; }
@@ -276,8 +280,12 @@ public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { }
 public class ModuleLiftingSurface : PartModule { }
 public class AvailablePart { public string title; }
+public class Orbit { public double ApA, PeA; }
+public class PartResource { public string resourceName; public double amount, maxAmount; }
+public class PartResourceList : IEnumerable<PartResource> { public IEnumerator<PartResource> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
 public class Part : UnityEngine.MonoBehaviour
 {
+    public PartResourceList Resources;
     public Vessel vessel; public int inverseStage; public int CrewCapacity; public AvailablePart partInfo; public AttachModes attachMode;
     public T FindModuleImplementing<T>() where T : class { return null; }
 }

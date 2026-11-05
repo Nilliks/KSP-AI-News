@@ -218,7 +218,7 @@ namespace KerbalNews.KSP
         double Jitter(float amount) { return (rng.NextDouble() * 2 - 1) * amount; }
 
         /// <summary>The middle of the craft and its size, from its parts.</summary>
-        static void Measure(Vessel v, out Vector3d center, out float size)
+        internal static void Measure(Vessel v, out Vector3d center, out float size)
         {
             center = v.GetWorldPos3D();
             size = 10;
@@ -232,7 +232,7 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>True when no hill stands between the photographer and the subject.</summary>
-        static bool ClearView(CelestialBody body, Vector3d from, Vector3d to)
+        internal static bool ClearView(CelestialBody body, Vector3d from, Vector3d to)
         {
             for (int i = 1; i < 12; i++)
             {
@@ -262,13 +262,32 @@ namespace KerbalNews.KSP
         /// <summary>Renders the game's cameras from another spot into a texture, then puts every camera back.</summary>
         static Texture2D RenderView(Vector3d pos, Vector3d dir, Vector3 up, float vfov)
         {
-            var cams = Camera.allCameras.Where(c => c != null && CameraNames.Contains(c.name)).OrderBy(c => c.depth).ToList();
-            if (cams.Count == 0) return null;
             var rt = new RenderTexture(W, H, 24);
-            var saved = cams.Select(c => new { c, p = c.transform.position, r = c.transform.rotation, f = c.fieldOfView, t = c.targetTexture }).ToList();
-            var rot = Quaternion.LookRotation((Vector3)dir, up);
             Texture2D tex = null;
             var prev = RenderTexture.active;
+            try
+            {
+                if (!RenderInto(rt, pos, Quaternion.LookRotation((Vector3)dir, up), vfov)) return null;
+                RenderTexture.active = rt;
+                tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+                tex.Apply();
+            }
+            finally
+            {
+                RenderTexture.active = prev;
+                rt.Release();
+                Destroy(rt);
+            }
+            return tex;
+        }
+
+        /// <summary>Draws the scene from another spot into a render texture, then puts every game camera back. False if no camera was found.</summary>
+        public static bool RenderInto(RenderTexture rt, Vector3d pos, Quaternion rot, float vfov)
+        {
+            var cams = Camera.allCameras.Where(c => c != null && CameraNames.Contains(c.name)).OrderBy(c => c.depth).ToList();
+            if (cams.Count == 0) return false;
+            var saved = cams.Select(c => new { c, p = c.transform.position, r = c.transform.rotation, f = c.fieldOfView, t = c.targetTexture }).ToList();
             try
             {
                 foreach (var c in cams)
@@ -280,19 +299,12 @@ namespace KerbalNews.KSP
                     c.targetTexture = rt;
                     c.Render();
                 }
-                RenderTexture.active = rt;
-                tex = new Texture2D(W, H, TextureFormat.RGB24, false);
-                tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
-                tex.Apply();
             }
             finally
             {
                 foreach (var s in saved) { s.c.transform.position = s.p; s.c.transform.rotation = s.r; s.c.fieldOfView = s.f; s.c.targetTexture = s.t; }
-                RenderTexture.active = prev;
-                rt.Release();
-                Destroy(rt);
             }
-            return tex;
+            return true;
         }
 
         /// <summary>

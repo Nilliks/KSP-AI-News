@@ -114,6 +114,7 @@ namespace KerbalNews.Web
                 if (host == ForumHost) return Snackboard(url, path, query);
                 if (host == PressHost) return PressRoom(url);
                 if (host == GalleryHost) return GalleryPage(url, path);
+                if (host == LiveHost) return LivePage(url, path);
                 if (host == Home)
                 {
                     if (path == "search") return Page(url, "portal", "search.html", SearchModel(query.ContainsKey("q") ? query["q"] : ""), "Search", false);

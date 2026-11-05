@@ -26,6 +26,7 @@ namespace KerbalNews
             { EventTypes.ContractDone, 18 },
             { EventTypes.ContractFailed, 22 },
             { EventTypes.ContractAccepted, 6 },
+            { EventTypes.Livestream, 8 },
         };
 
         /// <summary>How far and how exotic a destination is, as felt by the public.</summary>
