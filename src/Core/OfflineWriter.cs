@@ -56,7 +56,8 @@ namespace KerbalNews
 
         public static NewsEvent LeadEvent(Story s)
         {
-            return s.Events.OrderByDescending(e => e.Type == EventTypes.CrewKilled ? 1000 : e.Type == EventTypes.Failure ? 500 : e.Significance).FirstOrDefault();
+            return s.Events.OrderByDescending(e => e.Type == EventTypes.CrewKilled ? 1000 : e.Type == EventTypes.Failure ? 500
+                : e.Type == EventTypes.Milestone ? e.Significance - 10 : e.Significance).FirstOrDefault();
         }
 
         static string Pick(Random r, params string[] options) { return options[r.Next(options.Length)]; }
@@ -65,34 +66,51 @@ namespace KerbalNews
         {
             if (s.Kind == "filler") return Pick(r, "A quiet week at " + agency + ": what comes next?", "Inside " + agency + " between missions", "Opinion: where should " + agency + " go from here?");
             if (e == null) return agency + " news update";
-            bool tabloid = outlet == "inquirer";
+            string body = e.Body;
+            string crew = string.Join(", ", e.Crew.ToArray());
+            string what = WhatHappened(e, agency, vessel);
+            switch (outlet)
+            {
+                case "inquirer":
+                    if (e.Type == EventTypes.CrewKilled) return "TRAGEDY: " + crew + " lost aboard " + vessel;
+                    if (e.Type == EventTypes.Failure) return Pick(r, "KABOOM! " + vessel + " goes up in smoke", "Another " + agency + " rocket, another fireball");
+                    return Pick(r, "WOW! ", "THEY DID IT! ", "") + what.ToUpperInvariant().Substring(0, 1) + what.Substring(1) + "!";
+                case "observer":
+                    if (s.Craft != null && s.Craft.Parts > 0) return what + ": a " + Math.Round(s.Craft.MassTons) + "-tonne, " + s.Craft.Stages + "-stage design under the microscope";
+                    return "Analysis: " + what;
+                case "kscwatch":
+                    if (e.Type == EventTypes.CrewKilled || e.Type == EventTypes.Failure) return "Questions " + agency + " must answer after the " + vessel + " loss";
+                    return "Our take: " + what + ". Was it worth it?";
+                case "munmonthly":
+                    return e.Crewed && crew != "" ? "The kerbals behind the moment: " + crew : "Why " + what.ToLowerInvariant() + " matters";
+                case "science":
+                    return "Researchers weigh in: what " + vessel + " means for science" + (body != "" && body != "Kerbin" ? " at " + body : "");
+                case "council":
+                    if (e.Type == EventTypes.CrewKilled) return "Statement from the Planetary Council on the loss of " + crew;
+                    return "Planetary Council congratulates " + agency;
+                default:
+                    if (e.Type == EventTypes.CrewKilled) return agency + " mourns " + crew + " after " + vessel + " disaster";
+                    return what;
+            }
+        }
+
+        static string WhatHappened(NewsEvent e, string agency, string vessel)
+        {
             string body = e.Body;
             switch (e.Type)
             {
-                case EventTypes.CrewKilled:
-                    return tabloid ? "TRAGEDY: " + string.Join(", ", e.Crew.ToArray()) + " lost aboard " + vessel : agency + " mourns " + string.Join(", ", e.Crew.ToArray()) + " after " + vessel + " disaster";
-                case EventTypes.Failure:
-                    return tabloid ? Pick(r, "KABOOM! " + vessel + " goes up in smoke", "Another " + agency + " rocket, another fireball") : vessel + " lost in failure" + (body != "" && body != "Kerbin" ? " near " + body : "");
-                case EventTypes.Launch:
-                    return tabloid ? vessel + " blasts off!" : agency + " launches " + vessel;
-                case EventTypes.Orbit:
-                    return vessel + " reaches orbit around " + body;
-                case EventTypes.Soi:
-                    return vessel + " arrives at " + body;
-                case EventTypes.Landing:
-                    return (e.Crewed ? "Crew lands on " : vessel + " touches down on ") + body;
-                case EventTypes.Splashdown:
-                    return vessel + " splashes down" + (e.Crewed ? ", crew safe" : "");
-                case EventTypes.Docking:
-                    return vessel + " completes docking in orbit";
-                case EventTypes.Milestone:
-                    return agency + " achieves a first: " + e.Detail;
-                case EventTypes.ContractDone:
-                    return agency + " completes contract: " + e.Detail;
-                case EventTypes.ContractFailed:
-                    return agency + " misses contract deadline: " + e.Detail;
-                default:
-                    return agency + " update: " + vessel;
+                case EventTypes.CrewKilled: return string.Join(", ", e.Crew.ToArray()) + " killed aboard " + vessel;
+                case EventTypes.Failure: return vessel + " lost" + (body != "" && body != "Kerbin" ? " near " + body : "");
+                case EventTypes.Launch: return agency + " launches " + vessel;
+                case EventTypes.Orbit: return vessel + " reaches orbit around " + body;
+                case EventTypes.Soi: return vessel + " arrives at " + body;
+                case EventTypes.Landing: return (e.Crewed ? "Crew lands on " : vessel + " touches down on ") + body;
+                case EventTypes.Splashdown: return vessel + " splashes down" + (e.Crewed ? ", crew safe" : "");
+                case EventTypes.Docking: return vessel + " docks in orbit";
+                case EventTypes.Milestone: return agency + " celebrates its " + e.Detail + (e.VesselName != "" ? " with " + e.VesselName : "");
+                case EventTypes.ContractDone: return agency + " completes contract: " + e.Detail;
+                case EventTypes.ContractFailed: return agency + " misses contract deadline: " + e.Detail;
+                default: return agency + " update: " + vessel;
             }
         }
 

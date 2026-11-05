@@ -616,4 +616,22 @@ public static class CoreTests
         eng.Tick(200, 1, true);
         Assert(s.Articles.Count > 0 && s.Articles.All(a => a.PublishedUT <= 200), "every outlet published right away");
     }
+
+    public static void TestFirstLaunchToOrbitIsBigButNotHistoric()
+    {
+        var s = new NewsState();
+        var eng = Engine(s, new FakeTransport(), new GlobalSettings { OfflineMode = true });
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", Craft(), 10);
+        eng.Ingest(Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Ingest(new NewsEvent { Type = EventTypes.Milestone, UT = 11, VesselId = "v1", VesselName = "Test Rocket v1", Body = "Kerbin", Detail = "first launch", Crew = { "Jebediah Kerman" } });
+        eng.Ingest(new NewsEvent { Type = EventTypes.Milestone, UT = 60, VesselId = "v1", VesselName = "Test Rocket v1", Body = "Kerbin", Detail = "first flight to reach space", Crew = { "Jebediah Kerman" } });
+        var story = s.Stories[0];
+        var plan = CoveragePlan.For(story);
+        Assert(plan.Tier == "story" || plan.Tier == "major", "first suborbital crewed flight is a solid story, got " + plan.Tier + " (" + story.Significance + ")");
+        Assert(!plan.Outlets.Any(o => o.OutletId == "council" || o.OutletId == "science"), "no official statement or science review for a hop");
+        eng.Tick(Day * 3, 1, true);
+        var heads = s.Articles.Select(a => a.Headline).ToList();
+        Eq(heads.Count, heads.Distinct().Count(), "offline headlines differ by outlet: " + string.Join(" | ", heads.ToArray()));
+    }
 }

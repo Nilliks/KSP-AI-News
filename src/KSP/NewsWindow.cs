@@ -294,6 +294,14 @@ namespace KerbalNews.KSP
             if (all.Any(a => !a.Read) && GUILayout.Button("Mark all read", chip)) Engine.MarkAllRead(Now);
             GUILayout.EndHorizontal();
             DrawMood(st.Mood);
+            if (!Engine.Settings.CanCallAi)
+            {
+                GUILayout.BeginHorizontal(boxed);
+                GUILayout.Label("<b>AI is off.</b> Articles are written from simple templates. " +
+                    (Engine.Settings.OfflineMode ? "Untick Offline mode in Settings to use " : "Enter an API key in Settings for ") + Engine.Settings.Preset.Name + ".", small);
+                if (GUILayout.Button("Open Settings", chip, GUILayout.Width(140))) { page = Page.Settings; scroll = Vector2.zero; }
+                GUILayout.EndHorizontal();
+            }
 
             scroll = GUILayout.BeginScrollView(scroll);
             if (all.Count == 0)
@@ -612,7 +620,13 @@ namespace KerbalNews.KSP
             string newKey = showKey ? GUILayout.TextField(key, field) : GUILayout.PasswordField(key, '*', field);
             showKey = GUILayout.Toggle(showKey, "show", chip, GUILayout.Width(70));
             GUILayout.EndHorizontal();
-            if (newKey != key) g.Keys[g.ProviderId] = newKey.Trim();
+            if (newKey != key)
+            {
+                g.Keys[g.ProviderId] = newKey.Trim();
+                // Pasting a key means "use AI": don't leave the player stuck on templates.
+                if (newKey.Trim() != "") g.OfflineMode = false;
+                NewsSystem.Instance.SaveSettings();
+            }
             if (!preset.NeedsKey) GUILayout.Label("No key needed for this provider.", small);
             else if (preset.KeyHint != "") GUILayout.Label("Looks like " + preset.KeyHint, small);
 

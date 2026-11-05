@@ -46,6 +46,18 @@ namespace KerbalNews
             }
         }
 
+        /// <summary>Not every "first" is equal: a first launch is a local story, a first orbit is history.</summary>
+        public static double MilestoneBase(string detail)
+        {
+            var d = (detail ?? "").ToLowerInvariant();
+            if (d.StartsWith("first launch")) return 16;
+            if (d.Contains("reach space")) return 34;
+            if (d.Contains("orbit of kerbin")) return 50;
+            if (d.Contains("spacewalk") || d.Contains("rendezvous") || d.Contains("docking")) return 38;
+            if (d.Contains("return from orbit of kerbin")) return 30;
+            return 50;
+        }
+
         public static string NoveltyKey(NewsEvent e)
         {
             switch (e.Type)
@@ -68,6 +80,7 @@ namespace KerbalNews
         {
             double b;
             if (!BaseByType.TryGetValue(e.Type ?? "", out b)) b = 15;
+            if (e.Type == EventTypes.Milestone) b = MilestoneBase(e.Detail);
             double score = b;
             bool danger = e.Type == EventTypes.Failure || e.Type == EventTypes.CrewKilled || e.Type == EventTypes.ContractFailed;
             if (e.Crewed && !danger) score += 12;
@@ -89,7 +102,7 @@ namespace KerbalNews
             if (s.Kind == "filler") return Math.Max(10, s.Significance);
             if (s.Events.Count == 0) return 0;
             var scores = s.Events.Select(e => e.Significance).OrderByDescending(x => x).ToList();
-            double total = scores[0] + 0.15 * scores.Skip(1).Sum();
+            double total = scores[0] + Math.Min(15, 0.15 * scores.Skip(1).Sum());
             if (s.HasEvent(EventTypes.CrewKilled)) total = Math.Max(total, 90);
             return Math.Max(0, Math.Min(100, total));
         }
@@ -143,7 +156,7 @@ namespace KerbalNews
                 if (sig < min) continue;
                 if (o.OnlyFor.Count > 0 && !s.Events.Any(e => o.OnlyFor.Contains(e.Type))) continue;
                 // Science only weighs in on missions beyond Kerbin or true firsts.
-                if (o.Id == "science" && !s.Events.Any(e => e.Type == EventTypes.Milestone || (e.Body != "" && e.Body != "Kerbin") || e.Type == EventTypes.CrewKilled)) continue;
+                if (o.Id == "science" && !s.Events.Any(e => (e.Body != "" && e.Body != "Kerbin" && e.Body != "Sun" && e.Body != "Kerbol") || e.Type == EventTypes.CrewKilled)) continue;
                 int w = words;
                 if (o.Id == "inquirer") w = Math.Min(words, 200);
                 if (o.Id == "council") w = Math.Min(words, 180);
