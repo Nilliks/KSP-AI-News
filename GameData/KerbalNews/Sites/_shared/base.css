@@ -2,7 +2,7 @@
 body { font-family: sans; font-size: 16px; color: #1d1d1b; background: #f4f1ea; line-height: 1.35; }
 a { color: #1a4f8b; }
 a:hover { color: #a3201c; }
-.netbar { display: flex; background: #111418; padding: 6px 14px; gap: 14px; align-items: center; }
+.netbar { display: flex; flex-wrap: wrap; background: #111418; padding: 6px 14px; gap: 4px 14px; align-items: center; }
 .netbar a { color: #c9ced6; font-size: 13px; }
 .netbar a:hover { color: #ffffff; }
 .netbar .brand { color: #ffd27f; font-weight: bold; }

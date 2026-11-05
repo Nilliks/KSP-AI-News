@@ -83,7 +83,7 @@ namespace KerbalNews
             var outList = new List<Comment>();
             for (int i = 0; i < job.Count; i++)
             {
-                var c = Outlets.Commenters[(StableHash(job.Target) + i * 3) % Outlets.Commenters.Count];
+                var c = Outlets.Commenters[((StableHash(job.Target) & 0x7fffffff) + i * 3) % Outlets.Commenters.Count];
                 string text;
                 if (job.Mode == "ama")
                     text = Pick(rng, "What is the next big mission?", "How do you decide who flies?", "What does a launch actually cost?", "Is it true the cafeteria runs out of snacks before every launch?",

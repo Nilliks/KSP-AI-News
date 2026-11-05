@@ -191,6 +191,8 @@ namespace KerbalNews.Web
             { "mdash", "—" }, { "ndash", "–" }, { "hellip", "…" }, { "middot", "·" }, { "bull", "•" },
             { "copy", "©" }, { "rsquo", "’" }, { "lsquo", "‘" }, { "rdquo", "”" }, { "ldquo", "“" },
             { "raquo", "»" }, { "laquo", "«" }, { "times", "×" }, { "deg", "°" },
+            { "hearts", "♥" }, { "rarr", "→" }, { "larr", "←" }, { "uarr", "↑" }, { "darr", "↓" }, { "trade", "™" }, { "reg", "®" },
+            { "check", "✓" }, { "star", "☆" }, { "starf", "★" }, { "para", "¶" }, { "sect", "§" }, { "plusmn", "±" }, { "minus", "−" },
         };
 
         public static string Decode(string s)

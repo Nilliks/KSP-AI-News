@@ -428,7 +428,7 @@ namespace KerbalNews.Web
 
         // ------------------------------------------------------------ flex
 
-        class Item { public Node N; public float Basis, Grow, Ml, Mr, Mt, Mb, W, H, Max = Unbounded; public bool Fixed; public BoxRec Rec; public int Start; }
+        class Item { public Node N; public float Basis, Grow, Ml, Mr, Mt, Mb, W, H, Max = Unbounded, Min; public bool Fixed; public BoxRec Rec; public int Start, End; }
 
         float Gap(Node n, string which, float basis)
         {
@@ -497,6 +497,7 @@ namespace KerbalNews.Web
                 else it.Basis = it.Grow > 0 ? Hpad(c) : MaxContent(c, w);
                 if (c.Style.Has("max-width")) it.Max = c.Style.Length("max-width", Unbounded, w) + Hpad(c);
                 it.Basis = Math.Min(it.Basis, it.Max);
+                it.Min = it.Fixed ? it.Basis : Math.Min(it.Basis, MinContent(c));
                 items.Add(it);
             }
             if (items.Count == 0) return 0;
@@ -545,7 +546,24 @@ namespace KerbalNews.Web
                     var shrinkers = ln.Where(i => !i.Fixed).ToList();
                     float total = shrinkers.Sum(i => i.W);
                     if (total > 0)
-                        foreach (var it in shrinkers) it.W = Math.Max(Math.Min(it.W, 24), it.W + free * it.W / total);
+                    {
+                        // Shrink in proportion to size, but not below the longest word; then share what's left.
+                        float need = -free;
+                        for (int pass = 0; pass < 3 && need > 0.5f; pass++)
+                        {
+                            var able = shrinkers.Where(i => i.W > i.Min + 0.5f).ToList();
+                            float tot = able.Sum(i => i.W);
+                            if (tot <= 0) break;
+                            float took = 0;
+                            foreach (var it in able)
+                            {
+                                float cut = Math.Min(it.W - it.Min, need * it.W / tot);
+                                it.W -= cut;
+                                took += cut;
+                            }
+                            need -= took;
+                        }
+                    }
                     free = w - gaps - ln.Sum(i => i.W + i.Ml + i.Mr);
                 }
 
@@ -564,6 +582,7 @@ namespace KerbalNews.Web
                     it.Start = Mark();
                     float h;
                     it.Rec = Box(it.N, px + it.Ml, cur + it.Mt, it.W, link, out h);
+                    it.End = Mark();
                     it.H = h;
                     lineH = Math.Max(lineH, h + it.Mt + it.Mb);
                     px += it.Ml + it.W + it.Mr + between;
@@ -574,8 +593,8 @@ namespace KerbalNews.Web
                     var self = it.N.Style.Get("align-self", align);
                     float room = lineH - it.Mt - it.Mb - it.H;
                     if (room <= 0.01f) continue;
-                    if (self == "center") ShiftFrom(it.Start, room / 2);
-                    else if (self == "flex-end" || self == "end") ShiftFrom(it.Start, room);
+                    if (self == "center") Shift(it.Start, it.End, room / 2);
+                    else if (self == "flex-end" || self == "end") Shift(it.Start, it.End, room);
                     else if (self == "stretch" && !it.N.Style.Has("height")) Stretch(it.Rec, room);
                 }
                 cur += lineH + (li < lines.Count - 1 ? gapY : 0);
@@ -593,14 +612,16 @@ namespace KerbalNews.Web
             return marks.Count - 1;
         }
 
-        void ShiftFrom(int mark, float dy)
+        /// <summary>Moves everything one item drew (between two marks) down by dy.</summary>
+        void Shift(int from, int to, float dy)
         {
-            var m = marks[mark];
-            for (int i = m.R; i < page.Rects.Count; i++) page.Rects[i].Y += dy;
-            for (int i = m.T; i < page.Texts.Count; i++) page.Texts[i].Y += dy;
-            for (int i = m.I; i < page.Images.Count; i++) page.Images[i].Y += dy;
-            for (int i = m.N; i < page.Inputs.Count; i++) page.Inputs[i].Y += dy;
-            for (int i = m.G; i < page.Regions.Count; i++) page.Regions[i].Y += dy;
+            var a = marks[from];
+            var b = marks[to];
+            for (int i = a.R; i < b.R; i++) page.Rects[i].Y += dy;
+            for (int i = a.T; i < b.T; i++) page.Texts[i].Y += dy;
+            for (int i = a.I; i < b.I; i++) page.Images[i].Y += dy;
+            for (int i = a.N; i < b.N; i++) page.Inputs[i].Y += dy;
+            for (int i = a.G; i < b.G; i++) page.Regions[i].Y += dy;
         }
 
         static void Stretch(BoxRec r, float dy)
@@ -613,6 +634,22 @@ namespace KerbalNews.Web
         }
 
         // ------------------------------------------------------------ intrinsic sizes
+
+        /// <summary>The narrowest an element can get: its longest word, plus padding.</summary>
+        float MinContent(Node n)
+        {
+            if (Hidden(n)) return 0;
+            if (n.Tag == "input" || n.Tag == "textarea" || n.Tag == "img") return Math.Min(MaxContent(n, Unbounded), 60);
+            string longest = n.InnerText().Split(new[] { ' ', '\n', '\t', '\r' }, StringSplitOptions.RemoveEmptyEntries).OrderByDescending(x => x.Length).FirstOrDefault() ?? "";
+            if (longest == "") return Hpad(n);
+            var t = NewTextWithLh(n.Style);
+            var d = n.Descendants().FirstOrDefault(x => x.IsText && x.Text.Contains(longest));
+            var st = d != null && d.Parent != null ? d.Parent.Style : n.Style;
+            t.Runs.Add(MakeRun(st, longest, -1));
+            float mw, mh;
+            measure(t, Unbounded, out mw, out mh);
+            return Math.Min(mw + 1, Unbounded) + Hpad(n);
+        }
 
         /// <summary>The border-box width an element wants with no wrapping, capped at the available width.</summary>
         float MaxContent(Node n, float avail)

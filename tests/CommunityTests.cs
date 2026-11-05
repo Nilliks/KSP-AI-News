@@ -316,3 +316,14 @@ public static class CommunityTests
 
     static Node Lay2(PageResult p) { var r = Html.Parse(p.Html); Css.Apply(r, Css.Parse(p.Css)); return r; }
 }
+
+public static class DemoTests
+{
+    public static void TestDemoNewsBuilds()
+    {
+        double now;
+        var s = DemoNews.Build(new SimpleClock(21600), out now);
+        if (s.Articles.Count < 8 || s.Forum.Count < 2 || !s.Articles.Any(a => a.Comments.Any(c => c.Player && c.Agency))) throw new Exception("demo news incomplete");
+        if (s.Forum.First(t => t.Kind == "ama").Comments.Count != 4) throw new Exception("AMA questions");
+    }
+}

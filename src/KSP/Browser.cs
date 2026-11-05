@@ -58,6 +58,35 @@ namespace KerbalNews.KSP
 
         // ------------------------------------------------------------------ lifecycle
 
+        public static Browser Instance { get; private set; }
+
+        /// <summary>Opens the window on a page (used by the self-test).</summary>
+        public void Open(string to)
+        {
+            Show();
+            if (canvasGo == null) return;
+            Navigate(to);
+        }
+
+        /// <summary>Scrolls to a fraction of the page, 0 = top, 1 = bottom (self-test).</summary>
+        public void ScrollTo(float f)
+        {
+            if (layout == null) return;
+            contentRt.anchoredPosition = new Vector2(0, Mathf.Max(0, layout.Height - viewportRt.rect.height) * Mathf.Clamp(f, 0, 1));
+        }
+
+        public PageLayout CurrentLayout { get { return layout; } }
+        public PageResult CurrentPage { get { return page; } }
+
+        /// <summary>Runs a page action the way a click would (self-test).</summary>
+        public void Act(string action, Dictionary<string, string> typed)
+        {
+            if (typed != null) foreach (var kv in typed) { TMP_InputField f; if (fields.TryGetValue(kv.Key, out f)) f.text = kv.Value; }
+            RunAction(action);
+        }
+
+        void Awake() { Instance = this; }
+
         void Start()
         {
             GameEvents.onGUIApplicationLauncherReady.Add(AddButton);
@@ -74,6 +103,7 @@ namespace KerbalNews.KSP
 
         void OnDestroy()
         {
+            if (Instance == this) Instance = null;
             GameEvents.onGUIApplicationLauncherReady.Remove(AddButton);
             GameEvents.onGUIApplicationLauncherUnreadifying.Remove(RemoveButton);
             RemoveButton(GameScenes.MAINMENU);
@@ -174,7 +204,7 @@ namespace KerbalNews.KSP
             if (e.CommunityStatus != "" && e.State.CommunityJobs.Count > 0) s += "  ·  " + e.CommunityStatus;
             if (e.LastError != "") s += "  ·  <color=#ff8a80>" + TextItem.Escape(e.LastError.Length > 100 ? e.LastError.Substring(0, 100) + "..." : e.LastError) + "</color>";
             statusText.text = s;
-            int unread = e.UnreadCount(Planetarium.GetUniversalTime());
+            int unread = e.UnreadCount(Sites.Now());
             titleText.text = (unread > 0 ? "(" + unread + ") " : "") + TextItem.Escape(page != null ? page.Title : "Kerbal News Network");
         }
 
@@ -482,7 +512,6 @@ namespace KerbalNews.KSP
             var typed = keepForm && renderedUrl == url ? fields.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value.text) : null;
             try
             {
-                Sites.Now = () => Planetarium.GetUniversalTime();
                 page = Sites.Render(url);
                 var root = Html.Parse(page.Html);
                 Css.Apply(root, Css.Parse(page.Css));

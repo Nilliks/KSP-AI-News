@@ -29,7 +29,13 @@ namespace UnityEngine
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
     public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } }
     public class Behaviour : Component { public bool enabled; }
-    public class MonoBehaviour : Behaviour { }
+    public class MonoBehaviour : Behaviour { public Coroutine StartCoroutine(System.Collections.IEnumerator e) { return null; } }
+    public class Coroutine { }
+    public class YieldInstruction { }
+    public class WaitForSeconds : YieldInstruction { public WaitForSeconds(float s) { } }
+    public class WaitForEndOfFrame : YieldInstruction { }
+    public static class ScreenCapture { public static void CaptureScreenshot(string file) { } }
+    public static class Application { public static void Quit() { } }
     public class Transform : Component { public Vector3 position; public Vector3 up; public void SetParent(Transform p, bool worldPositionStays) { } }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
