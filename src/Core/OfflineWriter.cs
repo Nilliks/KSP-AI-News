@@ -84,6 +84,7 @@ namespace KerbalNews
                 var art = new Article { Outlet = o.OutletId, Kind = o.Kind, Offline = true, Reporter = Reporter(o.OutletId, rng) };
                 switch (o.OutletId)
                 {
+                    case "kraken": art.Headline = "LEAKED: what " + agency + "'s \"" + rel.Title + "\" REALLY means (it's worse than you think)"; break;
                     case "inquirer": art.Headline = rel.Type == "incident" ? agency + " SPEAKS OUT: \"" + rel.Title + "\"" : "What is " + agency + " up to now?"; break;
                     case "kscwatch": art.Headline = "Reading between the lines of " + agency + "'s latest statement"; break;
                     case "observer": art.Headline = "Analysis: what " + agency + "'s announcement means for the program"; break;
@@ -144,6 +145,7 @@ namespace KerbalNews
 
         static string Headline(Story s, NewsEvent e, string outlet, string agency, string vessel, Random r)
         {
+            if (s.Kind == "filler" && outlet == "kraken") return Pick(r, "Is " + agency + " hiding a BASE on the Mun? Our insider says YES", "The Kraken is REAL, and " + agency + " knows it", "Cafeteria insider: the kerbonaut FEUD nobody is talking about");
             if (s.Kind == "filler") return Pick(r, "A quiet week at " + agency + ": what comes next?", "Inside " + agency + " between missions", "Opinion: where should " + agency + " go from here?");
             if (e == null) return agency + " news update";
             string body = e.Body;
@@ -151,6 +153,10 @@ namespace KerbalNews
             string what = WhatHappened(e, agency, vessel);
             switch (outlet)
             {
+                case "kraken":
+                    if (s.Silent) return Pick(r, "SECRET ROCKET: what " + agency + " is HIDING from you", "They launched WHAT? Insiders spill on " + agency + "'s mystery craft");
+                    if (e.Type == EventTypes.Failure) return Pick(r, "Was it the KRAKEN? The " + vessel + " theory " + agency + " won't talk about", "SABOTAGE? 7 clues in the " + vessel + " disaster");
+                    return Pick(r, "You won't BELIEVE what really happened when " + what.Substring(0, 1).ToLowerInvariant() + what.Substring(1), what + "... or did it? Our insider says no");
                 case "inquirer":
                     if (e.Type == EventTypes.CrewKilled) return "TRAGEDY: " + crew + " lost aboard " + vessel;
                     if (e.Type == EventTypes.Failure) return Pick(r, "KABOOM! " + vessel + " goes up in smoke", "Another " + agency + " rocket, another fireball");

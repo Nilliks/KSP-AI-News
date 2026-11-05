@@ -41,6 +41,21 @@ namespace KerbalNews
             eng.Tick(day * 10, 3.5, true);
 
             now = day * 10;
+            // The tabloid's take on the explosion, and the community arguing over it with a link.
+            var rumor = s.Articles.Where(a => a.Outlet == "kraken").OrderByDescending(a => a.Headline.Contains("Bertha")).FirstOrDefault();
+            if (rumor != null)
+            {
+                var herald = s.Articles.FirstOrDefault(a => a.Outlet == "herald" && a.Headline.Contains("Big Bertha"));
+                if (herald != null) herald.Comments.Add(new Comment { Id = s.NewId("c"), Author = "Dr_Linmy_Kerman", Text = "Before anyone shares [[" + rumor.Id + "]]: there is no evidence of sabotage. Read the actual statement.", Likes = 64, UT = now - 100 });
+                var t = new ForumThread
+                {
+                    Id = s.NewId("t"), Board = "general", Title = "The Daily Kraken says Big Bertha was SABOTAGED. Anyone buying this?",
+                    Body = "Saw this going around: [[" + rumor.Id + "]]\n\nTheir 'insider' is a cafeteria worker. Again.", Author = "DebrisCounter", Score = 212, UT = now - 200,
+                };
+                t.Comments.Add(new Comment { Id = s.NewId("c"), Author = "TruthOrbiter", Text = "Funny how nobody at KSA will deny it.", Likes = 9, UT = now - 150 });
+                t.Comments.Add(new Comment { Id = s.NewId("c"), Author = "RetiredRocketeer_Bob", Text = "It was a structural failure at max Q. You could see the fairing go first in every video.", Likes = 88, UT = now - 120 });
+                s.Forum.Add(t);
+            }
             var art = s.Articles.OrderByDescending(a => a.Significance).First();
             eng.PlayerComment("a:" + art.Id, "Thank you all for following along. Jeb says the view is worth every snack.", true, "", "", now);
             eng.Tick(now + 1, 4, true);

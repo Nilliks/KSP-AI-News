@@ -1,0 +1,20 @@
+<html><body>
+{{> netbar}}
+<div class="mast">
+  <div class="logo"><span class="the">THE</span> <span class="name">DAILY KRAKEN</span></div>
+  <div class="tag">The news THEY don't want you to read</div>
+</div>
+<div class="ticker"><span class="live">BREAKING</span> <span class="tick">Our insiders are watching the pad 24/7. Saw something? Tell Snackboard first. Trust no press release.</span></div>
+<div class="page">
+  {{#empty}}<div class="empty"><p>Nothing to report... which is EXACTLY what they want you to think.</p></div>{{/empty}}
+  {{#top}}<div class="splash"><div class="excl">EXCLUSIVE</div><a class="hl" href="{{url}}">{{headline}}</a><p>{{subhead}}</p></div>{{/top}}
+  <div class="grid">
+    <div class="main">{{#articles}}{{> headline_item}}{{/articles}}</div>
+    <div class="side">
+      <div class="box"><h4>You won't believe...</h4>
+        <p>Number 4 will shock KSC.</p><p>Kerbonauts HATE this one trick.</p><p>Is your snack drawer being monitored?</p>
+      </div>
+      <div class="box disclaimer"><p>The Daily Kraken reports rumors, theories and things our sources swear are true. Some of it might even be.</p></div>
+    </div>
+  </div>
+</div></body></html>

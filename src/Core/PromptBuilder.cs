@@ -140,7 +140,7 @@ namespace KerbalNews
             if (story.Silent)
             {
                 if (story.Craft != null) sb.AppendLine(VisibleCraftText(story.Craft));
-                sb.AppendLine("TELEMETRY SILENT: the agency has released no telemetry, specifications or crew details for this vessel. The press knows only what was visible from the ground or reported above. Do not state its mass, part count, delta-v, crew, destination or orbital details. Outlets may note the secrecy: the tabloid and the watchdog speculate, the trade press grumbles about missing data, commenters guess.");
+                sb.AppendLine("TELEMETRY SILENT: the agency has released no telemetry, specifications or crew details for this vessel. The press knows only what was visible from the ground or reported above. Do not state its mass, part count, delta-v, crew, destination or orbital details (except a Daily Kraken leak, if one is given below). Outlets may note the secrecy: the tabloid and the watchdog speculate, the trade press grumbles about missing data, commenters guess.");
             }
             else if (story.Craft != null) sb.AppendLine(CraftText(story.Craft));
 
@@ -154,11 +154,12 @@ namespace KerbalNews
             var past = PastFailure(story, state);
             if (past != null) sb.AppendLine("Most similar past setback the press will remember: \"" + past.Headline + "\" (" + clock.FormatDate(past.PublishedUT) + ").");
 
-            var recent = state.Articles.Where(a => a.PublishedUT <= now).OrderByDescending(a => a.PublishedUT).Take(6).ToList();
+            var recent = RecentForCites(state, now, 8);
             if (recent.Count > 0)
             {
-                sb.AppendLine("Recent headlines (do not repeat them):");
-                foreach (var a in recent) sb.AppendLine("- " + Outlets.NameOf(a.Outlet) + ": " + a.Headline);
+                sb.AppendLine("Recent headlines (do not repeat them; ids in brackets):");
+                foreach (var a in recent) sb.AppendLine("- [" + a.Id + "] " + Outlets.NameOf(a.Outlet) + ": " + a.Headline);
+                sb.AppendLine("Now and then (not every time) an article may cite one of these by writing its id in double brackets, like [[" + recent[0].Id + "]], which becomes a link: a serious outlet questioning or debunking a Daily Kraken claim, the Kraken bragging about its 'scoop', the watchdog quoting the Herald. At most one citation per article. Only the Daily Kraken treats Kraken rumors as true.");
             }
 
             if (state.MemorySummary != "")
@@ -183,6 +184,13 @@ namespace KerbalNews
                 sb.AppendFormat(Inv, "- outlet \"{0}\" ({1}): kind \"{2}\", about {3} words, {4} comments.{5}\n",
                     o.OutletId, Outlets.NameOf(o.OutletId), o.Kind, o.Words, o.Comments, known);
             }
+            if (plan.Outlets.Any(o => o.OutletId == "kraken"))
+            {
+                sb.AppendLine("The Daily Kraken is sensational and mostly wrong: it starts from the facts above, then adds invented 'insider' claims, exaggerations and a conspiracy angle. Keep its invented claims recognizably dubious. Other outlets never repeat them as fact. Its comment section mixes a few believers with readers mocking it or debunking it.");
+                string leak = LeakFact(story);
+                if (leak != null)
+                    sb.AppendLine("SECRET (true, but known only to the agency and not part of the public record): " + leak + ". By luck, the Daily Kraken's 'anonymous insider' gets this one detail right, buried among false claims. Only the Kraken may state it; other outlets cannot confirm it and treat it as rumor.");
+            }
             sb.AppendFormat(Inv, "Also write {0} Kerbnet social posts reacting to this news, from a diverse mix of people, some replying to each other.\n", plan.SocialPosts);
             sb.AppendLine();
             sb.AppendLine("JSON SCHEMA");
@@ -190,7 +198,7 @@ namespace KerbalNews
             if (wantImage)
                 sb.AppendLine("Also add a top-level field \"image_prompt\": two or three sentences describing one realistic press photograph for this story, showing only what a photographer could actually see (the rocket on the pad, the launch plume, crowds, the crew waving, the recovered capsule, a press conference). No text in the picture.");
             if (plan.Tier == "story" || plan.Tier == "major" || plan.Tier == "historic")
-                sb.AppendLine("Also add a top-level field \"forum\": one thread a member of the public starts on Snackboard (the community forum) about this news: {\"board\":\"general|launches|missions|science|policy|memes\",\"title\":\"...\",\"body\":\"short post\",\"author\":\"handle\",\"score\":120,\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":30,\"reply_to\":\"\"}]} with " + (plan.Tier == "story" ? "3 to 5" : "6 to 10") + " replies; reply_to is \"\" for a top-level reply or \"r1\", \"r2\"... to answer an earlier reply in the list.");
+                sb.AppendLine("Also add a top-level field \"forum\": one thread a member of the public starts on Snackboard (the community forum) about this news: {\"board\":\"general|launches|missions|science|policy|memes\",\"title\":\"...\",\"body\":\"short post\",\"author\":\"handle\",\"score\":120,\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":30,\"reply_to\":\"\"}]} with " + (plan.Tier == "story" ? "3 to 5" : "6 to 10") + " replies. About one time in three, make the thread about another outlet's recent article instead (often a Daily Kraken rumor), citing it as [[id]] in the body, with people arguing about whether it is true. reply_to is \"\" for a top-level reply or \"r1\", \"r2\"... to answer an earlier reply in the list.");
             sb.AppendLine("Likes and reshares should scale with significance (a brief gets single or double digits; a historic first gets thousands).");
             return sb.ToString();
         }
@@ -216,6 +224,7 @@ namespace KerbalNews
             {
                 sb.AppendLine("Where: the comment section under the " + Outlets.NameOf(a.Outlet) + " article \"" + a.Headline + "\".");
                 sb.AppendLine("Article (start): " + Excerpt(a.Body, 900));
+                if (a.Outlet == "kraken") sb.AppendLine("This is The Daily Kraken, a clickbait rumor site that is usually wrong. Most replies mock it, debunk it with facts or ask for sources; a few believe it.");
                 list = a.Comments;
             }
             else
@@ -254,6 +263,8 @@ namespace KerbalNews
                     sb.AppendLine("The player just posted " + what + " anonymously as \"" + (mine != null ? mine.Author : t.Author) + "\". Nobody knows this is the agency: treat it as an ordinary member of the public. If it sounds like insider knowledge or PR spin, people may get suspicious and say so.");
                 sb.AppendLine("Write " + job.Count + " replies from different people. Most answer the player's post (reply_to \"" + (mine != null ? mine.Id : "") + "\"), some answer each other. Keep each reply under 80 words, in the voice of the recurring commenters or new ones.");
             }
+            var cites = RecentForCites(state, now, 5);
+            if (cites.Count > 0) sb.AppendLine("A reply may now and then link a news article as [[id]] (it becomes a link), from: " + string.Join("; ", cites.Select(x => "[" + x.Id + "] " + Outlets.NameOf(x.Outlet) + ": " + x.Headline).ToArray()) + ".");
             sb.AppendLine();
             sb.AppendLine("JSON SCHEMA");
             sb.AppendLine("{\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":12,\"reply_to\":\"<an [id] above, or r1, r2... for an earlier reply in this list, or empty>\"}],\"player_likes\":25}");
@@ -282,6 +293,33 @@ namespace KerbalNews
         {
             if (player && agency) return author + " (OFFICIAL " + eng.AgencyName + " account)";
             return author;
+        }
+
+        /// <summary>Recent articles that writers may cite, always including the latest Daily Kraken piece.</summary>
+        public static List<Article> RecentForCites(NewsState state, double now, int n)
+        {
+            var pub = state.Articles.Where(a => a.PublishedUT <= now).OrderByDescending(a => a.PublishedUT).Take(30).ToList();
+            var list = pub.Take(n).ToList();
+            var rumor = pub.FirstOrDefault(a => a.Outlet == "kraken");
+            if (rumor != null && !list.Contains(rumor)) list.Add(rumor);
+            return list;
+        }
+
+        /// <summary>
+        /// For about one silent story in three, one true detail the tabloid happens to get right. Null otherwise.
+        /// </summary>
+        public static string LeakFact(Story story)
+        {
+            if (!story.Silent || story.Craft == null) return null;
+            int h = OfflineWriter.StableHash(story.Id) & 0x7fffffff;
+            if (h % 3 != 0) return null;
+            var c = story.Craft;
+            var dest = story.Events.Select(e => e.Body).FirstOrDefault(b => b != "" && b != "Kerbin" && b != "Sun" && b != "Kerbol");
+            if (c.Crew.Count > 0 && (h / 3) % 2 == 0) return "the vessel carries a crew of " + c.Crew.Count + ": " + string.Join(", ", c.Crew.ToArray());
+            if (dest != null) return "the vessel's real destination is " + dest;
+            if (c.Crew.Count > 0) return "the vessel carries a crew of " + c.Crew.Count + ": " + string.Join(", ", c.Crew.ToArray());
+            if (c.Parts > 0) return string.Format(Inv, "the vessel has {0} parts and weighs about {1:0} tonnes", c.Parts, c.MassTons);
+            return null;
         }
 
         static string Excerpt(string s, int n) { s = (s ?? "").Replace("\n", " "); return s.Length <= n ? s : s.Substring(0, n) + "..."; }

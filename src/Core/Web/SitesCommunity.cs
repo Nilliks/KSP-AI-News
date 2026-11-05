@@ -35,7 +35,7 @@ namespace KerbalNews.Web
                 var c = kv.Key;
                 return (object)new Dictionary<string, object>
                 {
-                    { "id", c.Id }, { "author", c.Author }, { "text", c.Text }, { "likes", c.Likes },
+                    { "id", c.Id }, { "author", c.Author }, { "text", c.Text }, { "html", Linked(c.Text) }, { "likes", c.Likes },
                     { "initial", c.Author.Length > 0 ? c.Author.Substring(0, 1).ToUpperInvariant() : "?" },
                     { "depth", kv.Value }, { "indent", (kv.Value * 26).ToString(Inv) + "px" }, { "isReply", kv.Value > 0 },
                     { "agency", c.Player && c.Agency }, { "mine", c.Player && !c.Agency },
@@ -129,7 +129,7 @@ namespace KerbalNews.Web
                 { "comments", t.Comments.Count }, { "date", Date(t.UT) }, { "up", t.Vote > 0 }, { "down", t.Vote < 0 },
                 { "upUrl", "action:vote/t:" + t.Id + "//up" }, { "downUrl", "action:vote/t:" + t.Id + "//down" },
                 { "news", story != null ? story.Headline : "" }, { "newsUrl", story != null ? ArticleUrl(story) : "" },
-                { "excerpt", Clip(t.Body.Replace("\n", " "), 200) },
+                { "excerpt", Clip(Unlinked(State, t.Body).Replace("\n", " "), 200) },
             };
         }
 
@@ -137,7 +137,7 @@ namespace KerbalNews.Web
         {
             var m = BoardsModel(t.Board);
             m["thread"] = ThreadSummary(t);
-            m["paragraphs"] = t.Body.Split(new[] { "\n\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(p => (object)p.Trim()).ToList();
+            m["paragraphs"] = t.Body.Split(new[] { "\n\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(p => (object)new Dictionary<string, object> { { "text", p.Trim() }, { "html", Linked(p.Trim()) } }).ToList();
             m["comments"] = CommentsModel("t:" + t.Id, t.Comments);
             m["reply"] = ReplyBox("t:" + t.Id, t.Comments);
             m["commentCount"] = t.Comments.Count;

@@ -201,6 +201,7 @@ namespace KerbalNews.Web
                 case "feature": return "Feature";
                 case "expert": return "Expert view";
                 case "statement": return "Official statement";
+                case "rumor": return "Exclusive";
                 default: return "News";
             }
         }
@@ -241,7 +242,7 @@ namespace KerbalNews.Web
             m["offline"] = a.Offline;
             if (full)
             {
-                m["paragraphs"] = paras.Select((p, i) => (object)new Dictionary<string, object> { { "text", p }, { "first", i == 0 } }).ToList();
+                m["paragraphs"] = paras.Select((p, i) => (object)new Dictionary<string, object> { { "text", p }, { "html", Linked(p) }, { "first", i == 0 } }).ToList();
                 m["comments"] = CommentsModel("a:" + a.Id, a.Comments);
                 m["reply"] = ReplyBox("a:" + a.Id, a.Comments);
                 m["image"] = ImageUrl(a.Image);
@@ -308,7 +309,7 @@ namespace KerbalNews.Web
             var art = State.Articles.FirstOrDefault(a => a.StoryId == p.StoryId && a.PublishedUT <= Now());
             return new Dictionary<string, object>
             {
-                { "handle", p.Handle }, { "persona", p.Persona }, { "text", p.Text }, { "date", Date(p.UT) },
+                { "handle", p.Handle }, { "persona", p.Persona }, { "text", p.Text }, { "html", Linked(p.Text) }, { "date", Date(p.UT) },
                 { "likes", Compact(p.Likes) }, { "reshares", Compact(p.Reshares) },
                 { "initial", p.Handle.TrimStart('@').Length > 0 ? p.Handle.TrimStart('@').Substring(0, 1).ToUpperInvariant() : "?" },
                 { "avatarColor", AvatarColor(p.Handle) },

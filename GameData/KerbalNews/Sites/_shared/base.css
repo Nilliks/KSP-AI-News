@@ -49,3 +49,6 @@ a:hover { color: #a3201c; }
 .btn.alt { background: #6b665c; }
 .photo { margin-top: 6px; margin-bottom: 12px; }
 .caption { font-size: 12px; color: #6b665c; margin-top: 4px; }
+
+/* A citation of another outlet's article or a Snackboard thread. */
+a.cite { font-weight: bold; text-decoration: underline; }

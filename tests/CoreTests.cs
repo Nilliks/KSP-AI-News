@@ -14,7 +14,7 @@ public static class CoreTests
     public static int Main()
     {
         int pass = 0, fail = 0;
-        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
+        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Concat(typeof(TabloidTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
         {
             try { m.Invoke(null, null); pass++; Console.WriteLine("PASS " + m.Name); }
             catch (Exception e)
@@ -249,7 +249,7 @@ public static class CoreTests
         Assert(t.Sent[0].Body.Contains("Jebediah Kerman") && t.Sent[0].Body.Contains("42 parts"), "fact sheet has crew and specs");
         Assert(s.Articles.Count >= 1, "articles saved");
         Assert(s.Social.Count >= 1, "social posts saved");
-        Assert(s.Articles.All(a => a.PublishedUT >= 10 + Day * 0.9), "published about a day after");
+        Assert(s.Articles.All(a => a.PublishedUT >= 10 + Day * (a.Outlet == "kraken" ? 0.5 : 0.9)), "published about a day after (the rumor site a little sooner)");
         eng.Tick(10 + Day * 3, 3, true);
         Eq(s.Articles.Count, published.Count, "visibility event fired for each article");
         Eq(StoryStatus.Published, s.Stories[0].Status, "story published");

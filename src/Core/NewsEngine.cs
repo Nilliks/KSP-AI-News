@@ -284,6 +284,8 @@ namespace KerbalNews
                 // Publish on the outlet's own schedule, with a little jitter, never before generation.
                 double when = story.CreatedUT + delay * Day + rng.NextDouble() * 0.1 * Day;
                 a.PublishedUT = story.Kind == "filler" ? ut : Math.Max(when, story.PublishUT);
+                // A late answer (time warp, slow AI) is dated in the past; still announce it.
+                if (a.PublishedUT <= lastVisibleUT) late.Add(a);
                 if (story.HasEvent(EventTypes.CrewKilled) && !a.Tags.Contains("crew loss")) a.Tags.Add("crew loss");
                 if (story.HasEvent(EventTypes.Failure) && !a.Tags.Contains("failure")) a.Tags.Add("failure");
                 if (a.Reporter != "")
@@ -336,10 +338,13 @@ namespace KerbalNews
             State.Prune();
         }
 
+        readonly List<Article> late = new List<Article>();
+
         void FireVisible(double ut)
         {
             if (ut <= lastVisibleUT) { lastVisibleUT = ut; return; }
-            var fresh = State.Articles.Where(a => a.PublishedUT > lastVisibleUT && a.PublishedUT <= ut).ToList();
+            var fresh = State.Articles.Where(a => (a.PublishedUT > lastVisibleUT || late.Contains(a)) && a.PublishedUT <= ut).ToList();
+            late.Clear();
             lastVisibleUT = ut;
             if (fresh.Count > 0 && ArticlesPublished != null) ArticlesPublished(fresh);
         }
@@ -356,7 +361,7 @@ namespace KerbalNews
 
         // ------------------------------------------------------------------ filler
 
-        static readonly string[] FillerOutlets = { "herald", "observer", "kscwatch", "munmonthly", "inquirer", "herald" };
+        static readonly string[] FillerOutlets = { "herald", "kraken", "observer", "kscwatch", "munmonthly", "inquirer", "herald", "kraken" };
 
         void MaybeQueueFiller(double ut)
         {
@@ -393,6 +398,20 @@ namespace KerbalNews
             options.Add("Opinion: is the space program worth the money and risk? Weigh the record so far.");
             if (d != null && d.Satellites + d.Stations > 0) options.Add("How the agency's " + d.Satellites + " satellites and " + d.Stations + " stations affect daily life on Kerbin.");
             if (State.Profile.Mission != "") options.Add("Progress check against the agency's stated goals: " + State.Profile.Mission);
+            if (outlet == "kraken")
+            {
+                var rumors = new List<string>
+                {
+                    "A wild rumor that the agency is secretly building something on the Mun, based on 'blurry photos' and an 'insider'.",
+                    "A conspiracy theory that one of the agency's famous moments was staged, and 'the evidence they hope you missed'.",
+                    "Sightings of the Kraken in orbit, and what the agency is 'hiding' about lost hardware.",
+                    "A supposed feud between kerbonauts, sourced to 'a cafeteria insider'.",
+                    "A 'leaked memo' about the agency's next secret mission.",
+                };
+                if (State.Tracked.Values.Any(t => State.IsSilent(t.VesselId)))
+                    rumors.Add("What the agency is hiding about the vessel it launched without telling anyone, with theories about where it's really going.");
+                return rumors[n % rumors.Count];
+            }
             if (outlet == "kscwatch") return options.FirstOrDefault(o => o.Contains("debris") || o.Contains("money")) ?? options[0];
             if (outlet == "munmonthly") return options.FirstOrDefault(o => o.Contains("Life aboard") || o.Contains("look back")) ?? options[n % options.Count];
             return options[n % options.Count];

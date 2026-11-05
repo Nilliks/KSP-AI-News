@@ -1,0 +1,43 @@
+body { background: #120a18; color: #f1e9f7; font-family: sans-serif; }
+a { color: #b6ff3b; }
+.mast { background: #1d0b29; padding: 12px 22px; border-bottom: 4px solid #b6ff3b; }
+.mast .the { font-size: 16px; font-weight: bold; color: #ff3ea5; letter-spacing: 3px; }
+.mast .name { font-size: 46px; font-weight: bold; color: #b6ff3b; letter-spacing: -1px; }
+.mast .tag { font-size: 14px; color: #d7c6e6; font-style: italic; }
+.ticker { background: #ffe600; padding: 6px 22px; display: flex; gap: 12px; align-items: center; }
+.ticker .live { background: #e0001b; color: #ffffff; font-weight: bold; padding: 2px 8px; font-size: 13px; }
+.ticker .tick { color: #111111; font-weight: bold; font-size: 14px; }
+.page { padding: 14px 20px; }
+.empty p { font-size: 20px; color: #ff3ea5; font-weight: bold; }
+.splash { background: #2a0f3b; border: 3px solid #ff3ea5; padding: 16px 18px; margin-bottom: 16px; }
+.splash .excl { color: #ffe600; font-weight: bold; font-size: 14px; letter-spacing: 2px; }
+.splash .hl { font-size: 38px; font-weight: bold; color: #b6ff3b; text-transform: uppercase; }
+.splash p { color: #f1e9f7; font-size: 18px; }
+.grid { display: flex; gap: 20px; }
+.main { flex: 3; }
+.side { flex: 1; min-width: 200px; }
+.box { background: #241231; border-left: 4px solid #ff3ea5; padding: 10px 12px; margin-bottom: 14px; }
+.box h4 { color: #ffe600; text-transform: uppercase; font-size: 15px; }
+.box p { font-size: 14px; color: #d7c6e6; }
+.disclaimer p { font-size: 12px; color: #9a88aa; font-style: italic; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #4a2a5e; }
+.item .hl { font-size: 20px; font-weight: bold; color: #b6ff3b; }
+.item p { color: #d7c6e6; }
+.meta { color: #9a88aa; }
+.new { color: #ffe600; }
+.kicker { background: #e0001b; color: #ffffff; font-weight: bold; padding: 2px 8px; text-transform: uppercase; font-size: 13px; }
+.headline { font-size: 40px; color: #b6ff3b; text-transform: uppercase; }
+.subhead { font-size: 20px; font-weight: bold; color: #ff3ea5; }
+.byline { font-size: 13px; color: #9a88aa; }
+.article { max-width: 780px; }
+.para { font-size: 18px; color: #f1e9f7; }
+.caption { color: #9a88aa; }
+.comments { border-top: 4px solid #b6ff3b; }
+.comment p { color: #f1e9f7; }
+.comment .who { color: #ffe600; }
+.related { background: #241231; padding: 8px 12px; }
+.related h4 { color: #ffe600; }
+.tag { background: #2a0f3b; color: #d7c6e6; }
+.btn { background: #2a0f3b; color: #b6ff3b; }
+.reply-box { background: #241231; }
+.muted { color: #9a88aa; }

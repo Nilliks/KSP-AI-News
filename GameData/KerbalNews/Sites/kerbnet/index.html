@@ -7,7 +7,7 @@
     {{#empty}}<div class="empty"><p>Quiet on Kerbnet. Big news gets people talking.</p></div>{{/empty}}
     {{#posts}}<div class="card"><div class="av" style="background: {{avatarColor}}">{{initial}}</div>
       <div style="flex: 1"><div><span class="who">{{handle}}</span> <span class="persona">{{persona}} &middot; {{date}}</span></div>
-        <p class="text">{{text}}</p>
+        <p class="text">{{{html}}}</p>
         {{#storyUrl}}<p class="about"><a href="{{storyUrl}}">{{storyHeadline}}</a></p>{{/storyUrl}}
         <div class="acts"><span>&hearts; {{likes}}</span><span>&#8635; {{reshares}}</span></div></div></div>{{/posts}}
   </div>

@@ -159,6 +159,7 @@ namespace KerbalNews
                 if (o.Id == "science" && !s.Events.Any(e => (e.Body != "" && e.Body != "Kerbin" && e.Body != "Sun" && e.Body != "Kerbol") || e.Type == EventTypes.CrewKilled)) continue;
                 int w = words;
                 if (o.Id == "inquirer") w = Math.Min(words, 200);
+                if (o.Id == "kraken") w = Math.Min(words, 170);
                 if (o.Id == "council") w = Math.Min(words, 180);
                 if (o.Id == "science") w = Math.Min(words, 260);
                 if (o.Id == "munmonthly") w = words + 150;
@@ -175,11 +176,12 @@ namespace KerbalNews
             {
                 string pick = failure && plan.Outlets.Any(x => x.OutletId == "inquirer") ? "inquirer"
                     : (s.HasEvent(EventTypes.Launch) || s.HasEvent(EventTypes.Docking)) && plan.Outlets.Any(x => x.OutletId == "observer") ? "observer"
+                    : s.Silent && plan.Outlets.Any(x => x.OutletId == "kraken") ? "kraken"
                     : plan.Outlets[0].OutletId;
                 plan.Outlets = plan.Outlets.Where(x => x.OutletId == pick).ToList();
             }
             // Keep the cost of one call bounded.
-            if (plan.Outlets.Count > 7) plan.Outlets = plan.Outlets.Take(7).ToList();
+            if (plan.Outlets.Count > 8) plan.Outlets = plan.Outlets.Take(8).ToList();
             return plan;
         }
 
@@ -191,6 +193,7 @@ namespace KerbalNews
             var ids = new List<string> { "herald" };
             if (sig >= 28 || type == "announcement") ids.Add("observer");
             if (type == "incident" || type == "teaser" || sig >= 40) ids.Add("inquirer");
+            if (type == "teaser" || type == "incident") ids.Add("kraken");
             if (type == "incident" || sig >= 45) ids.Add("kscwatch");
             if (type == "incident" && sig >= 55) ids.Add("council");
             foreach (var id in ids)
@@ -200,7 +203,7 @@ namespace KerbalNews
                 plan.Outlets.Add(new OutletAssignment
                 {
                     OutletId = o.Id, Kind = id == "kscwatch" ? "opinion" : id == "observer" ? "analysis" : o.DefaultKind,
-                    Words = id == "inquirer" ? 160 : 220, Comments = sig >= 35 ? 5 : 3, DelayDays = 1,
+                    Words = id == "inquirer" || id == "kraken" ? 160 : 220, Comments = sig >= 35 ? 5 : 3, DelayDays = 1,
                 });
             }
             return plan;
@@ -210,7 +213,7 @@ namespace KerbalNews
         {
             var o = KerbalNews.Outlets.Get(outletId) ?? KerbalNews.Outlets.All[0];
             var plan = new CoveragePlan { Tier = "feature", SocialPosts = 2 };
-            plan.Outlets.Add(new OutletAssignment { OutletId = o.Id, Kind = o.Id == "kscwatch" ? "opinion" : "feature", Words = 230, Comments = 4, DelayDays = 0 });
+            plan.Outlets.Add(new OutletAssignment { OutletId = o.Id, Kind = o.Id == "kscwatch" ? "opinion" : o.Id == "kraken" ? "rumor" : "feature", Words = o.Id == "kraken" ? 160 : 230, Comments = 4, DelayDays = 0 });
             return plan;
         }
     }

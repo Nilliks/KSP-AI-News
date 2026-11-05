@@ -16,7 +16,7 @@
     </div>
     <div class="side">
       <div class="box"><h3>Trending on Kerbnet</h3>
-        {{#trending}}<div class="post"><b>{{handle}}</b> {{text}} <span class="meta">&hearts; {{likes}}</span></div>{{/trending}}
+        {{#trending}}<div class="post"><b>{{handle}}</b> {{{html}}} <span class="meta">&hearts; {{likes}}</span></div>{{/trending}}
         {{^trending}}<p class="muted">Quiet for now.</p>{{/trending}}
         <p><a class="section-link" href="kerbnet.kb">Open Kerbnet &raquo;</a></p>
       </div>

@@ -63,6 +63,14 @@ namespace KerbalNews
             },
             new OutletDef
             {
+                Id = "kraken", Name = "The Daily Kraken", Domain = "dailykraken.kb", Color = "#7a1fa2",
+                Style = "Extreme clickbait gossip and conspiracy site. ALL-CAPS teaser headlines (\"You won't BELIEVE...\", \"What KSC doesn't want you to know\"), breathless short paragraphs, unnamed 'insiders' and 'leaked memos', wild theories (cover-ups, secret Mun bases, the Kraken, crew feuds, staged footage). Funny, never cruel about the dead.",
+                Bias = "Wants clicks, not truth. Mostly wrong or wildly exaggerated, but now and then accidentally right. Never admits a mistake; takes credit when anything it said comes true.",
+                Covers = "Rumors, leaks, secrecy, failures, anything it can spin.",
+                MinSignificance = 40, MinSignificanceFailure = 20, DelayDays = 0.6, DefaultKind = "rumor",
+            },
+            new OutletDef
+            {
                 Id = "munmonthly", Name = "Mun Monthly", Domain = "munmonthly.kb", Color = "#5b3f86",
                 Style = "Long-form magazine. Human interest, evocative, profiles the people behind the mission.",
                 Bias = "Romantic about exploration.",

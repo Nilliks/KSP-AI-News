@@ -14,7 +14,7 @@
     {{#crew}}<p class="meta">Crew: {{crew}}</p>{{/crew}}
   </div>{{/craft}}
   {{#image}}<div class="photo"><img src="{{image}}" style="width: 100%; aspect-ratio: 3/2"><p class="caption">Photo: {{outletName}} / pool</p></div>{{/image}}
-  <div class="body">{{#paragraphs}}<p class="para">{{text}}</p>{{/paragraphs}}</div>
+  <div class="body">{{#paragraphs}}<p class="para">{{{html}}}</p>{{/paragraphs}}</div>
   <div class="tags">{{#tags}}<span class="tag">{{.}}</span>{{/tags}}</div>
   <div class="tools">
     {{#socialCount}}<a class="btn" href="{{socialUrl}}">{{socialCount}} posts on Kerbnet</a>{{/socialCount}}
