@@ -141,7 +141,7 @@ namespace KerbalNews
             job.Attempts++;
             CommunityStatus = "The community is typing...";
             var preset = Settings.Preset;
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.System(State), PromptBuilder.Community(this, job, Clock, ut), Math.Min(Settings.MaxTokens, 3000), preset.JsonMode);
+            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.System(State, Settings.ModsText), PromptBuilder.Community(this, job, Clock, ut), Math.Min(Settings.MaxTokens, 3000), preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {

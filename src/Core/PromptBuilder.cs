@@ -34,7 +34,7 @@ namespace KerbalNews
         /// The system prompt holds everything that rarely changes within a save (rules, outlets,
         /// commenters, agency canon), so providers with prompt caching can reuse it.
         /// </summary>
-        public static string System(NewsState state)
+        public static string System(NewsState state, string mods = "")
         {
             var sb = new StringBuilder();
             sb.AppendLine("You are the newsroom of the Kerbin universe: you write in-universe news coverage, comment sections and social media posts about a kerbal space agency.");
@@ -66,6 +66,11 @@ namespace KerbalNews
                 sb.AppendLine();
                 sb.AppendLine("AGENCY CANON (fixed facts written by the agency; they override your imagination):");
                 sb.Append(ProfileText(state));
+            }
+            if (!string.IsNullOrEmpty(mods))
+            {
+                sb.AppendLine();
+                sb.AppendLine("INSTALLED MODS (this world has these extra parts, systems and places; mention them naturally when a story involves them, never list them, and do not invent features they lack): " + mods);
             }
             sb.AppendLine();
             sb.AppendLine("OUTPUT: reply with one JSON object only, no markdown fences, matching the schema in the request.");

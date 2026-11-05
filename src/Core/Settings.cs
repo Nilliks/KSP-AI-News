@@ -35,6 +35,12 @@ namespace KerbalNews
         public Dictionary<string, string> ImageBaseUrls = new Dictionary<string, string>();
         /// <summary>Smallest story tier that gets a photo: story, major or historic.</summary>
         public string ImageMinTier = "major";
+        /// <summary>Installed mods, found by scanning GameData at startup; the AI is told about the included ones.</summary>
+        public List<ModInfo> Mods = new List<ModInfo>();
+        public bool ModsScanned;
+        /// <summary>Whether the AI hears about installed mods at all.</summary>
+        public bool ModsInContext = true;
+        public string ModsText { get { return ModsInContext ? ModCatalog.Summary(Mods) : ""; } }
 
         public ImagePreset ImagePreset { get { return ImageProviders.Get(ImageProviderId); } }
         public string ImageModel { get { var p = ImagePreset; return p == null ? "" : Lookup(ImageModels, p.Id, p.Model); } }
@@ -88,6 +94,9 @@ namespace KerbalNews
             settings.Add("uiScale", (double)UiScale);
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
+            settings.Add("modsScanned", ModsScanned);
+            settings.Add("modsInContext", ModsInContext);
+            foreach (var m in Mods) m.Save(settings.AddNode("MOD"));
             foreach (var p in ImageProviders.All)
             {
                 var n = settings.AddNode("IMAGEPROVIDER");
@@ -125,6 +134,9 @@ namespace KerbalNews
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 g.ImageProviderId = settings.Get("imageProvider", "");
                 g.ImageMinTier = settings.Get("imageMinTier", "major");
+                g.ModsScanned = settings.GetBool("modsScanned");
+                g.ModsInContext = settings.GetBool("modsInContext", true);
+                foreach (var n in settings.GetNodes("MOD")) { var m = ModInfo.Load(n); if (m.Folder != "") g.Mods.Add(m); }
                 foreach (var n in settings.GetNodes("IMAGEPROVIDER"))
                 {
                     string id = n.Get("id", "");

@@ -56,12 +56,14 @@ namespace KerbalNews.KSP
             Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;
+            Sites.RescanMods = () => ScanMods(false);
             Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.ActiveVesselId = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.persistentId.ToString() : null;
             Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? Names.Of(FlightGlobals.ActiveVessel) : null;
             collector = new EventCollector(() => HasGame ? Engine : null);
             collector.Register();
             GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);
+            ScanMods(true);
             Debug.Log("[KerbalNews] Kerbal News Network loaded");
         }
 
@@ -86,6 +88,21 @@ namespace KerbalNews.KSP
         }
 
         public void SaveSettings() { SettingsStore.Save(Settings); }
+
+        /// <summary>Finds mods added since last time (all of them on the first run) and saves the list.</summary>
+        string ScanMods(bool startup)
+        {
+            try
+            {
+                bool first = !Settings.ModsScanned;
+                var added = ModCatalog.Refresh(Settings, System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData"), System.DateTime.Now.ToString("yyyy-MM-dd"));
+                SaveSettings();
+                string msg = first ? "Found " + Settings.Mods.Count + " mods. The AI now knows about " + Settings.Mods.Count(m => m.Include) + " of them." : ModCatalog.Describe(added);
+                if (startup && (first || added.Count > 0)) Debug.Log("[KerbalNews] " + msg);
+                return msg;
+            }
+            catch (System.Exception e) { Debug.LogWarning("[KerbalNews] Mod scan failed: " + e.Message); return "Scan failed: " + e.Message; }
+        }
 
         static void SaveImage(string file, byte[] bytes)
         {

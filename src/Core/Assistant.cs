@@ -281,6 +281,7 @@ ACTIONS:
             sb.AppendLine("When asked for a briefing or summary, use lookups (news, mood, finances, forum) and answer in a few short paragraphs. Keep replies short and conversational otherwise.");
             if (Settings.AssistantConfirm) sb.AppendLine("The director has asked to approve anything that costs money: when your plan includes spending, the whole plan waits for an Approve button. So say what you have prepared (\"I've lined up...\", \"approve below and I'll send it\"), never that it is done.");
             sb.AppendLine("Write any press release, comment or post text yourself, in good in-universe style, unless the director gives exact wording. Stay consistent with the agency profile and lore.");
+            if (Settings.ModsText != "") sb.AppendLine("Installed mods in this world: " + Settings.ModsText + ".");
             if (State.Orders.Count > 0)
             {
                 sb.AppendLine("STANDING ORDERS FROM THE DIRECTOR (always follow these unless the director's new message clearly overrides one; if a request conflicts, say so):");

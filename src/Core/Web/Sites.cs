@@ -110,6 +110,7 @@ namespace KerbalNews.Web
                         case "agency":
                             if (path == "assistant") return Page(url, "agency", "assistant.html", AssistantModel(), "Assistant", false);
                             if (path == "ledger") return Page(url, "agency", "ledger.html", LedgerModel(), "Paper trail", false);
+                            if (path == "mods") return Page(url, "agency", "mods.html", ModsModel(), "Mods", false);
                             return Page(url, "agency", "index.html", AgencyModel(), "Agency profile", false);
                         case "settings": return Page(url, "settings", "index.html", SettingsModel(), "Settings", false);
                         case "telemetry": return Page(url, "telemetry", "index.html", TelemetryModel(), "Telemetry sharing", false);

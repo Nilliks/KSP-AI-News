@@ -232,7 +232,7 @@ namespace KerbalNews
             var preset = Settings.Preset;
             bool cheap = PlanTierCheap(plan);
             string model = cheap ? Settings.CheapModel : Settings.WriterModel;
-            string system = PromptBuilder.System(State);
+            string system = PromptBuilder.System(State, Settings.ModsText);
             string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan));
             var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;

@@ -44,6 +44,31 @@ namespace KerbalNews.Web
             return m;
         }
 
+        /// <summary>Rescans GameData for mods (set by the KSP layer). Returns a line for the page.</summary>
+        public Func<string> RescanMods = () => "Scanning only works in game.";
+        string modScanNote = "";
+
+        Dictionary<string, object> ModsModel()
+        {
+            var m = M();
+            var g = Engine.Settings;
+            var mods = g.Mods.OrderByDescending(x => x.IsNew).ThenByDescending(x => x.Installed).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            m["on"] = g.ModsInContext;
+            m["count"] = g.Mods.Count(x => x.Installed);
+            m["included"] = g.Mods.Count(x => x.Installed && x.Include);
+            m["scanNote"] = modScanNote;
+            m["mods"] = mods.Select(x => (object)new Dictionary<string, object>
+            {
+                { "name", x.Name }, { "folder", x.Folder }, { "version", x.Version == "" ? "version unknown" : "v" + x.Version }, { "note", x.Note },
+                { "include", x.Include }, { "library", x.Library }, { "installed", x.Installed }, { "isNew", x.IsNew }, { "i", g.Mods.IndexOf(x) },
+            }).ToList();
+            string preview = g.ModsText;
+            m["preview"] = preview == "" ? "Nothing: no mods are shared." : preview;
+            // Seen now: the NEW tags show this once.
+            if (g.Mods.Any(x => x.IsNew)) { foreach (var x in g.Mods) x.IsNew = false; SaveSettings(); }
+            return m;
+        }
+
         Dictionary<string, object> LedgerModel()
         {
             var m = M();

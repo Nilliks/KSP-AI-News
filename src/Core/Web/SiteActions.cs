@@ -82,6 +82,20 @@ namespace KerbalNews.Web
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
+                case "toggle-mods-context": g.ModsInContext = !g.ModsInContext; SaveSettings(); break;
+                case "mod-toggle":
+                    foreach (var md in g.Mods) if (string.Equals(md.Folder, arg, StringComparison.OrdinalIgnoreCase)) md.Include = !md.Include;
+                    SaveSettings();
+                    break;
+                case "save-mod-notes":
+                    for (int mi = 0; mi < g.Mods.Count; mi++)
+                    {
+                        string mk = "note" + mi.ToString(CultureInfo.InvariantCulture);
+                        if (form.ContainsKey(mk)) g.Mods[mi].Note = ResponseParser.Clip(form[mk].Trim(), 200);
+                    }
+                    SaveSettings();
+                    break;
+                case "rescan-mods": modScanNote = RescanMods(); SaveSettings(); break;
                 case "toggle-assistant": g.AssistantOn = !g.AssistantOn; SaveSettings(); break;
                 case "toggle-assistant-confirm": g.AssistantConfirm = !g.AssistantConfirm; SaveSettings(); break;
                 case "assistant-send":
