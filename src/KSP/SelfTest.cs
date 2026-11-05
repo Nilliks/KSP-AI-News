@@ -232,6 +232,9 @@ namespace KerbalNews.KSP
             {
                 if (FlightInputHandler.state != null) FlightInputHandler.state.mainThrottle = 1f;
                 if (v.ctrlState != null) v.ctrlState.mainThrottle = 1f;
+                // Something in a heavily modded install zeroes the throttle that reaches the engines; KSP 1.12's
+                // per-engine independent throttle bypasses the vessel throttle entirely.
+                if (staged > 0 && !moving) IndependentThrottle(v);
                 if (!moving && (v.srfSpeed > 2 || v.altitude > startAlt + 5))
                 {
                     moving = true;
@@ -301,13 +304,35 @@ namespace KerbalNews.KSP
             catch (Exception e) { Log("  CreateNewGame failed, building the game by hand: " + (e.InnerException ?? e).Message); return null; }
         }
 
-        IEnumerator LogEngines(Vessel v)
+        static string Field(object o, string name)
         {
-            yield return new WaitForSeconds(1f);
+            try { var f = o.GetType().GetField(name); return f != null ? Convert.ToString(f.GetValue(o), System.Globalization.CultureInfo.InvariantCulture) : "?"; }
+            catch (Exception) { return "?"; }
+        }
+
+        void IndependentThrottle(Vessel v)
+        {
             try
             {
                 foreach (var e in v.FindPartModulesImplementing<ModuleEngines>())
-                    Log("    engine " + (e.part != null && e.part.partInfo != null ? e.part.partInfo.name : "?") + ": ignited " + e.EngineIgnited + ", flameout " + e.flameout + ", throttle " + e.currentThrottle.ToString("0.00") + ", thrust " + e.finalThrust.ToString("0.0") + " kN" + (e.status != null ? ", " + e.status : ""));
+                {
+                    var t = e.GetType();
+                    var on = t.GetField("independentThrottle");
+                    var pct = t.GetField("independentThrottlePercentage");
+                    if (on == null || pct == null) return;
+                    if (!(bool)on.GetValue(e)) { on.SetValue(e, true); pct.SetValue(e, 100f); }
+                }
+            }
+            catch (Exception) { }
+        }
+
+        IEnumerator LogEngines(Vessel v)
+        {
+            yield return new WaitForSeconds(2f);
+            try
+            {
+                foreach (var e in v.FindPartModulesImplementing<ModuleEngines>())
+                    Log("    engine " + (e.part != null && e.part.partInfo != null ? e.part.partInfo.name : "?") + ": ignited " + e.EngineIgnited + ", flameout " + e.flameout + ", throttle " + e.currentThrottle.ToString("0.00") + " (requested " + Field(e, "requestedThrottle") + ", independent " + Field(e, "independentThrottle") + "), thrust " + e.finalThrust.ToString("0.0") + " kN" + (e.status != null ? ", " + e.status : ""));
             }
             catch (Exception ex) { Log("    engine log failed: " + ex.Message); }
         }
