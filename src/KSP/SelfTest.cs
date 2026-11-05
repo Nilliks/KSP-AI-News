@@ -205,6 +205,11 @@ namespace KerbalNews.KSP
             // Full throttle, then stage until the craft actually moves (the first stage may be only clamps or
             // decouplers, and another mod can eat a single activation). Throttle is held every frame in case
             // something else resets it.
+            // Some mods write the throttle after us each frame; the fly-by-wire hook runs last and wins.
+            FlightInputCallback full = st0 => st0.mainThrottle = 1f;
+            v.OnFlyByWire += full;
+            if (FlightInputHandler.state != null) FlightInputHandler.state.mainThrottle = 1f;
+            yield return new WaitForSeconds(0.5f);
             float lift = Time.realtimeSinceStartup, nextStage = 0;
             int staged = 0;
             double startAlt = v.altitude;
@@ -223,10 +228,12 @@ namespace KerbalNews.KSP
                     global::KSP.UI.Screens.StageManager.ActivateNextStage();
                     staged++;
                     nextStage = Time.realtimeSinceStartup + 2.5f;
-                    Log("  staged (" + staged + "), now stage " + v.currentStage + ", situation " + v.situation + ", speed " + v.srfSpeed.ToString("0.0"));
+                    Log("  staged (" + staged + "), now stage " + v.currentStage + ", situation " + v.situation + ", speed " + v.srfSpeed.ToString("0.0") + ", throttle " + (FlightInputHandler.state != null ? FlightInputHandler.state.mainThrottle.ToString("0.00") : "?"));
+                    StartCoroutine(LogEngines(v));
                 }
                 yield return null;
             }
+            try { v.OnFlyByWire -= full; } catch (Exception) { }
             Check(moving, "flight: Kerbal X left the pad (" + staged + " stagings, situation " + v.situation + ", altitude " + v.altitude.ToString("0") + " m)");
             Check(eng.HasPressShot(id, "liftoff"), "flight: liftoff photo");
             Check(eng.HasPressShot(id, "ascent"), "flight: ascent photo");
@@ -251,6 +258,17 @@ namespace KerbalNews.KSP
             br.Act("action:stream-end", null);
             Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
             PressCamera.IgnoreDaylight = false;
+        }
+
+        IEnumerator LogEngines(Vessel v)
+        {
+            yield return new WaitForSeconds(1f);
+            try
+            {
+                foreach (var e in v.FindPartModulesImplementing<ModuleEngines>())
+                    Log("    engine " + (e.part != null && e.part.partInfo != null ? e.part.partInfo.name : "?") + ": ignited " + e.EngineIgnited + ", flameout " + e.flameout + ", throttle " + e.currentThrottle.ToString("0.00") + ", thrust " + e.finalThrust.ToString("0.0") + " kN" + (e.status != null ? ", " + e.status : ""));
+            }
+            catch (Exception ex) { Log("    engine log failed: " + ex.Message); }
         }
 
         /// <summary>Opens a page in whichever browser this scene has, and waits until it is really showing.</summary>

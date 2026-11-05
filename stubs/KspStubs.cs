@@ -260,6 +260,8 @@ public class Vessel : UnityEngine.MonoBehaviour
     public enum Situations { LANDED = 1, SPLASHED = 2, PRELAUNCH = 4, FLYING = 8, SUB_ORBITAL = 16, ORBITING = 32, ESCAPING = 64, DOCKED = 128 }
     public string vesselName, landedAt;
     public FlightCtrlState ctrlState;
+    public FlightInputCallback OnFlyByWire;
+    public System.Collections.Generic.List<T> FindPartModulesImplementing<T>() where T : class { return new System.Collections.Generic.List<T>(); }
     public VesselType vesselType;
     public Situations situation;
     public CelestialBody mainBody;
@@ -277,11 +279,11 @@ public class Vessel : UnityEngine.MonoBehaviour
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
-public class PartModule : UnityEngine.MonoBehaviour { }
+public class PartModule : UnityEngine.MonoBehaviour { public Part part; }
 public class ModuleCommand : PartModule { }
-public class ModuleEngines : PartModule { }
+public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
-public class AvailablePart { public string title; }
+public class AvailablePart { public string title, name; }
 public class Orbit { public double ApA, PeA; }
 public class PartResource { public string resourceName; public double amount, maxAmount; }
 public class PartResourceList : IEnumerable<PartResource> { public IEnumerator<PartResource> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
@@ -309,6 +311,7 @@ public enum SaveMode { OVERWRITE, APPEND, ABORT }
 public static class GamePersistence { public static string SaveGame(Game g, string file, string folder, SaveMode m) { return ""; } }
 public class VesselCrewManifest { public static VesselCrewManifest FromConfigNode(ConfigNode n) { return null; } }
 public class FlightCtrlState { public float mainThrottle; }
+public delegate void FlightInputCallback(FlightCtrlState st);
 public static class FlightInputHandler { public static FlightCtrlState state; }
 public static class HighLogic
 {

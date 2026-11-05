@@ -163,7 +163,7 @@ namespace KerbalNews.KSP
             bool found = false;
             double dist = 0;
             string place = "";
-            for (int attempt = 0; attempt < 8 && !found; attempt++)
+            for (int attempt = 0; attempt < 14 && !found; attempt++)
             {
                 double az = rng.NextDouble() * Math.PI * 2;
                 Vector3d east = Vector3d.Cross(up, new Vector3d(0, 1, 0));
@@ -190,6 +190,8 @@ namespace KerbalNews.KSP
                     : Math.Max(ground, 0) + (sea ? 3 : 2);
                 cam = body.GetWorldSurfacePosition(lat, lon, camAlt);
                 if (!ClearView(body, cam, target)) continue;
+                // On the ground the whole stack must be in view, not just its middle: check the base too.
+                if ((kind == "pad" || kind == "liftoff") && !ClearView(body, cam, target - up * (size * 0.42), 20)) continue;
                 found = true;
                 place = style == "helicopter" ? "from a news helicopter" : style == "chase" ? "from a chase plane"
                     : sea ? "from a press boat offshore" : PlaceName(body, lat, lon, ground);
@@ -237,7 +239,7 @@ namespace KerbalNews.KSP
         /// <summary>True when no hill stands between the photographer and the subject.</summary>
         const int SceneryMask = 1 << 15;
 
-        internal static bool ClearView(CelestialBody body, Vector3d from, Vector3d to)
+        internal static bool ClearView(CelestialBody body, Vector3d from, Vector3d to, double stopShort = 60)
         {
             for (int i = 1; i < 12; i++)
             {
@@ -251,9 +253,9 @@ namespace KerbalNews.KSP
             {
                 Vector3d dir = to - from;
                 double len = dir.magnitude;
-                if (len > 80)
+                if (len > stopShort + 20)
                 {
-                    Vector3d end = from + dir * ((len - 60) / len);
+                    Vector3d end = from + dir * ((len - stopShort) / len);
                     if (Physics.Linecast((Vector3)from, (Vector3)end, SceneryMask)) return false;
                 }
             }
