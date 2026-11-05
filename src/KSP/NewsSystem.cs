@@ -31,6 +31,7 @@ namespace KerbalNews.KSP
             Settings = SettingsStore.Load();
             Engine = new NewsEngine(new NewsState(), Settings, transport, clock);
             Engine.Digest = () => Snapshots.Digest(Engine.State);
+            Engine.EngineeringData = EngineeringCapture.Snapshot;
             // Career money for the assistant's deals. Sandbox and science games have none.
             Engine.FundsAvailable = () => HighLogic.CurrentGame != null && HighLogic.CurrentGame.Mode == Game.Modes.CAREER && Funding.Instance != null ? Funding.Instance.Funds : double.NaN;
             Engine.ChangeFunds = (d, why) =>

@@ -319,4 +319,65 @@ public static class FeatureTests
         var back = GlobalSettings.Load(n, k);
         Assert(back.UsageMatch == "full" && back.WriterFrom == "brief" && back.StreamSeconds == 20, "usage settings survive a save");
     }
+
+    public static void TestEngineeringTeamUsesLiveCraftData()
+    {
+        // The math the team quotes: LKO (80 km) to the Mun.
+        double mu = 3.5316e12, r1 = 680000, r2 = 12000000, dv1, dv2;
+        EngMath.Hohmann(mu, r1, r2, out dv1, out dv2);
+        Assert(Math.Abs(dv1 - 860) < 20, "Mun transfer about 860 m/s: " + dv1);
+        double phase = EngMath.TransferPhase(r1, r2);
+        Assert(Math.Abs(phase - 111) < 2, "Mun phase angle about 111: " + phase);
+        double wait = EngMath.TimeToWindow(mu, r1, r2, phase + 10, phase);
+        Assert(wait > 0 && wait < 1800, "window soon after passing 10 degrees early: " + wait);
+        Assert(EngMath.TimeToWindow(mu, r1, r2, phase - 1, phase) > wait, "just missed means a full lap");
+
+        var s = new NewsState();
+        string body = "";
+        int calls = 0;
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            if (!r.Body.Contains("engineering team of")) return CoreTests.AnthropicReply(r);
+            calls++; body = r.Body;
+            return Reply("{\"replies\":[{\"who\":\"linus\",\"text\":\"You are 260 m/s short for a landing and return.\"},{\"who\":\"Wernher\",\"text\":\"A Terrier upper stage fixes that.\"}],\"remember\":\"Director wants to land on the Mun with Gull II.\"}");
+        } };
+        var g = CoreTests.OnlineSettings();
+        g.Usage = "saver"; g.ApplyUsage("saver");
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        var snap = new EngSnapshot
+        {
+            Scene = "map", Vessel = "Gull II", Situation = "orbiting Kerbin", Crew = 3, CrewCapacity = 3, Parts = 42, Mass = 18.4,
+            Body = "Kerbin", BodyMu = mu, BodyRadius = 600000, BodyGravity = 9.81, BodyAtmosphere = 70000, BodySoi = 84159286,
+            HasOrbit = true, ApA = 92100, PeA = 81700, Inclination = 0.4, Eccentricity = 0.007, Period = 1920, Sma = 686900, Altitude = 85000, Speed = 2270,
+            Target = "Mun", PhaseAngle = 130, RelInclination = 0.4, TransferMu = mu, TransferR1 = 686900, TransferR2 = 12000000, TransferParent = "Kerbin",
+            DeltaVReady = true, TotalDvVac = 2240, TotalDvAsl = 1900, TotalDvActual = 2240, CurrentStage = 2,
+        };
+        snap.Stages.Add(new EngStage { Stage = 2, DvVac = 1240, TwrVac = 1.4, StartMass = 18.4, EndMass = 9 });
+        snap.Stages.Add(new EngStage { Stage = 1, DvVac = 760, TwrVac = 1.9 });
+        eng.EngineeringData = () => snap;
+        Assert(eng.EngSend("Can we land on the Mun and get home?", Day), "sent");
+        Assert(calls == 1, "one call even on the Saver preset");
+        Assert(body.Contains("Gull II") && body.Contains("1240 m/s vacuum") && body.Contains("Ideal phase angle") && body.Contains("Mun landing 580"), "prompt carries live data, computed numbers and the dv map");
+        Assert(s.EngChat.Count == 3 && s.EngChat[1].Role == "linus" && s.EngChat[2].Role == "wernher", "two specialists answered: " + string.Join(",", s.EngChat.Select(m => m.Role).ToArray()));
+        Assert(s.EngNotes.Count == 1, "the team remembers the plan");
+        eng.EngSend("And the transfer window?", Day);
+        Assert(body.Contains("Director wants to land") && body.Contains("260 m/s short"), "memory and chat history come back");
+
+        snap.StockSystem = false;
+        eng.EngSend("What about here?", Day);
+        Assert(!body.Contains("Mun landing 580") && body.Contains("planet pack"), "no stock map with a planet pack");
+
+        var n = new DataNode("K"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.EngChat.Count == s.EngChat.Count && back.EngNotes.Count == s.EngNotes.Count && back.EngChat[1].Role == "linus", "team chat is saved");
+
+        var off = CoreTests.OnlineSettings(); off.OfflineMode = true;
+        var eng2 = new NewsEngine(s, off, t, new SimpleClock(Day));
+        eng2.EngineeringData = () => snap;
+        int before = calls;
+        eng2.EngSend("Window?", Day);
+        Assert(calls == before && s.EngChat.Last().Text.Contains("phase angle"), "offline still gives the computed numbers");
+        g.EngineeringOn = false;
+        Assert(!eng.EngSend("hi", Day), "switch turns the team off");
+    }
 }

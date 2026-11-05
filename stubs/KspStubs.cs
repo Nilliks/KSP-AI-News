@@ -232,6 +232,7 @@ public struct Vector3d
     public double x, y, z;
     public Vector3d(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
     public static Vector3d zero;
+    public static double Angle(Vector3d a, Vector3d b) { return 0; }
     public Vector3d normalized { get { return this; } }
     public double magnitude { get { return 0; } }
     public static Vector3d operator +(Vector3d a, Vector3d b) { return a; } public static Vector3d operator -(Vector3d a, Vector3d b) { return a; }
@@ -246,6 +247,7 @@ public static class FlightDriver { public static bool Pause; public static void 
 public class CelestialBody : UnityEngine.MonoBehaviour
 {
     public string bodyName; public Vector3d position; public double Radius; public bool ocean; public bool isHomeWorld;
+    public double gravParameter, GeeASL, atmosphereDepth, sphereOfInfluence; public bool atmosphere; public Orbit orbit; public CelestialBody referenceBody;
     public double GetLatitude(Vector3d p) { return 0; } public double GetLongitude(Vector3d p) { return 0; } public double GetAltitude(Vector3d p) { return 0; }
     public double TerrainAltitude(double lat, double lon, bool allowNegative = false) { return 0; }
     public Vector3d GetWorldSurfacePosition(double lat, double lon, double alt) { return new Vector3d(); }
@@ -255,7 +257,13 @@ public class Planetarium { public static Planetarium fetch; public CelestialBody
 public enum VesselType { Debris, SpaceObject, Unknown, Probe, Relay, Rover, Lander, Ship, Plane, Station, Base, EVA, Flag, DeployedScienceController, DeployedSciencePart, DroppedPart, DeployedGroundPart }
 public enum AttachModes { STACK, SRF_ATTACH }
 
-public class VesselDeltaV { public double TotalDeltaVVac; }
+public class VesselDeltaV { public double TotalDeltaVVac, TotalDeltaVASL, TotalDeltaVActual; public bool IsReady; public List<DeltaVStageInfo> OperatingStageInfo; }
+public class DeltaVStageInfo { public int stage; public double deltaVinVac, deltaVatASL, deltaVActual, TWRVac, TWRASL, TWRActual, stageBurnTime; public float startMass, endMass, thrustVac, ispVac; }
+public class ShipConstruct { public string shipName; public List<Part> parts; public VesselDeltaV vesselDeltaV; }
+public class EditorLogic : UnityEngine.MonoBehaviour { public static EditorLogic fetch; public ShipConstruct ship; }
+public enum EditorFacility { None, VAB, SPH }
+public class EditorDriver : UnityEngine.MonoBehaviour { public static EditorFacility editorFacility; }
+public interface ITargetable { string GetName(); Orbit GetOrbit(); }
 public class ProtoCrewMember { public enum RosterStatus { Available, Assigned, Dead, Missing } public enum Gender { Male, Female } public enum KerbalType { Crew, Applicant, Unowned, Tourist } public string name, trait; public RosterStatus rosterStatus; public KerbalType type; public Gender gender; public int experienceLevel; public float courage, stupidity; public bool isBadass, veteran; }
 
 public class Vessel : UnityEngine.MonoBehaviour
@@ -280,6 +288,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public float GetTotalMass() { return 0; }
     public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
+    public int GetCrewCount() { return 0; } public int GetCrewCapacity() { return 0; }
 }
 
 public class PartModule : UnityEngine.MonoBehaviour { public Part part; }
@@ -287,12 +296,13 @@ public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
 public class AvailablePart { public string title, name; }
-public class Orbit { public double ApA, PeA; }
+public class Orbit { public double ApA, PeA, inclination, eccentricity, period, semiMajorAxis; public CelestialBody referenceBody; public Vector3d getRelativePositionAtUT(double ut) { return new Vector3d(); } public Vector3d getPositionAtUT(double ut) { return new Vector3d(); } public Vector3d GetOrbitNormal() { return new Vector3d(); } }
 public class PartResource { public string resourceName; public double amount, maxAmount; }
 public class PartResourceList : IEnumerable<PartResource> { public IEnumerator<PartResource> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
 public class Part : UnityEngine.MonoBehaviour
 {
     public PartResourceList Resources;
+    public float mass; public float GetResourceMass() { return 0; }
     public Vessel vessel; public int inverseStage; public int CrewCapacity; public AvailablePart partInfo; public AttachModes attachMode;
     public T FindModuleImplementing<T>() where T : class { return null; }
 }
@@ -305,7 +315,7 @@ public class ProtoVessel
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
-public static class FlightGlobals { public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
+public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
 public class FlightState { public List<ProtoVessel> protoVessels; }
 public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } }

@@ -20,6 +20,7 @@ namespace KerbalNews
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
         public bool KtvOn = true;
+        public bool EngineeringOn = true;
 
         // ---- API usage. "balanced" is how the mod has always behaved; "saver" and "full" move every knob at once.
         public string Usage = "balanced";
@@ -139,6 +140,7 @@ namespace KerbalNews
             settings.Add("assistantConfirm", AssistantConfirm);
             settings.Add("crewChat", CrewChatOn);
             settings.Add("ktv", KtvOn);
+            settings.Add("engineering", EngineeringOn);
             settings.Add("usage", Usage);
             settings.Add("quietDays", QuietDays);
             settings.Add("amountScale", AmountScale);
@@ -188,6 +190,7 @@ namespace KerbalNews
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
                 g.CrewChatOn = settings.GetBool("crewChat", true);
                 g.KtvOn = settings.GetBool("ktv", true);
+                g.EngineeringOn = settings.GetBool("engineering", true);
                 g.Usage = settings.Get("usage", "balanced");
                 g.QuietDays = Math.Max(0, settings.GetDouble("quietDays", 3));
                 g.AmountScale = Math.Max(0.3, Math.Min(2, settings.GetDouble("amountScale", 1)));

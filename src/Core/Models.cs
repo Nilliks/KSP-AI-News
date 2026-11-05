@@ -733,6 +733,9 @@ namespace KerbalNews
         public List<ScienceResult> Science = new List<ScienceResult>();
         /// <summary>Kerbals booked for interviews and briefings.</summary>
         public List<CrewAppearance> Appearances = new List<CrewAppearance>();
+        /// <summary>The engineering team's group chat and what they remember about the director's plans.</summary>
+        public List<AssistantMessage> EngChat = new List<AssistantMessage>();
+        public List<string> EngNotes = new List<string>();
         /// <summary>KTV news segments, newest last.</summary>
         public List<TvSegment> Tv = new List<TvSegment>();
         public const int MaxTv = 150;
@@ -870,6 +873,9 @@ namespace KerbalNews
             foreach (var o in Orders) { var on = ord.AddNode("ORDER"); on.Add("ut", o.UT); on.AddText("text", o.Text); }
             var tvn = n.AddNode("KTV");
             foreach (var seg in Tv.Skip(Math.Max(0, Tv.Count - MaxTv))) seg.Save(tvn.AddNode("SEGMENT"));
+            var eng = n.AddNode("ENGINEERING");
+            foreach (var m in EngChat) m.Save(eng.AddNode("MSG"));
+            foreach (var en in EngNotes) eng.AddText("note", en);
             var aps = n.AddNode("APPEARANCES");
             foreach (var ap in Appearances.Skip(Math.Max(0, Appearances.Count - 60))) ap.Save(aps.AddNode("APPEARANCE"));
             var sci = n.AddNode("SCIENCE");
@@ -966,6 +972,12 @@ namespace KerbalNews
             if (ord != null) foreach (var on in ord.GetNodes("ORDER")) s.Orders.Add(new LoreEntry { UT = on.GetDouble("ut"), Text = on.GetText("text") });
             var tvNode = n.GetNode("KTV");
             if (tvNode != null) foreach (var sn2 in tvNode.GetNodes("SEGMENT")) s.Tv.Add(TvSegment.Load(sn2));
+            var engNode = n.GetNode("ENGINEERING");
+            if (engNode != null)
+            {
+                foreach (var mn in engNode.GetNodes("MSG")) s.EngChat.Add(AssistantMessage.Load(mn));
+                foreach (var en in engNode.GetAll("note")) s.EngNotes.Add(TextCodec.Decode(en));
+            }
             var apNode = n.GetNode("APPEARANCES");
             if (apNode != null) foreach (var an2 in apNode.GetNodes("APPEARANCE")) s.Appearances.Add(CrewAppearance.Load(an2));
             var sciNode = n.GetNode("SCIENCE");
