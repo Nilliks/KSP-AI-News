@@ -163,7 +163,7 @@ public static class GameEvents
     public static EventData<FromToAction<Part, Part>> onPartCouple;
     public static EventData<Vessel> onVesselWillDestroy;
     public static EventData<ProtoVessel, bool> onVesselRecovered;
-    public static EventData<ProtoVessel, MissionRecoveryDialog, float> onVesselRecoveryProcessing;
+    public static EventData<ProtoVessel, KSP.UI.Screens.MissionRecoveryDialog, float> onVesselRecoveryProcessing;
     public static EventData<ProtoVessel> onVesselTerminated;
     public static EventData<ProgressNode> OnProgressComplete;
     public static EventData<GameScenes> onGameSceneLoadRequested, onLevelWasLoadedGUIReady, onGUIApplicationLauncherUnreadifying;
@@ -173,7 +173,6 @@ public static class GameEvents
 
 namespace Contracts { public class Contract { public string Title; } }
 
-public class MissionRecoveryDialog { }
 public class ProgressNode { public string Id; }
 public class CelestialBody : UnityEngine.MonoBehaviour { public string bodyName; }
 public class Planetarium { public static Planetarium fetch; public CelestialBody Sun; public static double GetUniversalTime() { return 0; } }
@@ -244,6 +243,7 @@ public class GameDatabase { public static GameDatabase Instance; public UnityEng
 
 namespace KSP.UI.Screens
 {
+    public class MissionRecoveryDialog : UnityEngine.MonoBehaviour { }
     public class ApplicationLauncherButton : UnityEngine.MonoBehaviour { public void SetTrue(bool makeCall) { } public void SetFalse(bool makeCall) { } }
     public class ApplicationLauncher : UnityEngine.MonoBehaviour
     {
