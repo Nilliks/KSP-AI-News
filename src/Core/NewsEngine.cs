@@ -214,6 +214,7 @@ namespace KerbalNews
         CoveragePlan PlanFor(Story s)
         {
             if (s.Kind == "filler") return CoveragePlan.ForFiller(s.FillerOutlet == "" ? "herald" : s.FillerOutlet);
+            if (s.Kind == "release") { var r = ReleaseOf(s); return CoveragePlan.ForRelease(s, r != null ? r.Type : "announcement"); }
             return CoveragePlan.For(s);
         }
 
@@ -318,7 +319,9 @@ namespace KerbalNews
                 State.Forum.Add(t);
             }
             foreach (var a in cov.Articles) EnsureIds(a.Comments);
-            if (cov.Articles.Count > 0 && !rewritten && WantsImage(story, plan)) QueueImage(story, cov.ImagePrompt);
+            string shot = ShotFor(story);
+            if (shot != null) foreach (var a in cov.Articles) if (a.Image == "") a.Image = shot;
+            if (shot == null && cov.Articles.Count > 0 && !rewritten && WantsImage(story, plan)) QueueImage(story, cov.ImagePrompt);
             story.Status = StoryStatus.Published;
             if (story.Kind == "filler") State.LastFillerUT = ut;
             else State.LastStoryUT = Math.Max(State.LastStoryUT, story.CreatedUT);

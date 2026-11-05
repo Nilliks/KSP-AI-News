@@ -1,0 +1,26 @@
+body { background: #eef1f5; }
+.head { background: #1f3b5a; padding: 16px 22px; }
+.head h1 { color: #ffffff; font-size: 26px; margin-bottom: 2px; }
+.head p { color: #c9d6e4; font-size: 14px; }
+.layout { display: flex; gap: 18px; padding: 16px 22px; }
+.compose { flex: 3; background: #ffffff; padding: 14px 16px; }
+.archive { flex: 2; }
+label { font-weight: bold; font-size: 14px; margin-top: 10px; margin-bottom: 4px; }
+input, textarea { width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 4px 10px; background: #dde5ee; color: #1f3b5a; font-size: 13px; }
+.chip.on { background: #1f3b5a; color: #ffffff; }
+.hint { font-size: 13px; color: #5d6b7a; margin-top: 4px; }
+.shots { display: flex; flex-wrap: wrap; gap: 8px; }
+.shot { width: 120px; background: #dde5ee; padding: 4px; }
+.shot.on { background: #1f3b5a; }
+.shot .cap { font-size: 11px; color: #3a4654; }
+.shot.on .cap { color: #ffffff; }
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.result { background: #e6f4ea; color: #1e5e30; padding: 6px 10px; margin-top: 10px; font-size: 14px; }
+.rel { background: #ffffff; padding: 10px 12px; margin-bottom: 10px; border-left: 4px solid #1f3b5a; }
+.rel.incident { border-left: 4px solid #a3201c; }
+.rel h3 { font-size: 16px; margin-bottom: 2px; }
+.rel .meta { margin-bottom: 4px; }
+.cov { font-size: 13px; margin-top: 3px; }
+.waiting { font-size: 13px; color: #8a6d00; }

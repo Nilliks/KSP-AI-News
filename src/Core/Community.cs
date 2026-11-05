@@ -111,7 +111,9 @@ namespace KerbalNews
             var a = ArticleOf(target);
             if (a != null) return a.Comments;
             var t = ThreadOf(target);
-            return t != null ? t.Comments : null;
+            if (t != null) return t.Comments;
+            var g = ShotOf(target);
+            return g != null && g.Public ? g.Comments : null;
         }
 
         public void EnsureIds(List<Comment> list)

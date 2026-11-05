@@ -16,6 +16,7 @@ namespace UnityEngine
         public T AddComponent<T>() where T : Component { return null; }
         public T GetComponent<T>() { return default(T); }
         public void SetActive(bool v) { }
+        public bool activeSelf;
     }
     public class RectTransform : Transform
     {
@@ -27,14 +28,17 @@ namespace UnityEngine
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
-    public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } }
+    public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } public static byte[] EncodeToJPG(Texture2D t, int quality) { return null; } }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { public Coroutine StartCoroutine(System.Collections.IEnumerator e) { return null; } }
     public class Coroutine { }
     public class YieldInstruction { }
     public class WaitForSeconds : YieldInstruction { public WaitForSeconds(float s) { } }
     public class WaitForEndOfFrame : YieldInstruction { }
-    public static class ScreenCapture { public static void CaptureScreenshot(string file) { } }
+    public static class ScreenCapture { public static void CaptureScreenshot(string file) { } public static Texture2D CaptureScreenshotAsTexture() { return null; } }
+    public enum KeyCode { F8, F9 }
+    public class RenderTexture : Texture { public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
+    public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
     public class Transform : Component { public Vector3 position; public Vector3 up; public void SetParent(Transform p, bool worldPositionStays) { } }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
@@ -60,13 +64,13 @@ namespace UnityEngine
         public static Color white, black, grey; public static Color Lerp(Color a, Color b, float t) { return a; }
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
-    public enum TextureFormat { ARGB32 }
+    public enum TextureFormat { ARGB32, RGB24 }
     public class Texture : Object { }
-    public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void Apply() { } }
+    public class Texture2D : Texture { public int width, height; public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } }
-    public static class Input { public static Vector3 mousePosition; }
+    public static class Input { public static Vector3 mousePosition; public static bool GetKeyDown(KeyCode k) { return false; } }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
@@ -265,7 +269,7 @@ public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; }
 public static class HighLogic
 {
-    public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
+    public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static string SaveFolder; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
 }
 public class Funding { public static Funding Instance; public double Funds; }
 public class Reputation { public static Reputation Instance; public float reputation; }

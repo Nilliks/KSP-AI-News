@@ -43,6 +43,7 @@ namespace KerbalNews.KSP
             Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;
+            Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.ActiveVesselId = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.persistentId.ToString() : null;
             Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.vesselName : null;
             collector = new EventCollector(() => HasGame ? Engine : null);
@@ -97,6 +98,7 @@ namespace KerbalNews.KSP
         {
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
+            if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
             try
             {
                 bool warping = TimeWarp.CurrentRate > 1.01f;

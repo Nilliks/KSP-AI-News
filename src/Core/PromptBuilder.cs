@@ -118,6 +118,19 @@ namespace KerbalNews
             {
                 sb.AppendLine("Nothing major has happened for a while. Write a feature or opinion piece on this topic: " + story.Topic);
             }
+            else if (story.Kind == "release")
+            {
+                var rel = state.Releases.FirstOrDefault(r => r.Id == story.ReleaseId);
+                string type = rel != null ? rel.Type : "announcement";
+                sb.AppendLine("The agency issued an official press release (" + ReleaseTypeText(type) + ") on " + clock.FormatDate(story.CreatedUT) + ".");
+                sb.AppendLine("Title: " + (rel != null ? rel.Title : story.Topic));
+                if (rel != null && rel.Body != "") sb.AppendLine("Full text: " + rel.Body);
+                if (rel != null && rel.Shots.Count > 0) sb.AppendLine("It came with " + rel.Shots.Count + " official photo(s)" + Captions(state, rel) + ".");
+                if (rel != null && rel.VesselName != "") sb.AppendLine("It concerns the vessel \"" + rel.VesselName + "\".");
+                var known = state.Articles.Where(a => a.PublishedUT <= now && state.Stories.Any(st => st.Id == a.StoryId && st.VesselId != "" && st.VesselId == story.VesselId)).OrderByDescending(a => a.PublishedUT).Take(4).ToList();
+                if (known.Count > 0) sb.AppendLine("What the press already reported about this vessel: " + string.Join("; ", known.Select(a => "\"" + a.Headline + "\" (" + Outlets.NameOf(a.Outlet) + ")").ToArray()) + ".");
+                sb.AppendLine("Cover the release itself: what the agency said, what it left out, and how it fits the public record. Quote it accurately. If it contradicts facts the public already knows (for example it claims success for a vessel that was seen to explode), outlets call that out sharply. If it withholds details or calls them classified, outlets speculate and the watchdog complains. A clear, honest incident statement softens criticism. Teasers get speculation about what is coming.");
+            }
             else
             {
                 sb.AppendLine("Events in this story (in order):");
@@ -192,7 +205,14 @@ namespace KerbalNews
             var a = eng.ArticleOf(job.Target);
             var t = eng.ThreadOf(job.Target);
             List<Comment> list;
-            if (a != null)
+            var shot = eng.ShotOf(job.Target);
+            if (shot != null)
+            {
+                sb.AppendLine("Where: the agency's public photo gallery. The agency just released a photo" + (shot.Caption != "" ? " captioned \"" + shot.Caption + "\"" : "") + ".");
+                sb.AppendLine("It shows " + (shot.VesselName != "" ? "the vessel \"" + shot.VesselName + "\"" : "an agency scene") + (shot.Body != "" ? " at " + shot.Body : "") + (shot.Situation != "" ? " (" + shot.Situation.ToLowerInvariant().Replace("_", " ") + ")" : "") + ", taken " + clock.FormatDate(shot.UT) + ".");
+                list = shot.Comments;
+            }
+            else if (a != null)
             {
                 sb.AppendLine("Where: the comment section under the " + Outlets.NameOf(a.Outlet) + " article \"" + a.Headline + "\".");
                 sb.AppendLine("Article (start): " + Excerpt(a.Body, 900));
@@ -225,8 +245,10 @@ namespace KerbalNews
             }
             else
             {
-                string what = mine != null ? "comment [" + mine.Id + "]" : "the opening post of this thread";
-                if (agency)
+                string what = mine != null ? "comment [" + mine.Id + "]" : shot != null ? "this photo" : "the opening post of this thread";
+                if (shot != null && mine == null)
+                    sb.AppendLine("The agency's official account released this photo. People react to the picture itself: awe, jokes, technical questions about what they can see, a skeptic or two, someone asking for a wallpaper version.");
+                else if (agency)
                     sb.AppendLine("The player just posted " + what + " from the verified official account of " + eng.AgencyName + ". Everyone can see it is the agency. React the way people react when an organization's official account joins a discussion: some thank them or are excited, some ask pointed follow-up questions, some mock corporate or PR language, skeptics push back. Do not invent facts the agency did not state.");
                 else
                     sb.AppendLine("The player just posted " + what + " anonymously as \"" + (mine != null ? mine.Author : t.Author) + "\". Nobody knows this is the agency: treat it as an ordinary member of the public. If it sounds like insider knowledge or PR spin, people may get suspicious and say so.");
@@ -237,6 +259,23 @@ namespace KerbalNews
             sb.AppendLine("{\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":12,\"reply_to\":\"<an [id] above, or r1, r2... for an earlier reply in this list, or empty>\"}],\"player_likes\":25}");
             sb.AppendLine("player_likes is how many likes the player's post gets. Scale likes with how many people follow this news" + (agency ? "; official posts draw more attention." : "."));
             return sb.ToString();
+        }
+
+        static string ReleaseTypeText(string t)
+        {
+            switch (t)
+            {
+                case "incident": return "incident statement";
+                case "update": return "mission update";
+                case "teaser": return "teaser";
+                default: return "announcement";
+            }
+        }
+
+        static string Captions(NewsState state, PressRelease r)
+        {
+            var caps = r.Shots.Select(id => state.Gallery.FirstOrDefault(g => g.Id == id)).Where(g => g != null && g.Caption != "").Select(g => "\"" + g.Caption + "\"").ToArray();
+            return caps.Length > 0 ? ", captioned " + string.Join(", ", caps) : "";
         }
 
         static string Who(string author, bool player, bool agency, NewsEngine eng)

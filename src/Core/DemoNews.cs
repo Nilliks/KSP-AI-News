@@ -34,9 +34,15 @@ namespace KerbalNews
             eng.Ingest(new NewsEvent { Type = EventTypes.ContractDone, UT = day * 8, Detail = "Test the LV-T30 engine in flight" });
             eng.Tick(day * 10, 3, true);
 
+            var shot = eng.AddShot("demo-mun-arrow.jpg", 30500, "demo1", "Mun Arrow", "Mun", "LANDED");
+            eng.ReleaseShot(shot.Id, "Jeb's view from the Mun", day * 8);
+            eng.AddShot("demo-pad.jpg", day * 3.9, "demo2", "Big Bertha", "Kerbin", "PRELAUNCH");
+            eng.PublishRelease("incident", "Statement on the loss of Big Bertha", "Big Bertha was lost 50 seconds into its first test flight. No crew were aboard. The investigation has begun and we will share what we find.", "demo2", null, day * 8);
+            eng.Tick(day * 10, 3.5, true);
+
             now = day * 10;
             var art = s.Articles.OrderByDescending(a => a.Significance).First();
-            var mine = eng.PlayerComment("a:" + art.Id, "Thank you all for following along. Jeb says the view is worth every snack.", true, "", "", now);
+            eng.PlayerComment("a:" + art.Id, "Thank you all for following along. Jeb says the view is worth every snack.", true, "", "", now);
             eng.Tick(now + 1, 4, true);
             eng.PlayerThread("ama", "We just landed on the Mun. Ask us anything!", "The Mun Arrow team is here for the next hour.", true, "", true, 4, now);
             eng.Tick(now + 2, 5, true);

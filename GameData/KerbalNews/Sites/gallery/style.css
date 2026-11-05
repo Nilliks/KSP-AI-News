@@ -1,0 +1,23 @@
+body { background: #17191d; color: #e6e6e6; }
+a { color: #9cc4ff; }
+.head { padding: 16px 22px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #2c3036; }
+.head h1 { font-size: 26px; color: #ffffff; }
+.head .spacer { flex: 1; }
+.head .hint { font-size: 13px; color: #9aa0a8; }
+.btn { background: #2f6fd1; color: #ffffff; }
+.wrap { padding: 14px 22px; }
+h2 { color: #ffffff; font-size: 18px; margin-top: 10px; }
+.grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.tile { width: 300px; background: #22252a; padding: 6px; }
+.tile:hover { background: #2c3037; }
+.tile .cap { font-size: 14px; color: #ffffff; margin-top: 4px; }
+.tile .meta { font-size: 12px; color: #9aa0a8; }
+.badge { font-size: 11px; padding: 1px 6px; background: #2f6fd1; color: #ffffff; font-weight: bold; }
+.badge.private { background: #5a5f66; }
+.result { background: #22352a; color: #b8e6c4; padding: 6px 10px; font-size: 14px; margin-bottom: 8px; }
+.photo { background: #22252a; padding: 10px; }
+.side { background: #22252a; padding: 12px 14px; margin-top: 12px; }
+.side input { width: 100%; }
+.discussion { background: #f4f1ea; color: #1d1d1b; padding: 12px 16px; margin-top: 12px; }
+.discussion a { color: #1a4f8b; }
+.empty { padding: 40px; text-align: center; color: #9aa0a8; }

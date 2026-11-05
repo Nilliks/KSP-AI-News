@@ -1,0 +1,29 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>{{agency}} Press Room</h1><p>Official statements go out under the agency's name. Every outlet reads them.</p></div>
+<div class="layout">
+  <div class="compose">
+    <h2>New press release</h2>
+    <label>Type</label>
+    <div class="chips">{{#types}}<a class="chip{{#on}} on{{/on}}" href="{{url}}">{{label}}</a>{{/types}}</div>
+    <p class="hint">{{typeHint}}</p>
+    <label>Headline</label><input name="title" placeholder="KSA confirms crew assignments for the first Duna mission">
+    <label>Statement</label><textarea name="body" rows="7" placeholder="Write it the way a press office would. Anything you leave out, the press will ask about."></textarea>
+    <label>About a vessel (optional)</label>
+    <div class="chips">{{#vessels}}<a class="chip{{#on}} on{{/on}}" href="{{url}}">{{name}}{{#silent}} (silent){{/silent}}</a>{{/vessels}}{{^vessels}}<span class="hint">No launches yet.</span>{{/vessels}}</div>
+    <label>Attach photos (optional)</label>
+    {{#hasShots}}<div class="shots">{{#shots}}<a class="shot{{#on}} on{{/on}}" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap">{{caption}}{{^public}} (private){{/public}}</div></a>{{/shots}}</div>
+    <p class="hint">Attaching a private photo releases it to the public.</p>{{/hasShots}}
+    {{^hasShots}}<p class="hint">No photos yet. Press F8 in flight to take a gallery screenshot.</p>{{/hasShots}}
+    <div class="actions"><button class="btn" data-action="press-publish">Publish release</button></div>
+    {{#result}}<p class="result">{{result}}</p>{{/result}}
+  </div>
+  <div class="archive">
+    <h2>Past releases</h2>
+    {{#releases}}<div class="rel {{type}}"><h3>{{title}}</h3><p class="meta">{{date}} &middot; {{type}}{{#vessel}} &middot; {{vessel}}{{/vessel}}</p><p class="hint">{{body}}</p>
+      {{#coverage}}<p class="cov"><b>{{outlet}}:</b> <a href="{{url}}">{{headline}}</a></p>{{/coverage}}
+      {{#waiting}}<p class="waiting">{{waiting}}</p>{{/waiting}}</div>{{/releases}}
+    {{^releases}}<p class="muted">Nothing released yet.</p>{{/releases}}
+  </div>
+</div>
+</body></html>

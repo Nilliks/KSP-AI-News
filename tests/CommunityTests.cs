@@ -295,7 +295,7 @@ public static class CommunityTests
         var art = eng.State.Articles.First();
         eng.PlayerThread("general", "Hello Kerbin", "First post.", false, "me", false, 0, Day * 3);
         eng.Tick(Day * 3 + 1, 2, true);
-        var urls = new List<string> { "kerbalnews.kb", "kerbnet.kb", "tracker.kb", "agency.kb", "settings.kb", "telemetry.kb", "snackboard.kb", "snackboard.kb/b/general", "snackboard.kb/submit", "snackboard.kb?sort=new", Sites.ArticleUrl(art) };
+        var urls = new List<string> { "kerbalnews.kb", "kerbnet.kb", "tracker.kb", "agency.kb", "settings.kb", "telemetry.kb", "pressroom.kb", "gallery.kb", "snackboard.kb", "snackboard.kb/b/general", "snackboard.kb/submit", "snackboard.kb?sort=new", Sites.ArticleUrl(art) };
         urls.AddRange(eng.State.Forum.Select(t => "snackboard.kb/t/" + t.Id));
         foreach (var o in Outlets.All) urls.Add(o.Domain);
         foreach (var u in urls)
@@ -326,4 +326,65 @@ public static class DemoTests
         if (s.Articles.Count < 8 || s.Forum.Count < 2 || !s.Articles.Any(a => a.Comments.Any(c => c.Player && c.Agency))) throw new Exception("demo news incomplete");
         if (s.Forum.First(t => t.Kind == "ama").Comments.Count != 4) throw new Exception("AMA questions");
     }
+}
+
+public static class PressTests
+{
+    static void Assert(bool c, string m) { if (!c) throw new Exception("Assertion failed: " + m); }
+
+    public static void TestPressReleaseCoverage()
+    {
+        var t = new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply };
+        var s = new NewsState();
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, 10));
+        eng.Ingest(CoreTests.Ev(EventTypes.Failure, 60));
+        eng.Tick(21600 * 3, 1, true);
+        int before = t.Sent.Count;
+        var rel = eng.PublishRelease("announcement", "Test flight a complete success", "Everything went to plan.", "v1", null, 21600 * 3);
+        Assert(rel != null && s.Stories.Any(x => x.Kind == "release" && x.ReleaseId == rel.Id), "release becomes a story");
+        eng.Tick(21600 * 3.2, 2, true);
+        Assert(t.Sent.Count == before, "press waits before reacting");
+        double trust = s.Mood.Trust;
+        eng.Tick(21600 * 4, 3, true);
+        var body = Json.Str(Json.Arr(Json.Get(Json.Parse(t.Sent.Last().Body), "messages"))[0], "content");
+        Assert(body.Contains("Test flight a complete success") && body.Contains("contradicts facts") && body.Contains("press already reported"), "prompt carries the release and the record");
+        Assert(s.Articles.Any(a => a.StoryId == rel.StoryId), "outlets covered the release");
+
+        var shot = eng.AddShot("x.jpg", 100, "v1", "Test Rocket v1", "Kerbin", "FLYING");
+        Assert(eng.CommentsOf("g:" + shot.Id) == null, "private shots have no comments");
+        eng.ReleaseShot(shot.Id, "Liftoff", 21600 * 4);
+        Assert(shot.Public && s.CommunityJobs.Any(j => j.Target == "g:" + shot.Id), "released shot draws comments");
+        eng.Tick(21600 * 4 + 1, 100, true);
+        Assert(UserPrompt(t.Sent.Last()).Contains("public photo gallery"), "photo comment prompt");
+        var back = NewsState.Load(Snap(s));
+        Assert(back.Releases.Count == 1 && back.Gallery.Count == 1 && back.Gallery[0].Public, "press room and gallery saved");
+    }
+
+    public static void TestOfflineReleaseAndPhotoInArticles()
+    {
+        double now;
+        var s = DemoNews.Build(new SimpleClock(21600), out now);
+        var rel = s.Releases.Single();
+        var cov = s.Articles.Where(a => a.StoryId == rel.StoryId).ToList();
+        Assert(cov.Count >= 2 && cov.Any(a => a.Outlet == "inquirer"), "incident statement covered, tabloid included");
+        Assert(s.Gallery.Any(g => g.Public && g.Comments.Count > 0), "released photo got comments");
+        var sites = new Sites(new NewsEngine(s, new GlobalSettings { OfflineMode = true }, null, new SimpleClock(21600)), rel2 => { var p = System.IO.Path.Combine("GameData/KerbalNews/Sites", rel2); return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null; });
+        sites.Now = () => now;
+        foreach (var u in new[] { "pressroom.kb", "gallery.kb", "gallery.kb/p/" + s.Gallery[0].Id, "gallery.kb/p/" + s.Gallery[1].Id })
+        {
+            var pg = sites.Render(u);
+            Assert(pg.Title != "Not found" && !pg.Html.Contains("{{") && !pg.Html.Contains("Missing template"), "renders " + u);
+        }
+        Assert(sites.Render("pressroom.kb").Html.Contains("Statement on the loss of Big Bertha"), "release listed");
+        Assert(sites.Render("gallery.kb/p/" + s.Gallery[0].Id).Html.Contains("kbshot:demo-mun-arrow.jpg"), "photo shown");
+        var r = sites.Handle("action:press-type/teaser", null);
+        sites.Handle("press-publish", new Dictionary<string, string> { { "title", "Something big is coming" }, { "body", "" } });
+        Assert(s.Releases.Count == 2 && s.Releases[1].Type == "teaser", "publish from the page");
+    }
+
+    static string UserPrompt(HttpRequestSpec r) { return Json.Str(Json.Arr(Json.Get(Json.Parse(r.Body), "messages"))[0], "content"); }
+    static DataNode Snap(NewsState s) { var n = new DataNode("K"); s.Save(n); return n; }
 }

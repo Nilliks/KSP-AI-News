@@ -1,0 +1,14 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Gallery</h1><span class="hint">Press F8 in any scene to take a gallery screenshot. Shots start private.</span><span class="spacer"></span><a class="btn" href="action:import-shots">Import stock F1 screenshots</a></div>
+<div class="wrap">
+  {{#result}}<p class="result">{{result}}</p>{{/result}}
+  <h2>Released to the public</h2>
+  <div class="grid">{{#public}}<a class="tile" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap">{{caption}}{{^caption}}{{vessel}}{{/caption}}</div><div class="meta">{{released}} &middot; {{comments}} comments</div></a>{{/public}}</div>
+  {{^public}}<p class="muted">Nothing released yet.</p>{{/public}}
+  <h2>Private</h2>
+  <div class="grid">{{#private}}<a class="tile" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap"><span class="badge private">PRIVATE</span> {{vessel}}</div><div class="meta">{{date}}{{#body}} &middot; {{body}}{{/body}}{{#situation}} &middot; {{situation}}{{/situation}}</div></a>{{/private}}</div>
+  {{^private}}<p class="muted">No private shots.</p>{{/private}}
+  {{#empty}}<div class="empty">Your gallery is empty. Press F8 to capture the screen.</div>{{/empty}}
+</div>
+</body></html>

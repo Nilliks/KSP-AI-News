@@ -75,6 +75,15 @@ namespace KerbalNews.KSP
             contentRt.anchoredPosition = new Vector2(0, Mathf.Max(0, layout.Height - viewportRt.rect.height) * Mathf.Clamp(f, 0, 1));
         }
 
+        /// <summary>Hides the window for a screenshot. Returns true if it was showing.</summary>
+        public bool HideForCapture(bool hide)
+        {
+            if (canvasGo == null) return false;
+            if (hide) { bool was = canvasGo.activeSelf; canvasGo.SetActive(false); return was; }
+            canvasGo.SetActive(visible);
+            return true;
+        }
+
         public PageLayout CurrentLayout { get { return layout; } }
         public PageResult CurrentPage { get { return page; } }
 
@@ -740,7 +749,9 @@ namespace KerbalNews.KSP
             Texture2D tex;
             if (textures.TryGetValue(src, out tex)) return tex;
             string root = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews");
-            string path = src.StartsWith("kbimg:") ? Path.Combine(root, "PluginData/Images/" + Path.GetFileName(src.Substring(6))) : Path.Combine(root, src.TrimStart('/'));
+            string path = src.StartsWith("kbimg:") ? Path.Combine(root, "PluginData/Images/" + Path.GetFileName(src.Substring(6)))
+                : src.StartsWith("kbshot:") ? Path.Combine(GalleryStore.Dir, Path.GetFileName(src.Substring(7)))
+                : Path.Combine(root, src.TrimStart('/'));
             try
             {
                 if (File.Exists(path))

@@ -99,7 +99,7 @@ namespace KerbalNews
         /// <summary>The story is as big as its biggest moment, plus a little for everything else.</summary>
         public static double StoryScore(Story s)
         {
-            if (s.Kind == "filler") return Math.Max(10, s.Significance);
+            if (s.Kind == "filler" || s.Kind == "release") return Math.Max(10, s.Significance);
             if (s.Events.Count == 0) return 0;
             var scores = s.Events.Select(e => e.Significance).OrderByDescending(x => x).ToList();
             double total = scores[0] + Math.Min(15, 0.15 * scores.Skip(1).Sum());
@@ -180,6 +180,29 @@ namespace KerbalNews
             }
             // Keep the cost of one call bounded.
             if (plan.Outlets.Count > 7) plan.Outlets = plan.Outlets.Take(7).ToList();
+            return plan;
+        }
+
+        /// <summary>Who answers a press release: the papers of record always, the tabloid and the watchdog when there's blood in the water.</summary>
+        public static CoveragePlan ForRelease(Story s, string type)
+        {
+            double sig = s.Significance;
+            var plan = new CoveragePlan { Tier = sig >= 60 ? "major" : sig >= 35 ? "story" : "brief", SocialPosts = sig >= 35 ? 6 : 3 };
+            var ids = new List<string> { "herald" };
+            if (sig >= 28 || type == "announcement") ids.Add("observer");
+            if (type == "incident" || type == "teaser" || sig >= 40) ids.Add("inquirer");
+            if (type == "incident" || sig >= 45) ids.Add("kscwatch");
+            if (type == "incident" && sig >= 55) ids.Add("council");
+            foreach (var id in ids)
+            {
+                var o = KerbalNews.Outlets.Get(id);
+                if (o == null) continue;
+                plan.Outlets.Add(new OutletAssignment
+                {
+                    OutletId = o.Id, Kind = id == "kscwatch" ? "opinion" : id == "observer" ? "analysis" : o.DefaultKind,
+                    Words = id == "inquirer" ? 160 : 220, Comments = sig >= 35 ? 5 : 3, DelayDays = 1,
+                });
+            }
             return plan;
         }
 

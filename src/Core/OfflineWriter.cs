@@ -16,6 +16,7 @@ namespace KerbalNews
 
         public static GeneratedCoverage Write(Story story, CoveragePlan plan, NewsState state, IGameClock clock)
         {
+            if (story.Kind == "release") return WriteRelease(story, plan, state, clock);
             var rng = new Random(StableHash(story.Id));
             var cov = new GeneratedCoverage();
             var lead = LeadEvent(story);
@@ -72,6 +73,39 @@ namespace KerbalNews
             return cov;
         }
 
+        static GeneratedCoverage WriteRelease(Story story, CoveragePlan plan, NewsState state, IGameClock clock)
+        {
+            var rng = new Random(StableHash(story.Id));
+            var cov = new GeneratedCoverage();
+            var rel = state.Releases.FirstOrDefault(r => r.Id == story.ReleaseId) ?? new PressRelease { Title = story.Topic };
+            string agency = state.Profile.ShortName != "" ? state.Profile.ShortName : "KSC";
+            foreach (var o in plan.Outlets)
+            {
+                var art = new Article { Outlet = o.OutletId, Kind = o.Kind, Offline = true, Reporter = Reporter(o.OutletId, rng) };
+                switch (o.OutletId)
+                {
+                    case "inquirer": art.Headline = rel.Type == "incident" ? agency + " SPEAKS OUT: \"" + rel.Title + "\"" : "What is " + agency + " up to now?"; break;
+                    case "kscwatch": art.Headline = "Reading between the lines of " + agency + "'s latest statement"; break;
+                    case "observer": art.Headline = "Analysis: what " + agency + "'s announcement means for the program"; break;
+                    default: art.Headline = agency + ": " + rel.Title; break;
+                }
+                art.Subhead = rel.Type == "incident" ? "The agency issued a statement on the incident." : "The agency issued a " + (rel.Type == "update" ? "mission update" : rel.Type) + ".";
+                art.Body = agency + " released a statement on " + clock.FormatDate(rel.UT) + " titled \"" + rel.Title + "\".\n\n"
+                    + (rel.Body != "" ? "\"" + (rel.Body.Length > 600 ? rel.Body.Substring(0, 600) + "..." : rel.Body) + "\"\n\n" : "")
+                    + (o.OutletId == "kscwatch" ? "As always, the statement leaves questions unanswered. We will keep asking them." : "Further details are expected in the coming days. " + state.Mood.Describe());
+                art.Tags.Add("press release");
+                for (int i = 0; i < o.Comments; i++)
+                {
+                    var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
+                    art.Comments.Add(new Comment { Author = c.Handle, Text = Pick(rng, "Nice to hear it from them directly.", "Sounds like PR to me.", "I'll believe it when I see it.", "Good. More of this, please.", "What aren't they saying?"), Likes = rng.Next(1, 30) });
+                }
+                cov.Articles.Add(art);
+            }
+            for (int i = 0; i < plan.SocialPosts; i++)
+                cov.Social.Add(new SocialPost { Handle = "@" + Outlets.Commenters[rng.Next(Outlets.Commenters.Count)].Handle, Persona = "public", Text = Pick(rng, agency + " just put out a statement: " + rel.Title, "Read the " + agency + " release. Thoughts?", "Another " + agency + " press release, another round of questions."), Likes = rng.Next(1, 60), Reshares = rng.Next(0, 10) });
+            return cov;
+        }
+
         /// <summary>Template replies to the player's post when no AI is available.</summary>
         public static List<Comment> CommunityReplies(NewsEngine eng, CommunityJob job)
         {
@@ -85,7 +119,9 @@ namespace KerbalNews
             {
                 var c = Outlets.Commenters[((StableHash(job.Target) & 0x7fffffff) + i * 3) % Outlets.Commenters.Count];
                 string text;
-                if (job.Mode == "ama")
+                if (job.Target.StartsWith("g:") && job.CommentId == "")
+                    text = Pick(rng, "Wallpaper material.", "Is that real or a render?", "Look at that view!", "Zoom and enhance, what's that on the left?", "Framing this one.", "How much did this photo cost us?");
+                else if (job.Mode == "ama")
                     text = Pick(rng, "What is the next big mission?", "How do you decide who flies?", "What does a launch actually cost?", "Is it true the cafeteria runs out of snacks before every launch?",
                         "How do you keep the crews safe after what happened last time?", "When are we going to Duna?", "What happens to all the debris?", "Do you ever get scared watching a launch?");
                 else if (agency)

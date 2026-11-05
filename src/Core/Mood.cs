@@ -43,6 +43,16 @@ namespace KerbalNews
                 Excitement = Clamp(Excitement + 1);
                 return;
             }
+            if (story.Kind == "release")
+            {
+                // An honest incident statement earns some trust back; announcements and teasers build anticipation.
+                string type = story.Events.Count > 0 ? story.Events[0].Situation : "";
+                if (type == "incident") Trust = Clamp(Trust + 4);
+                else if (type == "teaser") Excitement = Clamp(Excitement + 3);
+                else if (type == "announcement") Excitement = Clamp(Excitement + 2);
+                else Excitement = Clamp(Excitement + 1);
+                return;
+            }
 
             if (killed)
             {

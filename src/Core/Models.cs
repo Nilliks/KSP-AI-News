@@ -19,6 +19,7 @@ namespace KerbalNews
         public const string ContractDone = "contractDone";
         public const string ContractFailed = "contractFailed";
         public const string ContractAccepted = "contractAccepted";
+        public const string PressRelease = "pressRelease";
     }
 
     /// <summary>One thing that happened in the save, captured the moment it happened.</summary>
@@ -136,6 +137,7 @@ namespace KerbalNews
         public string Kind = "mission"; // mission, milestone, contract, filler
         public string VesselId = "";
         public string Topic = "";       // for filler: what to write about
+        public string ReleaseId = "";   // for release: the press release it answers
         public string FillerOutlet = "";
         public double CreatedUT;
         public double PublishUT;
@@ -156,6 +158,7 @@ namespace KerbalNews
             get
             {
                 if (Kind == "filler") return "Feature: " + Topic;
+                if (Kind == "release") return "Press release: " + Topic;
                 var name = Craft != null && Craft.VesselName != "" ? Craft.VesselName : (Events.Count > 0 ? Events[0].VesselName : "");
                 return (name == "" ? Kind : name) + " (" + string.Join(", ", Events.Select(e => e.Type).Distinct().ToArray()) + ")";
             }
@@ -167,6 +170,7 @@ namespace KerbalNews
             n.Add("kind", Kind);
             n.Add("vesselId", VesselId);
             n.AddText("topic", Topic);
+            if (ReleaseId != "") n.Add("release", ReleaseId);
             n.Add("fillerOutlet", FillerOutlet);
             n.Add("created", CreatedUT);
             n.Add("publish", PublishUT);
@@ -187,6 +191,7 @@ namespace KerbalNews
                 Kind = n.Get("kind", "mission"),
                 VesselId = n.Get("vesselId", ""),
                 Topic = n.GetText("topic"),
+                ReleaseId = n.Get("release", ""),
                 FillerOutlet = n.Get("fillerOutlet", ""),
                 CreatedUT = n.GetDouble("created"),
                 PublishUT = n.GetDouble("publish"),
@@ -291,6 +296,61 @@ namespace KerbalNews
             };
             foreach (var cn in n.GetNodes("COMMENT")) t.Comments.Add(Comment.Load(cn));
             return t;
+        }
+    }
+
+    /// <summary>An official statement the player writes in the press room. Outlets react the next day.</summary>
+    public class PressRelease
+    {
+        public string Id = "";
+        public string Type = "announcement";   // announcement, update, incident, teaser
+        public string Title = "";
+        public string Body = "";
+        public string VesselId = "";
+        public string VesselName = "";
+        public List<string> Shots = new List<string>();
+        public double UT;
+        public string StoryId = "";
+
+        public void Save(DataNode n)
+        {
+            n.Add("id", Id); n.Add("type", Type); n.AddText("title", Title); n.AddText("body", Body); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName);
+            n.Add("ut", UT); n.Add("story", StoryId);
+            foreach (var x in Shots) n.Add("shot", x);
+        }
+
+        public static PressRelease Load(DataNode n)
+        {
+            var r = new PressRelease { Id = n.Get("id", ""), Type = n.Get("type", "announcement"), Title = n.GetText("title"), Body = n.GetText("body"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), UT = n.GetDouble("ut"), StoryId = n.Get("story", "") };
+            foreach (var x in n.GetAll("shot")) r.Shots.Add(x);
+            return r;
+        }
+    }
+
+    /// <summary>A screenshot in the player's gallery. The picture lives in the save folder; this is its record.</summary>
+    public class GalleryShot
+    {
+        public string Id = "";
+        public string File = "";
+        public double UT;
+        public string VesselId = "", VesselName = "", Body = "", Situation = "";
+        public string Caption = "";
+        public bool Public;
+        public double ReleasedUT;
+        public List<Comment> Comments = new List<Comment>();
+
+        public void Save(DataNode n)
+        {
+            n.Add("id", Id); n.Add("file", File); n.Add("ut", UT); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("body", Body); n.Add("situation", Situation);
+            n.AddText("caption", Caption); n.Add("public", Public); n.Add("released", ReleasedUT);
+            foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
+        }
+
+        public static GalleryShot Load(DataNode n)
+        {
+            var g = new GalleryShot { Id = n.Get("id", ""), File = n.Get("file", ""), UT = n.GetDouble("ut"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Body = n.Get("body", ""), Situation = n.Get("situation", ""), Caption = n.GetText("caption"), Public = n.GetBool("public"), ReleasedUT = n.GetDouble("released") };
+            foreach (var cn in n.GetNodes("COMMENT")) g.Comments.Add(Comment.Load(cn));
+            return g;
         }
     }
 
@@ -567,6 +627,8 @@ namespace KerbalNews
         public string ProfileSummaryHash = "";
 
         public List<ForumThread> Forum = new List<ForumThread>();
+        public List<PressRelease> Releases = new List<PressRelease>();
+        public List<GalleryShot> Gallery = new List<GalleryShot>();
         public List<CommunityJob> CommunityJobs = new List<CommunityJob>();
         /// <summary>The handle the player last used to post anonymously.</summary>
         public string AnonHandle = "";
@@ -656,6 +718,10 @@ namespace KerbalNews
             n.AddText("anonHandle", AnonHandle);
             var fo = n.AddNode("FORUM");
             foreach (var t in Forum) t.Save(fo.AddNode("THREAD"));
+            var pr = n.AddNode("RELEASES");
+            foreach (var r in Releases) r.Save(pr.AddNode("RELEASE"));
+            var ga = n.AddNode("GALLERY");
+            foreach (var g in Gallery) g.Save(ga.AddNode("SHOT"));
             var jo = n.AddNode("COMMUNITYJOBS");
             foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
         }
@@ -719,6 +785,10 @@ namespace KerbalNews
             s.AnonHandle = n.GetText("anonHandle");
             var fo = n.GetNode("FORUM");
             if (fo != null) foreach (var tn in fo.GetNodes("THREAD")) s.Forum.Add(ForumThread.Load(tn));
+            var pr = n.GetNode("RELEASES");
+            if (pr != null) foreach (var rn in pr.GetNodes("RELEASE")) s.Releases.Add(PressRelease.Load(rn));
+            var ga = n.GetNode("GALLERY");
+            if (ga != null) foreach (var gn in ga.GetNodes("SHOT")) s.Gallery.Add(GalleryShot.Load(gn));
             var jo = n.GetNode("COMMUNITYJOBS");
             if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
             return s;
