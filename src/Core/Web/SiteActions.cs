@@ -82,6 +82,8 @@ namespace KerbalNews.Web
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
+                case "toggle-crewchat": g.CrewChatOn = !g.CrewChatOn; SaveSettings(); break;
+                case "toggle-ktv": g.KtvOn = !g.KtvOn; SaveSettings(); break;
                 case "toggle-mods-context": g.ModsInContext = !g.ModsInContext; SaveSettings(); break;
                 case "mod-toggle":
                     foreach (var md in g.Mods) if (string.Equals(md.Folder, arg, StringComparison.OrdinalIgnoreCase)) md.Include = !md.Include;

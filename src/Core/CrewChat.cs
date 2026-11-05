@@ -118,7 +118,7 @@ namespace KerbalNews
             text = (text ?? "").Trim();
             CrewFame c;
             if (text == "" || string.IsNullOrEmpty(name) || !State.Crew.TryGetValue(name, out c)) return false;
-            if (c.Dead) return false;
+            if (c.Dead || !Settings.CrewChatOn) return false;
             CrewLine(c, "player", ResponseParser.Clip(text, 1200), ut);
             if (!Settings.CanCallAi)
             {

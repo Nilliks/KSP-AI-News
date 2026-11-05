@@ -447,6 +447,9 @@ namespace KerbalNews.Web
             m["pressPhotos"] = g.PressPhotos;
             m["assistantOn"] = g.AssistantOn;
             m["assistantConfirm"] = g.AssistantConfirm;
+            m["crewChat"] = g.CrewChatOn;
+            m["ktv"] = g.KtvOn;
+            m["modsInContext"] = g.ModsInContext;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;

@@ -238,7 +238,7 @@ namespace KerbalNews
             bool cheap = PlanTierCheap(plan);
             string model = cheap ? Settings.CheapModel : Settings.WriterModel;
             string system = PromptBuilder.System(State, Settings.ModsText);
-            string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan));
+            string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan), Settings.KtvOn);
             var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
@@ -337,7 +337,7 @@ namespace KerbalNews
             if (shot == null && cov.Articles.Count > 0 && !rewritten && WantsImage(story, plan)) QueueImage(story, cov.ImagePrompt);
             if (!rewritten && cov.Articles.Count > 0)
             {
-                var seg = cov.Tv ?? (story.Significance >= 45 ? OfflineWriter.TvFrom(cov.Articles.OrderByDescending(a => a.Significance).First()) : null);
+                var seg = !Settings.KtvOn ? null : cov.Tv ?? (story.Significance >= 45 ? OfflineWriter.TvFrom(cov.Articles.OrderByDescending(a => a.Significance).First()) : null);
                 if (seg != null)
                 {
                     seg.StoryId = story.Id;

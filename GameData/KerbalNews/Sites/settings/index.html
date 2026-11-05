@@ -24,6 +24,15 @@
   {{#testResult}}<p class="{{#testOk}}ok{{/testOk}}{{^testOk}}bad{{/testOk}}">{{testResult}}</p>{{/testResult}}
   <p class="hint">{{providerName}} &middot; {{status}}{{#error}} &middot; last error: {{error}}{{/error}}</p>
 
+  <h2>Features</h2>
+  <p class="hint">Turn parts of Kerbal News on or off. Everything here is shared by all saves.</p>
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#pressPhotos}} on{{/pressPhotos}}" href="action:toggle-pressphotos">Press photographers shoot your launches</a>
+    <a class="toggle{{#assistantOn}} on{{/assistantOn}}" href="action:toggle-assistant">Personal assistant (Agency site)</a>
+    <a class="toggle{{#assistantConfirm}} on{{/assistantConfirm}}" href="action:toggle-assistant-confirm">Assistant asks before spending money</a></div>
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#crewChat}} on{{/crewChat}}" href="action:toggle-crewchat">Talk to your crew</a>
+    <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a>
+    <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
+
   <h2>Article photos (optional)</h2>
   <p class="hint">A separate image service, with its own key, draws one press photo for bigger stories. It is off unless you pick a service. It costs one image call per qualifying story.</p>
   <div class="providers"><a class="prov{{#imageOff}} on{{/imageOff}}" href="action:img-provider/off">Off</a>{{#imageProviders}}<a class="prov{{#on}} on{{/on}}" href="action:img-provider/{{id}}">{{name}}</a>{{/imageProviders}}</div>
@@ -49,10 +58,7 @@
   <div class="row" style="align-items: center"><span>Text size: <b>{{scale}}</b></span>
     <a class="toggle" href="action:scale/-">Smaller</a><a class="toggle" href="action:scale/+">Bigger</a><a class="toggle" href="action:scale/auto">Auto</a></div>
   <div class="row" style="margin-top: 8px"><a class="toggle{{#notify}} on{{/notify}}" href="action:toggle-notify">Message when news is published</a>
-    <a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a>
-    <a class="toggle{{#pressPhotos}} on{{/pressPhotos}}" href="action:toggle-pressphotos">Press photographers shoot your launches</a></div>
-  <div class="row" style="margin-top: 8px"><a class="toggle{{#assistantOn}} on{{/assistantOn}}" href="action:toggle-assistant">Personal assistant (Agency site)</a>
-    <a class="toggle{{#assistantConfirm}} on{{/assistantConfirm}}" href="action:toggle-assistant-confirm">Assistant asks before spending money</a></div>
+    <a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a></div>
 
   <h2>Testing tools</h2>
   <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>

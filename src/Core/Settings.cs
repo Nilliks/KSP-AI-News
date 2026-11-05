@@ -17,6 +17,9 @@ namespace KerbalNews
         /// <summary>The personal assistant chat on the agency site, and whether it asks before spending money.</summary>
         public bool AssistantOn = true;
         public bool AssistantConfirm = true;
+        /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
+        public bool CrewChatOn = true;
+        public bool KtvOn = true;
         public Dictionary<string, string> BaseUrls = new Dictionary<string, string>();
         public Dictionary<string, string> WriterModels = new Dictionary<string, string>();
         public Dictionary<string, string> CheapModels = new Dictionary<string, string>();
@@ -91,6 +94,8 @@ namespace KerbalNews
             settings.Add("pressPhotos", PressPhotos);
             settings.Add("assistant", AssistantOn);
             settings.Add("assistantConfirm", AssistantConfirm);
+            settings.Add("crewChat", CrewChatOn);
+            settings.Add("ktv", KtvOn);
             settings.Add("uiScale", (double)UiScale);
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
@@ -131,6 +136,8 @@ namespace KerbalNews
                 g.PressPhotos = settings.GetBool("pressPhotos", true);
                 g.AssistantOn = settings.GetBool("assistant", true);
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
+                g.CrewChatOn = settings.GetBool("crewChat", true);
+                g.KtvOn = settings.GetBool("ktv", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 g.ImageProviderId = settings.Get("imageProvider", "");
                 g.ImageMinTier = settings.Get("imageMinTier", "major");
