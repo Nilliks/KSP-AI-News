@@ -149,12 +149,14 @@ namespace KerbalNews.KSP
             bool started = false;
             try
             {
-                var game = new Game();
+                // Prefer the game's own new-game path, which adds the scenario modules other mods expect
+                // (Kerbalism breaks engines and decouplers on a vessel whose save has no Kerbalism scenario).
+                var game = NewGameTheStockWay() ?? new Game();
                 game.Title = TestSave;
                 game.Mode = Game.Modes.SANDBOX;
-                game.Parameters = new GameParameters();
-                game.flightState = new FlightState();
-                game.CrewRoster = KerbalRoster.GenerateInitialCrewRoster(Game.Modes.SANDBOX);
+                if (game.Parameters == null) game.Parameters = new GameParameters();
+                if (game.flightState == null) game.flightState = new FlightState();
+                if (game.CrewRoster == null) game.CrewRoster = KerbalRoster.GenerateInitialCrewRoster(Game.Modes.SANDBOX);
                 game.startScene = GameScenes.SPACECENTER;
                 game.flagURL = "Squad/Flags/default";
                 HighLogic.SaveFolder = TestSave;
@@ -186,6 +188,13 @@ namespace KerbalNews.KSP
             t0 = Time.realtimeSinceStartup;
             while (!(HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && FlightGlobals.ActiveVessel != null) && Time.realtimeSinceStartup - t0 < 180) yield return new WaitForSeconds(1);
             var v = FlightGlobals.ActiveVessel;
+            try
+            {
+                var sc = HighLogic.CurrentGame != null ? HighLogic.CurrentGame.scenarios : null;
+                if (sc != null)
+                    Log("  scenarios in the test save: " + string.Join(", ", sc.Cast<object>().Select(x => { var f = x.GetType().GetField("moduleName"); return f != null ? (string)f.GetValue(x) : x.ToString(); }).ToArray()));
+            }
+            catch (Exception e) { Log("  could not list scenarios: " + e.Message); }
             Check(v != null, "flight: Kerbal X on the pad");
             if (v == null) yield break;
             yield return new WaitForSeconds(3);
@@ -263,6 +272,33 @@ namespace KerbalNews.KSP
             br.Act("action:stream-end", null);
             Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
             PressCamera.IgnoreDaylight = false;
+        }
+
+        Game NewGameTheStockWay()
+        {
+            try
+            {
+                var m = typeof(GamePersistence).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .FirstOrDefault(x => x.Name == "CreateNewGame");
+                if (m == null) { Log("  GamePersistence.CreateNewGame not found; building the game by hand"); return null; }
+                var ps = m.GetParameters();
+                var args = new object[ps.Length];
+                bool firstString = true;
+                for (int i = 0; i < ps.Length; i++)
+                {
+                    var t = ps[i].ParameterType;
+                    if (t == typeof(string)) { args[i] = firstString ? TestSave : "Squad/Flags/default"; firstString = false; }
+                    else if (t == typeof(Game.Modes)) args[i] = Game.Modes.SANDBOX;
+                    else if (t == typeof(GameParameters)) args[i] = new GameParameters();
+                    else if (t == typeof(GameScenes)) args[i] = GameScenes.SPACECENTER;
+                    else if (ps[i].HasDefaultValue) args[i] = ps[i].DefaultValue;
+                    else args[i] = t.IsValueType ? Activator.CreateInstance(t) : null;
+                }
+                var g = m.Invoke(null, args) as Game;
+                Log("  new game via " + m + (g != null && g.scenarios != null ? ", " + g.scenarios.Count + " scenarios" : ""));
+                return g;
+            }
+            catch (Exception e) { Log("  CreateNewGame failed, building the game by hand: " + (e.InnerException ?? e).Message); return null; }
         }
 
         IEnumerator LogEngines(Vessel v)
