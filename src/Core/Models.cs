@@ -138,6 +138,8 @@ namespace KerbalNews
         public string Kind = "mission"; // mission, milestone, contract, filler
         public string VesselId = "";
         public string Topic = "";       // for filler: what to write about
+        /// <summary>A special feature: "retrospective" (an anniversary) or "review" (year in review). Empty for normal stories.</summary>
+        public string Special = "";
         public string ReleaseId = "";   // for release: the press release it answers
         public string FillerOutlet = "";
         /// <summary>For a tip (Kind "tip"): extra outlets beyond FillerOutlet, the article kind, and a fallback headline and body for offline mode.</summary>
@@ -179,6 +181,7 @@ namespace KerbalNews
             n.AddText("topic", Topic);
             if (ReleaseId != "") n.Add("release", ReleaseId);
             n.Add("fillerOutlet", FillerOutlet);
+            if (Special != "") n.Add("special", Special);
             if (Kind == "tip") { n.Add("tipKind", TipKind); n.AddText("tipHeadline", TipHeadline); n.AddText("tipBody", TipBody); n.Add("deal", DealId); }
             n.Add("created", CreatedUT);
             n.Add("publish", PublishUT);
@@ -201,6 +204,7 @@ namespace KerbalNews
                 Topic = n.GetText("topic"),
                 ReleaseId = n.Get("release", ""),
                 FillerOutlet = n.Get("fillerOutlet", ""),
+                Special = n.Get("special", ""),
                 TipKind = n.Get("tipKind", ""),
                 TipHeadline = n.GetText("tipHeadline"),
                 TipBody = n.GetText("tipBody"),
@@ -695,6 +699,12 @@ namespace KerbalNews
         public List<Deal> Deals = new List<Deal>();
         /// <summary>Standing orders the director gave the assistant; it follows them in every request.</summary>
         public List<LoreEntry> Orders = new List<LoreEntry>();
+        /// <summary>Fame of every kerbal who has flown, by name.</summary>
+        public Dictionary<string, CrewFame> Crew = new Dictionary<string, CrewFame>();
+        /// <summary>Anniversaries already marked ("storyId:years"), the last year that got a review, and the last daily check.</summary>
+        public HashSet<string> Anniversaries = new HashSet<string>();
+        public int LastReviewYear = -1;
+        public double LastAnniversaryCheckUT = -1;
         /// <summary>How named reporters feel about the agency after its dealings with them.</summary>
         public List<ReporterTie> Ties = new List<ReporterTie>();
         /// <summary>A PR firm the assistant hired, and until when.</summary>
@@ -802,6 +812,11 @@ namespace KerbalNews
             foreach (var m in AssistantChat.Skip(Math.Max(0, AssistantChat.Count - MaxAssistantMessages))) m.Save(asn.AddNode("MSG"));
             var ord = n.AddNode("ORDERS");
             foreach (var o in Orders) { var on = ord.AddNode("ORDER"); on.Add("ut", o.UT); on.AddText("text", o.Text); }
+            var crew = n.AddNode("CREW");
+            foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
+            foreach (var a in Anniversaries) n.Add("anniversary", a);
+            n.Add("lastReviewYear", LastReviewYear);
+            n.Add("lastAnniversaryCheck", LastAnniversaryCheckUT);
             var ties = n.AddNode("TIES");
             foreach (var t in Ties) t.Save(ties.AddNode("TIE"));
             n.AddText("prFirm", PrFirm);
@@ -885,6 +900,11 @@ namespace KerbalNews
             if (asn != null) foreach (var mn in asn.GetNodes("MSG")) s.AssistantChat.Add(AssistantMessage.Load(mn));
             var ord = n.GetNode("ORDERS");
             if (ord != null) foreach (var on in ord.GetNodes("ORDER")) s.Orders.Add(new LoreEntry { UT = on.GetDouble("ut"), Text = on.GetText("text") });
+            var crewNode = n.GetNode("CREW");
+            if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
+            foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);
+            s.LastReviewYear = n.GetInt("lastReviewYear", -1);
+            s.LastAnniversaryCheckUT = n.GetDouble("lastAnniversaryCheck", -1);
             var ties = n.GetNode("TIES");
             if (ties != null) foreach (var tn in ties.GetNodes("TIE")) s.Ties.Add(ReporterTie.Load(tn));
             s.PrFirm = n.GetText("prFirm");

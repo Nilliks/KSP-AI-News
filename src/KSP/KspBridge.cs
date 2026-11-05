@@ -45,6 +45,15 @@ namespace KerbalNews.KSP
             }
         }
 
+        public double YearSeconds
+        {
+            get
+            {
+                var f = KSPUtil.dateTimeFormatter;
+                return f != null && f.Year > 0 ? f.Year : DaySeconds * 426;
+            }
+        }
+
         public string FormatDate(double ut)
         {
             var f = KSPUtil.dateTimeFormatter;

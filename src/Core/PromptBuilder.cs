@@ -10,6 +10,7 @@ namespace KerbalNews
     public interface IGameClock
     {
         double DaySeconds { get; }
+        double YearSeconds { get; }
         string FormatDate(double ut);
     }
 
@@ -17,6 +18,7 @@ namespace KerbalNews
     {
         public double DaySeconds { get; set; }
         public SimpleClock(double daySeconds = 21600) { DaySeconds = daySeconds; }
+        public double YearSeconds { get { return DaySeconds * 426; } }
         public string FormatDate(double ut)
         {
             double year = DaySeconds * 426;
@@ -121,7 +123,9 @@ namespace KerbalNews
             sb.AppendLine("Today: " + clock.FormatDate(now) + ".");
             if (story.Kind == "filler")
             {
-                sb.AppendLine("Nothing major has happened for a while. Write a feature or opinion piece on this topic: " + story.Topic);
+                if (story.Special == "retrospective") sb.AppendLine("A SPECIAL RETROSPECTIVE for an anniversary. Use only facts from this brief, the archive summary and the records below; do not invent new events: " + story.Topic);
+                else if (story.Special == "review") sb.AppendLine("A SPECIAL YEAR-IN-REVIEW EDITION. Use only the stories listed here and the archive summary; do not invent events: " + story.Topic);
+                else sb.AppendLine("Nothing major has happened for a while. Write a feature or opinion piece on this topic: " + story.Topic);
             }
             else if (story.Kind == "tip")
             {
@@ -155,6 +159,11 @@ namespace KerbalNews
                 sb.AppendLine("TELEMETRY SILENT: the agency has released no telemetry, specifications or crew details for this vessel. The press knows only what was visible from the ground or reported above. Do not state its mass, part count, delta-v, crew, destination or orbital details (except a Daily Kraken leak, if one is given below). Outlets may note the secrecy: the tabloid and the watchdog speculate, the trade press grumbles about missing data, commenters guess.");
             }
             else if (story.Craft != null) sb.AppendLine(CraftText(story.Craft));
+            if (!story.Silent && state != null)
+            {
+                string fame = NewsEngine.CrewFameText(story, state, clock);
+                if (fame != "") sb.AppendLine(fame);
+            }
 
             var photos = story.VesselId != "" ? state.Gallery.Where(g => g.IsPress && g.VesselId == story.VesselId).ToList() : new List<GalleryShot>();
             if (photos.Count > 0) sb.AppendLine("Press photographers got long-lens pictures from the ground: " + string.Join("; ", photos.Select(g => g.Caption.ToLowerInvariant()).Distinct().ToArray()) + ". Outlets may mention or describe them.");

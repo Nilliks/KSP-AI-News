@@ -89,7 +89,9 @@ namespace KerbalNews
             double seen;
             State.Novelty.TryGetValue(key, out seen);
             e.Significance = Significance.Score(e, seen);
+            e.Significance = Math.Min(100, e.Significance + FameBoost(e));
             State.Novelty[key] = seen + 1;
+            RecordCrew(e);
 
             Story story = null;
             if (!string.IsNullOrEmpty(e.VesselId))
@@ -177,6 +179,7 @@ namespace KerbalNews
             {
                 State.Mood.Decay(days);
                 Significance.DecayNovelty(State.Novelty, days);
+                DecayFame(days);
                 State.LastMoodDecayUT = ut;
                 SampleDigest(ut);
             }
@@ -187,6 +190,7 @@ namespace KerbalNews
             TickImages(allowCalls);
             TickTownHalls(ut);
             TickAssistant(ut);
+            TickAnniversaries(ut);
             MaybePoll(ut);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
@@ -414,6 +418,20 @@ namespace KerbalNews
                     "A supposed feud between kerbonauts, sourced to 'a cafeteria insider'.",
                     "A 'leaked memo' about the agency's next secret mission.",
                 };
+                var star = Celebrity(n);
+                if (star != null && n % 3 == 0)
+                {
+                    string[] gossip =
+                    {
+                        "Celebrity gossip about " + star.Name + ", " + star.Tier + ": a 'source close to the crew' on their love life, diet or feud with another kerbonaut.",
+                        "Has fame gone to " + star.Name + "'s head? 'Insiders' claim diva demands at the space center.",
+                        star.Name + " spotted somewhere they shouldn't be the night before training, according to a blurry photo.",
+                    };
+                    string g = gossip[(n / 3) % gossip.Length];
+                    star.Scandals.Add(ResponseParser.Clip(g, 140));
+                    if (star.Scandals.Count > 6) star.Scandals.RemoveAt(0);
+                    return g;
+                }
                 if (State.Tracked.Values.Any(t => State.IsSilent(t.VesselId)))
                     rumors.Add("What the agency is hiding about the vessel it launched without telling anyone, with theories about where it's really going.");
                 return rumors[n % rumors.Count];

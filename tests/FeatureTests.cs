@@ -63,4 +63,63 @@ public static class FeatureTests
         }
         finally { try { Directory.Delete(gd, true); } catch (Exception) { } }
     }
+
+    const double Day = 21600, Year = Day * 426;
+
+    public static void TestCrewFameGrowsAndMakesBiggerNews()
+    {
+        var s = new NewsState();
+        var t = new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        double rookie = 0;
+        for (int i = 0; i < 6; i++)
+        {
+            string v = "v" + i; double ut = 10 + i * Day * 3;
+            eng.Ingest(CoreTests.Ev(EventTypes.Launch, ut, v, "Kerbin", "Jebediah Kerman"));
+            var orbit = CoreTests.Ev(EventTypes.Orbit, ut + 300, v, "Kerbin", "Jebediah Kerman");
+            eng.Ingest(orbit);
+            if (i == 0) rookie = orbit.Significance;
+        }
+        var jeb = s.Crew["Jebediah Kerman"];
+        Assert(jeb.Flights == 6 && jeb.Fame > 15, "six flights build fame: " + jeb.Fame + " " + jeb.Flights);
+        Assert(jeb.Highlights.Any(h => h.StartsWith("5th flight")), "a fifth-flight highlight");
+        var vetMun = CoreTests.Ev(EventTypes.Landing, 30 * Day, "v9", "Mun", "Jebediah Kerman");
+        var rookieMun = CoreTests.Ev(EventTypes.Landing, 30 * Day, "v8", "Mun", "Bob Kerman");
+        eng.Ingest(vetMun); eng.Ingest(rookieMun);
+        Assert(vetMun.Significance > rookieMun.Significance, "a famous crew makes bigger news: " + vetMun.Significance + " vs " + rookieMun.Significance);
+        var story = s.Stories.First(x => x.VesselId == "v9");
+        string text = NewsEngine.CrewFameText(story, s, new SimpleClock(Day));
+        Assert(text.Contains("Jebediah Kerman (") && text.Contains("6th flight"), "fact sheet line: " + text);
+        eng.Ingest(CoreTests.Ev(EventTypes.CrewKilled, 31 * Day, "v9", "Mun", "Jebediah Kerman"));
+        Assert(jeb.Dead && jeb.DiedUT == 31 * Day, "the lost are remembered");
+        var n = new DataNode("K"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.Crew["Jebediah Kerman"].Dead && back.Crew["Jebediah Kerman"].Flights == jeb.Flights && back.Crew["Bob Kerman"].Fame > 0, "fame survives a save");
+    }
+
+    public static void TestAnniversariesAndYearInReview()
+    {
+        var s = new NewsState();
+        var t = new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        var first = CoreTests.Ev(EventTypes.Milestone, 400, "v1", "Kerbin", "Jebediah Kerman");
+        first.Detail = "First kerbal in orbit";
+        eng.Ingest(first);
+        for (double ut = Day; ut < Day * 6; ut += Day / 2) eng.Tick(ut, ut, true);
+        Assert(s.Stories.Any(x => x.Kind == "mission" && x.Status == StoryStatus.Published), "the first got covered");
+        // Fast-forward to just past one year: the year review and the anniversary each queue once.
+        double r = 100;
+        for (double ut = Year - Day; ut < Year + Day * 4; ut += Day / 2) eng.Tick(ut, r += 1, true);
+        var review = s.Stories.FirstOrDefault(x => x.Special == "review");
+        var anniv = s.Stories.FirstOrDefault(x => x.Special == "retrospective");
+        Assert(review != null && review.Topic.Contains("Year 1"), "year 1 in review was queued");
+        Assert(anniv != null && anniv.Topic.Contains("one year since First kerbal in orbit"), "first-orbit anniversary: " + (anniv == null ? "none" : anniv.Topic));
+        for (double ut = Year + Day * 4; ut < Year + Day * 12; ut += Day / 2) eng.Tick(ut, r += 1, true);
+        Assert(s.Stories.Count(x => x.Special == "retrospective") == 1 && s.Stories.Count(x => x.Special == "review") == 1, "each happens once");
+        Assert(t.Sent.Any(x => x.Body.Contains("SPECIAL RETROSPECTIVE")), "the retrospective was written with its own brief");
+    }
 }
