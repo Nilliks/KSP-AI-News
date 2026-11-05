@@ -52,14 +52,16 @@ public static class AssistantTests
         Assert(lastUser.Contains("a5") && lastUser.Contains("LOOKUP news"), "the second step sees the lookup result");
         Assert(!eng.AssistantBusy, "done thinking");
         Assert(s.AssistantChat.Any(m => m.Role == "assistant" && m.Text.Contains("risky")), "assistant replies");
-        Assert(s.Releases.Count == 1 && s.Releases[0].Title == "No bunker on the Mun", "press release published now");
-        Assert(s.Stories.Any(x => x.Kind == "tip" && x.FillerOutlet == "observer"), "leak becomes a tip for the Observer");
+        Assert(s.Releases.Count == 0, "the release waits with the spending");
         var prop = s.AssistantChat.Single(m => m.Role == "proposal");
         Assert(prop.State == "pending" && prop.Text.Contains("Kraken") && prop.Text.Contains("10,000"), "spending waits for approval: " + prop.Text);
         Assert(funds == 100000, "no money moved before approval");
 
         Assert(eng.AssistantDecide(prop.Id, true, now), "approved");
         Assert(funds == 90000, "donation paid at once, the Kraken only if they accept: " + funds);
+        Assert(s.Releases.Count == 1 && s.Releases[0].Title == "No bunker on the Mun", "press release published on approval");
+        Assert(s.Stories.Any(x => x.Kind == "tip" && x.FillerOutlet == "observer"), "leak becomes a tip for the Observer");
+        Assert(prop.Text.Contains("→ Sent"), "outcomes shown in the approved box: " + prop.Text);
         var takedown = s.Deals.Single(d => d.Kind == "takedown");
         Assert(takedown.Status == "pending" && takedown.Secret, "offer is pending and secret");
 

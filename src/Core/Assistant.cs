@@ -184,15 +184,16 @@ namespace KerbalNews
         /// <summary>Runs what can run now; spending waits for the director's OK when that setting is on.</summary>
         void AssistantAct(List<object> actions, double ut)
         {
-            var waiting = new List<object>();
-            foreach (var a in actions.Take(8))
+            var list = actions.Take(8).ToList();
+            // If anything costs money, the whole plan waits, so an announcement never goes out before the deal is approved.
+            if (!Settings.AssistantConfirm || !list.Any(a => Spends(Arg(a, "cmd"))))
             {
-                string cmd = Arg(a, "cmd");
-                if (Settings.AssistantConfirm && Spends(cmd)) { waiting.Add(a); continue; }
-                AssistantSay("result", Execute(cmd, Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
+                foreach (var a in list) AssistantSay("result", Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
+                return;
             }
-            if (waiting.Count == 0) return;
+            var waiting = list;
             var p = AssistantSay("proposal", "Needs your OK:\n" + string.Join("\n", waiting.Select(a => "- " + Describe(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>())).ToArray()), ut);
+            RaiseCommunity();
             p.Actions = Json.Write(waiting);
             p.State = "pending";
         }
@@ -203,11 +204,13 @@ namespace KerbalNews
             var p = State.AssistantChat.FirstOrDefault(m => m.Id == messageId && m.Role == "proposal" && m.State == "pending");
             if (p == null) return false;
             p.State = approve ? "confirmed" : "cancelled";
-            if (!approve) { AssistantSay("result", "Cancelled. Nothing was sent.", ut); return true; }
+            if (!approve) { p.Text += "\nNothing was sent."; RaiseCommunity(); return true; }
             object root;
             var list = Json.TryParse(p.Actions, out root) ? Json.Arr(root) : null;
+            // Outcomes go into the approved box itself, so the chat reads in order.
             foreach (var a in list ?? new List<object>())
-                AssistantSay("result", Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
+                p.Text += "\n→ " + Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut);
+            RaiseCommunity();
             return true;
         }
 
@@ -272,6 +275,7 @@ ACTIONS:
             sb.AppendLine("You act only through the commands below. The director writes in plain English and may phrase things any way; work out which commands they mean, and chain several if needed. If an essential detail is missing (an amount, which article), look it up or pick a sensible default and say which. If the request is truly unclear, ask one short question and take no action.");
             sb.AppendLine("Be a capable, loyal, realistic aide: carry out what the director asks, but warn briefly when something is risky (bribes can backfire, leaks can be traced, legal threats can draw attention). Never say an action succeeded: you do not know yet. Results are reported to the director separately after you act.");
             sb.AppendLine("When asked for a briefing or summary, use lookups (news, mood, finances, forum) and answer in a few short paragraphs. Keep replies short and conversational otherwise.");
+            if (Settings.AssistantConfirm) sb.AppendLine("The director has asked to approve anything that costs money: when your plan includes spending, the whole plan waits for an Approve button. So say what you have prepared (\"I've lined up...\", \"approve below and I'll send it\"), never that it is done.");
             sb.AppendLine("Write any press release, comment or post text yourself, in good in-universe style, unless the director gives exact wording. Stay consistent with the agency profile and lore.");
             sb.AppendLine();
             sb.AppendLine(AssistantCommands);
@@ -421,6 +425,11 @@ ACTIONS:
                     var la = FindArticle(Arg(a, "article"), double.MaxValue);
                     return "Send a legal letter demanding a " + (Arg(a, "demand") == "correction" ? "correction" : "retraction") + " of " + (la != null ? "\"" + la.Headline + "\" (" + Outlets.NameOf(la.Outlet) + ")" : "the article") + ", legal fees about √12,000";
                 case "ad_campaign": return "Ad campaign \"" + ResponseParser.Clip(Arg(a, "message"), 80) + "\" for √" + Money(ArgMoney(a, "budget")) + " in " + string.Join(", ", ArgList(a, "outlets").Select(x => { var oo = FindOutlet(x); return oo != null ? oo.Name : x; }).ToArray());
+                case "press_release": return "Publish the press release \"" + ResponseParser.Clip(Arg(a, "title"), 80) + "\"";
+                case "leak": return "Leak to " + (o != null ? o.Name : Arg(a, "outlet")) + ": " + ResponseParser.Clip(Arg(a, "info"), 80);
+                case "public_apology": return "Publish a public apology about " + Arg(a, "about", "recent events");
+                case "kerbnet_post": return "Post on Kerbnet: " + ResponseParser.Clip(Arg(a, "text"), 80);
+                case "comment": return "Comment " + (Arg(a, "as", "agency") == "anon" ? "anonymously" : "officially") + ": " + ResponseParser.Clip(Arg(a, "text"), 80);
                 case "hire_pr_firm": return "Hire " + Arg(a, "firm", "a PR firm") + " for 30 days, √" + Money(Fee(a, "fee", 25000));
                 case "bribe_official": return "Secretly pay " + Arg(a, "official", "a Planetary Council official") + " √" + Money(ArgMoney(a, "amount")) + " for " + Arg(a, "goal", "funding");
                 case "sock_puppets": return "Pay √" + Money(Fee(a, "amount", 5000)) + " for fake accounts to back us on " + Arg(a, "article", Arg(a, "thread", "the story"));
