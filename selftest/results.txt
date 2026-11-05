@@ -1,0 +1,24 @@
+PASS demo news built: 11 articles, 3 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 1905, 94 paragraphs, 46 links, 1 fields
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2469, 162 paragraphs, 70 links, 2 fields
+PASS kerbnet.kb -> "Kerbnet" height 2535, 134 paragraphs, 36 links, 0 fields
+PASS snackboard.kb -> "Snackboard" height 690, 62 paragraphs, 41 links, 0 fields
+PASS snackboard.kb/t/t104 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 901, 77 paragraphs, 41 links, 2 fields
+PASS snackboard.kb/submit -> "New post - Snackboard" height 709, 55 paragraphs, 34 links, 4 fields
+PASS tracker.kb -> "Universe tracker" height 636, 38 paragraphs, 15 links, 0 fields
+PASS agency.kb -> "Agency profile" height 1535, 48 paragraphs, 29 links, 10 fields
+PASS settings.kb -> "Settings" height 1440, 72 paragraphs, 50 links, 5 fields
+PASS telemetry.kb -> "Telemetry sharing" height 448, 32 paragraphs, 19 links, 0 fields
+PASS kerbalnews.kb/search?q=mun -> "Search" height 704, 38 paragraphs, 22 links, 1 fields
+PASS herald.kb -> "Kerbin Daily Herald" height 535, 32 paragraphs, 18 links, 0 fields
+PASS orbitalobserver.kb -> "Orbital Observer" height 357, 24 paragraphs, 17 links, 0 fields
+PASS inquirer.kb -> "The Kerbal Inquirer" height 380, 23 paragraphs, 17 links, 0 fields
+PASS munmonthly.kb -> "Mun Monthly" height 443, 22 paragraphs, 16 links, 0 fields
+PASS kscwatch.kb -> "KSC Watch" height 410, 31 paragraphs, 18 links, 0 fields
+PASS kscireview.kb -> "Kerbin Science Review" height 353, 23 paragraphs, 16 links, 0 fields
+PASS council.gov.kb -> "Planetary Council Press Office" height 287, 21 paragraphs, 15 links, 0 fields
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t115
+SKIP AI check: AI is off or no key
+ALL PASSED
