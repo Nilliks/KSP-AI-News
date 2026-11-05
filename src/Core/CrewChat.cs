@@ -68,7 +68,8 @@ namespace KerbalNews
             sb.AppendLine("Personality (stay in character, it comes from your stats): " + Personality(c) + ".");
             sb.AppendLine("Speak in first person, casually, like a real astronaut texting their boss: short replies (one to four sentences), your own opinions and feelings, kerbal humour where it fits. Refer to your real memories below when relevant, never invent flights, deaths or events that are not listed. If you do not remember something, say so. You cannot do things in the game; you can only talk.");
             sb.AppendLine("Tone: " + PromptBuilder.SillinessText(State.Silliness));
-            sb.AppendLine("Reply with one JSON object only: {\"reply\": \"what you say\", \"remember\": \"one short note worth remembering from this exchange (a promise, a feeling, a fact about the director), or empty\"}.");
+            sb.AppendLine("If you have an interview or press briefing coming up and the director tells you what to say, stress, avoid or keep secret, acknowledge it in character (a nervous kerbal worries, a dim one may garble it, a badass may grumble) and put the instruction in \"coaching\".");
+            sb.AppendLine("Reply with one JSON object only: {\"reply\": \"what you say\", \"remember\": \"one short note worth remembering from this exchange (a promise, a feeling, a fact about the director), or empty\", \"coaching\": \"the director's instruction for your upcoming press appearance, in their words, or empty\"}.");
             return sb.ToString();
         }
 
@@ -87,12 +88,14 @@ namespace KerbalNews
             if (press.Count > 0) sb.AppendLine("Recent press about you: " + string.Join("; ", press.Select(a => "\"" + a.Headline + "\" (" + Outlets.NameOf(a.Outlet) + ")").ToArray()) + ".");
             var crewmates = State.Crew.Values.Where(o => o != c && o.Vessels.Overlaps(c.Vessels)).Select(o => o.Name + (o.Dead ? " (lost)" : "")).Take(6).ToList();
             if (crewmates.Count > 0) sb.AppendLine("People you have flown with: " + string.Join(", ", crewmates.ToArray()) + ".");
+            foreach (var ap in UpcomingFor(c.Name))
+                sb.AppendLine("COMING UP: " + (ap.Kind == "interview" ? "an interview with " + Outlets.NameOf(ap.Outlets.Split(',')[0]) : "a press briefing") + " on " + Clock.FormatDate(ap.AtUT) + " about " + ap.Topic + "." + (ap.Coaching.Count > 0 ? " The director's instructions so far: " + string.Join("; ", ap.Coaching.ToArray()) + "." : " The director has not told you what to say yet."));
             if (c.MemorySummary != "") sb.AppendLine("Your memory of earlier talks with the director: " + c.MemorySummary);
             if (c.Notes.Count > 0) sb.AppendLine("Things you noted from recent talks: " + string.Join("; ", c.Notes.ToArray()));
             sb.AppendLine();
             sb.AppendLine("The conversation so far (newest last):");
             foreach (var m in c.Chat.Skip(Math.Max(0, c.Chat.Count - 14)))
-                sb.AppendLine((m.Role == "player" ? "Director" : FirstName(c.Name)) + ": " + m.Text);
+                sb.AppendLine((m.Role == "player" ? "Director" : m.Role == "note" ? "(Agency note)" : FirstName(c.Name)) + ": " + m.Text);
             sb.AppendLine();
             sb.AppendLine("Reply as " + FirstName(c.Name) + ".");
             return sb.ToString();
@@ -169,6 +172,9 @@ namespace KerbalNews
                 CrewChatBusy = "";
                 string reply = Json.Str(root, "reply", "").Trim();
                 string remember = Json.Str(root, "remember", "").Trim();
+                string coaching = Json.Str(root, "coaching", "").Trim();
+                var next = UpcomingFor(c.Name).FirstOrDefault();
+                if (coaching.Length > 3 && next != null && next.Coaching.Count < 12) next.Coaching.Add(ResponseParser.Clip(coaching, 300));
                 CrewLine(c, "crew", reply == "" ? "..." : ResponseParser.Clip(reply, 1500), ut);
                 if (remember != "" && remember.Length > 3)
                 {

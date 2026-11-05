@@ -239,6 +239,7 @@ namespace KerbalNews
 - lore {}: the agency profile and lore journal.
 - reporters {}: named reporters at each outlet and how they feel about the agency (goodwill or grudges, and why).
 - orders {}: your standing orders.
+- crew {}: the roster: each kerbal's trait, level, where they are, fame, and any scheduled interviews or briefings.
 ACTIONS:
 - press_release {type: announcement|update|incident|teaser, title, body, vessel?, photos?: [gallery ids]}: official release on the press room. Write the text yourself if not given.
 - leak {outlet, info, importance?: 1-5}: anonymously give information to one outlet. It runs a story within a day. Leaks can be traced back to the agency.
@@ -255,6 +256,8 @@ ACTIONS:
 - release_photo {photo, caption?}: make a private gallery photo public.
 - add_lore {text}: add an entry to the lore journal (becomes canon for the press).
 - interview {outlet, kerbal, topic}: give one outlet an exclusive interview with a named kerbal. Rival outlets may grumble.
+- schedule_appearance {kerbal, kind: interview|briefing, outlet? (interview), outlets?: [ids] (briefing), when, topic}: book one of the crew (a real kerbal on the roster) for a future interview with one outlet or a press briefing. when: ""tomorrow"", ""in 3 days"", ""day 120"", ""in 6 hours"". The director can then coach the kerbal in crew chat; how well they stick to it depends on their personality.
+- cancel_appearance {kerbal or appearance id}: call off a scheduled interview or briefing. The outlet will be annoyed.
 - respond {article, stance: deny|no_comment|confirm, statement?}: the agency's official response to a specific story.
 - correction_request {article, details}: politely ask an outlet to correct facts (free, no lawyers).
 - hire_pr_firm {firm?, fee?}: hire a PR firm for 30 days (default fee 25000); releases come out more polished. Spin doctors can become a story.
@@ -420,6 +423,17 @@ ACTIONS:
                         }
                         return sb.Length == 0 ? "No named reporters yet." : sb.ToString();
                     }
+                    case "crew":
+                    {
+                        foreach (var c in State.Crew.Values.Where(x => x.OnRoster || x.Flights > 0).OrderByDescending(x => x.Fame).Take(30))
+                        {
+                            sb.Append(c.Name + ": " + (c.Trait != "" ? c.Trait + " L" + c.Level : "crew") + ", " + (c.Dead ? "deceased" : c.RosterStatus == "assigned" ? "aboard " + c.VesselName + (c.Where != "" ? " (" + c.Where + ")" : "") : "at KSC") + ", " + c.Flights + " flights, " + c.Tier);
+                            var up = UpcomingFor(c.Name);
+                            if (up.Count > 0) sb.Append("; booked: " + string.Join(", ", up.Select(x => x.Kind + " " + x.Id + " on " + Clock.FormatDate(x.AtUT) + (x.Coaching.Count > 0 ? " (coached)" : "")).ToArray()));
+                            sb.AppendLine();
+                        }
+                        return sb.Length == 0 ? "No crew on record yet." : sb.ToString();
+                    }
                     case "orders":
                         for (int i = 0; i < State.Orders.Count; i++) sb.AppendLine((i + 1) + ". " + State.Orders[i].Text + " (given " + Clock.FormatDate(State.Orders[i].UT) + ")");
                         return sb.Length == 0 ? "No standing orders." : sb.ToString();
@@ -534,6 +548,8 @@ ACTIONS:
                         return ReleaseShot(g.Id, Arg(a, "caption", g.Caption), ut) ? "Released the photo to the public gallery." : "That photo was already public.";
                     }
                     case "interview": return Interview(a, ut);
+                    case "schedule_appearance": return ScheduleAppearance(a, ut);
+                    case "cancel_appearance": return CancelAppearance(a, ut);
                     case "respond": return Respond(a, ut);
                     case "correction_request": return CorrectionRequest(a, ut);
                     case "hire_pr_firm": return HirePr(a, ut);

@@ -703,6 +703,8 @@ namespace KerbalNews
         public Dictionary<string, CrewFame> Crew = new Dictionary<string, CrewFame>();
         /// <summary>Science results that reached Kerbin, for the journal.</summary>
         public List<ScienceResult> Science = new List<ScienceResult>();
+        /// <summary>Kerbals booked for interviews and briefings.</summary>
+        public List<CrewAppearance> Appearances = new List<CrewAppearance>();
         /// <summary>Anniversaries already marked ("storyId:years"), the last year that got a review, and the last daily check.</summary>
         public HashSet<string> Anniversaries = new HashSet<string>();
         public int LastReviewYear = -1;
@@ -814,6 +816,8 @@ namespace KerbalNews
             foreach (var m in AssistantChat.Skip(Math.Max(0, AssistantChat.Count - MaxAssistantMessages))) m.Save(asn.AddNode("MSG"));
             var ord = n.AddNode("ORDERS");
             foreach (var o in Orders) { var on = ord.AddNode("ORDER"); on.Add("ut", o.UT); on.AddText("text", o.Text); }
+            var aps = n.AddNode("APPEARANCES");
+            foreach (var ap in Appearances.Skip(Math.Max(0, Appearances.Count - 60))) ap.Save(aps.AddNode("APPEARANCE"));
             var sci = n.AddNode("SCIENCE");
             foreach (var r in Science) r.Save(sci.AddNode("RESULT"));
             var crew = n.AddNode("CREW");
@@ -904,6 +908,8 @@ namespace KerbalNews
             if (asn != null) foreach (var mn in asn.GetNodes("MSG")) s.AssistantChat.Add(AssistantMessage.Load(mn));
             var ord = n.GetNode("ORDERS");
             if (ord != null) foreach (var on in ord.GetNodes("ORDER")) s.Orders.Add(new LoreEntry { UT = on.GetDouble("ut"), Text = on.GetText("text") });
+            var apNode = n.GetNode("APPEARANCES");
+            if (apNode != null) foreach (var an2 in apNode.GetNodes("APPEARANCE")) s.Appearances.Add(CrewAppearance.Load(an2));
             var sciNode = n.GetNode("SCIENCE");
             if (sciNode != null) foreach (var rn in sciNode.GetNodes("RESULT")) s.Science.Add(ScienceResult.Load(rn));
             var crewNode = n.GetNode("CREW");

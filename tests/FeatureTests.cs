@@ -192,4 +192,49 @@ public static class FeatureTests
         eng2.CrewSend("Bob Kerman", "Hi Bob", Day * 4);
         Assert(calls == before && s.Crew["Bob Kerman"].Chat.Last().Text.Contains("Turn the AI on"), "offline: no call, a polite note");
     }
+
+    public static void TestScheduleCrewInterviewAndCoachThem()
+    {
+        var s = new NewsState();
+        string lastCrewPrompt = "";
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            if (r.Body.Contains("personal assistant and chief of staff"))
+                return Reply("{\"thinking\":\"Book Jeb.\",\"lookups\":[],\"actions\":[{\"cmd\":\"schedule_appearance\",\"args\":{\"kerbal\":\"Jeb\",\"kind\":\"interview\",\"outlet\":\"the Herald\",\"when\":\"in 3 days\",\"topic\":\"the Mun landing\"}}],\"reply\":\"Booked.\"}");
+            if (r.Body.Contains("chatting privately"))
+            {
+                lastCrewPrompt = r.Body;
+                return Reply("{\"reply\":\"Got it boss, mum's the word on the fuel leak.\",\"remember\":\"\",\"coaching\":\"Do not mention the fuel leak on the lander.\"}");
+            }
+            return CoreTests.AnthropicReply(r);
+        } };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        eng.SyncCrew(new CrewProfile { Name = "Jebediah Kerman", Trait = "Pilot", Level = 3, Courage = 0.5, Stupidity = 0.5, Badass = true });
+        eng.AssistantSend("Set Jeb up with the Herald for an interview in 3 days about the Mun landing", 100);
+        var ap = s.Appearances.Single();
+        Assert(ap.Kerbal == "Jebediah Kerman" && ap.Outlets == "herald" && Math.Abs(ap.AtUT - (100 + 3 * Day)) < 1, "booked: " + ap.Kerbal + " " + ap.Outlets + " " + ap.AtUT);
+        var jeb = s.Crew["Jebediah Kerman"];
+        Assert(jeb.Chat.Any(m => m.Role == "note" && m.Text.StartsWith("Scheduled")), "Jeb's chat shows the booking");
+
+        eng.CrewSend("Jebediah Kerman", "Whatever you do, don't mention the fuel leak.", 200);
+        Assert(lastCrewPrompt.Contains("COMING UP: an interview with Kerbin Daily Herald") || lastCrewPrompt.Contains("COMING UP: an interview"), "Jeb knows about the interview");
+        Assert(ap.Coaching.Count == 1 && ap.Coaching[0].Contains("fuel leak"), "coaching saved");
+
+        for (double ut = Day; ut < 5 * Day; ut += Day / 4) eng.Tick(ut, ut, true);
+        Assert(ap.Status == "done" && ap.Outcome != "", "the interview happened: " + ap.Status);
+        var story = s.Stories.First(x => x.Kind == "tip" && x.DealId == ap.DealId);
+        Assert(story.Topic.Contains("fuel leak") && story.Topic.Contains("badass"), "the writer gets the coaching and personality");
+        Assert(story.Topic.Contains(ap.Slipped ? "slips up" : "sticks to the agency's line"), "the dice decided: slipped " + ap.Slipped);
+        Assert(jeb.Log.Any(l => l.Contains("interview with")), "it goes in Jeb's life log");
+        Assert(s.Articles.Any(a => a.StoryId == story.Id && a.Outlet == "herald"), "the Herald ran it");
+
+        var dim = new CrewFame { Stupidity = 1, Courage = 0.1 };
+        var sharp = new CrewFame { Stupidity = 0, Courage = 0.9, Veteran = true, Level = 5 };
+        Assert(NewsEngine.SlipChance(dim) > 0.45 && NewsEngine.SlipChance(sharp) < 0.06, "dim kerbals slip, sharp veterans don't: " + NewsEngine.SlipChance(dim) + " " + NewsEngine.SlipChance(sharp));
+        Assert(Math.Abs(eng.ParseWhen("tomorrow", 0) - Day) < 1 && Math.Abs(eng.ParseWhen("in 6 hours", 0) - 6 * 3600) < 1 && eng.ParseWhen("day 10", 0) > 8 * Day, "times parse");
+
+        var n = new DataNode("K"); s.Save(n);
+        Assert(NewsState.Load(n).Appearances.Single().Coaching.Count == 1, "appearances survive a save");
+    }
 }

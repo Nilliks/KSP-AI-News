@@ -191,6 +191,7 @@ namespace KerbalNews
             TickTownHalls(ut);
             TickAssistant(ut);
             TickAnniversaries(ut);
+            TickAppearances(ut);
             MaybePoll(ut);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
