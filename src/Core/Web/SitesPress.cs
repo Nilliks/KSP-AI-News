@@ -62,6 +62,18 @@ namespace KerbalNews.Web
             return Page(url, "pressroom", "index.html", m, "Press room", true);
         }
 
+        string PhotoCredit(Article a)
+        {
+            if (a.Image.StartsWith("gallery:"))
+            {
+                var g = State.Gallery.FirstOrDefault(x => x.File == a.Image.Substring(8));
+                if (g != null && g.IsPress) return (g.Caption != "" ? g.Caption + ". " : "") + "Photo: " + (g.Credit != "" ? g.Credit : "pool");
+                return (g != null && g.Caption != "" ? g.Caption + ". " : "") + "Photo: " + Engine.AgencyName;
+            }
+            var o = Outlets.Get(a.Outlet);
+            return "Photo: " + (o != null ? o.Name : a.Outlet) + " / pool";
+        }
+
         PageResult GalleryPage(string url, string path)
         {
             if (path.StartsWith("p/"))
@@ -79,7 +91,8 @@ namespace KerbalNews.Web
                 return Page(url, "gallery", "photo.html", m, (g.Caption != "" ? g.Caption : "Photo") + " - Gallery", true);
             }
             var model = M();
-            model["public"] = State.Gallery.Where(g => g.Public).OrderByDescending(g => g.ReleasedUT).Select(g => (object)ShotModel(g)).ToList();
+            model["press"] = State.Gallery.Where(g => g.IsPress).OrderByDescending(g => g.UT).Take(24).Select(g => (object)ShotModel(g)).ToList();
+            model["public"] = State.Gallery.Where(g => g.Public && !g.IsPress).OrderByDescending(g => g.ReleasedUT).Select(g => (object)ShotModel(g)).ToList();
             model["private"] = State.Gallery.Where(g => !g.Public).OrderByDescending(g => g.UT).Select(g => (object)ShotModel(g)).ToList();
             model["empty"] = State.Gallery.Count == 0;
             model["result"] = GalleryResult;
@@ -93,6 +106,7 @@ namespace KerbalNews.Web
                 { "id", g.Id }, { "src", "kbshot:" + g.File }, { "url", GalleryHost + "/p/" + g.Id }, { "caption", g.Caption }, { "public", g.Public },
                 { "vessel", g.VesselName }, { "body", g.Body }, { "situation", g.Situation.ToLowerInvariant().Replace("_", " ") }, { "date", Date(g.UT) },
                 { "released", g.Public ? Date(g.ReleasedUT) : "" }, { "comments", g.Comments.Count }, { "releaseUrl", "action:shot-release/" + g.Id },
+                { "credit", g.Credit }, { "isPress", g.IsPress },
             };
         }
 

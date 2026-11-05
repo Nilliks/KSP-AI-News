@@ -51,3 +51,6 @@ a:hover { color: #0f7a5c; }
 .btn.alt { background: #6b7f76; }
 .btn.gold { background: #ffd166; color: #12443a; }
 .empty { padding: 30px; text-align: center; color: #6b7f76; background: #ffffff; }
+
+.shot { margin-top: 8px; margin-bottom: 8px; }
+.thumb { margin-top: 6px; }

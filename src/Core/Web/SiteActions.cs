@@ -81,6 +81,7 @@ namespace KerbalNews.Web
                 case "toggle-offline": g.OfflineMode = !g.OfflineMode; SaveSettings(); break;
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
+                case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
                 case "scale":
                     float cur = g.UiScale > 0.4f ? g.UiScale : UiScale();
                     if (arg == "auto") g.UiScale = 0;

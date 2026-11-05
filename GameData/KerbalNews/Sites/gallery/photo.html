@@ -5,6 +5,7 @@
 <div class="wrap">
   <div class="photo"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"></div>
   <p class="meta">{{date}}{{#vessel}} &middot; {{vessel}}{{/vessel}}{{#body}} &middot; {{body}}{{/body}}{{#situation}} &middot; {{situation}}{{/situation}}{{#public}} &middot; released {{released}}{{/public}}</p>
+  {{#credit}}<p class="meta">Photo: {{credit}}</p>{{/credit}}
   {{^public}}<div class="side"><h3>Release this photo</h3><p class="meta">Give it a caption. Once released, people can comment on it and the press can use it.</p>
     <input name="caption" value="{{caption}}" placeholder="Mun Arrow on final approach"><div style="margin-top: 8px"><button class="btn" data-action="{{releaseUrl}}">Release to the public</button></div></div>{{/public}}
 {{/shot}}

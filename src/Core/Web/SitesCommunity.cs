@@ -130,6 +130,7 @@ namespace KerbalNews.Web
                 { "upUrl", "action:vote/t:" + t.Id + "//up" }, { "downUrl", "action:vote/t:" + t.Id + "//down" },
                 { "news", story != null ? story.Headline : "" }, { "newsUrl", story != null ? ArticleUrl(story) : "" },
                 { "excerpt", Clip(Unlinked(State, t.Body).Replace("\n", " "), 200) },
+                { "image", t.Image != "" ? "kbshot:" + t.Image : "" },
             };
         }
 

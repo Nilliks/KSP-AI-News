@@ -276,10 +276,13 @@ namespace KerbalNews
         public int Score;
         public bool Player, Agency;
         public int Vote;
+        /// <summary>A gallery file shown with the post (a spotter's photo), or "".</summary>
+        public string Image = "";
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
         {
+            if (Image != "") n.Add("image", Image);
             n.Add("id", Id); n.Add("board", Board); n.AddText("title", Title); n.AddText("body", Body); n.AddText("author", Author);
             n.Add("story", StoryId); n.Add("kind", Kind); n.Add("ut", UT); n.Add("score", Score);
             n.Add("player", Player); n.Add("agency", Agency); n.Add("vote", Vote);
@@ -292,7 +295,7 @@ namespace KerbalNews
             {
                 Id = n.Get("id", ""), Board = n.Get("board", "general"), Title = n.GetText("title"), Body = n.GetText("body"), Author = n.GetText("author"),
                 StoryId = n.Get("story", ""), Kind = n.Get("kind", "post"), UT = n.GetDouble("ut"), Score = n.GetInt("score"),
-                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"),
+                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"), Image = n.Get("image", ""),
             };
             foreach (var cn in n.GetNodes("COMMENT")) t.Comments.Add(Comment.Load(cn));
             return t;
@@ -337,18 +340,25 @@ namespace KerbalNews
         public string Caption = "";
         public bool Public;
         public double ReleasedUT;
+        /// <summary>"" for the agency's own pictures, "press" for long-lens shots by outside photographers.</summary>
+        public string Source = "";
+        /// <summary>For press shots: pad, liftoff, ascent, explosion or recovery.</summary>
+        public string Kind = "";
+        public string Credit = "";
+        public bool IsPress { get { return Source == "press"; } }
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
         {
             n.Add("id", Id); n.Add("file", File); n.Add("ut", UT); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("body", Body); n.Add("situation", Situation);
             n.AddText("caption", Caption); n.Add("public", Public); n.Add("released", ReleasedUT);
+            if (Source != "") { n.Add("source", Source); n.Add("kind", Kind); n.AddText("credit", Credit); }
             foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
         }
 
         public static GalleryShot Load(DataNode n)
         {
-            var g = new GalleryShot { Id = n.Get("id", ""), File = n.Get("file", ""), UT = n.GetDouble("ut"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Body = n.Get("body", ""), Situation = n.Get("situation", ""), Caption = n.GetText("caption"), Public = n.GetBool("public"), ReleasedUT = n.GetDouble("released") };
+            var g = new GalleryShot { Id = n.Get("id", ""), File = n.Get("file", ""), UT = n.GetDouble("ut"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Body = n.Get("body", ""), Situation = n.Get("situation", ""), Caption = n.GetText("caption"), Public = n.GetBool("public"), ReleasedUT = n.GetDouble("released"), Source = n.Get("source", ""), Kind = n.Get("kind", ""), Credit = n.GetText("credit") };
             foreach (var cn in n.GetNodes("COMMENT")) g.Comments.Add(Comment.Load(cn));
             return g;
         }

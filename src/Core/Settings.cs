@@ -12,6 +12,8 @@ namespace KerbalNews
     {
         public string ProviderId = "deepseek";
         public bool OfflineMode = true; // no key yet: templates until the player picks a provider
+        /// <summary>Press photographers take long-lens shots of launches from a separate camera.</summary>
+        public bool PressPhotos = true;
         public Dictionary<string, string> BaseUrls = new Dictionary<string, string>();
         public Dictionary<string, string> WriterModels = new Dictionary<string, string>();
         public Dictionary<string, string> CheapModels = new Dictionary<string, string>();
@@ -77,6 +79,7 @@ namespace KerbalNews
             settings.Add("timeout", TimeoutSeconds);
             settings.Add("notify", NotifyOnPublish);
             settings.Add("warpGeneration", GenerateDuringWarp);
+            settings.Add("pressPhotos", PressPhotos);
             settings.Add("uiScale", (double)UiScale);
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
@@ -111,6 +114,7 @@ namespace KerbalNews
                 g.TimeoutSeconds = Math.Max(10, settings.GetInt("timeout", g.TimeoutSeconds));
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);
+                g.PressPhotos = settings.GetBool("pressPhotos", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 g.ImageProviderId = settings.Get("imageProvider", "");
                 g.ImageMinTier = settings.Get("imageMinTier", "major");

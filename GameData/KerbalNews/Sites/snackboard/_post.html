@@ -1,6 +1,7 @@
 <div class="post"><div class="votes"><a class="{{#up}}on{{/up}}" href="{{upUrl}}">&#9650;</a><div>{{score}}</div><a class="{{#down}}on{{/down}}" href="{{downUrl}}">&#9660;</a></div>
   <div style="flex: 1"><a class="ptitle" href="{{url}}">{{title}}</a>
     <div class="pmeta"><a href="{{boardUrl}}">b/{{board}}</a> &middot; {{author}} {{#agency}}<span class="flair official">OFFICIAL</span>{{/agency}}{{#ama}} <span class="flair">AMA</span>{{/ama}} &middot; {{date}} &middot; {{comments}} comments</div>
+    {{#image}}<img class="thumb" src="{{image}}" style="width: 240px; aspect-ratio: 16/9">{{/image}}
     {{#excerpt}}<p class="excerpt">{{excerpt}}</p>{{/excerpt}}
     {{#news}}<p class="news">In the news: <a href="{{newsUrl}}">{{news}}</a></p>{{/news}}
   </div></div>

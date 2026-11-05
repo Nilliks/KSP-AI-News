@@ -6,6 +6,7 @@
       <h1>{{title}}</h1>
       {{#news}}<p class="news">In the news: <a href="{{newsUrl}}">{{news}}</a></p>{{/news}}
   {{/thread}}
+      {{#thread}}{{#image}}<img class="shot" src="{{image}}" style="width: 100%; aspect-ratio: 16/9">{{/image}}{{/thread}}
       {{#paragraphs}}<p class="para">{{{html}}}</p>{{/paragraphs}}
     </div></div>
   <div class="discussion"><h3>{{commentCount}} comments</h3>

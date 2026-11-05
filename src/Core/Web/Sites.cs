@@ -246,6 +246,7 @@ namespace KerbalNews.Web
                 m["comments"] = CommentsModel("a:" + a.Id, a.Comments);
                 m["reply"] = ReplyBox("a:" + a.Id, a.Comments);
                 m["image"] = ImageUrl(a.Image);
+                m["photoCredit"] = PhotoCredit(a);
                 double now = Now();
                 m["related"] = State.Articles.Where(x => x.StoryId == a.StoryId && x.Id != a.Id && x.PublishedUT <= now)
                     .Select(x => (object)ArticleModel(x, false)).ToList();
@@ -408,6 +409,7 @@ namespace KerbalNews.Web
             m["maxTokens"] = g.MaxTokens;
             m["notify"] = g.NotifyOnPublish;
             m["warp"] = g.GenerateDuringWarp;
+            m["pressPhotos"] = g.PressPhotos;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;

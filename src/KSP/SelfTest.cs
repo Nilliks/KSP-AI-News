@@ -119,6 +119,7 @@ namespace KerbalNews.KSP
             yield return Shot("settings-bigger-text");
             br.Act("action:scale/auto", null);
             g.OfflineMode = wasOffline;
+            sys.SaveSettings(); // the scale buttons saved settings while offline mode was forced on
 
             if (withAi) yield return AiCheck(sys, br, state, now);
 

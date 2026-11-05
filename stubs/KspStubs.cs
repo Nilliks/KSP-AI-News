@@ -24,7 +24,7 @@ namespace UnityEngine
         public Rect rect;
     }
     public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } }
-    public class Camera : Behaviour { }
+    public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public RenderTexture targetTexture; public void Render() { } }
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
@@ -37,10 +37,11 @@ namespace UnityEngine
     public class WaitForEndOfFrame : YieldInstruction { }
     public static class ScreenCapture { public static void CaptureScreenshot(string file) { } public static Texture2D CaptureScreenshotAsTexture() { return null; } }
     public enum KeyCode { F8, F9 }
-    public class RenderTexture : Texture { public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
+    public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
-    public class Transform : Component { public Vector3 position; public Vector3 up; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public class Transform : Component { public Vector3 position; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } }
     public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
@@ -70,7 +71,7 @@ namespace UnityEngine
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public class Texture2D : Texture { public int width, height; public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
-    public static class Time { public static float realtimeSinceStartup; }
+    public static class Time { public static float realtimeSinceStartup, deltaTime; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } }
     public static class Input { public static Vector3 mousePosition; public static bool GetKeyDown(KeyCode k) { return false; } }
     public static class Screen { public static int width, height; }
@@ -208,6 +209,7 @@ public static class GameEvents
     public static EventData<HostedFromToAction<Vessel, CelestialBody>> onVesselSOIChanged;
     public static EventData<FromToAction<Part, Part>> onPartCouple;
     public static EventData<Vessel> onVesselWillDestroy;
+    public static EventData<Part> onPartDie;
     public static EventData<ProtoVessel, bool> onVesselRecovered;
     public static EventData<ProtoVessel, KSP.UI.Screens.MissionRecoveryDialog, float> onVesselRecoveryProcessing;
     public static EventData<ProtoVessel> onVesselTerminated;
@@ -220,7 +222,29 @@ public static class GameEvents
 namespace Contracts { public class Contract { public string Title; } }
 
 public class ProgressNode { public string Id; }
-public class CelestialBody : UnityEngine.MonoBehaviour { public string bodyName; }
+public struct Vector3d
+{
+    public double x, y, z;
+    public Vector3d(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
+    public static Vector3d zero;
+    public Vector3d normalized { get { return this; } }
+    public double magnitude { get { return 0; } }
+    public static Vector3d operator +(Vector3d a, Vector3d b) { return a; } public static Vector3d operator -(Vector3d a, Vector3d b) { return a; }
+    public static Vector3d operator *(Vector3d a, double d) { return a; } public static Vector3d operator /(Vector3d a, double d) { return a; }
+    public static Vector3d Cross(Vector3d a, Vector3d b) { return a; } public static double Dot(Vector3d a, Vector3d b) { return 0; }
+    public static implicit operator UnityEngine.Vector3(Vector3d v) { return new UnityEngine.Vector3(); }
+    public static implicit operator Vector3d(UnityEngine.Vector3 v) { return new Vector3d(); }
+}
+public static class ScaledSpace { public static Vector3d LocalToScaledSpace(Vector3d v) { return v; } }
+public static class MapView { public static bool MapIsEnabled; }
+public static class FlightDriver { public static bool Pause; }
+public class CelestialBody : UnityEngine.MonoBehaviour
+{
+    public string bodyName; public Vector3d position; public double Radius; public bool ocean;
+    public double GetLatitude(Vector3d p) { return 0; } public double GetLongitude(Vector3d p) { return 0; } public double GetAltitude(Vector3d p) { return 0; }
+    public double TerrainAltitude(double lat, double lon, bool allowNegative = false) { return 0; }
+    public Vector3d GetWorldSurfacePosition(double lat, double lon, double alt) { return new Vector3d(); }
+}
 public class Planetarium { public static Planetarium fetch; public CelestialBody Sun; public static double GetUniversalTime() { return 0; } }
 
 public enum VesselType { Debris, SpaceObject, Unknown, Probe, Relay, Rover, Lander, Ship, Plane, Station, Base, EVA, Flag, DeployedScienceController, DeployedSciencePart, DroppedPart, DeployedGroundPart }
@@ -243,6 +267,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
     public float GetTotalMass() { return 0; }
+    public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
@@ -265,7 +290,7 @@ public class ProtoVessel
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
-public static class FlightGlobals { public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; }
+public static class FlightGlobals { public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static CelestialBody GetHomeBody() { return null; } }
 public class FlightState { public List<ProtoVessel> protoVessels; }
 public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; }

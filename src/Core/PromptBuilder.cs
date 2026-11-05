@@ -144,6 +144,8 @@ namespace KerbalNews
             }
             else if (story.Craft != null) sb.AppendLine(CraftText(story.Craft));
 
+            var photos = story.VesselId != "" ? state.Gallery.Where(g => g.IsPress && g.VesselId == story.VesselId).ToList() : new List<GalleryShot>();
+            if (photos.Count > 0) sb.AppendLine("Press photographers got long-lens pictures from the ground: " + string.Join("; ", photos.Select(g => g.Caption.ToLowerInvariant()).Distinct().ToArray()) + ". Outlets may mention or describe them.");
             TrackedVessel tv;
             if (story.VesselId != "" && state.Tracked.TryGetValue(story.VesselId, out tv) && tv.History.Count > 0)
                 sb.AppendLine("Earlier, the public already heard about this vessel: " + string.Join("; ", tv.History.ToArray()) + ".");

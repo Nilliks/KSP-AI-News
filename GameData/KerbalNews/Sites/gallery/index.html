@@ -9,6 +9,10 @@
   <h2>Private</h2>
   <div class="grid">{{#private}}<a class="tile" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap"><span class="badge private">PRIVATE</span> {{vessel}}</div><div class="meta">{{date}}{{#body}} &middot; {{body}}{{/body}}{{#situation}} &middot; {{situation}}{{/situation}}</div></a>{{/private}}</div>
   {{^private}}<p class="muted">No private shots.</p>{{/private}}
+  <h2>Seen by the press</h2>
+  <p class="muted">Long-lens shots outside photographers took of your launches. Newspapers and Snackboard use these.</p>
+  <div class="grid">{{#press}}<a class="tile" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap">{{caption}}</div><div class="meta">{{date}} &middot; {{credit}}</div></a>{{/press}}</div>
+  {{^press}}<p class="muted">No press photos yet. Photographers turn up for launches.</p>{{/press}}
   {{#empty}}<div class="empty">Your gallery is empty. Press F8 to capture the screen.</div>{{/empty}}
 </div>
 </body></html>

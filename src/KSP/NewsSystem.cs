@@ -33,6 +33,11 @@ namespace KerbalNews.KSP
             Engine.Digest = () => Snapshots.Digest(Engine.State);
             Engine.ArticlesPublished += OnPublished;
             Engine.SaveImage = SaveImage;
+            Engine.PressShotRemoved += file =>
+            {
+                try { var path = System.IO.Path.Combine(GalleryStore.Dir, System.IO.Path.GetFileName(file)); if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+                catch (System.Exception e) { Debug.LogWarning("[KerbalNews] Could not delete old press photo: " + e.Message); }
+            };
             string sitesDir = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/Sites");
             Sites = new KerbalNews.Web.Sites(Engine, rel =>
             {
