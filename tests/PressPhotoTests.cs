@@ -39,7 +39,7 @@ public static class PressPhotoTests
 
         var story = s.Stories.First(x => x.VesselId == "v1");
         string prompt = PromptBuilder.User(story, CoveragePlan.For(story), s, null, clock, day * 2);
-        Assert(prompt.Contains("long-lens pictures") && prompt.Contains("breaks apart"), "writers know about the photos");
+        Assert(prompt.Contains("Press photographers got pictures") && prompt.Contains("breaks apart"), "writers know about the photos");
         eng.Tick(day * 3, 1, true);
         var arts = s.Articles.Where(a => a.StoryId == story.Id).ToList();
         Assert(arts.Count > 0 && arts.All(a => a.Image == "gallery:press-boom.jpg"), "failure coverage runs the explosion photo: " + string.Join(",", arts.Select(a => a.Image).ToArray()));
