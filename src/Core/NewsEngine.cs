@@ -12,6 +12,25 @@ namespace KerbalNews
     public class NewsEngine
     {
         public NewsState State { get; private set; }
+
+        /// <summary>
+        /// Swap in a freshly loaded state (scene change, quickload, revert). A request already
+        /// in flight is kept: when it returns it is applied only if the same story is still
+        /// pending in the new state, so reverted stories are dropped and the rest are not wasted.
+        /// </summary>
+        public void SetState(NewsState s)
+        {
+            State = s ?? new NewsState();
+            lastVisibleUT = -1;
+        }
+
+        Story FindLive(Story s)
+        {
+            return State.Stories.FirstOrDefault(x => x.Id == s.Id && x.CreatedUT == s.CreatedUT && x.Status == StoryStatus.Pending
+                && x.Kind == s.Kind && x.VesselId == s.VesselId);
+        }
+
+        bool IsInFlight(Story s) { return inFlight != null && s.Id == inFlight.Id && s.CreatedUT == inFlight.CreatedUT; }
         public GlobalSettings Settings;
         public IHttpTransport Transport;
         public IGameClock Clock;
@@ -70,11 +89,11 @@ namespace KerbalNews
 
             Story story = null;
             if (!string.IsNullOrEmpty(e.VesselId))
-                story = State.Stories.FirstOrDefault(s => s.Status == StoryStatus.Pending && s.Kind == "mission" && s.VesselId == e.VesselId && s != inFlight);
+                story = State.Stories.FirstOrDefault(s => s.Status == StoryStatus.Pending && s.Kind == "mission" && s.VesselId == e.VesselId && !IsInFlight(s));
             if (story == null && e.Type == EventTypes.Milestone)
             {
                 // A "first" usually belongs to whatever mission caused it.
-                story = State.Stories.Where(s => s.Status == StoryStatus.Pending && s.Kind == "mission" && s != inFlight && e.UT - s.CreatedUT < Day)
+                story = State.Stories.Where(s => s.Status == StoryStatus.Pending && s.Kind == "mission" && !IsInFlight(s) && e.UT - s.CreatedUT < Day)
                     .OrderByDescending(s => s.CreatedUT).FirstOrDefault();
             }
             if (story == null)
@@ -91,6 +110,11 @@ namespace KerbalNews
                 State.Stories.Add(story);
             }
             story.Events.Add(e);
+            if (e.Type == EventTypes.Milestone && e.Detail != "")
+            {
+                string rec = e.Detail + (e.VesselName != "" ? " (" + e.VesselName + ", " + Clock.FormatDate(e.UT) + ")" : " (" + Clock.FormatDate(e.UT) + ")");
+                if (!State.Records.Any(r => r.StartsWith(e.Detail + " ("))) State.Records.Add(rec);
+            }
             Reschedule(story);
             return story;
         }
@@ -170,16 +194,16 @@ namespace KerbalNews
             string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut);
             var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
-            var state = State;
             Transport.Send(req, res =>
             {
-                // The save may have been reloaded while we waited; never write into a stale state.
-                if (state != State || !State.Stories.Contains(story) || story.Status != StoryStatus.Pending) { inFlight = null; return; }
+                // The save may have been reloaded while we waited; only write into a story that still exists.
+                inFlight = null;
+                story = FindLive(story);
+                if (story == null) return;
                 string text, err;
                 GeneratedCoverage cov = null;
                 if (Providers.TryExtractText(preset.Kind, res, out text, out err))
                     ResponseParser.TryParse(text, plan, out cov, out err);
-                inFlight = null;
                 if (cov != null)
                 {
                     LastError = "";
@@ -345,11 +369,12 @@ namespace KerbalNews
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             compressing = true;
             Status = profile ? "Summarizing the agency profile" : "Compressing the news archive";
-            var state = State;
+            double upTo = State.MemoryUpToUT;
             Transport.Send(req, res =>
             {
                 compressing = false;
-                if (state != State) return;
+                // After a reload, apply only if the new state is still at the same point.
+                if (profile ? Compressor.ProfileHash(State.Profile) != hash : State.MemoryUpToUT != upTo || Compressor.CutPoint(State, ut) < cut) { Status = "Idle"; return; }
                 string text, err, summary = null;
                 bool ok = Providers.TryExtractText(preset.Kind, res, out text, out err) && Compressor.TryReadSummary(text, out summary);
                 if (profile)
@@ -387,6 +412,41 @@ namespace KerbalNews
 
         /// <summary>Publish everything that is due right now (debug and "catch up" button).</summary>
         public int PendingCount { get { return State.Stories.Count(s => s.Status == StoryStatus.Pending); } }
+
+        /// <summary>Testing aid: make every pending story due now instead of a day later.</summary>
+        public int SkipDelay(double ut)
+        {
+            int n = 0;
+            foreach (var s in State.Stories.Where(s => s.Status == StoryStatus.Pending))
+            {
+                double shift = s.PublishUT - ut;
+                if (shift <= 0) continue;
+                s.CreatedUT -= shift;
+                s.PublishUT = ut;
+                foreach (var e in s.Events) e.UT -= shift;
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>Sends a tiny request to check the key and model. Calls back with a readable result.</summary>
+        public void TestConnection(Action<bool, string> done)
+        {
+            var preset = Settings.Preset;
+            if (preset.NeedsKey && Settings.Key == "") { done(false, "No API key entered for " + preset.Name + "."); return; }
+            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel,
+                "You are a connectivity check. Reply with JSON only.", "Reply with this JSON object exactly: {\"ok\":true,\"headline\":\"Kerbin Daily Herald online\"}", 200, preset.JsonMode);
+            req.TimeoutSeconds = Math.Min(60, Settings.TimeoutSeconds);
+            Transport.Send(req, res =>
+            {
+                string text, err;
+                if (!Providers.TryExtractText(preset.Kind, res, out text, out err)) { done(false, err); return; }
+                object root;
+                var json = ResponseParser.ExtractJson(text);
+                bool ok = json != null && Json.TryParse(json, out root) && Json.Get(root, "ok") is bool;
+                done(true, ok ? "Connected to " + preset.Name + " (" + Settings.CheapModel + ")." : "Connected, but the reply was not clean JSON: " + text.Substring(0, Math.Min(120, text.Length)));
+            });
+        }
 
         public void MarkAllRead(double ut)
         {

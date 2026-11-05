@@ -568,4 +568,50 @@ public static class CoreTests
         Eq(exc, s.Mood.Excitement, "mood not applied twice");
         Eq(2, s.Tracked.Count == 0 ? 2 : s.Tracked["v1"].History.Count, "history not duplicated");
     }
+
+    public static void TestInFlightSurvivesSceneChangeButNotRevert()
+    {
+        var s = new NewsState();
+        var t = new FakeTransport();
+        var eng = Engine(s, t);
+        eng.Tick(0, 0, true);
+        var beforeLaunch = Snapshot(s);
+        eng.TrackLaunch("v1", Craft(), 10);
+        eng.Ingest(Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Tick(Day * 2, 1, true);
+        Eq(1, t.Pending.Count, "in flight");
+        // Scene change: the same save is loaded into a new state object while the request is out.
+        var sameSave = NewsState.Load(Snapshot(s));
+        eng.SetState(sameSave);
+        eng.Tick(Day * 2, 2, true);
+        Eq(1, t.Sent.Count, "no duplicate request while one is in flight");
+        t.Pending[0](AnthropicReply(t.Sent[0]));
+        Assert(sameSave.Articles.Count > 0, "response applied to the reloaded copy of the story");
+
+        // Revert: the story does not exist in the restored state, so a late reply is dropped.
+        var s2 = new NewsState();
+        var t2 = new FakeTransport();
+        var eng2 = Engine(s2, t2);
+        eng2.Tick(0, 0, true);
+        var pre = Snapshot(s2);
+        eng2.TrackLaunch("v1", Craft(), 10);
+        eng2.Ingest(Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        eng2.Tick(Day * 2, 1, true);
+        var reverted = NewsState.Load(pre);
+        eng2.SetState(reverted);
+        t2.Pending[0](AnthropicReply(t2.Sent[0]));
+        Eq(0, reverted.Articles.Count, "reverted flight never makes the news");
+    }
+
+    public static void TestSkipDelayForTesting()
+    {
+        var s = new NewsState();
+        var t = new FakeTransport { Responder = AnthropicReply };
+        var eng = Engine(s, t);
+        eng.Tick(0, 0, true);
+        eng.Ingest(Ev(EventTypes.Launch, 100, "v1", "Kerbin", "Jebediah Kerman"));
+        Eq(1, eng.SkipDelay(200), "one story moved");
+        eng.Tick(200, 1, true);
+        Assert(s.Articles.Count > 0 && s.Articles.All(a => a.PublishedUT <= 200 + 0.2 * Day), "published right away");
+    }
 }

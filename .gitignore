@@ -4,7 +4,10 @@ obj/
 *.pdb
 *.mdb
 *.exe
-!GameData/**/*.dll
+
 .vs/
 *.user
 KSP_DIR.props.user
+# never commit API keys or local settings
+GameData/KerbalNews/PluginData/
+GameData/KerbalNews/Plugins/*.dll

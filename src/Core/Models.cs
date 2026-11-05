@@ -407,6 +407,8 @@ namespace KerbalNews
         public double LaunchUT;
         public CraftSnapshot Craft;
         public List<string> History = new List<string>(); // short public memory, e.g. "reached orbit"
+        /// <summary>Dedup flags such as "orbit:Mun" so bouncing landings are reported once.</summary>
+        public List<string> Flags = new List<string>();
     }
 
     /// <summary>The whole news world. Lives only inside the save file.</summary>
@@ -429,6 +431,7 @@ namespace KerbalNews
         public int Silliness;
         public bool RumorsEnabled = true;
         /// <summary>Running archive summary of older news and lore (context compression).</summary>
+        public List<string> Records = new List<string>();
         public string MemorySummary = "";
         public double MemoryUpToUT = -1;
         public string ProfileSummary = "";
@@ -476,6 +479,7 @@ namespace KerbalNews
             n.Add("silliness", Silliness);
             n.Add("rumors", RumorsEnabled);
             n.AddText("memory", MemorySummary);
+            foreach (var r in Records) n.AddText("record", r);
             n.Add("memoryUpTo", MemoryUpToUT);
             n.AddText("profileSummary", ProfileSummary);
             n.Add("profileHash", ProfileSummaryHash);
@@ -484,7 +488,7 @@ namespace KerbalNews
             var lore = n.AddNode("LORE");
             foreach (var l in Lore) { var ln = lore.AddNode("ENTRY"); ln.Add("ut", l.UT); ln.AddText("text", l.Text); }
             var nov = n.AddNode("NOVELTY");
-            foreach (var kv in Novelty) nov.Add(kv.Key, kv.Value);
+            foreach (var kv in Novelty) nov.AddText("k", kv.Key + "|" + kv.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
             var tr = n.AddNode("TRACKED");
             foreach (var t in Tracked.Values)
             {
@@ -492,6 +496,7 @@ namespace KerbalNews
                 tn.Add("id", t.VesselId);
                 tn.Add("launch", t.LaunchUT);
                 foreach (var h in t.History) tn.AddText("history", h);
+                foreach (var f in t.Flags) tn.AddText("flag", f);
                 if (t.Craft != null) t.Craft.Save(tn.AddNode("CRAFT"));
             }
             var rep = n.AddNode("REPORTERS");
@@ -517,6 +522,7 @@ namespace KerbalNews
             s.Silliness = Math.Max(0, Math.Min(10, n.GetInt("silliness")));
             s.RumorsEnabled = n.GetBool("rumors", true);
             s.MemorySummary = n.GetText("memory");
+            foreach (var r in n.GetAll("record")) s.Records.Add(TextCodec.Decode(r));
             s.MemoryUpToUT = n.GetDouble("memoryUpTo", -1);
             s.ProfileSummary = n.GetText("profileSummary");
             s.ProfileSummaryHash = n.Get("profileHash", "");
@@ -525,13 +531,21 @@ namespace KerbalNews
             var lore = n.GetNode("LORE");
             if (lore != null) foreach (var ln in lore.GetNodes("ENTRY")) s.Lore.Add(new LoreEntry { UT = ln.GetDouble("ut"), Text = ln.GetText("text") });
             var nov = n.GetNode("NOVELTY");
-            if (nov != null) foreach (var kv in nov.Values) s.Novelty[kv.Key] = nov.GetDouble(kv.Key);
+            if (nov != null)
+                foreach (var raw in nov.GetAll("k"))
+                {
+                    var t = TextCodec.Decode(raw);
+                    int bar = t.LastIndexOf('|');
+                    double v;
+                    if (bar > 0 && double.TryParse(t.Substring(bar + 1), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v)) s.Novelty[t.Substring(0, bar)] = v;
+                }
             var tr = n.GetNode("TRACKED");
             if (tr != null)
                 foreach (var tn in tr.GetNodes("VESSEL"))
                 {
                     var t = new TrackedVessel { VesselId = tn.Get("id", ""), LaunchUT = tn.GetDouble("launch"), Craft = CraftSnapshot.Load(tn.GetNode("CRAFT")) };
                     foreach (var h in tn.GetAll("history")) t.History.Add(TextCodec.Decode(h));
+                    foreach (var f in tn.GetAll("flag")) t.Flags.Add(TextCodec.Decode(f));
                     if (t.VesselId != "") s.Tracked[t.VesselId] = t;
                 }
             var rep = n.GetNode("REPORTERS");

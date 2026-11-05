@@ -1,0 +1,11 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mono
+        run: sudo apt-get update && sudo apt-get install -y mono-devel
+      - name: Unit tests and stub compile check
+        run: ./build.sh
