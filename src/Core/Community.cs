@@ -38,6 +38,7 @@ namespace KerbalNews
                 ReplyTo = list.Any(x => x.Id == replyTo) ? replyTo : "",
             };
             list.Add(c);
+            TownHallAnswered(ThreadOf(target), c);
             Queue(new CommunityJob { Target = target, CommentId = c.Id, Mode = "react", Count = ReplyCount(target, asAgency), UT = ut });
             return c;
         }

@@ -52,3 +52,4 @@ a:hover { color: #a3201c; }
 
 /* A citation of another outlet's article or a Snackboard thread. */
 a.cite { font-weight: bold; text-decoration: underline; }
+.pollink { margin-left: 12px; font-weight: bold; }

@@ -162,6 +162,9 @@ namespace KerbalNews
                 string text;
                 if (job.Target.StartsWith("g:") && job.CommentId == "")
                     text = Pick(rng, "Wallpaper material.", "Is that real or a render?", "Look at that view!", "Zoom and enhance, what's that on the left?", "Framing this one.", "How much did this photo cost us?");
+                else if (job.Mode == "townhall")
+                    text = Pick(rng, "What exactly went wrong, and what have you changed since?", "Why should we trust the next launch?", "How much did the failure cost taxpayers?",
+                        "Were the crews told about the risks?", "Who signed off on that flight?", "When will the full investigation be published?", "Thank you for facing us. What can families expect from you now?", "Will you pause launches until it is fixed?");
                 else if (job.Mode == "ama")
                     text = Pick(rng, "What is the next big mission?", "How do you decide who flies?", "What does a launch actually cost?", "Is it true the cafeteria runs out of snacks before every launch?",
                         "How do you keep the crews safe after what happened last time?", "When are we going to Duna?", "What happens to all the debris?", "Do you ever get scared watching a launch?");
@@ -170,7 +173,7 @@ namespace KerbalNews
                         "So what are you NOT telling us?", "Good to hear it from you directly.", "Can you confirm the crew is safe?");
                 else
                     text = Pick(rng, "Interesting take.", "Source?", "I was thinking the same thing.", "Hard disagree, but fair point.", "You sound like you work at KSC.", "This. Exactly this.");
-                outList.Add(new Comment { Author = c.Handle, Text = text, Likes = rng.Next(1, agency ? 40 : 12), ReplyTo = job.Mode == "ama" ? "" : job.CommentId });
+                outList.Add(new Comment { Author = c.Handle, Text = text, Likes = rng.Next(1, agency ? 40 : 12), ReplyTo = job.Mode == "ama" || job.Mode == "townhall" ? "" : job.CommentId });
             }
             return outList;
         }

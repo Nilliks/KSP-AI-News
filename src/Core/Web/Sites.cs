@@ -117,6 +117,7 @@ namespace KerbalNews.Web
                 if (host == LiveHost) return LivePage(url, path);
                 if (host == Home)
                 {
+                    if (path == "polls") return Page(url, "portal", "polls.html", PollsModel(), "Polls", true);
                     if (path == "search") return Page(url, "portal", "search.html", SearchModel(query.ContainsKey("q") ? query["q"] : ""), "Search", false);
                     return Page(url, "portal", "index.html", PortalModel(), "Kerbal News Network", true);
                 }
@@ -188,6 +189,32 @@ namespace KerbalNews.Web
             m["trustBar"] = BarWidth(md.Trust);
             m["concerns"] = md.Concerns.Where(kv => kv.Value >= 10).OrderByDescending(kv => kv.Value).Take(4)
                 .Select(kv => (object)new Dictionary<string, object> { { "name", kv.Key }, { "level", Mood.Word(kv.Value) } }).ToList();
+            var poll = State.Polls.LastOrDefault(p => p.UT <= Now());
+            if (poll != null) m["poll"] = new Dictionary<string, object> { { "approve", poll.Approve }, { "url", Home + "/polls" } };
+            return m;
+        }
+
+        Dictionary<string, object> PollsModel()
+        {
+            var m = M();
+            var list = State.Polls.Where(p => p.UT <= Now()).ToList();
+            Func<Poll, Dictionary<string, object>> model = p => new Dictionary<string, object>
+            {
+                { "date", Date(p.UT) }, { "pollster", p.Pollster }, { "approve", p.Approve }, { "trust", p.Trust }, { "funding", p.Funding }, { "interest", p.Interest },
+                { "margin", p.Margin }, { "concern", p.TopConcern }, { "approveBar", BarWidth(p.Approve) }, { "trustBar", BarWidth(p.Trust) }, { "fundingBar", BarWidth(p.Funding) },
+                { "interestBar", BarWidth(p.Interest) }, { "h", (4 + p.Approve * 1.2).ToString("0", Inv) + "px" },
+            };
+            var last = list.LastOrDefault();
+            if (last != null)
+            {
+                var lm = model(last);
+                var prev = list.Count > 1 ? list[list.Count - 2] : null;
+                if (prev != null) lm["change"] = (last.Approve - prev.Approve >= 0 ? "+" : "") + (last.Approve - prev.Approve) + " since " + Date(prev.UT);
+                m["latest"] = lm;
+            }
+            m["trend"] = list.Skip(Math.Max(0, list.Count - 16)).Select(p => (object)model(p)).ToList();
+            m["history"] = list.AsEnumerable().Reverse().Take(12).Select(p => (object)model(p)).ToList();
+            m["empty"] = list.Count == 0;
             return m;
         }
 

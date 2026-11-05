@@ -76,6 +76,7 @@ namespace KerbalNews.Web
             {
                 var m = BoardsModel(SubmitBoard);
                 m["anonHandle"] = State.AnonHandle != "" ? State.AnonHandle : "orbital_onlooker";
+                m["setback"] = State.Mood.LastFailureSummary;
                 m["agencyName"] = Engine.AgencyName;
                 m["board"] = SubmitBoard;
                 return Page(url, "snackboard", "submit.html", m, "New post - Snackboard", false);
@@ -125,7 +126,7 @@ namespace KerbalNews.Web
             return new Dictionary<string, object>
             {
                 { "id", t.Id }, { "title", t.Title }, { "url", ForumHost + "/t/" + t.Id }, { "board", t.Board }, { "boardUrl", ForumHost + "/b/" + t.Board },
-                { "author", t.Author }, { "agency", t.Player && t.Agency }, { "ama", t.Kind == "ama" }, { "score", Compact(t.Score) },
+                { "author", t.Author }, { "agency", t.Player && t.Agency }, { "ama", t.Kind == "ama" }, { "townhall", t.Kind == "townhall" }, { "score", Compact(t.Score) },
                 { "comments", t.Comments.Count }, { "date", Date(t.UT) }, { "up", t.Vote > 0 }, { "down", t.Vote < 0 },
                 { "upUrl", "action:vote/t:" + t.Id + "//up" }, { "downUrl", "action:vote/t:" + t.Id + "//down" },
                 { "news", story != null ? story.Headline : "" }, { "newsUrl", story != null ? ArticleUrl(story) : "" },
@@ -142,8 +143,9 @@ namespace KerbalNews.Web
             m["comments"] = CommentsModel("t:" + t.Id, t.Comments);
             m["reply"] = ReplyBox("t:" + t.Id, t.Comments);
             m["commentCount"] = t.Comments.Count;
-            m["ama"] = t.Kind == "ama" && t.Player;
-            m["unanswered"] = t.Kind == "ama" ? t.Comments.Count(c => !c.Player && c.ReplyTo == "" && !t.Comments.Any(r => r.Player && r.ReplyTo == c.Id)) : 0;
+            m["ama"] = (t.Kind == "ama" || t.Kind == "townhall") && t.Player;
+            m["townhall"] = t.Kind == "townhall";
+            m["unanswered"] = t.Kind == "ama" || t.Kind == "townhall" ? t.Comments.Count(c => !c.Player && c.ReplyTo == "" && !t.Comments.Any(r => r.Player && r.ReplyTo == c.Id)) : 0;
             return m;
         }
 
@@ -219,10 +221,10 @@ namespace KerbalNews.Web
                     return r;
                 case "post-thread":
                 {
-                    bool agency = arg == "agency" || arg == "ama";
+                    bool agency = arg == "agency" || arg == "ama" || arg == "townhall";
                     int q;
                     if (!int.TryParse(Get(form, "questions", "5").Trim(), out q)) q = 5;
-                    var t = Engine.PlayerThread(arg == "ama" ? "ama" : SubmitBoard, Get(form, "title"), Get(form, "body"), agency, Get(form, "handle"), arg == "ama", q, Now());
+                    var t = arg == "townhall" ? Engine.TownHall(Get(form, "title"), Get(form, "body"), q, Now()) : Engine.PlayerThread(arg == "ama" ? "ama" : SubmitBoard, Get(form, "title"), Get(form, "body"), agency, Get(form, "handle"), arg == "ama", q, Now());
                     if (t != null) r.Navigate = ForumHost + "/t/" + t.Id;
                     return r;
                 }

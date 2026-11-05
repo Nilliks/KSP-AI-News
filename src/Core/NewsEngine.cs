@@ -185,6 +185,8 @@ namespace KerbalNews
             FireVisible(ut);
             TickCommunity(ut, realTime, allowCalls);
             TickImages(allowCalls);
+            TickTownHalls(ut);
+            MaybePoll(ut);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
 

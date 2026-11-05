@@ -153,6 +153,8 @@ namespace KerbalNews
             sb.AppendLine();
             sb.AppendLine("PUBLIC MOOD: " + state.Mood.Describe());
 
+            var poll = state.Polls.LastOrDefault(p => p.UT <= now);
+            if (poll != null) sb.AppendLine("LATEST POLL (" + clock.FormatDate(poll.UT) + "): " + poll.Summary(state.Profile.ShortName != "" ? state.Profile.ShortName : "the agency") + ". Outlets may cite it.");
             var past = PastFailure(story, state);
             if (past != null) sb.AppendLine("Most similar past setback the press will remember: \"" + past.Headline + "\" (" + clock.FormatDate(past.PublishedUT) + ").");
 
@@ -250,7 +252,11 @@ namespace KerbalNews
             var mine = list.FirstOrDefault(c => c.Id == job.CommentId);
             bool agency = mine != null ? mine.Agency : t != null && t.Agency;
             sb.AppendLine("ASSIGNMENT");
-            if (job.Mode == "ama")
+            if (job.Mode == "townhall")
+            {
+                sb.AppendLine("The agency's official account opened this TOWN HALL to face the public after a setback" + (state.Mood.LastFailureSummary != "" ? " (\"" + state.Mood.LastFailureSummary + "\")" : "") + ". Write " + job.Count + " questions from different members of the public, as top-level replies (reply_to \"\"). Most are pointed: what went wrong, crew safety, cost, accountability, whether to pause launches; one or two are supportive or from families. Specific to this agency's actual record. Do not answer them; the agency will.");
+            }
+            else if (job.Mode == "ama")
             {
                 sb.AppendLine("The agency's official account opened this Ask Me Anything thread. Write " + job.Count + " questions from different members of the public, as top-level replies (reply_to \"\"). Mix them: technical, budget, crew safety, future plans, fun or silly, one pointed or skeptical. Each question is short and specific to this agency's history. Do not answer them; the agency will.");
             }

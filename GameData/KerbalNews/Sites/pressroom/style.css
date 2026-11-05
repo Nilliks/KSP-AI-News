@@ -24,3 +24,4 @@ input, textarea { width: 100%; }
 .rel .meta { margin-bottom: 4px; }
 .cov { font-size: 13px; margin-top: 3px; }
 .waiting { font-size: 13px; color: #8a6d00; }
+.setback { background: #fff4e5; color: #6b3d00; padding: 10px 16px; margin: 10px 20px; }

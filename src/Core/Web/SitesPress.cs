@@ -59,6 +59,7 @@ namespace KerbalNews.Web
                     { "waiting", coverage.Count == 0 && story != null && story.Status == StoryStatus.Pending ? "The press will react around " + Date(story.PublishUT + Clock.DaySeconds * 0.4) + "." : "" },
                 };
             }).ToList();
+            m["setback"] = State.Mood.FailureStreak > 0 && !State.Forum.Any(t => t.Kind == "townhall" && !t.Closed) ? State.Mood.LastFailureSummary : "";
             return Page(url, "pressroom", "index.html", m, "Press room", true);
         }
 

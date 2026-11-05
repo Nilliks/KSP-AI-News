@@ -21,3 +21,9 @@ body { background: #eef0f3; }
 .section-link { font-weight: bold; font-size: 14px; }
 .post { padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid #e3e6ea; font-size: 14px; }
 h2.sec { font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: #6b7785; margin-top: 10px; }
+.pollcard { background: #ffffff; padding: 14px 18px; margin-bottom: 14px; }
+.pollrow { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.pl { width: 200px; }
+.pollrow .meter { flex: 1; }
+.trend { display: flex; align-items: flex-end; gap: 4px; height: 130px; background: #ffffff; padding: 8px; }
+.tb { flex: 1; background: #1f3b5a; }

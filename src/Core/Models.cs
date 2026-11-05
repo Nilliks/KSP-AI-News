@@ -279,11 +279,14 @@ namespace KerbalNews
         public int Vote;
         /// <summary>A gallery file shown with the post (a spotter's photo), or "".</summary>
         public string Image = "";
+        /// <summary>A town hall whose two days are over.</summary>
+        public bool Closed;
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
         {
             if (Image != "") n.Add("image", Image);
+            if (Closed) n.Add("closed", true);
             n.Add("id", Id); n.Add("board", Board); n.AddText("title", Title); n.AddText("body", Body); n.AddText("author", Author);
             n.Add("story", StoryId); n.Add("kind", Kind); n.Add("ut", UT); n.Add("score", Score);
             n.Add("player", Player); n.Add("agency", Agency); n.Add("vote", Vote);
@@ -296,7 +299,7 @@ namespace KerbalNews
             {
                 Id = n.Get("id", ""), Board = n.Get("board", "general"), Title = n.GetText("title"), Body = n.GetText("body"), Author = n.GetText("author"),
                 StoryId = n.Get("story", ""), Kind = n.Get("kind", "post"), UT = n.GetDouble("ut"), Score = n.GetInt("score"),
-                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"), Image = n.Get("image", ""),
+                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"), Image = n.Get("image", ""), Closed = n.GetBool("closed"),
             };
             foreach (var cn in n.GetNodes("COMMENT")) t.Comments.Add(Comment.Load(cn));
             return t;
@@ -642,6 +645,7 @@ namespace KerbalNews
         public List<GalleryShot> Gallery = new List<GalleryShot>();
         /// <summary>Finished livestreams: highlights for the archive and the press.</summary>
         public List<StreamArchive> Streams = new List<StreamArchive>();
+        public List<Poll> Polls = new List<Poll>();
         public List<CommunityJob> CommunityJobs = new List<CommunityJob>();
         /// <summary>The handle the player last used to post anonymously.</summary>
         public string AnonHandle = "";
@@ -737,6 +741,8 @@ namespace KerbalNews
             foreach (var g in Gallery) g.Save(ga.AddNode("SHOT"));
             var lv = n.AddNode("STREAMS");
             foreach (var a in Streams) a.Save(lv.AddNode("STREAM"));
+            var pl = n.AddNode("POLLS");
+            foreach (var p in Polls) p.Save(pl.AddNode("POLL"));
             var jo = n.AddNode("COMMUNITYJOBS");
             foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
         }
@@ -806,6 +812,8 @@ namespace KerbalNews
             if (ga != null) foreach (var gn in ga.GetNodes("SHOT")) s.Gallery.Add(GalleryShot.Load(gn));
             var lv = n.GetNode("STREAMS");
             if (lv != null) foreach (var an in lv.GetNodes("STREAM")) s.Streams.Add(StreamArchive.Load(an));
+            var pl = n.GetNode("POLLS");
+            if (pl != null) foreach (var pn in pl.GetNodes("POLL")) s.Polls.Add(Poll.Load(pn));
             var jo = n.GetNode("COMMUNITYJOBS");
             if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
             return s;

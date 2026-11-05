@@ -1,5 +1,6 @@
 <div class="moodbar">
   <span>Excitement</span><div class="meter"><div style="width: {{mood.excitementBar}}"></div></div><b>{{mood.excitement}}</b>
   <span>Trust</span><div class="meter trust"><div style="width: {{mood.trustBar}}"></div></div><b>{{mood.trust}}</b>
+  {{#mood.poll}}<a class="pollink" href="{{url}}">Latest poll: {{approve}}% approve</a>{{/mood.poll}}
   {{#mood.concerns.0}}<span class="muted">Worried about: {{#mood.concerns}}{{name}} {{/mood.concerns}}</span>{{/mood.concerns.0}}
 </div>
