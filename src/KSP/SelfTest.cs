@@ -15,7 +15,7 @@ namespace KerbalNews.KSP
     /// so it runs only once. Put "ai" in the file to also make one real AI story and one community reply.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.MainMenu, true)]
-    public class SelfTest : MonoBehaviour
+    public partial class SelfTest : MonoBehaviour
     {
         readonly List<string> log = new List<string>();
         string outDir;
@@ -35,7 +35,9 @@ namespace KerbalNews.KSP
             outDir = Path.Combine(Root, "SelfTest");
             Directory.CreateDirectory(outDir);
             foreach (var f in Directory.GetFiles(outDir)) File.Delete(f);
-            StartCoroutine(Run(mode.Contains("ai"), mode.Contains("flight"), !mode.Contains("stay")));
+            modeEng = mode.Contains("eng");
+            modeCareer = mode.Contains("career");
+            StartCoroutine(Run(mode.Contains("ai"), mode.Contains("flight") || modeCareer, !mode.Contains("stay")));
         }
 
         void Log(string s) { log.Add(s); Debug.Log("[KerbalNews] SELFTEST " + s); }
@@ -153,7 +155,7 @@ namespace KerbalNews.KSP
                 // (Kerbalism breaks engines and decouplers on a vessel whose save has no Kerbalism scenario).
                 var game = NewGameTheStockWay() ?? new Game();
                 game.Title = TestSave;
-                game.Mode = Game.Modes.SANDBOX;
+                game.Mode = modeCareer ? Game.Modes.CAREER : Game.Modes.SANDBOX;
                 if (game.Parameters == null) game.Parameters = new GameParameters();
                 if (game.flightState == null) game.flightState = new FlightState();
                 if (game.CrewRoster == null) game.CrewRoster = KerbalRoster.GenerateInitialCrewRoster(Game.Modes.SANDBOX);
@@ -171,6 +173,8 @@ namespace KerbalNews.KSP
             while (HighLogic.LoadedScene != GameScenes.SPACECENTER && Time.realtimeSinceStartup - t0 < 120) yield return new WaitForSeconds(1);
             Check(HighLogic.LoadedScene == GameScenes.SPACECENTER, "flight: test save " + TestSave + " reached the space center");
             yield return new WaitForSeconds(5);
+            if (modeCareer) { yield return ContractCheck(sys); yield break; }
+            if (modeEng) { yield return WarpCheck(sys); yield return EditorCheck(sys, craft); }
             // Launch clamps depend on other mods (in a heavily modded install they can fail to release), so the test
             // flies a copy of the craft without them, kept inside the throwaway save.
             try
@@ -259,6 +263,7 @@ namespace KerbalNews.KSP
             Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
             Check(StreamDriver.Frame != null, "flight: stream video rendered");
             if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(8)) Log("  chat " + c.Author + ": " + c.Text);
+            if (modeEng) yield return EngFlightCheck(sys, v);
             yield return Go("live.kb");
             yield return Shot("flight-live-ascent");
             var spot = eng.State.Forum.FirstOrDefault(t => t.Image != "");
@@ -275,6 +280,7 @@ namespace KerbalNews.KSP
             br.Act("action:stream-end", null);
             Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
             PressCamera.IgnoreDaylight = false;
+            if (modeEng) { yield return CrashCheck(sys, v); yield return SaveCheck(sys); }
         }
 
         Game NewGameTheStockWay()
@@ -291,7 +297,7 @@ namespace KerbalNews.KSP
                 {
                     var t = ps[i].ParameterType;
                     if (t == typeof(string)) { args[i] = firstString ? TestSave : "Squad/Flags/default"; firstString = false; }
-                    else if (t == typeof(Game.Modes)) args[i] = Game.Modes.SANDBOX;
+                    else if (t == typeof(Game.Modes)) args[i] = modeCareer ? Game.Modes.CAREER : Game.Modes.SANDBOX;
                     else if (t == typeof(GameParameters)) args[i] = new GameParameters();
                     else if (t == typeof(GameScenes)) args[i] = GameScenes.SPACECENTER;
                     else if (ps[i].HasDefaultValue) args[i] = ps[i].DefaultValue;

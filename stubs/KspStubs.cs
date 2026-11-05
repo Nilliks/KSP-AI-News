@@ -186,7 +186,7 @@ public class ConfigNode
     public void AddValue(string k, string v) { } public void AddValue(string k, object v) { } public string GetValue(string k) { return null; }
     public ConfigNode AddNode(string name) { return null; }
     public ConfigNode AddNode(ConfigNode n) { return n; }
-    public ConfigNode GetNode(string name) { return null; }
+    public ConfigNode GetNode(string name) { return null; } public ConfigNode[] GetNodes(string name) { return new ConfigNode[0]; }
     public bool Save(string path) { return true; }
     public static ConfigNode Load(string path) { return null; }
 }
@@ -230,7 +230,7 @@ namespace Contracts
     {
         public enum ContractPrestige { Trivial, Significant, Exceptional }
         public enum State { Generated, Offered, OfferExpired, Declined, Cancelled, Active, Completed, DeadlineExpired, Failed, Withdrawn }
-        public string Title; public Guid ContractGuid;
+        public string Title; public Guid ContractGuid; public State ContractState; public double FundsAdvance, FundsCompletion; public float ReputationCompletion; public int ParameterCount; public void Decline() { }
         public static Contract Generate(Type t, ContractPrestige p, int seed, State s) { return null; }
         protected virtual bool Generate() { return false; }
         public virtual bool CanBeCancelled() { return true; } public virtual bool CanBeDeclined() { return true; } public virtual bool MeetRequirements() { return true; }
@@ -270,8 +270,9 @@ public struct Vector3d
 public static class ScaledSpace { public static Vector3d LocalToScaledSpace(Vector3d v) { return v; } }
 public static class MapView { public static bool MapIsEnabled; }
 public static class FlightDriver { public static bool Pause; public static void SetPause(bool p) { } public static void StartWithNewLaunch(string path, string flag, string site, VesselCrewManifest m) { } }
-public class CelestialBody : UnityEngine.MonoBehaviour
+public class CelestialBody : UnityEngine.MonoBehaviour, ITargetable
 {
+    public string GetName() { return bodyName; } public Orbit GetOrbit() { return orbit; }
     public string bodyName; public Vector3d position; public double Radius; public bool ocean; public bool isHomeWorld;
     public double gravParameter, GeeASL, atmosphereDepth, sphereOfInfluence; public bool atmosphere; public Orbit orbit; public CelestialBody referenceBody;
     public double GetLatitude(Vector3d p) { return 0; } public double GetLongitude(Vector3d p) { return 0; } public double GetAltitude(Vector3d p) { return 0; }
@@ -315,7 +316,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public float GetTotalMass() { return 0; }
     public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
-    public int GetCrewCount() { return 0; } public int GetCrewCapacity() { return 0; }
+    public void Die() { } public int GetCrewCount() { return 0; } public int GetCrewCapacity() { return 0; }
 }
 
 public class PartModule : UnityEngine.MonoBehaviour { public Part part; public string moduleName; }
@@ -323,10 +324,10 @@ public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
 public class AvailablePart { public string title, name; }
-public class ManeuverNode { public Vector3d DeltaV; public double UT; public Orbit nextPatch; }
-public class PatchedConicSolver { public List<ManeuverNode> maneuverNodes; }
+public class ManeuverNode { public Vector3d DeltaV; public double UT; public Orbit nextPatch; public void RemoveSelf() { } }
+public class PatchedConicSolver { public List<ManeuverNode> maneuverNodes; public ManeuverNode AddManeuverNode(double ut) { return null; } public void UpdateFlightPlan() { } }
 public class PartModuleList : IEnumerable<PartModule> { public IEnumerator<PartModule> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
-public class Orbit { public enum PatchTransitionType { INITIAL, FINAL, ENCOUNTER, ESCAPE, MANEUVER, IMPACT } public PatchTransitionType patchEndTransition; public Orbit nextPatch; public double ApA, PeA, inclination, eccentricity, period, semiMajorAxis; public CelestialBody referenceBody; public Vector3d getRelativePositionAtUT(double ut) { return new Vector3d(); } public Vector3d getPositionAtUT(double ut) { return new Vector3d(); } public Vector3d GetOrbitNormal() { return new Vector3d(); } }
+public class Orbit { public enum PatchTransitionType { INITIAL, FINAL, ENCOUNTER, ESCAPE, MANEUVER, IMPACT } public PatchTransitionType patchEndTransition; public Orbit nextPatch; public double ApA, PeA, inclination, eccentricity, period, semiMajorAxis; public CelestialBody referenceBody; public Vector3d getRelativePositionAtUT(double ut) { return new Vector3d(); } public Vector3d getPositionAtUT(double ut) { return new Vector3d(); } public Vector3d GetOrbitNormal() { return new Vector3d(); } public Vector3d getOrbitalVelocityAtUT(double ut) { return new Vector3d(); } }
 public class PartResource { public string resourceName; public double amount, maxAmount; }
 public class PartResourceList : IEnumerable<PartResource> { public IEnumerator<PartResource> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
 public class Part : UnityEngine.MonoBehaviour
@@ -345,10 +346,10 @@ public class ProtoVessel
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
-public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
+public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public void SetVesselTarget(ITargetable t, bool o = false) { } public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
 public class FlightState { public List<ProtoVessel> protoVessels; }
 public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public ProtoCrewMember this[string name] { get { return null; } } public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
-public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } }
+public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } public Game Updated() { return this; } }
 public class GameParameters { }
 public enum SaveMode { OVERWRITE, APPEND, ABORT }
 public static class GamePersistence { public static string SaveGame(Game g, string file, string folder, SaveMode m) { return ""; } }
@@ -358,7 +359,7 @@ public delegate void FlightInputCallback(FlightCtrlState st);
 public static class FlightInputHandler { public static FlightCtrlState state; }
 public static class HighLogic
 {
-    public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static string SaveFolder; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
+    public static void LoadScene(GameScenes s) { } public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static string SaveFolder; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
 }
 public class Funding { public static Funding Instance; public double Funds; public void AddFunds(double v, TransactionReasons r) { } }
 public enum TransactionReasons { None, Any }
@@ -368,7 +369,7 @@ public class ResearchAndDevelopment { public static ResearchAndDevelopment Insta
 public enum ScreenMessageStyle { UPPER_LEFT, UPPER_CENTER, UPPER_RIGHT, LOWER_CENTER }
 public static class ScreenMessages { public static object PostScreenMessage(string m, float d, ScreenMessageStyle s) { return null; } }
 public static class GameSettings { public static float UI_SCALE = 1; }
-public static class TimeWarp { public static float CurrentRate; }
+public static class TimeWarp { public static float CurrentRate; public static void SetRate(int i, bool instant, bool msg = true) { } }
 
 [Flags]
 public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8, KEYBOARDINPUT = 16, ALL_SHIP_CONTROLS = 32, STAGING = 64, TIMEWARP = 128, MAP = 256, QUICKSAVE = 512, QUICKLOAD = 1024, PAUSE = 2048, MISC = 4096 }
