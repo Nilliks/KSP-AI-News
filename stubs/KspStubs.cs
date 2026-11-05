@@ -107,6 +107,7 @@ namespace UnityEngine.Networking
 public delegate void Callback();
 
 public enum GameScenes { LOADING, LOADINGBUFFER, MAINMENU, SETTINGS, CREDITS, SPACECENTER, EDITOR, FLIGHT, TRACKSTATION, PSYSTEM, MISSIONBUILDER }
+[AttributeUsage(AttributeTargets.Assembly)] public class KSPAssembly : Attribute { public KSPAssembly(string name, int major, int minor) { } }
 public enum ScenarioCreationOptions { None, AddToAllGames }
 
 [AttributeUsage(AttributeTargets.Class)]
