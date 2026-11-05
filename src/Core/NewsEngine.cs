@@ -335,6 +335,20 @@ namespace KerbalNews
             string shot = ShotFor(story);
             if (shot != null) foreach (var a in cov.Articles) if (a.Image == "") a.Image = shot;
             if (shot == null && cov.Articles.Count > 0 && !rewritten && WantsImage(story, plan)) QueueImage(story, cov.ImagePrompt);
+            if (!rewritten && cov.Articles.Count > 0)
+            {
+                var seg = cov.Tv ?? (story.Significance >= 45 ? OfflineWriter.TvFrom(cov.Articles.OrderByDescending(a => a.Significance).First()) : null);
+                if (seg != null)
+                {
+                    seg.StoryId = story.Id;
+                    seg.UT = first;
+                    seg.Significance = story.Significance;
+                    seg.Image = shot ?? "";
+                    State.Tv.RemoveAll(x => x.StoryId == story.Id);
+                    State.Tv.Add(seg);
+                    if (State.Tv.Count > NewsState.MaxTv * 2) State.Tv.RemoveRange(0, State.Tv.Count - NewsState.MaxTv);
+                }
+            }
             story.Status = StoryStatus.Published;
             if (story.Kind == "filler") State.LastFillerUT = ut;
             else State.LastStoryUT = Math.Max(State.LastStoryUT, story.CreatedUT);

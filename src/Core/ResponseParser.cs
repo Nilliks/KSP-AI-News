@@ -12,6 +12,8 @@ namespace KerbalNews
         public string ImagePrompt = "";
         /// <summary>A Snackboard thread about the news, for bigger stories.</summary>
         public ForumThread Forum;
+        /// <summary>A short KTV broadcast segment written in the same call.</summary>
+        public TvSegment Tv;
     }
 
     /// <summary>Turns the model's JSON into articles, and rejects output we should not save.</summary>
@@ -166,6 +168,12 @@ namespace KerbalNews
                 }
             cov.ImagePrompt = Clip(Clean(Json.Str(root, "image_prompt", "")), 1200);
             cov.Forum = ParseThread(Json.Get(root, "forum"));
+            var tv = Json.Get(root, "tv");
+            if (Json.Obj(tv) != null)
+            {
+                var seg = new TvSegment { Headline = Clip(Clean(Json.Str(tv, "headline", "")), 90), Script = Clip(Clean(Json.Str(tv, "script", "")), 900), Ticker = Clip(Clean(Json.Str(tv, "ticker", "")), 120) };
+                if (seg.Headline != "" && seg.Script != "" && !ContainsForbidden(seg.Script + " " + seg.Headline)) cov.Tv = seg;
+            }
             result = cov;
             return true;
         }

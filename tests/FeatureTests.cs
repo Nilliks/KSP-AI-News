@@ -255,4 +255,33 @@ public static class FeatureTests
         Assert(sites.Render("kerbalnews.kb/search?q=zebulon").Html.Contains("about Zebulon"), "search finds archived stories");
         Assert(sites.Render("herald.kb/article/a3").Html.Contains("From the archive"), "the archived page opens");
     }
+
+    public static void TestStoryCallAlsoWritesKtvSegment()
+    {
+        var s = new NewsState();
+        string prompt = "";
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            prompt = r.Body;
+            var baseReply = CoreTests.AnthropicReply(r);
+            // Add a tv field to the canned coverage.
+            object root; Json.TryParse(baseReply.Body, out root);
+            var content = (List<object>)Json.Get(root, "content");
+            string text = Json.Str(content[0], "text");
+            text = text.Substring(0, text.LastIndexOf('}')) + ",\"tv\":{\"headline\":\"Jeb reaches orbit\",\"script\":\"Good evening. Jebediah Kerman is in orbit tonight.\",\"ticker\":\"Kerbal X in orbit with Jeb aboard\"}}";
+            return Reply(text);
+        } };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Ingest(CoreTests.Ev(EventTypes.Orbit, 400, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Tick(10 + Day + 1, 2, true);
+        Assert(prompt.Contains("KTV News television segment"), "the story call asks for a segment");
+        Assert(t.Sent.Count == 1, "no extra call");
+        var seg = s.Tv.Single();
+        Assert(seg.Headline == "Jeb reaches orbit" && seg.Ticker.Contains("Kerbal X") && seg.StoryId == s.Stories[0].Id, "segment saved");
+        var n = new DataNode("K"); s.Save(n);
+        Assert(NewsState.Load(n).Tv.Count == 1, "segments survive a save");
+    }
 }

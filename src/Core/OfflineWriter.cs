@@ -343,5 +343,13 @@ namespace KerbalNews
                 return h;
             }
         }
+
+        /// <summary>A plain KTV segment from an article, when the writer gave none (offline, or an older reply).</summary>
+        public static TvSegment TvFrom(Article a)
+        {
+            string lead = a.Body.Split(new[] { "\n\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).FirstOrDefault(x => x != "") ?? a.Subhead;
+            string head = a.Headline.Length > 70 ? a.Headline.Substring(0, 67) + "..." : a.Headline;
+            return new TvSegment { Headline = head, Script = "Good evening. " + (lead.Length > 400 ? lead.Substring(0, 397) + "..." : lead), Ticker = (Outlets.NameOf(a.Outlet) + ": " + head) };
+        }
     }
 }
