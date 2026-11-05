@@ -73,13 +73,15 @@ namespace KerbalNews.KSP
             if (ContractSystem.Instance.Contracts.OfType<KnnContract>().Any(x => x.TieId == t.Id)) return true;
             Next = t;
             Contract c;
-            try { c = Contract.Generate(typeof(KnnContract), ContractPrestige.Significant, t.Id.GetHashCode(), State.Offered); }
+            // Generated, then Offer(): Offer sets the offer's expiry date and fires onOffered. A contract created straight
+            // in the Offered state has no expiry date, so the contract system withdraws it on the next update.
+            try { c = Contract.Generate(typeof(KnnContract), ContractPrestige.Significant, t.Id.GetHashCode(), State.Generated); }
             finally { Next = null; }
             if (c == null) return false;
             ContractSystem.Instance.Contracts.Add(c);
-            GameEvents.Contract.onOffered.Fire(c);
+            c.Offer();
             t.ContractGuid = c.ContractGuid.ToString();
-            Debug.Log("[KerbalNews] Posted contract \"" + t.Title + "\"");
+            Debug.Log("[KerbalNews] Posted contract \"" + t.Title + "\" (" + c.ContractState + ", offer expires at UT " + c.DateExpire.ToString("0") + ")");
             return true;
         }
 

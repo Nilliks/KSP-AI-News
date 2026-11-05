@@ -230,7 +230,7 @@ namespace Contracts
     {
         public enum ContractPrestige { Trivial, Significant, Exceptional }
         public enum State { Generated, Offered, OfferExpired, Declined, Cancelled, Active, Completed, DeadlineExpired, Failed, Withdrawn }
-        public string Title; public Guid ContractGuid; public State ContractState; public double FundsAdvance, FundsCompletion; public float ReputationCompletion; public int ParameterCount; public void Decline() { }
+        public string Title; public Guid ContractGuid; public State ContractState; public double FundsAdvance, FundsCompletion; public float ReputationCompletion; public int ParameterCount; public double DateExpire; public void Decline() { } public void Offer() { }
         public static Contract Generate(Type t, ContractPrestige p, int seed, State s) { return null; }
         protected virtual bool Generate() { return false; }
         public virtual bool CanBeCancelled() { return true; } public virtual bool CanBeDeclined() { return true; } public virtual bool MeetRequirements() { return true; }

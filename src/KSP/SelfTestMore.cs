@@ -276,8 +276,13 @@ namespace KerbalNews.KSP
             };
             bool posted = false;
             try { posted = KnnContract.Post(t); } catch (Exception e) { Check(false, "career: post a news contract threw " + (e.InnerException ?? e)); }
-            yield return new WaitForSeconds(2);
-            var c = Contracts.ContractSystem.Instance.Contracts.OfType<KnnContract>().FirstOrDefault(x => x.TieId == t.Id);
+            KnnContract c = null;
+            for (int i = 0; i < 6; i++)
+            {
+                c = Contracts.ContractSystem.Instance.Contracts.OfType<KnnContract>().FirstOrDefault(x => x.TieId == t.Id);
+                Log("  after " + i + " s: " + (c != null ? c.ContractState + ", expires " + c.DateExpire.ToString("0") + " (now " + Planetarium.GetUniversalTime().ToString("0") + ")" : "not in the list") + ", " + Contracts.ContractSystem.Instance.Contracts.Count + " contracts");
+                yield return new WaitForSeconds(1);
+            }
             Check(posted && c != null && c.ContractState == Contracts.Contract.State.Offered, "career: news contract offered in Mission Control" + (c != null ? ": \"" + c.Title + "\", " + c.FundsAdvance + " / " + c.FundsCompletion + " funds, rep " + c.ReputationCompletion + ", " + c.ParameterCount + " parameter(s)" : ""));
             if (c != null)
             {
