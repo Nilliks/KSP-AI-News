@@ -42,6 +42,7 @@ namespace KerbalNews.KSP
             double mass = 0; int cap = 0;
             foreach (var p in ship.parts) { if (p == null) continue; mass += p.mass + p.GetResourceMass(); cap += p.CrewCapacity; }
             s.Mass = mass; s.CrewCapacity = cap;
+            Parts(s, ship.parts);
             Home(s);
             Stages(s, ship.vesselDeltaV, false);
         }
@@ -66,6 +67,10 @@ namespace KerbalNews.KSP
         {
             s.Scene = MapView.MapIsEnabled ? "map" : "flight";
             s.Vessel = Names.Of(v);
+            s.VesselId = v.persistentId.ToString();   // the same id the event collector uses
+            s.VerticalSpeed = v.verticalSpeed; s.GForce = v.geeForce;
+            if (v.ctrlState != null) s.Throttle = v.ctrlState.mainThrottle;
+            Parts(s, v.parts);
             s.Parts = v.parts != null ? v.parts.Count : 0;
             s.Mass = v.GetTotalMass();
             s.Crew = v.GetCrewCount(); s.CrewCapacity = v.GetCrewCapacity();
@@ -81,6 +86,60 @@ namespace KerbalNews.KSP
             }
             Target(s, v);
             Stages(s, v.VesselDeltaV, true);
+            Node(s, v);
+        }
+
+        /// <summary>Counts part modules and resource capacity for the design review.</summary>
+        static void Parts(EngSnapshot s, List<Part> parts)
+        {
+            if (parts == null) return;
+            foreach (var p in parts)
+            {
+                if (p == null) continue;
+                if (p.Modules != null)
+                    foreach (PartModule m in p.Modules)
+                    {
+                        if (m == null || string.IsNullOrEmpty(m.moduleName)) continue;
+                        int c; s.Modules.TryGetValue(m.moduleName, out c); s.Modules[m.moduleName] = c + 1;
+                    }
+                if (p.Resources != null)
+                    foreach (var r in p.Resources)
+                    {
+                        if (r == null || string.IsNullOrEmpty(r.resourceName)) continue;
+                        double c; s.ResourceMax.TryGetValue(r.resourceName, out c); s.ResourceMax[r.resourceName] = c + r.maxAmount;
+                    }
+            }
+        }
+
+        static void Node(EngSnapshot s, Vessel v)
+        {
+            var solver = v.patchedConicSolver;
+            if (solver == null || solver.maneuverNodes == null || solver.maneuverNodes.Count == 0) return;
+            var n = solver.maneuverNodes[0];
+            if (n == null) return;
+            var dv = n.DeltaV;   // x radial (out), y normal, z prograde
+            var e = new EngNode { Radial = dv.x, Normal = dv.y, Prograde = dv.z, Dv = dv.magnitude, TimeTo = n.UT - Planetarium.GetUniversalTime() };
+            var after = n.nextPatch;
+            if (after != null && after.referenceBody != null)
+            {
+                e.AfterBody = after.referenceBody.bodyName;
+                e.AfterApA = after.ApA; e.AfterPeA = after.PeA; e.AfterInc = after.inclination;
+                e.AfterEscape = after.eccentricity >= 1 || after.patchEndTransition == Orbit.PatchTransitionType.ESCAPE;
+                // Follow the patches for an encounter (at most a few).
+                var o = after;
+                for (int i = 0; i < 4 && o != null; i++)
+                {
+                    if (o.patchEndTransition == Orbit.PatchTransitionType.ENCOUNTER && o.nextPatch != null && o.nextPatch.referenceBody != null)
+                    {
+                        e.EncounterBody = o.nextPatch.referenceBody.bodyName;
+                        e.EncounterPeA = o.nextPatch.PeA;
+                        break;
+                    }
+                    if (o.patchEndTransition != Orbit.PatchTransitionType.ESCAPE) break;
+                    o = o.nextPatch;
+                }
+            }
+            s.Node = e;
         }
 
         static string Situation(Vessel v)

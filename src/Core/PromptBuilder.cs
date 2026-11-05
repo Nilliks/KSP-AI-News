@@ -167,6 +167,8 @@ namespace KerbalNews
             {
                 string fame = NewsEngine.CrewFameText(story, state, clock);
                 if (fame != "") sb.AppendLine(fame);
+                var found = story.VesselId == "" ? null : state.Incidents.LastOrDefault(i => i.VesselId == story.VesselId && i.ReleaseId != "" && i.Status == "done");
+                if (found != null) sb.AppendLine("AGENCY INVESTIGATION (released): probable cause " + found.Cause + ". Statement: " + found.PublicSummary);
             }
 
             var photos = story.VesselId != "" ? state.Gallery.Where(g => g.IsPress && g.VesselId == story.VesselId).ToList() : new List<GalleryShot>();

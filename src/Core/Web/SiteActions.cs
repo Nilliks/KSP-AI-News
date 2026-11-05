@@ -132,6 +132,9 @@ namespace KerbalNews.Web
                 case "eng-send": Engine.EngSend(Get(form, "ask"), Now()); break;
                 case "eng-ask": Engine.EngSend(arg, Now()); break;
                 case "eng-clear": Engine.EngClear(); break;
+                case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
+                case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;
+                case "eng-share": Engine.EngShareFindings(arg, Now()); break;
                 case "toggle-engineering": g.EngineeringOn = !g.EngineeringOn; SaveSettings(); break;
                 case "assistant-unorder": Engine.RemoveOrder(arg); break;
                 case "assistant-order":

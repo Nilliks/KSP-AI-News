@@ -735,7 +735,9 @@ namespace KerbalNews
         public List<CrewAppearance> Appearances = new List<CrewAppearance>();
         /// <summary>The engineering team's group chat and what they remember about the director's plans.</summary>
         public List<AssistantMessage> EngChat = new List<AssistantMessage>();
-        public List<string> EngNotes = new List<string>();
+        /// <summary>The mission the director last asked the team to plan, and every crash or failure with its investigation.</summary>
+        public string EngMission = "";
+        public List<Incident> Incidents = new List<Incident>();
         /// <summary>KTV news segments, newest last.</summary>
         public List<TvSegment> Tv = new List<TvSegment>();
         public const int MaxTv = 150;
@@ -875,7 +877,8 @@ namespace KerbalNews
             foreach (var seg in Tv.Skip(Math.Max(0, Tv.Count - MaxTv))) seg.Save(tvn.AddNode("SEGMENT"));
             var eng = n.AddNode("ENGINEERING");
             foreach (var m in EngChat) m.Save(eng.AddNode("MSG"));
-            foreach (var en in EngNotes) eng.AddText("note", en);
+            eng.AddText("mission", EngMission);
+            foreach (var inc in Incidents) inc.Save(eng.AddNode("INCIDENT"));
             var aps = n.AddNode("APPEARANCES");
             foreach (var ap in Appearances.Skip(Math.Max(0, Appearances.Count - 60))) ap.Save(aps.AddNode("APPEARANCE"));
             var sci = n.AddNode("SCIENCE");
@@ -976,7 +979,8 @@ namespace KerbalNews
             if (engNode != null)
             {
                 foreach (var mn in engNode.GetNodes("MSG")) s.EngChat.Add(AssistantMessage.Load(mn));
-                foreach (var en in engNode.GetAll("note")) s.EngNotes.Add(TextCodec.Decode(en));
+                s.EngMission = engNode.GetText("mission");
+                foreach (var inn in engNode.GetNodes("INCIDENT")) s.Incidents.Add(Incident.Load(inn));
             }
             var apNode = n.GetNode("APPEARANCES");
             if (apNode != null) foreach (var an2 in apNode.GetNodes("APPEARANCE")) s.Appearances.Add(CrewAppearance.Load(an2));

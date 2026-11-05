@@ -26,7 +26,7 @@ namespace KerbalNews
     {
         /// <summary>spacecenter, tracking, flight, map, vab or sph.</summary>
         public string Scene = "spacecenter";
-        public string Vessel = "";
+        public string Vessel = "", VesselId = "";
         public string Situation = "";       // "orbiting Kerbin", "landed on the Mun", "being built in the VAB"
         public int Crew, CrewCapacity, Parts;
         public double Mass;                 // tonnes
@@ -36,6 +36,12 @@ namespace KerbalNews
 
         public bool HasOrbit;
         public double ApA, PeA, Inclination, Eccentricity, Period, Sma, Altitude, Speed;   // m, m, deg, -, s, m, m, m/s
+        public double VerticalSpeed, GForce, Throttle = -1;
+        /// <summary>The first maneuver node, if the director placed one.</summary>
+        public EngNode Node;
+        /// <summary>Part modules on the craft by name (count), and resource capacity by name: the design review reads these.</summary>
+        public Dictionary<string, int> Modules = new Dictionary<string, int>();
+        public Dictionary<string, double> ResourceMax = new Dictionary<string, double>();
 
         public string Target = "";
         /// <summary>Current phase angle to the target around their common parent (degrees, target ahead = 0-360), or -1.</summary>
@@ -206,6 +212,7 @@ namespace KerbalNews
             }
             else if (s.Vessel != "" && !s.DeltaVReady) sb.AppendLine("The delta-v readout is not available right now.");
             if (s.Vessels.Count > 0) sb.AppendLine("Active vessels:\n- " + string.Join("\n- ", s.Vessels.Take(20).ToArray()));
+            if (s.Node != null) sb.AppendLine("MANEUVER NODE CHECK:\n- " + string.Join("\n- ", EngNodeCheck(s).ToArray()));
             var facts = EngFacts(s);
             if (facts.Count > 0) sb.AppendLine("Computed by the team's tools (trust these numbers):\n- " + string.Join("\n- ", facts.ToArray()));
             return sb.ToString().TrimEnd();
@@ -230,9 +237,12 @@ namespace KerbalNews
             sb.AppendLine("Usually one specialist answers; add a second only when they add something real (at most three). Keep each reply short: two to six sentences, or a short numbered list for procedures. Name KSP parts and features by their stock names (Terrier, Poodle, maneuver node, SAS prograde) unless the mods list says otherwise.");
             if (snap == null || snap.StockSystem) sb.AppendLine(StockDvMap);
             else sb.AppendLine("A planet pack or rescale is installed, so stock delta-v maps do not apply: work from the bodies' real numbers given in the data.");
-            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene\", \"text\": \"...\"}], \"remember\": \"one short fact about the director's plans or craft worth remembering for later talks, or empty\"}.");
+            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene\", \"text\": \"...\"}]}.");
+            var hints = EngModHints(Settings.Mods);
+            if (hints.Count > 0) sb.AppendLine("MODS THAT CHANGE THE ADVICE (use them: suggest their tools and respect their rules):\n- " + string.Join("\n- ", hints.ToArray()));
             string mods = Settings.ModsInContext ? Settings.ModsText : "";
             if (!string.IsNullOrEmpty(mods)) sb.AppendLine("Installed mods (parts and features from these may be on the craft): " + mods);
+            sb.AppendLine("Lines marked \"!\" in the design review or node check are real problems found in the craft data: bring them up when they matter to the question. When the director asks to review a design, go through the review and the mission plan; when they ask about a node, go through the node check and suggest exact fixes (which way to drag, roughly how many m/s).");
             return sb.ToString();
         }
 
@@ -242,7 +252,12 @@ namespace KerbalNews
             sb.AppendLine("Today: " + Clock.FormatDate(ut) + ".");
             sb.AppendLine("LIVE DATA");
             sb.AppendLine(EngDataText(snap));
-            if (State.EngNotes.Count > 0) sb.AppendLine("What the team remembers from earlier: " + string.Join("; ", State.EngNotes.ToArray()));
+            var plan = EngCurrentPlan(snap);
+            if (plan != null) sb.AppendLine(EngMissions.PlanText(plan));
+            var review = EngReview(snap, plan);
+            if (review.Count > 0) sb.AppendLine("DESIGN REVIEW (from the parts list):\n- " + string.Join("\n- ", review.ToArray()));
+            string inc = IncidentText();
+            if (inc != "") sb.AppendLine("PAST INVESTIGATIONS:\n" + inc);
             sb.AppendLine();
             sb.AppendLine("The conversation so far (newest last):");
             foreach (var m in State.EngChat.Skip(Math.Max(0, State.EngChat.Count - 12)))
@@ -314,15 +329,9 @@ namespace KerbalNews
                     string single = Json.Str(root, "reply", "").Trim();
                     EngLine("linus", single == "" ? "..." : ResponseParser.Clip(single, 2000), ut);
                 }
-                string remember = Json.Str(root, "remember", "").Trim();
-                if (remember.Length > 3)
-                {
-                    State.EngNotes.Add(ResponseParser.Clip(remember, 200));
-                    if (State.EngNotes.Count > 12) State.EngNotes.RemoveAt(0);
-                }
             });
         }
 
-        public void EngClear() { State.EngChat.Clear(); State.EngNotes.Clear(); engRun++; EngBusy = false; }
+        public void EngClear() { State.EngChat.Clear(); State.EngMission = ""; engRun++; EngBusy = false; }
     }
 }

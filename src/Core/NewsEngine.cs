@@ -92,6 +92,7 @@ namespace KerbalNews
             e.Significance = Math.Min(100, e.Significance + FameBoost(e));
             State.Novelty[key] = seen + 1;
             RecordCrew(e);
+            RecordIncident(e);
 
             Story story = null;
             if (!string.IsNullOrEmpty(e.VesselId))

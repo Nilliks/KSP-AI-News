@@ -17,13 +17,27 @@
   </div>{{/hasStages}}
   {{#noDv}}<div class="box meta">The game's delta-v readout is not ready yet. It appears once the craft has engines and staging.</div>{{/noDv}}
   {{#facts}}<div class="fact">{{.}}</div>{{/facts}}
+  {{#hasNode}}<div class="box"><div class="btitle">Maneuver node check</div>{{#node}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/node}}</div>{{/hasNode}}
+  {{#hasReview}}<div class="box"><div class="btitle">Design review</div>{{#review}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/review}}</div>{{/hasReview}}
   {{#hasFleet}}<div class="box"><div class="btitle">Active vessels</div>{{#fleet}}<div class="fl">{{.}}</div>{{/fleet}}</div>{{/hasFleet}}
   <div class="note">{{sceneNote}}</div>
+  {{#hasIncidents}}<div class="cap" style="margin-top: 14px">Incidents</div>
+  {{#incidents}}<div class="box"><div class="btitle">{{title}}</div><div class="meta">{{date}} · {{kind}}{{#crew}} · {{crew}}{{/crew}}</div>
+    {{#open}}<div class="sendrow" style="margin-top: 6px"><a class="qa" href="action:eng-investigate/{{id}}">Investigate</a></div>{{/open}}
+    {{#working}}<div class="status">The team is going through the data...</div>{{/working}}
+    {{#done}}<p class="cause">Probable cause: {{cause}}</p><p class="fnd">{{findings}}</p>{{#fixes}}<p class="fnd"><b>Next time:</b> {{fixes}}</p>{{/fixes}}
+      {{^released}}<div class="sendrow"><a class="qa" href="action:eng-share/{{id}}">Share findings with the press</a></div>{{/released}}
+      {{#released}}<div class="meta">Findings released to the press.</div>{{/released}}{{/done}}
+  </div>{{/incidents}}{{/hasIncidents}}
 </div>
 <div class="talk">
   {{#off}}<p class="warn">The engineering team is turned off. Turn it on in <a href="settings.kb">Settings</a>.</p>{{/off}}
   {{#on}}
   <div class="team">{{#team}}<span class="chipt{{#spoke}} on{{/spoke}}">{{name}}</span>{{/team}}<span class="spacer"></span><a class="small" href="action:eng-clear">Clear chat</a></div>
+  <div class="plan"><div class="sendrow"><span class="meta">Mission</span><input name="mission" value="{{mission}}" placeholder="e.g. land on Minmus and come back"><button class="btn" data-action="eng-plan">Plan</button></div>
+  {{#hasPlan}}<div class="legs">{{#legs}}<div class="leg{{#short}} bad{{/short}}"><span class="ln">{{name}}</span><span class="ld">{{dv}}</span><span class="ls">{{stages}}</span></div>{{/legs}}
+    <div class="leg tot"><span class="ln">Total (10% margin: {{need}})</span><span class="ld">{{total}}</span><span class="ls">{{verdict}}</span></div></div>{{/hasPlan}}
+  {{#planNote}}<p class="meta">{{planNote}}</p>{{/planNote}}</div>
   {{#offline}}<p class="warn">Offline, the team can only give the computed numbers. Turn off offline mode in <a href="settings.kb">Settings</a> to talk to them.</p>{{/offline}}
   {{#empty}}<p class="meta">Ask about your orbit, your delta-v budget, transfer windows, staging or craft design. The team sees the live data on the left.</p>{{/empty}}
   <div class="chat">

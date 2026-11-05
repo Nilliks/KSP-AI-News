@@ -1,0 +1,439 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+
+namespace KerbalNews
+{
+    /// <summary>A maneuver node the director placed, and where it leads.</summary>
+    public class EngNode
+    {
+        public double Dv, Prograde, Normal, Radial;   // m/s
+        public double TimeTo;                       // s until the node
+        public string AfterBody = "";
+        public double AfterApA, AfterPeA, AfterInc;
+        public bool AfterEscape;
+        /// <summary>An encounter after the burn: the body and the periapsis there (m, negative = impact).</summary>
+        public string EncounterBody = "";
+        public double EncounterPeA;
+    }
+
+    /// <summary>One leg of a mission budget, and which stages pay for it.</summary>
+    public class EngLeg
+    {
+        public string Name = "";
+        public double Dv;
+        public string Stages = "";
+        public bool Short;
+    }
+
+    public class EngPlan
+    {
+        public string Mission = "";
+        public string Body = "";
+        public bool Land, Return, Flyby;
+        public List<EngLeg> Legs = new List<EngLeg>();
+        public double Need, Have, Margin;
+        public bool Known;
+        public string Note = "";
+        public double Total { get { return Legs.Sum(l => l.Dv); } }
+    }
+
+    /// <summary>A crash or failure, and the engineering team's findings once the director asks for them.</summary>
+    public class Incident
+    {
+        public string Id = "", VesselId = "", VesselName = "", Kind = "", Detail = "";
+        public double UT;
+        public List<string> Crew = new List<string>();
+        /// <summary>The last flight data before it happened, oldest first.</summary>
+        public List<string> Telemetry = new List<string>();
+        public string Craft = "";
+        /// <summary>open, working, done.</summary>
+        public string Status = "open";
+        public string Cause = "", Findings = "", Fixes = "", PublicSummary = "";
+        public string ReleaseId = "";
+
+        public void Save(DataNode n)
+        {
+            n.Add("id", Id); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("kind", Kind); n.AddText("detail", Detail); n.Add("ut", UT);
+            foreach (var c in Crew) n.AddText("crew", c);
+            foreach (var t in Telemetry) n.AddText("tel", t);
+            n.AddText("craft", Craft); n.Add("status", Status == "working" ? "open" : Status);
+            n.AddText("cause", Cause); n.AddText("findings", Findings); n.AddText("fixes", Fixes); n.AddText("public", PublicSummary); n.Add("release", ReleaseId);
+        }
+
+        public static Incident Load(DataNode n)
+        {
+            var i = new Incident
+            {
+                Id = n.Get("id", ""), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Kind = n.Get("kind", ""), Detail = n.GetText("detail"), UT = n.GetDouble("ut"),
+                Craft = n.GetText("craft"), Status = n.Get("status", "open"), Cause = n.GetText("cause"), Findings = n.GetText("findings"), Fixes = n.GetText("fixes"),
+                PublicSummary = n.GetText("public"), ReleaseId = n.Get("release", ""),
+            };
+            foreach (var c in n.GetAll("crew")) i.Crew.Add(TextCodec.Decode(c));
+            foreach (var t in n.GetAll("tel")) i.Telemetry.Add(TextCodec.Decode(t));
+            return i;
+        }
+    }
+
+    public static class EngMissions
+    {
+        /// <summary>Stock delta-v legs from low Kerbin orbit (approximate, community map): transfer, capture to low orbit,
+        /// landing, ascent, return to Kerbin (aerobraking at home), and surface gravity in m/s².</summary>
+        public class Dest { public string Name; public double Transfer, Capture, Land, Ascent, Return, Gravity; public bool Aero, NoSurface; }
+
+        public static readonly Dest[] Stock =
+        {
+            new Dest { Name = "Mun", Transfer = 860, Capture = 310, Land = 580, Ascent = 580, Return = 310, Gravity = 1.63 },
+            new Dest { Name = "Minmus", Transfer = 930, Capture = 160, Land = 180, Ascent = 180, Return = 160, Gravity = 0.49 },
+            new Dest { Name = "Duna", Transfer = 1080, Capture = 610, Land = 1450, Ascent = 1450, Return = 610, Gravity = 2.94, Aero = true },
+            new Dest { Name = "Ike", Transfer = 1360, Capture = 180, Land = 390, Ascent = 390, Return = 460, Gravity = 1.10 },
+            new Dest { Name = "Eve", Transfer = 1040, Capture = 1410, Land = 80, Ascent = 8000, Return = 1500, Gravity = 16.7, Aero = true },
+            new Dest { Name = "Gilly", Transfer = 1180, Capture = 410, Land = 30, Ascent = 30, Return = 640, Gravity = 0.05 },
+            new Dest { Name = "Moho", Transfer = 1710, Capture = 2410, Land = 870, Ascent = 870, Return = 3170, Gravity = 2.70 },
+            new Dest { Name = "Dres", Transfer = 1560, Capture = 1720, Land = 430, Ascent = 430, Return = 2140, Gravity = 1.13 },
+            new Dest { Name = "Jool", Transfer = 1930, Capture = 2810, Return = 2900, Aero = true, NoSurface = true },
+            new Dest { Name = "Laythe", Transfer = 3020, Capture = 1070, Land = 0, Ascent = 2900, Return = 3000, Gravity = 7.85, Aero = true },
+        };
+
+        public const double LaunchDv = 3400;
+
+        public static Dest Find(string text)
+        {
+            string t = " " + (text ?? "").ToLowerInvariant() + " ";
+            foreach (var d in Stock.OrderByDescending(x => x.Name.Length))
+                if (t.Contains(d.Name.ToLowerInvariant())) return d;
+            if (t.Contains(" moon")) return Stock[0];
+            return null;
+        }
+
+        static bool Has(string t, params string[] words) { return words.Any(w => t.Contains(w)); }
+
+        /// <summary>Budget for a plain-English mission against the craft's stages. Works only for the stock system.</summary>
+        public static EngPlan Plan(string mission, EngSnapshot s)
+        {
+            var p = new EngPlan { Mission = (mission ?? "").Trim() };
+            string t = " " + p.Mission.ToLowerInvariant() + " ";
+            var d = Find(t);
+            if (d == null || (s != null && !s.StockSystem)) { p.Note = d == null ? "No stock destination named, so the team will work it out from the data." : "A planet pack is installed, so the stock budget does not apply."; return p; }
+            p.Known = true;
+            p.Body = d.Name;
+            p.Flyby = Has(t, "flyby", "fly by", "fly-by", "slingshot");
+            p.Land = !p.Flyby && !d.NoSurface && Has(t, "land", "surface", "touch down", "plant a flag", "walk on", "base", "rover");
+            p.Return = Has(t, "back", "return", "home", "and come", "round trip", "round-trip", "rescue");
+            bool onGround = s == null || s.Scene == "vab" || s.Scene == "sph" || s.Scene == "spacecenter" || s.Scene == "tracking"
+                || (s.Body == "Kerbin" && !s.HasOrbit);
+            bool inLko = s != null && s.Body == "Kerbin" && s.HasOrbit && s.PeA > 0;
+            if (onGround && !inLko) p.Legs.Add(new EngLeg { Name = "Launch to low Kerbin orbit", Dv = LaunchDv });
+            p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Flyby of " : "Transfer to ") + d.Name, Dv = d.Transfer });
+            if (!p.Flyby) p.Legs.Add(new EngLeg { Name = "Capture into low " + d.Name + " orbit" + (d.Aero ? " (aerobraking can save most of this)" : ""), Dv = d.Capture });
+            if (p.Land)
+            {
+                p.Legs.Add(new EngLeg { Name = "Land on " + d.Name + (d.Aero ? " (parachutes do most of the work)" : ""), Dv = d.Land });
+                if (p.Return) p.Legs.Add(new EngLeg { Name = "Ascent back to " + d.Name + " orbit", Dv = d.Ascent });
+            }
+            if (p.Return) p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Free-return correction" : "Return to Kerbin (aerobrake at home)"), Dv = p.Flyby ? 100 : d.Return });
+            p.Need = p.Total * 1.1;
+            Allocate(p, s, d);
+            return p;
+        }
+
+        /// <summary>Pays each leg from the stages in firing order, so the plan says which stage does what and where it runs out.</summary>
+        static void Allocate(EngPlan p, EngSnapshot s, Dest d)
+        {
+            if (s == null || s.Stages.Count == 0) { p.Note = "No staging data yet, so this is the budget only."; return; }
+            bool flying = s.Scene == "flight" || s.Scene == "map";
+            var pool = s.Stages.OrderByDescending(x => x.Stage).Select(x => new double[] { x.Stage, flying ? x.DvActual : x.DvVac, x.DvAsl > 0 ? x.DvAsl : x.DvVac }).ToList();
+            int i = 0;
+            double have = 0;
+            foreach (var x in pool) have += x[1];
+            p.Have = have;
+            foreach (var leg in p.Legs)
+            {
+                double need = leg.Dv;
+                var used = new List<string>();
+                bool launch = leg.Name.StartsWith("Launch");
+                while (need > 0.5 && i < pool.Count)
+                {
+                    // Low in the atmosphere a stage gives less than its vacuum figure; use the sea-level one for the launch leg.
+                    double avail = launch && pool[i][1] == pool[i][2] ? pool[i][1] : (launch ? Math.Min(pool[i][1], (pool[i][1] + pool[i][2]) / 2) : pool[i][1]);
+                    if (avail <= 0.5) { i++; continue; }
+                    double take = Math.Min(avail, need);
+                    need -= take;
+                    double scale = avail > 0 ? take / avail : 1;
+                    pool[i][1] -= pool[i][1] * scale; pool[i][2] -= pool[i][2] * scale;
+                    if (!used.Contains(((int)pool[i][0]).ToString(CultureInfo.InvariantCulture))) used.Add(((int)pool[i][0]).ToString(CultureInfo.InvariantCulture));
+                    if (pool[i][1] <= 0.5) i++;
+                }
+                leg.Short = need > 0.5;
+                leg.Stages = used.Count == 0 ? "nothing left" : "stage " + string.Join(", ", used.ToArray()) + (leg.Short ? ", then " + EngMath.N(need) + " m/s short" : "");
+            }
+            p.Margin = have - p.Total;
+        }
+
+        public static string PlanText(EngPlan p)
+        {
+            if (p == null || !p.Known) return p == null ? "" : "Mission: " + p.Mission + ". " + p.Note;
+            var sb = new StringBuilder();
+            sb.AppendLine("Mission plan for \"" + p.Mission + "\" (stock delta-v map, approximate):");
+            foreach (var l in p.Legs) sb.AppendLine("- " + l.Name + ": " + EngMath.N(l.Dv) + " m/s" + (l.Stages != "" ? " (" + l.Stages + ")" : ""));
+            sb.Append("Total " + EngMath.N(p.Total) + " m/s, about " + EngMath.N(p.Need) + " with a 10% margin.");
+            if (p.Have > 0) sb.Append(" The craft has " + EngMath.N(p.Have) + " m/s, so it is " + (p.Margin >= p.Total * 0.1 ? EngMath.N(p.Margin) + " m/s over the budget." : p.Margin >= 0 ? "just enough with almost no margin (" + EngMath.N(p.Margin) + " m/s spare)." : EngMath.N(-p.Margin) + " m/s short."));
+            if (p.Note != "") sb.Append(" " + p.Note);
+            return sb.ToString();
+        }
+    }
+
+    public partial class NewsEngine
+    {
+        static int Count(EngSnapshot s, params string[] modules) { int n = 0; foreach (var m in modules) { int c; if (s.Modules.TryGetValue(m, out c)) n += c; } return n; }
+        static double Res(EngSnapshot s, params string[] names) { double n = 0; foreach (var r in names) { double c; if (s.ResourceMax.TryGetValue(r, out c)) n += c; } return n; }
+
+        /// <summary>Known mods that change engineering advice, from the Mods tab list.</summary>
+        public static List<string> EngModHints(IEnumerable<ModInfo> mods)
+        {
+            var hints = new List<string>();
+            if (mods == null) return hints;
+            var on = mods.Where(m => m.Installed).Select(m => (m.Folder + " " + m.Name).ToLowerInvariant()).ToList();
+            Func<string[], bool> has = keys => on.Any(m => keys.Any(k => m.Contains(k)));
+            if (has(new[] { "mechjeb" })) hints.Add("MechJeb is installed: point the director to its Maneuver Planner, Ascent Guidance, Rendezvous and Landing Guidance windows when they save effort, but still explain the numbers.");
+            if (has(new[] { "kerbalengineer", "kerbal engineer" })) hints.Add("Kerbal Engineer Redux is installed: its flight and build readouts can be referenced.");
+            if (has(new[] { "realchute" })) hints.Add("RealChute is installed: parachutes are RealChute parts that are set up in the editor (deployment altitude, canopy size); check the predicted landing speed.");
+            if (has(new[] { "taclifesupport", "tac life support", "tac-ls" })) hints.Add("TAC Life Support is installed: crewed craft need Food, Water and Oxygen (and power for scrubbers) for the whole mission.");
+            if (has(new[] { "usilifesupport", "usi-ls", "usi life support", "umbraspaceindustries" })) hints.Add("USI Life Support is installed: crew need Supplies (and give off Mulch); kerbals without supplies stop working.");
+            if (has(new[] { "snacks" })) hints.Add("Snacks is installed: crew eat Snacks every day; pack enough for the trip.");
+            if (has(new[] { "kerbalism" })) hints.Add("Kerbalism is installed: food, water, oxygen, radiation, stress and part failures matter; plan supplies, shielding and redundancy.");
+            if (has(new[] { "remotetech" })) hints.Add("RemoteTech is installed: probes need a connection path with line of sight and pointed dishes, and there is signal delay; plan relays.");
+            if (has(new[] { "ferramaerospace", "ferram", " far " })) hints.Add("FAR is installed: aerodynamics are realistic; check stability, keep fins at the back, and expect different gravity turns and reentry behaviour.");
+            if (has(new[] { "deadlyreentry", "deadly reentry" })) hints.Add("Deadly Reentry is installed: anything coming back from orbit needs a heat shield and a shallow entry.");
+            if (has(new[] { "principia" })) hints.Add("Principia is installed: n-body gravity, so patched-conic numbers and Hohmann windows are only first guesses.");
+            if (has(new[] { "realsolarsystem", "realism overhaul", "realismoverhaul", "rss" })) hints.Add("Real Solar System / Realism Overhaul: real-scale planets and engines with limited ignitions and ullage; stock numbers are far too low.");
+            if (has(new[] { "trajectories" })) hints.Add("Trajectories is installed: it shows the predicted impact point through the atmosphere.");
+            if (has(new[] { "kerbalalarmclock", "alarm clock" })) hints.Add("Kerbal Alarm Clock is installed: suggest alarms for nodes and transfer windows.");
+            if (has(new[] { "scansat" })) hints.Add("SCANsat is installed: scanning orbits (inclination, altitude) matter for mapping missions.");
+            if (has(new[] { "kerbaljointreinforcement", "kjr" })) hints.Add("Kerbal Joint Reinforcement is installed, so wobbly stacks are less of a problem.");
+            if (has(new[] { "tweakscale" })) hints.Add("TweakScale is installed: parts can be resized, which changes their mass and thrust.");
+            return hints;
+        }
+
+        /// <summary>Design review from the parts list: things that end missions before launch. Each line starts with "!" when it is a problem.</summary>
+        public List<string> EngReview(EngSnapshot s, EngPlan plan)
+        {
+            var r = new List<string>();
+            if (s == null || s.Vessel == "" || s.Modules.Count == 0 && s.Parts == 0) return r;
+            var mods = EngModHints(Settings.Mods);
+            bool crewed = s.CrewCapacity > 0 || s.Crew > 0;
+            bool home = plan == null || !plan.Known || plan.Return;
+            int command = Count(s, "ModuleCommand");
+            int chutes = Count(s, "ModuleParachute", "RealChuteModule", "ModuleKrParachute");
+            int antennas = Count(s, "ModuleDataTransmitter", "ModuleRTAntenna", "ModuleRTAntennaPassive");
+            int power = Count(s, "ModuleDeployableSolarPanel", "ModuleGenerator", "ModuleCurvedSolarPanel", "FNGenerator", "ModuleResourceConverter", "ModuleROTGenerator");
+            double ec = Res(s, "ElectricCharge");
+            if (command == 0) r.Add("! No probe core or command pod: nothing can control the craft.");
+            if (crewed && chutes == 0 && home) r.Add("! No parachutes: the crew has no way to land safely on Kerbin.");
+            else if (!crewed && chutes == 0 && home && plan != null && plan.Known) r.Add("No parachutes: fine if the probe is not coming home.");
+            if (antennas == 0) r.Add(crewed ? "No antenna: the crew can fly it, but science cannot be transmitted and there is no link for probes." : "! No antenna: a probe loses its CommNet link (and control, with signal required) once it is out of range, and cannot transmit science.");
+            if (command > 0 && power == 0) r.Add((ec < 600 ? "! " : "") + "No solar panels, RTG or fuel cell: the batteries (" + EngMath.N(ec) + " EC) are all the power there is.");
+            if (s.Stages.Count > 0)
+            {
+                var order = s.Stages.OrderByDescending(x => x.Stage).ToList();
+                var first = order[0];
+                bool editor = s.Scene == "vab" || s.Scene == "sph";
+                if (editor && s.Scene == "vab" && first.TwrAsl > 0 && first.TwrAsl < 1.15) r.Add("! Launch stage TWR is " + EngMath.N(first.TwrAsl, "0.00") + " at sea level: it will barely lift off (aim for 1.2 to 1.6).");
+                foreach (var st in order.Skip(1))
+                {
+                    if (st.DvVac < 150 || st.TwrVac <= 0) continue;
+                    if (st.TwrVac < 0.35) r.Add("! Stage " + st.Stage + " upper-stage TWR is only " + EngMath.N(st.TwrVac, "0.00") + " (burn " + EngMath.Dur(st.BurnTime) + "): circularizing and capture burns will be long and wasteful. A bigger engine or less mass would help.");
+                    else if (st.TwrVac < 0.6) r.Add("Stage " + st.Stage + " has a low TWR of " + EngMath.N(st.TwrVac, "0.00") + " in vacuum: fine for transfers, slow for circularizing.");
+                }
+                if (plan != null && plan.Known && plan.Land)
+                {
+                    var d = EngMissions.Find(plan.Body);
+                    var landLeg = plan.Legs.FirstOrDefault(l => l.Name.StartsWith("Land"));
+                    int stg;
+                    if (d != null && d.Gravity > 0 && landLeg != null && landLeg.Stages.StartsWith("stage ") && int.TryParse(landLeg.Stages.Substring(6).Split(',')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out stg))
+                    {
+                        var ls = s.Stages.FirstOrDefault(x => x.Stage == stg);
+                        if (ls != null && ls.TwrVac > 0)
+                        {
+                            double local = ls.TwrVac * 9.80665 / d.Gravity;
+                            if (local < 1.5 && !d.Aero) r.Add("! The landing stage (stage " + stg + ") would have a TWR of " + EngMath.N(local, "0.0") + " on " + d.Name + ": too low to stop safely (aim for 2 or more).");
+                        }
+                    }
+                    if (Count(s, "ModuleWheelBase", "ModuleLandingLeg", "ModuleWheelDeployment") == 0) r.Add("No landing legs: landing on the engine bell or tanks is risky on uneven ground.");
+                }
+            }
+            if (plan != null && plan.Known && plan.Have > 0)
+            {
+                if (plan.Margin < 0) r.Add("! Not enough delta-v for \"" + plan.Mission + "\": " + EngMath.N(-plan.Margin) + " m/s short of the " + EngMath.N(plan.Total) + " m/s budget.");
+                else if (plan.Margin < plan.Total * 0.1) r.Add("Delta-v for \"" + plan.Mission + "\" is just enough, with " + EngMath.N(plan.Margin) + " m/s spare; aim for 10% margin.");
+            }
+            bool far = plan != null && plan.Known && plan.Body != "Mun" && plan.Body != "Minmus";
+            bool dre = mods.Any(h => h.StartsWith("Deadly Reentry"));
+            if (crewed && home && Count(s, "ModuleAblator") == 0 && (dre || far)) r.Add((dre ? "! " : "") + "No heat shield: " + (dre ? "with Deadly Reentry, coming home from orbit needs one." : "coming home from " + plan.Body + " is a fast, hot entry; a heat shield is cheap insurance."));
+            if (crewed)
+            {
+                if (mods.Any(h => h.StartsWith("TAC Life")) && Res(s, "Food", "Water", "Oxygen") <= 0) r.Add("! TAC Life Support is installed but the craft carries no Food, Water or Oxygen.");
+                if (mods.Any(h => h.StartsWith("USI Life")) && Res(s, "Supplies") <= 0) r.Add("! USI Life Support is installed but the craft carries no Supplies.");
+                if (mods.Any(h => h.StartsWith("Snacks")) && Res(s, "Snacks") <= 0) r.Add("! Snacks is installed but there are no Snacks aboard.");
+                if (mods.Any(h => h.StartsWith("Kerbalism")) && Res(s, "Food", "Oxygen") <= 0) r.Add("! Kerbalism is installed but the craft carries no Food or Oxygen.");
+            }
+            if (r.Count == 0) r.Add("No obvious problems: control, power, comms" + (crewed ? ", parachutes" : "") + " and staging look fine.");
+            return r;
+        }
+
+        /// <summary>Checks a placed maneuver node against the craft.</summary>
+        public static List<string> EngNodeCheck(EngSnapshot s)
+        {
+            var r = new List<string>();
+            var n = s == null ? null : s.Node;
+            if (n == null) return r;
+            var cur = s.Stages.Where(x => x.DvActual > 0.5 || x.DvVac > 0.5).OrderByDescending(x => x.Stage).FirstOrDefault();
+            double total = s.TotalDvActual > 0 ? s.TotalDvActual : s.TotalDvVac;
+            r.Add("Node: " + EngMath.N(n.Dv) + " m/s (prograde " + EngMath.N(n.Prograde) + ", normal " + EngMath.N(n.Normal) + ", radial " + EngMath.N(n.Radial) + "), in " + EngMath.Dur(n.TimeTo) + ".");
+            if (total > 0 && n.Dv > total) r.Add("! The burn needs " + EngMath.N(n.Dv) + " m/s but the craft only has " + EngMath.N(total) + " m/s.");
+            else if (cur != null && n.Dv > (cur.DvActual > 0 ? cur.DvActual : cur.DvVac) + 1) r.Add("The current stage runs dry partway through; stage during the burn.");
+            if (cur != null)
+            {
+                double burn = EngMath.BurnTime(n.Dv, cur.ThrustVac, cur.StartMass, cur.IspVac);
+                if (burn > 0)
+                {
+                    r.Add("Estimated burn time " + EngMath.Dur(burn) + "; start about " + EngMath.Dur(burn / 2) + " before the node.");
+                    if (burn / 2 > n.TimeTo) r.Add("! The node is too close: half the burn (" + EngMath.Dur(burn / 2) + ") is longer than the time left. Move the node one orbit later.");
+                }
+            }
+            if (n.EncounterBody != "")
+            {
+                if (n.EncounterPeA < 0) r.Add("! The node puts you on an impact course with " + n.EncounterBody + ". Add a little radial or normal to raise the periapsis there, unless that is the plan.");
+                else r.Add("Encounter with " + n.EncounterBody + ", periapsis " + EngMath.Dist(n.EncounterPeA) + ".");
+            }
+            else if (s.Target != "" && s.TransferR2 > 0 && !n.AfterEscape && Math.Abs(n.AfterApA + s.BodyRadius - s.TransferR2) / s.TransferR2 < 0.25)
+                r.Add("The orbit reaches " + s.Target + "'s altitude but there is no encounter yet: slide the node along the orbit or add a few m/s prograde until one appears.");
+            if (n.AfterBody != "" && !n.AfterEscape && n.EncounterBody == "")
+            {
+                if (n.AfterPeA < 0) r.Add("! After the burn the periapsis is below " + n.AfterBody + "'s surface.");
+                else if (n.AfterBody == s.Body && s.BodyAtmosphere > 0 && n.AfterPeA < s.BodyAtmosphere) r.Add("After the burn the periapsis (" + EngMath.Dist(n.AfterPeA) + ") is inside the atmosphere: good for reentry or aerobraking, bad if you meant to stay in orbit.");
+                else r.Add("After the burn: apoapsis " + EngMath.Dist(n.AfterApA) + ", periapsis " + EngMath.Dist(n.AfterPeA) + ".");
+            }
+            if (n.AfterEscape && n.EncounterBody == "") r.Add("After the burn the craft escapes " + n.AfterBody + ".");
+            if (Math.Abs(n.Radial) > Math.Max(50, Math.Abs(n.Prograde) * 0.5)) r.Add("A lot of the burn is radial, which is inefficient; prograde or retrograde usually does the job for less.");
+            return r;
+        }
+
+        // ------------------------------------------------------------------ mission plans
+
+        public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s); }
+
+        /// <summary>The director names a mission; the plan is computed here and the team is asked to go through it.</summary>
+        public bool EngPlanMission(string mission, double ut)
+        {
+            mission = (mission ?? "").Trim();
+            if (mission == "" || !Settings.EngineeringOn) return false;
+            State.EngMission = ResponseParser.Clip(mission, 200);
+            return EngSend("Plan this mission: " + State.EngMission + ". Go through the delta-v budget leg by leg and say which stage does what.", ut);
+        }
+
+        // ------------------------------------------------------------------ incidents
+
+        readonly Dictionary<string, List<string>> engTrack = new Dictionary<string, List<string>>();
+        readonly Dictionary<string, string> engCraft = new Dictionary<string, string>();
+
+        /// <summary>The KSP layer reports the active vessel every few seconds in flight, so an investigation has the last data before a crash.</summary>
+        public void EngRecord(EngSnapshot s, double ut)
+        {
+            if (s == null || s.VesselId == "") return;
+            List<string> l;
+            if (!engTrack.TryGetValue(s.VesselId, out l)) { l = new List<string>(); engTrack[s.VesselId] = l; if (engTrack.Count > 20) engTrack.Remove(engTrack.Keys.First(k => k != s.VesselId)); }
+            var cur = s.Stages.OrderByDescending(x => x.Stage).FirstOrDefault();
+            l.Add(Clock.FormatDate(ut) + " T" + EngMath.N(ut, "0") + ": " + s.Situation + ", altitude " + EngMath.Dist(s.Altitude) + ", speed " + EngMath.N(s.Speed) + " m/s"
+                + (s.VerticalSpeed != 0 ? ", vertical " + EngMath.N(s.VerticalSpeed) + " m/s" : "") + (s.GForce > 0 ? ", " + EngMath.N(s.GForce, "0.0") + " g" : "")
+                + (s.Throttle >= 0 ? ", throttle " + EngMath.N(s.Throttle * 100) + "%" : "") + ", stage " + s.CurrentStage + ", " + s.Parts + " parts, " + EngMath.N(s.TotalDvActual) + " m/s left"
+                + (cur != null && cur.TwrActual > 0 ? ", TWR " + EngMath.N(cur.TwrActual, "0.00") : "") + (s.HasOrbit ? ", Ap " + EngMath.Dist(s.ApA) + " Pe " + EngMath.Dist(s.PeA) : ""));
+            if (l.Count > 10) l.RemoveAt(0);
+            if (s.Parts > 0) engCraft[s.VesselId] = s.Vessel + ": " + s.Parts + " parts, " + EngMath.N(s.Mass, "0.0") + " t, " + EngMath.N(s.TotalDvVac) + " m/s total (vacuum) at last check.";
+        }
+
+        /// <summary>A failure or a death opens an incident (merged with one for the same vessel in the last minute). No AI call until the director asks.</summary>
+        void RecordIncident(NewsEvent e)
+        {
+            if (e == null || (e.Type != EventTypes.Failure && e.Type != EventTypes.CrewKilled)) return;
+            var inc = State.Incidents.LastOrDefault(i => i.VesselId == e.VesselId && e.VesselId != "" && Math.Abs(i.UT - e.UT) < 60);
+            if (inc == null)
+            {
+                inc = new Incident { Id = State.NewId("inc"), VesselId = e.VesselId ?? "", VesselName = e.VesselName ?? "", UT = e.UT, Kind = e.Type };
+                List<string> tel;
+                if (e.VesselId != null && engTrack.TryGetValue(e.VesselId, out tel)) inc.Telemetry.AddRange(tel);
+                string craft;
+                if (e.VesselId != null && engCraft.TryGetValue(e.VesselId, out craft)) inc.Craft = craft;
+                TrackedVessel tv;
+                if (inc.Craft == "" && e.VesselId != null && State.Tracked.TryGetValue(e.VesselId, out tv) && tv.Craft != null) inc.Craft = PromptBuilder.CraftText(tv.Craft);
+                State.Incidents.Add(inc);
+                if (State.Incidents.Count > 40) State.Incidents.RemoveAt(0);
+            }
+            if (e.Type == EventTypes.CrewKilled) inc.Kind = EventTypes.CrewKilled;
+            inc.Detail = (inc.Detail + " " + (e.Detail ?? "")).Trim();
+            foreach (var c in e.Crew) if (!inc.Crew.Contains(c)) inc.Crew.Add(c);
+        }
+
+        public string EngInvestigating = "";
+
+        /// <summary>The team investigates an incident: one writer-model call. Findings stay internal until the director shares them.</summary>
+        public bool EngInvestigate(string id, double ut)
+        {
+            var inc = State.Incidents.FirstOrDefault(i => i.Id == id);
+            if (inc == null || !Settings.EngineeringOn || inc.Status == "working") return false;
+            if (!Settings.CanCallAi)
+            {
+                inc.Status = "done";
+                inc.Cause = "Unknown (offline)";
+                inc.Findings = inc.Telemetry.Count > 0 ? "Last data before the incident: " + inc.Telemetry.Last() : "No flight data was recorded before the incident.";
+                return true;
+            }
+            inc.Status = "working";
+            EngInvestigating = inc.Id;
+            var sb = new StringBuilder();
+            sb.AppendLine("You are the engineering team of " + AgencyName + " in Kerbal Space Program (KSP1), running a failure investigation for the director. Work like a real accident board: use only the data given, say what is certain and what is likely, and name the most probable cause (for example: aerodynamic flip from fins too far forward, structural failure from wobble or high g, ran out of fuel, too little TWR, hit terrain too fast, overheating on reentry, parachutes opened too fast or too late, staging error, collision). Give concrete fixes for the next flight.");
+            var mods = EngModHints(Settings.Mods);
+            if (mods.Count > 0) sb.AppendLine("Mods that matter: " + string.Join(" ", mods.ToArray()));
+            sb.AppendLine("Reply with one JSON object only: {\"cause\": \"most probable cause, one short sentence\", \"findings\": \"what the data shows, 3-6 sentences\", \"fixes\": \"what to change next time, 2-4 short points in one string\", \"public_summary\": \"a 2-3 sentence statement the agency could give the press, factual and calm, no blame on named crew\"}.");
+            var u = new StringBuilder();
+            u.AppendLine("Incident: " + (inc.Kind == EventTypes.CrewKilled ? "loss of crew" : "vehicle failure") + " of " + (inc.VesselName != "" ? inc.VesselName : "an agency craft") + " on " + Clock.FormatDate(inc.UT) + ".");
+            if (inc.Detail != "") u.AppendLine("What was seen: " + inc.Detail);
+            if (inc.Crew.Count > 0) u.AppendLine("Crew aboard: " + string.Join(", ", inc.Crew.ToArray()) + ".");
+            if (inc.Craft != "") u.AppendLine("Craft: " + inc.Craft);
+            u.AppendLine(inc.Telemetry.Count > 0 ? "Flight data before the incident (oldest first, every few seconds):\n- " + string.Join("\n- ", inc.Telemetry.ToArray()) : "No flight data was recorded before the incident (the engineering team was not watching this vessel).");
+            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), 1400, 0, (root, err, text, res) =>
+            {
+                EngInvestigating = "";
+                if (root == null) { inc.Status = "open"; LastError = err ?? "No reply"; RaiseCommunity(); return; }
+                inc.Cause = ResponseParser.Clip(Json.Str(root, "cause", "").Trim(), 300);
+                inc.Findings = ResponseParser.Clip(Json.Str(root, "findings", "").Trim(), 2000);
+                inc.Fixes = ResponseParser.Clip(Json.Str(root, "fixes", "").Trim(), 1200);
+                inc.PublicSummary = ResponseParser.Clip(Json.Str(root, "public_summary", "").Trim(), 800);
+                inc.Status = "done";
+                RaiseCommunity();
+            });
+            return true;
+        }
+
+        /// <summary>Shares an investigation's public summary as an incident press release, which the news then covers.</summary>
+        public PressRelease EngShareFindings(string id, double ut)
+        {
+            var inc = State.Incidents.FirstOrDefault(i => i.Id == id);
+            if (inc == null || inc.Status != "done" || inc.ReleaseId != "") return null;
+            string body = (inc.PublicSummary != "" ? inc.PublicSummary : inc.Cause) + (inc.Cause != "" ? "\n\nProbable cause: " + inc.Cause : "");
+            var r = PublishRelease("incident", "Findings of the " + (inc.VesselName != "" ? inc.VesselName : "incident") + " investigation", body, inc.VesselId, null, ut);
+            if (r != null) { inc.ReleaseId = r.Id; Log("release", "Shared the engineering findings on " + (inc.VesselName != "" ? inc.VesselName : "the incident"), 0, false, ut); }
+            return r;
+        }
+
+        /// <summary>For the assistant and the news: investigations, marked internal or released.</summary>
+        public string IncidentText(string vesselId = null, bool publicOnly = false)
+        {
+            var list = State.Incidents.Where(i => i.Status == "done" && (vesselId == null || i.VesselId == vesselId) && (!publicOnly || i.ReleaseId != "")).Reverse().Take(4).ToList();
+            if (list.Count == 0) return "";
+            return string.Join("\n", list.Select(i => "- " + (i.VesselName != "" ? i.VesselName : "Incident") + " (" + Clock.FormatDate(i.UT) + ", " + (i.ReleaseId != "" ? "findings released to the press" : "internal, not released") + "): cause " + i.Cause + ". " + (publicOnly || i.ReleaseId != "" ? i.PublicSummary : i.Findings)).ToArray());
+        }
+    }
+}

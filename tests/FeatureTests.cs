@@ -359,9 +359,8 @@ public static class FeatureTests
         Assert(calls == 1, "one call even on the Saver preset");
         Assert(body.Contains("Gull II") && body.Contains("1240 m/s vacuum") && body.Contains("Ideal phase angle") && body.Contains("Mun landing 580"), "prompt carries live data, computed numbers and the dv map");
         Assert(s.EngChat.Count == 3 && s.EngChat[1].Role == "linus" && s.EngChat[2].Role == "wernher", "two specialists answered: " + string.Join(",", s.EngChat.Select(m => m.Role).ToArray()));
-        Assert(s.EngNotes.Count == 1, "the team remembers the plan");
         eng.EngSend("And the transfer window?", Day);
-        Assert(body.Contains("Director wants to land") && body.Contains("260 m/s short"), "memory and chat history come back");
+        Assert(body.Contains("260 m/s short") && !body.Contains("remember"), "chat history comes back, no memory notes");
 
         string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
         var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
@@ -382,7 +381,7 @@ public static class FeatureTests
 
         var n = new DataNode("K"); s.Save(n);
         var back = NewsState.Load(n);
-        Assert(back.EngChat.Count == s.EngChat.Count && back.EngNotes.Count == s.EngNotes.Count && back.EngChat[1].Role == "linus", "team chat is saved");
+        Assert(back.EngChat.Count == s.EngChat.Count && back.EngChat[1].Role == "linus", "team chat is saved");
 
         var off = CoreTests.OnlineSettings(); off.OfflineMode = true;
         var eng2 = new NewsEngine(s, off, t, new SimpleClock(Day));
@@ -392,5 +391,78 @@ public static class FeatureTests
         Assert(calls == before && s.EngChat.Last().Text.Contains("phase angle"), "offline still gives the computed numbers");
         g.EngineeringOn = false;
         Assert(!eng.EngSend("hi", Day), "switch turns the team off");
+    }
+
+    public static void TestEngineeringReviewPlanNodeAndInvestigation()
+    {
+        var s = new NewsState();
+        string body = "";
+        int inv = 0;
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            if (r.Body.Contains("failure investigation"))
+            {
+                inv++; body = r.Body;
+                return Reply("{\"cause\":\"The rocket flipped because the fins were too far forward.\",\"findings\":\"Speed rose to 480 m/s at 9 km with a sharp g spike.\",\"fixes\":\"Move fins to the bottom; throttle down in the lower atmosphere.\",\"public_summary\":\"Lark I was lost to an aerodynamic upset. No one was hurt.\"}");
+            }
+            if (r.Body.Contains("engineering team of")) { body = r.Body; return Reply("{\"replies\":[{\"who\":\"gene\",\"text\":\"Here is the plan.\"}]}"); }
+            return CoreTests.AnthropicReply(r);
+        } };
+        var g = CoreTests.OnlineSettings();
+        g.Mods.Add(new ModInfo { Folder = "MechJeb2", Name = "MechJeb 2" });
+        g.Mods.Add(new ModInfo { Folder = "UmbraSpaceIndustries", Name = "USI Life Support" });
+        g.Mods.Add(new ModInfo { Folder = "DeadlyReentry", Name = "Deadly Reentry" });
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+
+        // Design review and mission plan in the VAB.
+        var snap = new EngSnapshot { Scene = "vab", Vessel = "Minmus Hopper", Situation = "being built in the VAB", Parts = 30, Mass = 22, CrewCapacity = 1, DeltaVReady = true, TotalDvVac = 5400 };
+        snap.Modules["ModuleCommand"] = 1;
+        snap.ResourceMax["ElectricCharge"] = 150;
+        snap.Stages.Add(new EngStage { Stage = 3, DvVac = 2200, DvAsl = 1900, TwrAsl = 1.4, TwrVac = 1.7 });
+        snap.Stages.Add(new EngStage { Stage = 2, DvVac = 1800, TwrVac = 1.1 });
+        snap.Stages.Add(new EngStage { Stage = 1, DvVac = 1400, TwrVac = 0.25, BurnTime = 400 });
+        eng.EngineeringData = () => snap;
+        Assert(eng.EngPlanMission("land on Minmus and come back", Day), "plan sent");
+        var plan = eng.EngCurrentPlan(snap);
+        Assert(plan.Known && plan.Land && plan.Return && plan.Legs.Count == 6 && Math.Abs(plan.Total - 5010) < 1, "legs: " + string.Join(" | ", plan.Legs.Select(l => l.Name + " " + l.Dv).ToArray()));
+        Assert(plan.Legs[0].Stages.StartsWith("stage 3") && plan.Legs.Last().Stages.Contains("1"), "stages pay for legs in order: " + string.Join(" | ", plan.Legs.Select(l => l.Stages).ToArray()));
+        Assert(body.Contains("Mission plan for") && body.Contains("DESIGN REVIEW"), "the team gets the plan and the review");
+        var review = eng.EngReview(snap, plan);
+        Func<string, bool> has = k => review.Any(x => x.Contains(k));
+        Assert(has("No parachutes") && has("No antenna") && has("No solar panels") && has("upper-stage TWR") && has("Supplies") && has("heat shield") && has("landing legs"), "review: " + string.Join(" | ", review.ToArray()));
+        Assert(body.Contains("MechJeb is installed") && body.Contains("USI Life Support"), "mod-aware advice");
+        snap.Modules["ModuleParachute"] = 2; snap.Modules["ModuleDataTransmitter"] = 1; snap.Modules["ModuleDeployableSolarPanel"] = 2; snap.Modules["ModuleAblator"] = 1; snap.ResourceMax["Supplies"] = 300;
+        review = eng.EngReview(snap, plan);
+        Assert(!review.Any(x => x.Contains("parachutes") || x.Contains("antenna") || x.Contains("Supplies")), "fixed parts clear the warnings");
+
+        // A maneuver node that cannot be flown.
+        snap.Scene = "map"; snap.Body = "Kerbin"; snap.BodyRadius = 600000; snap.BodyAtmosphere = 70000; snap.HasOrbit = true; snap.TotalDvActual = 800;
+        snap.Stages.Clear(); snap.Stages.Add(new EngStage { Stage = 1, DvVac = 800, DvActual = 800, ThrustVac = 60, StartMass = 5, IspVac = 345 });
+        snap.Node = new EngNode { Dv = 900, Prograde = 900, TimeTo = 30, AfterBody = "Kerbin", EncounterBody = "Mun", EncounterPeA = -20000 };
+        var nc = NewsEngine.EngNodeCheck(snap);
+        Assert(nc.Any(x => x.StartsWith("!") && x.Contains("only has 800")) && nc.Any(x => x.Contains("impact course")) && nc.Any(x => x.Contains("too close")), "node check: " + string.Join(" | ", nc.ToArray()));
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
+        sites.Now = () => Day;
+        var page = sites.Render("engineering.kb").Html;
+        Assert(page.Contains("Maneuver node check") && page.Contains("Check my maneuver node") && page.Contains("Land on Minmus"), "page shows the node check and the plan");
+
+        // A crash, recorded flight data, an investigation and a press release.
+        snap.Node = null; snap.VesselId = "v9"; snap.Vessel = "Lark I"; snap.Situation = "flying in Kerbin's atmosphere"; snap.Altitude = 9000; snap.Speed = 480;
+        eng.EngRecord(snap, Day + 10);
+        eng.EngRecord(snap, Day + 14);
+        var e = CoreTests.Ev(EventTypes.Failure, Day + 15, "v9", "Kerbin"); e.VesselName = "Lark I"; e.Detail = "The vessel was destroyed in flight at about 9 km.";
+        eng.Ingest(e);
+        Assert(s.Incidents.Count == 1 && s.Incidents[0].Telemetry.Count == 2 && s.Incidents[0].Status == "open" && inv == 0, "incident opened without an AI call");
+        Assert(sites.Render("engineering.kb").Html.Contains("Investigate"), "incident listed");
+        sites.Handle("action:eng-investigate/" + s.Incidents[0].Id, null);
+        Assert(inv == 1 && body.Contains("480 m/s") && s.Incidents[0].Cause.Contains("fins"), "investigation used the flight data");
+        Assert(eng.IncidentText().Contains("internal"), "assistant sees internal findings");
+        sites.Handle("action:eng-share/" + s.Incidents[0].Id, null);
+        Assert(s.Releases.Count == 1 && s.Releases[0].Type == "incident" && s.Releases[0].Body.Contains("aerodynamic upset") && s.Incidents[0].ReleaseId != "", "findings shared as a press release");
+        var n = new DataNode("K"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.Incidents.Count == 1 && back.Incidents[0].Cause == s.Incidents[0].Cause && back.Incidents[0].Telemetry.Count == 2 && back.EngMission == "land on Minmus and come back", "incidents and mission are saved");
     }
 }

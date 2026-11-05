@@ -285,24 +285,28 @@ public class Vessel : UnityEngine.MonoBehaviour
     public Orbit orbit;
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
+    public PatchedConicSolver patchedConicSolver; public double verticalSpeed;
     public float GetTotalMass() { return 0; }
     public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
     public int GetCrewCount() { return 0; } public int GetCrewCapacity() { return 0; }
 }
 
-public class PartModule : UnityEngine.MonoBehaviour { public Part part; }
+public class PartModule : UnityEngine.MonoBehaviour { public Part part; public string moduleName; }
 public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
 public class AvailablePart { public string title, name; }
-public class Orbit { public double ApA, PeA, inclination, eccentricity, period, semiMajorAxis; public CelestialBody referenceBody; public Vector3d getRelativePositionAtUT(double ut) { return new Vector3d(); } public Vector3d getPositionAtUT(double ut) { return new Vector3d(); } public Vector3d GetOrbitNormal() { return new Vector3d(); } }
+public class ManeuverNode { public Vector3d DeltaV; public double UT; public Orbit nextPatch; }
+public class PatchedConicSolver { public List<ManeuverNode> maneuverNodes; }
+public class PartModuleList : IEnumerable<PartModule> { public IEnumerator<PartModule> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
+public class Orbit { public enum PatchTransitionType { INITIAL, FINAL, ENCOUNTER, ESCAPE, MANEUVER, IMPACT } public PatchTransitionType patchEndTransition; public Orbit nextPatch; public double ApA, PeA, inclination, eccentricity, period, semiMajorAxis; public CelestialBody referenceBody; public Vector3d getRelativePositionAtUT(double ut) { return new Vector3d(); } public Vector3d getPositionAtUT(double ut) { return new Vector3d(); } public Vector3d GetOrbitNormal() { return new Vector3d(); } }
 public class PartResource { public string resourceName; public double amount, maxAmount; }
 public class PartResourceList : IEnumerable<PartResource> { public IEnumerator<PartResource> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
 public class Part : UnityEngine.MonoBehaviour
 {
     public PartResourceList Resources;
-    public float mass; public float GetResourceMass() { return 0; }
+    public float mass; public float GetResourceMass() { return 0; } public PartModuleList Modules;
     public Vessel vessel; public int inverseStage; public int CrewCapacity; public AvailablePart partInfo; public AttachModes attachMode;
     public T FindModuleImplementing<T>() where T : class { return null; }
 }

@@ -138,6 +138,9 @@ namespace KerbalNews.KSP
                 bool warping = TimeWarp.CurrentRate > 1.01f;
                 Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping);
                 if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
+                // A few seconds of flight data for the engineering team, so a crash can be investigated afterwards.
+                if (HighLogic.LoadedSceneIsFlight && Settings.EngineeringOn && FlightGlobals.ActiveVessel != null && Time.realtimeSinceStartup > nextEngRecord)
+                { nextEngRecord = Time.realtimeSinceStartup + 4; Engine.EngRecord(EngineeringCapture.Snapshot(), Planetarium.GetUniversalTime()); }
             }
             catch (Exception e)
             {
@@ -146,7 +149,7 @@ namespace KerbalNews.KSP
             }
         }
 
-        float nextCrewSync, nextTick;
+        float nextCrewSync, nextTick, nextEngRecord;
 
         /// <summary>Copies each kerbal's stats and whereabouts into the engine, for crew chat and profiles.</summary>
         void SyncRoster()

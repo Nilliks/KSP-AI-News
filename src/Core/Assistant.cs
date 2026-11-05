@@ -232,6 +232,8 @@ ACTIONS:
                 sb.AppendLine("LATEST HEADLINES:");
                 foreach (var a in recent) sb.AppendLine("- " + a.Id + " | " + Outlets.NameOf(a.Outlet) + " | " + Clock.FormatDate(a.PublishedUT) + " | " + a.Headline);
             }
+            string inc = IncidentText();
+            if (inc != "") sb.AppendLine("ENGINEERING INVESTIGATIONS (internal findings are confidential unless the director decides otherwise; released ones are public):\n" + inc);
             var open = State.Deals.Where(d => d.Status == "pending").ToList();
             if (open.Count > 0) sb.AppendLine("DEALS STILL OPEN: " + string.Join("; ", open.Select(d => d.Summary).ToArray()));
             sb.AppendLine("CONVERSATION (oldest first; the last line is the request to handle now):");

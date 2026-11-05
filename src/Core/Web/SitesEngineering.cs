@@ -24,6 +24,7 @@ namespace KerbalNews.Web
                 var l = new List<string> { "Check my delta-v budget" };
                 l.Add(s.Target != "" ? "When is the transfer window to " + s.Target + "?" : "How do I get to the Mun from here?");
                 l.Add(s.HasOrbit && s.PeA < Math.Max(s.BodyAtmosphere, 1) ? "How do I circularize?" : "How do I land safely?");
+                if (s.Node != null) l.Insert(0, "Check my maneuver node");
                 l.Add("Review my design");
                 return l.ToArray();
             }
@@ -88,6 +89,33 @@ namespace KerbalNews.Web
                 m["total"] = EngMath.N(actual ? s.TotalDvActual : s.TotalDvVac) + " m/s";
             }
             m["facts"] = NewsEngine.EngFacts(s).Cast<object>().ToList();
+            Func<string, object> chk = t => new Dictionary<string, object> { { "text", t.StartsWith("! ") ? t.Substring(2) : t }, { "bad", t.StartsWith("!") } };
+            var node = NewsEngine.EngNodeCheck(s);
+            m["hasNode"] = node.Count > 0;
+            m["node"] = node.Select(chk).ToList();
+            var plan = Engine.EngCurrentPlan(s);
+            var review = s != null && (editor || flying) ? Engine.EngReview(s, plan) : new List<string>();
+            m["hasReview"] = review.Count > 0;
+            m["review"] = review.Select(chk).ToList();
+            m["mission"] = State.EngMission;
+            m["hasPlan"] = plan != null && plan.Known;
+            m["planNote"] = plan == null ? "" : plan.Note;
+            if (plan != null && plan.Known)
+            {
+                m["legs"] = plan.Legs.Select(l => (object)new Dictionary<string, object> { { "name", l.Name }, { "dv", EngMath.N(l.Dv) + " m/s" }, { "stages", l.Stages }, { "short", l.Short } }).ToList();
+                m["total"] = EngMath.N(plan.Total) + " m/s";
+                m["need"] = EngMath.N(plan.Need) + " m/s";
+                m["verdict"] = plan.Have <= 0 ? "" : plan.Margin >= plan.Total * 0.1 ? EngMath.N(plan.Margin) + " m/s spare" : plan.Margin >= 0 ? "tight: " + EngMath.N(plan.Margin) + " m/s spare" : EngMath.N(-plan.Margin) + " m/s short";
+            }
+            var incs = State.Incidents.AsEnumerable().Reverse().Take(5).ToList();
+            m["hasIncidents"] = incs.Count > 0;
+            m["incidents"] = incs.Select(i => (object)new Dictionary<string, object>
+            {
+                { "id", i.Id }, { "title", i.VesselName != "" ? i.VesselName : "Unknown craft" }, { "date", Date(i.UT) },
+                { "kind", i.Kind == EventTypes.CrewKilled ? "loss of crew" : "vehicle lost" }, { "crew", string.Join(", ", i.Crew.ToArray()) },
+                { "open", i.Status == "open" }, { "working", i.Status == "working" }, { "done", i.Status == "done" },
+                { "cause", i.Cause }, { "findings", i.Findings }, { "fixes", i.Fixes }, { "released", i.ReleaseId != "" },
+            }).ToList();
             m["hasFleet"] = s != null && s.Vessels.Count > 0;
             m["fleet"] = s == null ? new List<object>() : s.Vessels.Take(12).Cast<object>().ToList();
             m["sceneNote"] = editor ? "The team sees the craft on the floor: stages, TWR, mass and delta-v. Set the launch body in the game's delta-v panel for other worlds."

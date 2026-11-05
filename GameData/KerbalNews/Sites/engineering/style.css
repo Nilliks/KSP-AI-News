@@ -45,3 +45,15 @@ a { color: #8ab4ff; }
 .sendrow input { flex: 1; font-size: 15px; background: #0b1015; color: #dfe6ee; }
 .btn { background: #4fc3f7; color: #0f1419; font-weight: bold; padding: 8px 18px; }
 .warn { background: #2a2216; color: #ffd27f; padding: 8px 12px; }
+.chk { font-size: 13px; margin-bottom: 4px; }
+.chk.bad { color: #ffb4a8; }
+.cause { font-size: 13px; color: #ffd27f; margin-top: 6px; margin-bottom: 4px; }
+.fnd { font-size: 13px; margin-bottom: 4px; }
+.plan { background: #16202a; padding: 8px 12px; margin-bottom: 10px; }
+.plan .sendrow { margin-bottom: 4px; }
+.leg { display: flex; gap: 8px; font-size: 13px; padding-top: 3px; padding-bottom: 3px; border-bottom: 1px solid #263340; }
+.leg.bad { color: #ffb4a8; }
+.leg.tot { font-weight: bold; color: #ffffff; border-bottom: 0px; }
+.ln { flex: 1; }
+.ld { width: 80px; text-align: right; }
+.ls { width: 190px; color: #8b9aa8; }
