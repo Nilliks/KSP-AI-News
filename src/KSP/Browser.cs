@@ -194,6 +194,8 @@ namespace KerbalNews.KSP
             if (dirty && !typing) { dirty = false; wantRender = true; }
             if (wantRender && width > 10) { wantRender = false; Render(true); }
 
+            foreach (var f in fields.Values.Concat(chromeFields)) ResetFieldScroll(f);
+
             if (Time.realtimeSinceStartup > nextStatus) { nextStatus = Time.realtimeSinceStartup + 0.5f; UpdateStatus(); }
 
             bool over = RectTransformUtility.RectangleContainsScreenPoint(windowRt, Input.mousePosition, null);
@@ -202,6 +204,22 @@ namespace KerbalNews.KSP
             // Typing must not stage the rocket or warp time.
             if (typing) InputLockManager.SetControlLock(ControlTypes.KEYBOARDINPUT | ControlTypes.ALL_SHIP_CONTROLS | ControlTypes.STAGING | ControlTypes.TIMEWARP | ControlTypes.MAP | ControlTypes.QUICKSAVE | ControlTypes.QUICKLOAD | ControlTypes.PAUSE | ControlTypes.CAMERACONTROLS | ControlTypes.MISC, TypeLock);
             else InputLockManager.RemoveControlLock(TypeLock);
+        }
+
+        /// <summary>
+        /// A field laid out while still zero-width scrolls its text as if the box were tiny, showing only the end
+        /// ("e/a2"). When nobody is typing in it, put the text back at the start.
+        /// </summary>
+        static void ResetFieldScroll(TMP_InputField f)
+        {
+            if (f == null || f.isFocused) return;
+            foreach (var g in new Graphic[] { f.textComponent, f.placeholder })
+            {
+                if (g == null) continue;
+                var rt = g.rectTransform;
+                if (rt.anchoredPosition.x * rt.anchoredPosition.x + rt.anchoredPosition.y * rt.anchoredPosition.y > 0.01f || rt.offsetMin.x != 0 || rt.offsetMax.x != 0)
+                    Stretch(rt, 0, 0, 0, 0);
+            }
         }
 
         void UpdateStatus()
@@ -282,10 +300,10 @@ namespace KerbalNews.KSP
             bar.AddComponent<DragHandler>().OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
 
             float x = 6;
-            ChromeButton(bar.transform, ref x, "◀", GoBack);
-            ChromeButton(bar.transform, ref x, "▶", GoForward);
-            ChromeButton(bar.transform, ref x, "↻", () => Render(true));
-            ChromeButton(bar.transform, ref x, "⌂", () => Navigate(Sites.Home));
+            ChromeButton(bar.transform, ref x, "back", GoBack);
+            ChromeButton(bar.transform, ref x, "forward", GoForward);
+            ChromeButton(bar.transform, ref x, "reload", () => Render(true));
+            ChromeButton(bar.transform, ref x, "home", () => Navigate(Sites.Home));
             address = MakeField(bar.transform, false, false, 15, "#e8eaed", "");
             var aRt = Rt(address.gameObject);
             aRt.anchorMin = new Vector2(0, 0.5f); aRt.anchorMax = new Vector2(1, 0.5f); aRt.pivot = new Vector2(0, 0.5f);
@@ -297,7 +315,7 @@ namespace KerbalNews.KSP
             float rx = -128;
             RightButton(bar.transform, ref rx, "A−", () => Sites.Handle("action:scale/-", null));
             RightButton(bar.transform, ref rx, "A+", () => Sites.Handle("action:scale/+", null));
-            RightButton(bar.transform, ref rx, "✕", Close);
+            RightButton(bar.transform, ref rx, "close", Close);
 
             // Title strip above the status bar would waste space; the title shows in the status bar instead.
             var vp = New("Viewport", win.transform);
@@ -354,6 +372,7 @@ namespace KerbalNews.KSP
             TopLeft(Rt(m), -10000, -10000, 100, 100);
 
             LogFontsOnce();
+            SetupSymbols();
         }
 
         void ClampWindow()
@@ -407,12 +426,95 @@ namespace KerbalNews.KSP
             var h = go.AddComponent<ClickHandler>();
             h.OnClick = () => { onClick(); MarkDirty(); };
             h.Target = img; h.Normal = img.color; h.Hover = Col("#525a66", Color.grey);
+            var tex = IconTexture(label);
+            if (tex != null)
+            {
+                var ig = New("Icon", go.transform);
+                var raw = ig.AddComponent<RawImage>();
+                raw.texture = tex;
+                raw.color = Col("#e8eaed", Color.white);
+                raw.raycastTarget = false;
+                var rt = Rt(ig);
+                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = Vector2.zero;
+                rt.sizeDelta = new Vector2(18, 18);
+                return go;
+            }
             var t = New("Label", go.transform);
             var tmp = Label(t, 16, "#e8eaed", true);
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.text = label;
             Stretch(Rt(t), 0, 0, 0, 0);
             return go;
+        }
+
+        // ------------------------------------------------------------------ toolbar icons
+
+        static readonly Dictionary<string, Texture2D> icons = new Dictionary<string, Texture2D>();
+
+        /// <summary>Toolbar icons drawn as anti-aliased strokes, since KSP's fonts lack arrow and cross glyphs. Null for plain labels.</summary>
+        static Texture2D IconTexture(string name)
+        {
+            Texture2D tex;
+            if (icons.TryGetValue(name, out tex)) return tex;
+            var lines = IconStrokes(name);
+            if (lines == null) return null;
+            const int S = 48;
+            tex = new Texture2D(S, S, TextureFormat.ARGB32, false);
+            var px = new Color32[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float d = float.MaxValue;
+                    // Strokes are written with y pointing down; textures count rows from the bottom.
+                    var p = new Vector2(x + 0.5f, S - y - 0.5f);
+                    foreach (var l in lines) d = Mathf.Min(d, SegDist(p, l[0], l[1]));
+                    float a = Mathf.Clamp(2.6f - d, 0f, 1f);
+                    px[y * S + x] = new Color32(255, 255, 255, (byte)(a * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            icons[name] = tex;
+            return tex;
+        }
+
+        static float SegDist(Vector2 p, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            float len2 = ab.x * ab.x + ab.y * ab.y;
+            float t = len2 > 0 ? Mathf.Clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / len2, 0f, 1f) : 0f;
+            float dx = p.x - (a.x + ab.x * t), dy = p.y - (a.y + ab.y * t);
+            return (float)Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        static List<Vector2[]> IconStrokes(string name)
+        {
+            var l = new List<Vector2[]>();
+            Action<float, float, float, float> seg = (x1, y1, x2, y2) => l.Add(new[] { new Vector2(x1, y1), new Vector2(x2, y2) });
+            switch (name)
+            {
+                case "back": seg(30, 10, 16, 24); seg(16, 24, 30, 38); return l;
+                case "forward": seg(18, 10, 32, 24); seg(32, 24, 18, 38); return l;
+                case "close": seg(13, 13, 35, 35); seg(35, 13, 13, 35); return l;
+                case "home": seg(9, 24, 24, 10); seg(24, 10, 39, 24); seg(14, 21, 14, 38); seg(14, 38, 34, 38); seg(34, 38, 34, 21); return l;
+                case "reload":
+                {
+                    float r = 13, cx = 24, cy = 25;
+                    float prevX = 0, prevY = 0;
+                    for (int i = 0; i <= 20; i++)
+                    {
+                        double ang = (40 + i * 14) * Math.PI / 180;
+                        float x = cx + r * (float)Math.Cos(ang), y = cy - r * (float)Math.Sin(ang);
+                        if (i > 0) seg(prevX, prevY, x, y);
+                        prevX = x; prevY = y;
+                    }
+                    // Arrowhead at the open end (upper right).
+                    float ex = cx + r * (float)Math.Cos(40 * Math.PI / 180), ey = cy - r * (float)Math.Sin(40 * Math.PI / 180);
+                    seg(ex, ey, ex - 1, ey - 9); seg(ex, ey, ex - 9, ey + 1);
+                    return l;
+                }
+            }
+            return null;
         }
 
         // ------------------------------------------------------------------ fonts
@@ -457,6 +559,7 @@ namespace KerbalNews.KSP
             if (f == null) return null;
             TMP_FontAsset copy;
             if (withSymbols.TryGetValue(f, out copy)) return copy;
+            if (withSymbols.ContainsValue(f)) return f; // already our copy
             copy = f;
             try
             {
@@ -469,6 +572,8 @@ namespace KerbalNews.KSP
                     if (other == null) { missing.Add(c); continue; }
                     if (!extra.Contains(other)) extra.Add(other);
                 }
+                foreach (var e in extra) symbolSources.Add(e);
+                symbolSources.Add(f);
                 if (extra.Count > 0)
                 {
                     copy = UnityEngine.Object.Instantiate(f);
@@ -502,6 +607,44 @@ namespace KerbalNews.KSP
                 return list;
             }
             return null;
+        }
+
+        static readonly HashSet<TMP_FontAsset> symbolSources = new HashSet<TMP_FontAsset>();
+
+        /// <summary>Stand-ins for symbols no loaded font has, best first. KSP ships no font with hearts or triangles.</summary>
+        static readonly Dictionary<char, string[]> SymbolAlternatives = new Dictionary<char, string[]>
+        {
+            { '\u25C0', new[] { "\u2190", "<" } }, { '\u25B6', new[] { "\u2192", ">" } }, { '\u21BB', new[] { "\u27F3", "\u21BA", "R" } },
+            { '\u2302', new[] { "Home" } }, { '\u2715', new[] { "\u00D7", "x" } }, { '\u2665', new[] { "\u2764", "\u2191", "+" } },
+            { '\u2661', new[] { "\u2191", "+" } }, { '\u2605', new[] { "*" } }, { '\u2606', new[] { "*" } }, { '\u2713', new[] { "\u221A", "v" } },
+            { '\u25B2', new[] { "\u2191", "^" } }, { '\u25BC', new[] { "\u2193", "v" } }, { '\u25CF', new[] { "\u2022", "o" } },
+            { '\u2022', new[] { "\u00B7", "-" } }, { '\u2014', new[] { "-" } }, { '\u2026', new[] { "..." } },
+        };
+        static Dictionary<char, string> symbolMap;
+
+        static bool CanDraw(string s) { return s.All(ch => ch < 128 || symbolSources.Any(f => f != null && f.HasCharacter(ch))); }
+
+        /// <summary>Builds the replacement table once the fonts are known, and hands it to the text builder.</summary>
+        static void SetupSymbols()
+        {
+            if (symbolMap != null) return;
+            Font("sans");
+            symbolMap = new Dictionary<char, string>();
+            foreach (var kv in SymbolAlternatives)
+            {
+                if (CanDraw(kv.Key.ToString())) continue;
+                symbolMap[kv.Key] = kv.Value.FirstOrDefault(CanDraw) ?? kv.Value.Last();
+            }
+            var map = symbolMap;
+            TextItem.SymbolFilter = map.Count == 0 ? (Func<string, string>)null : s =>
+            {
+                if (s == null || s.All(ch => ch < 128)) return s;
+                var sb = new System.Text.StringBuilder(s.Length);
+                foreach (char ch in s) { string r; if (map.TryGetValue(ch, out r)) sb.Append(r); else sb.Append(ch); }
+                return sb.ToString();
+            };
+            TextItem.MonoSpacing = Font("mono") != Font("sans");
+            if (map.Count > 0) Debug.Log("[KerbalNews] Symbol stand-ins: " + string.Join(" ", map.Select(kv => kv.Key + "=" + kv.Value).ToArray()));
         }
 
         static void LogFontsOnce()

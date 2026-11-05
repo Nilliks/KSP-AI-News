@@ -27,6 +27,10 @@ namespace KerbalNews.Web
         public string Family = "sans", Align = "left", Color = "#000000FF";
         public bool Bold, Italic;
         public List<Run> Runs = new List<Run>();
+        /// <summary>False when no monospace font exists, so mono text isn't squeezed into fixed-width cells.</summary>
+        public static bool MonoSpacing = true;
+        /// <summary>Swaps symbols the fonts can't draw for ones they can. Set by the renderer.</summary>
+        public static Func<string, string> SymbolFilter;
         /// <summary>Links that appear in this paragraph, for hover redraws.</summary>
         public IEnumerable<int> LinkIds { get { return Runs.Where(r => r.Link >= 0).Select(r => r.Link).Distinct(); } }
         public string Plain { get { return string.Concat(Runs.Select(r => r.Text).ToArray()); } }
@@ -48,9 +52,9 @@ namespace KerbalNews.Web
                 if (r.Italic && !Italic) { sb.Append("<i>"); close.Add("</i>"); }
                 if (r.Underline) { sb.Append("<u>"); close.Add("</u>"); }
                 if (r.Strike) { sb.Append("<s>"); close.Add("</s>"); }
-                if (r.Mono) { sb.Append("<mspace=0.6em>"); close.Add("</mspace>"); }
+                if (r.Mono && MonoSpacing) { sb.Append("<mspace=0.6em>"); close.Add("</mspace>"); }
                 if (Math.Abs(r.LetterSpacing) > 0.01f) { sb.Append("<cspace=" + (r.LetterSpacing / r.Size).ToString("0.###", Inv) + "em>"); close.Add("</cspace>"); }
-                sb.Append(Escape(r.Text));
+                sb.Append(Escape(SymbolFilter != null ? SymbolFilter(r.Text) : r.Text));
                 for (int i = close.Count - 1; i >= 0; i--) sb.Append(close[i]);
             }
             return sb.ToString();

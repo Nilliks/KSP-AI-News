@@ -28,7 +28,7 @@ namespace UnityEngine.EventSystems
 
 namespace UnityEngine.UI
 {
-    public class Graphic : EventSystems.UIBehaviour { public Color color; public bool raycastTarget; }
+    public class Graphic : EventSystems.UIBehaviour { public Color color; public bool raycastTarget; public RectTransform rectTransform; }
     public class MaskableGraphic : Graphic { }
     public class Image : MaskableGraphic { }
     public class RawImage : MaskableGraphic { public Texture texture; }
@@ -61,7 +61,6 @@ namespace TMPro
         public Vector2 GetPreferredValues(string text, float width, float height) { return Vector2.zero; }
         public void ForceMeshUpdate() { }
         public Bounds textBounds;
-        public RectTransform rectTransform;
     }
     public class TextMeshProUGUI : TMP_Text { }
     public static class TMP_TextUtilities { public static int FindIntersectingLink(TMP_Text t, Vector3 position, Camera camera) { return -1; } }
