@@ -112,7 +112,10 @@ namespace KerbalNews.KSP
 
             br.Open("settings.kb");
             yield return new WaitForSeconds(0.3f);
+            float scaleBefore = Browser.Scale;
             br.Act("action:scale/+", null);
+            yield return new WaitForSeconds(0.6f);
+            Check(Browser.Scale > scaleBefore, "A+ makes text bigger: " + scaleBefore.ToString("0.00") + " -> " + Browser.Scale.ToString("0.00"));
             yield return Shot("settings-bigger-text");
             br.Act("action:scale/auto", null);
             g.OfflineMode = wasOffline;
@@ -135,6 +138,9 @@ namespace KerbalNews.KSP
             var p = br.CurrentPage;
             bool ok = p != null && l != null && p.Title != "Not found" && p.Title != "Error" && l.Texts.Count > 3;
             Check(ok, url + " -> \"" + (p != null ? p.Title : "?") + "\" height " + (l != null ? l.Height.ToString("0") : "?") + ", " + (l != null ? l.Texts.Count + " paragraphs, " + l.Links.Count + " links, " + l.Inputs.Count + " fields" : ""));
+            var ex = new List<string>();
+            int over = br.CountOverflows(ex);
+            Check(over == 0, url + " text fits its boxes" + (over > 0 ? ": " + over + " overflow, e.g. " + string.Join(" | ", ex.ToArray()) : ""));
             yield return Shot(url.Replace("/", "_").Replace("?", "_").Replace("=", "_"));
         }
 

@@ -48,16 +48,20 @@ namespace TMPro
     [Flags] public enum FontStyles { Normal = 0, Bold = 1, Italic = 2 }
     public enum TextAlignmentOptions { TopLeft, Top, TopRight, TopJustified, MidlineLeft, MidlineRight, Center }
     public enum TextOverflowModes { Overflow, Ellipsis }
-    public class TMP_FontAsset : UnityEngine.Object { }
+    public class TMP_FontAsset : UnityEngine.Object { public bool HasCharacter(int c) { return true; } }
     public static class TMP_Settings { public static TMP_FontAsset defaultFontAsset; }
     public struct TMP_LinkInfo { public string GetLinkID() { return ""; } }
-    public class TMP_TextInfo { public int linkCount; public TMP_LinkInfo[] linkInfo; }
+    public struct TMP_LineInfo { public float ascender, descender, maxAdvance, width; }
+    public class TMP_TextInfo { public int linkCount, lineCount; public TMP_LinkInfo[] linkInfo; public TMP_LineInfo[] lineInfo; }
     public class TMP_Text : UnityEngine.UI.MaskableGraphic
     {
         public string text; public TMP_FontAsset font; public float fontSize, lineSpacing; public FontStyles fontStyle;
         public bool richText, enableWordWrapping; public TextAlignmentOptions alignment; public TextOverflowModes overflowMode;
         public TMP_TextInfo textInfo;
         public Vector2 GetPreferredValues(string text, float width, float height) { return Vector2.zero; }
+        public void ForceMeshUpdate() { }
+        public Bounds textBounds;
+        public RectTransform rectTransform;
     }
     public class TextMeshProUGUI : TMP_Text { }
     public static class TMP_TextUtilities { public static int FindIntersectingLink(TMP_Text t, Vector3 position, Camera camera) { return -1; } }
@@ -70,5 +74,6 @@ namespace TMPro
         public TMP_FontAsset fontAsset; public float pointSize; public bool richText, customCaretColor, isFocused; public Color caretColor;
         public LineType lineType; public ContentType contentType; public string text;
         public SubmitEvent onSubmit = new SubmitEvent();
+        public void MoveTextStart(bool shift) { }
     }
 }

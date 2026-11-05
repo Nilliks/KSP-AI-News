@@ -223,6 +223,8 @@ namespace KerbalNews.KSP
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
+            // TextMeshPro swaps a 100x100 rect for its own default size when it is added; start from nothing instead.
+            go.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
             return go;
         }
 
@@ -437,8 +439,69 @@ namespace KerbalNews.KSP
                 if (f != null) break;
             }
             if (f == null) f = family == "sans" ? (TMP_Settings.defaultFontAsset ?? fonts.FirstOrDefault()) : Font("sans");
+            f = WithSymbols(f);
             fontByFamily[family] = f;
             return f;
+        }
+
+        /// <summary>Symbols the sites and the toolbar use. Text fonts often lack them.</summary>
+        const string Symbols = "\u25C0\u25B6\u21BB\u2302\u2715\u2665\u2661\u2605\u2606\u2713\u2192\u2190\u25B2\u25BC\u2022\u00B7\u2014\u2026\u25CF";
+        static readonly Dictionary<TMP_FontAsset, TMP_FontAsset> withSymbols = new Dictionary<TMP_FontAsset, TMP_FontAsset>();
+
+        /// <summary>
+        /// A copy of the font that falls back to whichever loaded fonts have the symbols it lacks. KSP's own font
+        /// assets are left as they are, so other windows are not affected.
+        /// </summary>
+        static TMP_FontAsset WithSymbols(TMP_FontAsset f)
+        {
+            if (f == null) return null;
+            TMP_FontAsset copy;
+            if (withSymbols.TryGetValue(f, out copy)) return copy;
+            copy = f;
+            try
+            {
+                var extra = new List<TMP_FontAsset>();
+                var missing = new List<char>();
+                foreach (char c in Symbols)
+                {
+                    if (f.HasCharacter(c)) continue;
+                    var other = fonts.FirstOrDefault(x => x != null && x != f && x.HasCharacter(c));
+                    if (other == null) { missing.Add(c); continue; }
+                    if (!extra.Contains(other)) extra.Add(other);
+                }
+                if (extra.Count > 0)
+                {
+                    copy = UnityEngine.Object.Instantiate(f);
+                    copy.name = f.name + " (Kerbal News)";
+                    var list = FallbackList(copy);
+                    if (list != null) { foreach (var e in extra) if (!list.Contains(e)) list.Add(e); }
+                    else copy = f;
+                }
+                Debug.Log("[KerbalNews] Font " + f.name + ": symbol fallbacks " + (extra.Count > 0 ? string.Join(", ", extra.Select(e => e.name).ToArray()) : "none needed")
+                    + (missing.Count > 0 ? "; no font has " + new string(missing.ToArray()) : ""));
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Font fallback: " + e.Message); copy = f; }
+            withSymbols[f] = copy;
+            return copy;
+        }
+
+        /// <summary>The fallback list, whose name differs between TextMeshPro versions. A fresh list, so the original's isn't shared.</summary>
+        static List<TMP_FontAsset> FallbackList(TMP_FontAsset f)
+        {
+            foreach (var name in new[] { "fallbackFontAssetTable", "fallbackFontAssets", "m_FallbackFontAssetTable" })
+            {
+                var t = f.GetType();
+                var prop = t.GetProperty(name);
+                var field = t.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                object cur = prop != null && prop.CanRead ? prop.GetValue(f, null) : field != null ? field.GetValue(f) : null;
+                if (prop == null && field == null) continue;
+                var list = cur is List<TMP_FontAsset> ? new List<TMP_FontAsset>((List<TMP_FontAsset>)cur) : new List<TMP_FontAsset>();
+                if (prop != null && prop.CanWrite) prop.SetValue(f, list, null);
+                else if (field != null) field.SetValue(f, list);
+                else continue;
+                return list;
+            }
+            return null;
         }
 
         static void LogFontsOnce()
@@ -541,7 +604,7 @@ namespace KerbalNews.KSP
                     TMP_InputField f;
                     if (fields.TryGetValue(kv.Key, out f)) f.text = kv.Value;
                 }
-            if (!address.isFocused) address.text = url;
+            if (!address.isFocused) { address.text = url; address.MoveTextStart(false); }
             float target = keepScroll ? y : restoreScroll && scrollMemory.ContainsKey(url) ? scrollMemory[url] : 0;
             float max = Mathf.Max(0, layout.Height - viewportRt.rect.height);
             contentRt.anchoredPosition = new Vector2(0, Mathf.Clamp(target, 0, max));
@@ -558,14 +621,59 @@ namespace KerbalNews.KSP
             Vector2 v;
             if (!measureCache.TryGetValue(key, out v))
             {
-                ApplyStyle(measurer, t);
-                v = measurer.GetPreferredValues(rich, maxWidth, 0);
+                v = MeasureNow(t, rich, maxWidth);
                 if (measureCache.Count > 4000) measureCache.Clear();
                 measureCache[key] = v;
             }
             w = Mathf.Min(v.x, maxWidth);
             h = v.y + 1;
         }
+
+        /// <summary>
+        /// Measures by laying the text out for real in a hidden text object of the given width, so the numbers come from
+        /// the same code path as the drawing. TextMeshPro's GetPreferredValues measured some fonts far too narrow in KSP,
+        /// which made wrapped lines overlap.
+        /// </summary>
+        Vector2 MeasureNow(TextItem t, string rich, float maxWidth)
+        {
+            ApplyStyle(measurer, t);
+            measurer.rectTransform.sizeDelta = new Vector2(Mathf.Min(maxWidth, 20000f), 20000f);
+            measurer.text = rich;
+            measurer.ForceMeshUpdate();
+            var info = measurer.textInfo;
+            int n = info != null ? info.lineCount : 0;
+            if (n <= 0) return new Vector2(0, t.FontSize * t.LineHeight);
+            float w = 0;
+            for (int i = 0; i < n; i++) w = Mathf.Max(w, info.lineInfo[i].maxAdvance);
+            var b = measurer.textBounds;
+            if (b.size.x > 0) w = Mathf.Max(w, b.max.x);
+            float h = info.lineInfo[0].ascender - info.lineInfo[n - 1].descender;
+            return new Vector2(Mathf.Ceil(w + 1), Mathf.Max(h, t.FontSize));
+        }
+
+        /// <summary>Texts whose drawn lines don't fit the box the layout gave them. The self-test counts these.</summary>
+        public int CountOverflows(List<string> examples)
+        {
+            int bad = 0;
+            foreach (var kv in drawnTexts)
+            {
+                var tmp = kv.Key;
+                if (tmp == null) continue;
+                tmp.ForceMeshUpdate();
+                var info = tmp.textInfo;
+                int n = info != null ? info.lineCount : 0;
+                if (n == 0) continue;
+                float h = info.lineInfo[0].ascender - info.lineInfo[n - 1].descender;
+                if (h > kv.Value.H + 6 || n > Mathf.Max(1, Mathf.RoundToInt(kv.Value.H / (kv.Value.FontSize * 1.05f))) + 1)
+                {
+                    bad++;
+                    if (examples != null && examples.Count < 5) examples.Add("\"" + ResponseParser.Clip(tmp.text, 40) + "\" " + n + " lines in " + kv.Value.W.ToString("0") + "x" + kv.Value.H.ToString("0"));
+                }
+            }
+            return bad;
+        }
+
+        readonly List<KeyValuePair<TextMeshProUGUI, TextItem>> drawnTexts = new List<KeyValuePair<TextMeshProUGUI, TextItem>>();
 
         static void ApplyStyle(TextMeshProUGUI tmp, TextItem t)
         {
@@ -583,6 +691,7 @@ namespace KerbalNews.KSP
         {
             foreach (var go in pageObjects) if (go != null) Destroy(go);
             pageObjects.Clear();
+            drawnTexts.Clear();
             fields.Clear();
             linkRects.Clear();
             linkTexts.Clear();
@@ -624,7 +733,9 @@ namespace KerbalNews.KSP
             {
                 var go = Item("text", t.X, t.Y, t.W + 2, t.H + 2);
                 var tmp = go.AddComponent<TextMeshProUGUI>();
+                TopLeft(Rt(go), t.X, t.Y, t.W + 2, t.H + 2); // adding TextMeshPro can reset the rect to its default size
                 ApplyStyle(tmp, t);
+                drawnTexts.Add(new KeyValuePair<TextMeshProUGUI, TextItem>(tmp, t));
                 tmp.color = Col(t.Color, Color.black);
                 tmp.overflowMode = TextOverflowModes.Overflow;
                 tmp.text = t.Build(-1);
@@ -658,6 +769,7 @@ namespace KerbalNews.KSP
                 go.GetComponent<Image>().color = new Color(0, 0, 0, 0);
                 f.textComponent.font = Font(inp.Family);
                 f.text = inp.Value ?? "";
+                f.MoveTextStart(false);
                 if (inp.Name != "") fields[inp.Name] = f;
                 if (!inp.Multiline)
                 {

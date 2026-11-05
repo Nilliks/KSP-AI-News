@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
-    public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } }
+    public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } public static T Instantiate<T>(T o) where T : Object { return o; } }
     public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } }
     public sealed class GameObject : Object
     {
@@ -41,6 +41,7 @@ namespace UnityEngine
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
     public class Transform : Component { public Vector3 position; public Vector3 up; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
     {
@@ -69,7 +70,7 @@ namespace UnityEngine
     public class Texture2D : Texture { public int width, height; public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup; }
-    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } }
+    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } }
     public static class Input { public static Vector3 mousePosition; public static bool GetKeyDown(KeyCode k) { return false; } }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }
