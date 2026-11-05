@@ -25,6 +25,7 @@ namespace KerbalNews.KSP
         string vesselId = "";
         Vessel.Situations lastSit;
         float padTime, liftoffAt = -1, nextAscent, recoveryAt = -1;
+        bool wasOnPad;
         int ascentShots;
         bool busy;
         readonly Dictionary<string, float> lastExplosion = new Dictionary<string, float>();
@@ -44,18 +45,21 @@ namespace KerbalNews.KSP
             var v = FlightGlobals.ActiveVessel;
             if (eng == null || !On || v == null || v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody()) return;
             string id = v.persistentId.ToString();
-            if (id != vesselId) { vesselId = id; lastSit = v.situation; padTime = 0; liftoffAt = -1; recoveryAt = -1; ascentShots = 0; }
+            if (id != vesselId) { vesselId = id; lastSit = v.situation; padTime = 0; liftoffAt = -1; recoveryAt = -1; ascentShots = 0; wasOnPad = false; }
             float now = Time.realtimeSinceStartup;
             var sit = v.situation;
             bool silent = eng.State.IsSilent(id);
 
-            if (sit == Vessel.Situations.PRELAUNCH)
+            if (sit == Vessel.Situations.PRELAUNCH && v.srfSpeed < 1)
             {
+                wasOnPad = true;
                 padTime += Time.deltaTime;
                 if (padTime > 4 && !eng.HasPressShot(id, "pad")) Shoot(v, "pad", null);
             }
-            if (lastSit == Vessel.Situations.PRELAUNCH && (sit == Vessel.Situations.FLYING || sit == Vessel.Situations.SUB_ORBITAL))
+            // Liftoff: the craft was on the pad and is now flying, however the situation got there.
+            if (wasOnPad && (sit == Vessel.Situations.FLYING || sit == Vessel.Situations.SUB_ORBITAL || v.srfSpeed > 12))
             {
+                wasOnPad = false;
                 liftoffAt = now + 2.5f;
                 nextAscent = now + 14f;
                 ascentShots = 0;
@@ -98,7 +102,7 @@ namespace KerbalNews.KSP
 
         void Shoot(Vessel v, string kind, double[] point)
         {
-            if (busy || MapView.MapIsEnabled || FlightDriver.Pause) return;
+            if (busy || MapView.MapIsEnabled || FlightDriver.Pause) { Debug.Log("[KerbalNews] Press photo (" + kind + ") skipped: " + (busy ? "busy" : MapView.MapIsEnabled ? "map view" : "paused")); return; }
             busy = true;
             StartCoroutine(TakePhoto(v, kind, point));
         }
@@ -191,15 +195,15 @@ namespace KerbalNews.KSP
                 cam = body.GetWorldSurfacePosition(lat, lon, camAlt);
                 if (!ClearView(body, cam, target)) continue;
                 // On the ground the whole stack must be in view, not just its middle: check the base too.
-                if ((kind == "pad" || kind == "liftoff") && !ClearView(body, cam, target - up * (size * 0.42), 20)) continue;
+                if (kind == "pad" && !ClearView(body, cam, target - up * (size * 0.42), 20)) continue;
                 found = true;
                 place = style == "helicopter" ? "from a news helicopter" : style == "chase" ? "from a chase plane"
                     : sea ? "from a press boat offshore" : PlaceName(body, lat, lon, ground);
             }
-            if (!found) return null;
+            if (!found) { Debug.Log("[KerbalNews] Press photo (" + kind + "): no clear view from any spot"); return null; }
 
             bool day = Daylight(body, cam);
-            if (!day && !IgnoreDaylight && kind != "liftoff" && kind != "explosion") return null;
+            if (!day && !IgnoreDaylight && kind != "liftoff" && kind != "explosion") { Debug.Log("[KerbalNews] Press photo (" + kind + "): too dark"); return null; }
 
             double d = (target - cam).magnitude;
             float vfov = Mathf.Clamp((float)(2 * Math.Atan(frame * 0.5 / d) * 180 / Math.PI), 0.25f, 35f);
@@ -210,7 +214,7 @@ namespace KerbalNews.KSP
             Vector3 camUp = (Vector3)((cam - body.position).normalized);
 
             var tex = RenderView(cam, aim, camUp, vfov);
-            if (tex == null) return null;
+            if (tex == null) { Debug.Log("[KerbalNews] Press photo (" + kind + "): render failed"); return null; }
             Develop(tex, d, style, kind);
 
             int lens = (int)Math.Round(12.0 / Math.Tan(vfov * Math.PI / 360) / 50) * 50;
