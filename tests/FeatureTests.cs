@@ -543,4 +543,11 @@ public static class FeatureTests
         eng.Tick(Day * 400 + 1000, 21000, true);
         Assert(eng.SideCarryCount == 0 && s.Stories.Any(x => x.Events.Any(e => e.Type == EventTypes.Landing && e.VesselId == "b1")) || eng.SideCarryCount == 0, "booster landing reported after the jump back");
     }
+
+    public static void TestModFolderNamesReadLikeNames()
+    {
+        var want = new Dictionary<string, string> { { "001_DuckweedUtils", "Duckweed Utils" }, { "MechJeb2", "MechJeb 2" }, { "G3MagnetBoots", "G3 Magnet Boots" },
+            { "DecayingRTGs", "Decaying RTGs" }, { "KerbalAtomicsNTRMod", "Kerbal Atomics NTR Mod" }, { "zzz_Deferred", "Deferred" } };
+        foreach (var kv in want) { string got = ModCatalog.PrettyName(kv.Key); Assert(got == kv.Value, kv.Key + " -> " + got); }
+    }
 }

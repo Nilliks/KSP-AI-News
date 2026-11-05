@@ -86,6 +86,9 @@ namespace KerbalNews
         /// <summary>"000_Toolbar" → "Toolbar", "SpaceY-Lifters" → "SpaceY Lifters", "KerbalEngineer" → "Kerbal Engineer".</summary>
         static readonly string[] KeepWhole = { "MechJeb", "SCANsat", "ReStock", "TweakScale", "kOS", "KSPCF", "TUFX", "CryoTanks", "KerBalloons" };
 
+        /// <summary>"RTGs": a lowercase s that ends the word makes the acronym plural, not a new word.</summary>
+        static bool PluralAcronym(string s, int i) { return s[i + 1] == 's' && (i + 2 >= s.Length || !char.IsLower(s[i + 2])); }
+
         public static string PrettyName(string folder)
         {
             string s = (folder ?? "").Trim();
@@ -110,7 +113,7 @@ namespace KerbalNews
                     bool next = i + 1 < s.Length && char.IsLower(s[i + 1]);
                     // camelCase, the end of an acronym ("NTRMod"), a word after a digit ("G3Magnet"), a number after a word ("MechJeb2").
                     bool acronym = i + 1 < s.Length && (char.IsUpper(s[i + 1]) || char.IsDigit(s[i + 1]));
-                    if ((char.IsUpper(c) && char.IsLower(p) && (next || acronym)) || (char.IsUpper(c) && char.IsUpper(p) && next && i >= 2) || (char.IsUpper(c) && char.IsDigit(p) && next)
+                    if ((char.IsUpper(c) && char.IsLower(p) && (next || acronym)) || (char.IsUpper(c) && char.IsUpper(p) && next && i >= 2 && !PluralAcronym(s, i)) || (char.IsUpper(c) && char.IsDigit(p) && next)
                         || (char.IsDigit(c) && char.IsLower(p) && !(i + 1 < s.Length && char.IsLetter(s[i + 1]))))
                         sb.Append(' ');
                 }

@@ -460,6 +460,8 @@ namespace KerbalNews.KSP
             Check(answer != null && !answer.Text.StartsWith("("), "crew chat: Valentina answered in " + (Time.realtimeSinceStartup - start).ToString("0") + " s" + (answer != null ? ": " + answer.Text : ""));
 
             // Booking: the assistant schedules her for an interview.
+            yield return Go("agency.kb/assistant");   // the ask box only exists on the assistant page
+            br = Browser.Instance ?? br;
             before = state.AssistantChat.Count;
             br.Act("action:assistant-send", new Dictionary<string, string> { { "ask", "Book Valentina for an interview with the Orbital Observer tomorrow about the Duna capture." } });
             start = Time.realtimeSinceStartup;
