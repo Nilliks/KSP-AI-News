@@ -74,7 +74,7 @@ namespace KerbalNews.KSP
             var top = state.Articles.OrderByDescending(a => a.Significance).First();
             var ama = state.Forum.First(t => t.Kind == "ama");
             var urls = new List<string> { Sites.Home, Sites.ArticleUrl(top), "kerbnet.kb", Sites.ForumHost, Sites.ForumHost + "/t/" + ama.Id, Sites.ForumHost + "/submit",
-                "tracker.kb", "agency.kb", "agency.kb/assistant", "agency.kb/ledger", "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
+                "tracker.kb", "agency.kb", "agency.kb/assistant", "agency.kb/ledger", "agency.kb/mods", "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
             var rumor = state.Articles.FirstOrDefault(a => a.Outlet == "kraken");
             if (rumor != null) urls.Add(Sites.ArticleUrl(rumor));
             urls.AddRange(Outlets.All.Select(o => o.Domain));
@@ -438,6 +438,28 @@ namespace KerbalNews.KSP
             yield return Shot("ai-assistant");
             yield return Go("agency.kb/ledger");
             yield return Shot("ai-ledger");
+
+            // Mods: the scan found something, and the AI hears about it.
+            Check(g.Mods.Count > 0, "mod scan found " + g.Mods.Count + " mods, " + g.Mods.Count(m => m.Include && m.Installed) + " shared with the AI");
+            Log("  AI sees mods: " + g.ModsText);
+
+            // Crew chat: a kerbal with stats answers in character.
+            eng.SyncCrew(new CrewProfile { Name = "Valentina Kerman", Trait = "Pilot", Level = 3, Courage = 0.55, Stupidity = 0.4, Badass = true, Veteran = true });
+            var val = state.Crew["Valentina Kerman"];
+            int lines = val.Chat.Count;
+            eng.CrewSend("Valentina Kerman", "How did the Duna capture feel from the cockpit?", t + 2);
+            start = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - start < 90 && eng.CrewChatBusy != "") yield return new WaitForSeconds(1);
+            var answer = val.Chat.Skip(lines).LastOrDefault(m => m.Role == "crew");
+            Check(answer != null && !answer.Text.StartsWith("("), "crew chat: Valentina answered in " + (Time.realtimeSinceStartup - start).ToString("0") + " s" + (answer != null ? ": " + answer.Text : ""));
+
+            // Booking: the assistant schedules her for an interview.
+            before = state.AssistantChat.Count;
+            br.Act("action:assistant-send", new Dictionary<string, string> { { "ask", "Book Valentina for an interview with the Orbital Observer tomorrow about the Duna capture." } });
+            start = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - start < 150 && eng.AssistantBusy) yield return new WaitForSeconds(1);
+            var booked = state.Appearances.LastOrDefault(x => x.Kerbal == "Valentina Kerman");
+            Check(booked != null && booked.Outlets.Contains("observer"), "assistant booked an interview: " + (booked != null ? booked.Kind + " with " + booked.Outlets + " on " + new KspClock().FormatDate(booked.AtUT) : "none"));
         }
 
         void Finish(bool quit)
