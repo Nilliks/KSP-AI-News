@@ -20,6 +20,8 @@ namespace KerbalNews
         public int TimeoutSeconds = 120;
         public bool NotifyOnPublish = true;
         public bool GenerateDuringWarp = false;
+        /// <summary>News window scale; 0 means automatic from screen size.</summary>
+        public float UiScale = 0;
 
         public ProviderPreset Preset { get { return Providers.Get(ProviderId); } }
 
@@ -47,6 +49,7 @@ namespace KerbalNews
             settings.Add("timeout", TimeoutSeconds);
             settings.Add("notify", NotifyOnPublish);
             settings.Add("warpGeneration", GenerateDuringWarp);
+            settings.Add("uiScale", (double)UiScale);
             foreach (var p in Providers.All)
             {
                 var n = settings.AddNode("PROVIDER");
@@ -70,6 +73,7 @@ namespace KerbalNews
                 g.TimeoutSeconds = Math.Max(10, settings.GetInt("timeout", g.TimeoutSeconds));
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);
+                g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 foreach (var n in settings.GetNodes("PROVIDER"))
                 {
                     string id = n.Get("id", "");

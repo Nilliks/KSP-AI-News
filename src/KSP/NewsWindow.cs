@@ -85,23 +85,72 @@ namespace KerbalNews.KSP
 
         // ------------------------------------------------------------------ styles
 
+        GUIStyle window, tab, tabOn, field;
+
+        static Texture2D Solid(Color c)
+        {
+            var t = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+            t.SetPixel(0, 0, c);
+            t.Apply();
+            return t;
+        }
+
+        static Color Hex(string h) { Color c; return ColorUtility.TryParseHtmlString(h, out c) ? c : Color.white; }
+
+        /// <summary>
+        /// A light "newsprint" theme: dark text on cream reads far better than KSP's dark
+        /// translucent skin, especially for long articles.
+        /// </summary>
         void InitStyles()
         {
             if (stylesReady) return;
-            var skin = HighLogic.Skin != null ? HighLogic.Skin : GUI.skin;
-            mast = new GUIStyle(skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, richText = true };
-            h1 = new GUIStyle(skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, wordWrap = true, richText = true };
-            h2 = new GUIStyle(skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, wordWrap = true, richText = true };
-            h3 = new GUIStyle(skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, wordWrap = true, richText = true };
-            small = new GUIStyle(skin.label) { fontSize = 11, wordWrap = true, richText = true };
-            small.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
-            body = new GUIStyle(skin.label) { fontSize = 13, wordWrap = true, richText = false };
-            link = new GUIStyle(skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, wordWrap = true, richText = true };
-            link.hover.textColor = new Color(1f, 0.85f, 0.5f);
-            chip = new GUIStyle(skin.button) { fontSize = 11 };
-            dot = new GUIStyle(skin.label) { fontSize = 14, richText = true };
-            boxed = new GUIStyle(skin.box) { padding = new RectOffset(8, 8, 6, 6) };
+            var skin = GUI.skin;
+            Color ink = Hex("#1d1d1b"), grey = Hex("#5f5b52"), paper = Hex("#f6f2e8"), card = Hex("#ebe5d6"), accent = Hex("#a3201c");
+            var paperTex = Solid(paper);
+            window = new GUIStyle(skin.window) { fontSize = 14, fontStyle = FontStyle.Bold, padding = new RectOffset(12, 12, 28, 10) };
+            window.normal.background = paperTex; window.onNormal.background = paperTex;
+            window.normal.textColor = ink; window.onNormal.textColor = ink;
+            Func<int, FontStyle, GUIStyle> label = (size, style) =>
+            {
+                var g = new GUIStyle(skin.label) { fontSize = size, fontStyle = style, wordWrap = true, richText = true };
+                g.normal.textColor = ink;
+                return g;
+            };
+            mast = label(28, FontStyle.Bold); mast.wordWrap = false;
+            h1 = label(26, FontStyle.Bold);
+            h2 = label(19, FontStyle.Bold);
+            h3 = label(16, FontStyle.Bold);
+            small = label(13, FontStyle.Normal); small.normal.textColor = grey;
+            body = label(16, FontStyle.Normal); body.richText = false;
+            body.padding = new RectOffset(2, 2, 2, 6);
+            link = label(17, FontStyle.Bold);
+            link.hover.textColor = accent; link.active.textColor = accent;
+            dot = label(16, FontStyle.Normal);
+            boxed = new GUIStyle(skin.box) { padding = new RectOffset(10, 10, 8, 8), margin = new RectOffset(0, 0, 3, 3) };
+            boxed.normal.background = Solid(card);
+            chip = new GUIStyle(skin.button) { fontSize = 14, padding = new RectOffset(10, 10, 5, 5) };
+            chip.normal.background = Solid(card); chip.normal.textColor = ink;
+            chip.hover.background = Solid(Hex("#ddd5c1")); chip.hover.textColor = ink;
+            chip.active.background = Solid(Hex("#1f3b5a")); chip.active.textColor = Color.white;
+            chip.onNormal.background = Solid(Hex("#1f3b5a")); chip.onNormal.textColor = Color.white;
+            chip.onHover.background = chip.onNormal.background; chip.onHover.textColor = Color.white;
+            tab = chip; tabOn = chip;
+            field = new GUIStyle(skin.textField) { fontSize = 15, padding = new RectOffset(6, 6, 4, 4), wordWrap = true };
+            field.normal.background = Solid(Color.white); field.normal.textColor = ink;
+            field.focused.background = Solid(Color.white); field.focused.textColor = ink;
+            field.hover.background = Solid(Color.white); field.hover.textColor = ink;
             stylesReady = true;
+        }
+
+        /// <summary>UI scale: the player's choice, or automatic from screen height and KSP's own UI scale.</summary>
+        static float Scale
+        {
+            get
+            {
+                float chosen = NewsSystem.Settings != null ? NewsSystem.Settings.UiScale : 0;
+                if (chosen > 0.4f) return chosen;
+                return Mathf.Clamp(Mathf.Max(GameSettings.UI_SCALE, Screen.height / 1080f), 1f, 3f);
+            }
         }
 
         // ------------------------------------------------------------------ window
@@ -114,17 +163,22 @@ namespace KerbalNews.KSP
                 return;
             }
             InitStyles();
-            var skin = GUI.skin;
-            if (HighLogic.Skin != null) GUI.skin = HighLogic.Skin;
+            float sc = Scale;
+            var oldMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(sc, sc, 1f));
             int unread = Engine.UnreadCount(Now);
-            rect = GUILayout.Window(windowId, rect, DrawWindow, "Kerbal News Network" + (unread > 0 ? "  (" + unread + " unread)" : ""));
-            rect.x = Mathf.Clamp(rect.x, 0, Screen.width - 100);
-            rect.y = Mathf.Clamp(rect.y, 0, Screen.height - 60);
-            GUI.skin = skin;
+            float sw = Screen.width / sc, sh = Screen.height / sc;
+            rect.width = Mathf.Min(rect.width, sw);
+            rect.height = Mathf.Min(rect.height, sh);
+            rect = GUILayout.Window(windowId, rect, DrawWindow, "Kerbal News Network" + (unread > 0 ? "  (" + unread + " unread)" : ""), window);
+            rect.x = Mathf.Clamp(rect.x, 0, sw - 100);
+            rect.y = Mathf.Clamp(rect.y, 0, sh - 60);
+            GUI.matrix = oldMatrix;
 
             // Keep clicks and scrolling over the window from reaching the game.
             Vector2 mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
-            if (rect.Contains(mouse))
+            var screenRect = new Rect(rect.x * sc, rect.y * sc, rect.width * sc, rect.height * sc);
+            if (screenRect.Contains(mouse))
                 InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.KSC_ALL | ControlTypes.EDITOR_SOFT_LOCK | ControlTypes.TRACKINGSTATION_ALL, LockId);
             else
                 InputLockManager.RemoveControlLock(LockId);
@@ -142,7 +196,7 @@ namespace KerbalNews.KSP
             Tab("Agency", Page.Agency);
             Tab("Settings", Page.Settings);
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("X", GUILayout.Width(26))) { visible = false; if (button != null) button.SetFalse(false); }
+            if (GUILayout.Button("X", chip, GUILayout.Width(34))) { visible = false; if (button != null) button.SetFalse(false); }
             GUILayout.EndHorizontal();
 
             switch (page)
@@ -171,7 +225,15 @@ namespace KerbalNews.KSP
             GUILayout.Label("<b>●</b>  " + url, small);
             GUILayout.FlexibleSpace();
             GUILayout.Label(new KspClock().FormatDate(Now), small);
+            if (GUILayout.Button("A-", chip, GUILayout.Width(36))) SetScale(Scale - 0.1f);
+            if (GUILayout.Button("A+", chip, GUILayout.Width(36))) SetScale(Scale + 0.1f);
             GUILayout.EndHorizontal();
+        }
+
+        static void SetScale(float v)
+        {
+            NewsSystem.Settings.UiScale = Mathf.Clamp((float)Math.Round(v, 1), 0.6f, 4f);
+            NewsSystem.Instance.SaveSettings();
         }
 
         void Tab(string label, Page p)
@@ -186,7 +248,7 @@ namespace KerbalNews.KSP
             string s = e.Settings.CanCallAi ? e.Settings.Preset.Name : "Offline templates";
             s += "  |  " + e.Status;
             if (e.PendingCount > 0) s += "  |  " + e.PendingCount + " stories in the works";
-            if (e.LastError != "") s += "  |  <color=#ff8a80>" + Clip(e.LastError, 120) + "</color>";
+            if (e.LastError != "") s += "  |  <color=#c62828>" + Clip(e.LastError, 120) + "</color>";
             GUILayout.Label(s, small);
         }
 
@@ -227,7 +289,7 @@ namespace KerbalNews.KSP
             var st = Engine.State;
             var all = Visible();
             GUILayout.BeginHorizontal();
-            GUILayout.Label("<color=#ffd27f>KERBAL NEWS NETWORK</color>", mast);
+            GUILayout.Label("<color=#a3201c>KERBAL NEWS NETWORK</color>", mast);
             GUILayout.FlexibleSpace();
             if (all.Any(a => !a.Read) && GUILayout.Button("Mark all read", chip)) Engine.MarkAllRead(Now);
             GUILayout.EndHorizontal();
@@ -269,14 +331,14 @@ namespace KerbalNews.KSP
         static string Bar(double v)
         {
             int n = (int)Math.Round(v / 10);
-            string col = v >= 60 ? "#8bc34a" : v >= 35 ? "#ffc107" : "#ef5350";
-            return "<color=" + col + ">" + new string('█', Math.Max(0, n)) + "</color><color=#555555>" + new string('█', Math.Max(0, 10 - n)) + "</color> " + v.ToString("0");
+            string col = v >= 60 ? "#2e7d32" : v >= 35 ? "#b7791f" : "#c62828";
+            return "<color=" + col + ">" + new string('█', Math.Max(0, n)) + "</color><color=#cfc7b4>" + new string('█', Math.Max(0, 10 - n)) + "</color> " + v.ToString("0");
         }
 
         void Headline(Article a)
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label(a.Read ? "  " : "<color=#ffd27f>●</color>", dot, GUILayout.Width(16));
+            GUILayout.Label(a.Read ? "  " : "<color=#a3201c>●</color>", dot, GUILayout.Width(16));
             GUILayout.BeginVertical();
             if (GUILayout.Button(a.Headline, link)) Open(a);
             GUILayout.Label(OutletTag(a.Outlet) + "  " + new KspClock().FormatDate(a.PublishedUT) + "  " + Kind(a.Kind) + (a.Comments.Count > 0 ? "  " + a.Comments.Count + " comments" : ""), small);
@@ -296,7 +358,6 @@ namespace KerbalNews.KSP
         {
             Color c;
             if (!ColorUtility.TryParseHtmlString(hex, out c)) return "#ffffff";
-            c = Color.Lerp(c, Color.white, 0.45f);
             return "#" + ColorUtility.ToHtmlStringRGB(c);
         }
 
@@ -347,11 +408,16 @@ namespace KerbalNews.KSP
             if (a.Subhead != "") GUILayout.Label(a.Subhead, h3);
             GUILayout.Label((a.Reporter != "" ? "By " + a.Reporter + "  ·  " : "") + new KspClock().FormatDate(a.PublishedUT), small);
             GUILayout.Space(6);
-            foreach (var para in a.Body.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries))
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical(GUILayout.MaxWidth(760));
+            foreach (var para in a.Body.Split(new[] { "\n\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
             {
                 GUILayout.Label(para.Trim(), body);
-                GUILayout.Space(4);
+                GUILayout.Space(6);
             }
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
             if (a.Tags.Count > 0) GUILayout.Label("Tags: " + string.Join(", ", a.Tags.ToArray()), small);
 
             var related = Engine.State.PublishedArticles(Now).Where(x => x.StoryId == a.StoryId && x.Id != a.Id).ToList();
@@ -376,7 +442,7 @@ namespace KerbalNews.KSP
 
         void DrawKerbnet()
         {
-            GUILayout.Label("<color=#7fc8ff>Kerbnet</color>  <size=11>what the public is saying</size>", mast);
+            GUILayout.Label("<color=#11657a>Kerbnet</color>  <size=14>what the public is saying</size>", mast);
             scroll = GUILayout.BeginScrollView(scroll);
             var posts = Engine.State.Social.Where(p => p.UT <= Now).OrderByDescending(p => p.UT).Take(120).ToList();
             if (posts.Count == 0) GUILayout.Label("Quiet on Kerbnet. Big news gets people talking.", body);
@@ -448,8 +514,8 @@ namespace KerbalNews.KSP
         void DrawSearch()
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Search the archive:", GUILayout.Width(130));
-            search = GUILayout.TextField(search);
+            GUILayout.Label("Search the archive:", h3, GUILayout.Width(180));
+            search = GUILayout.TextField(search, field);
             GUILayout.EndHorizontal();
             scroll = GUILayout.BeginScrollView(scroll);
             var q = search.Trim().ToLowerInvariant();
@@ -480,7 +546,7 @@ namespace KerbalNews.KSP
             GUILayout.Space(8);
             GUILayout.Label("Tone", h2);
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Silliness " + st.Silliness + " / 10", GUILayout.Width(120));
+            GUILayout.Label("Silliness " + st.Silliness + " / 10", h3, GUILayout.Width(150));
             st.Silliness = Mathf.RoundToInt(GUILayout.HorizontalSlider(st.Silliness, 0, 10));
             GUILayout.EndHorizontal();
             GUILayout.Label(PromptBuilder.SillinessText(st.Silliness), small);
@@ -495,7 +561,7 @@ namespace KerbalNews.KSP
                 if (GUILayout.Button("Remove", chip, GUILayout.Width(70))) st.Lore.Remove(l);
                 GUILayout.EndHorizontal();
             }
-            loreDraft = GUILayout.TextArea(loreDraft, GUILayout.MinHeight(44));
+            loreDraft = GUILayout.TextArea(loreDraft, field, GUILayout.MinHeight(48));
             if (GUILayout.Button("Add entry dated today", chip) && loreDraft.Trim() != "")
             {
                 st.Lore.Add(new LoreEntry { UT = Now, Text = loreDraft.Trim() });
@@ -507,8 +573,8 @@ namespace KerbalNews.KSP
         string Field(string label, string v)
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(170));
-            v = GUILayout.TextField(v ?? "");
+            GUILayout.Label(label, h3, GUILayout.Width(190));
+            v = GUILayout.TextField(v ?? "", field);
             GUILayout.EndHorizontal();
             return v;
         }
@@ -516,7 +582,7 @@ namespace KerbalNews.KSP
         string Area(string label, string v)
         {
             GUILayout.Label(label, h3);
-            return GUILayout.TextArea(v ?? "", GUILayout.MinHeight(40));
+            return GUILayout.TextArea(v ?? "", field, GUILayout.MinHeight(48));
         }
 
         void DrawSettings()
@@ -525,7 +591,7 @@ namespace KerbalNews.KSP
             scroll = GUILayout.BeginScrollView(scroll);
             GUILayout.Label("AI provider", h2);
             GUILayout.Label("Shared by all saves. Keys are stored in GameData/KerbalNews/PluginData/secrets.cfg, never in your save.", small);
-            bool offline = GUILayout.Toggle(g.OfflineMode, " Offline mode (template articles, no AI calls)");
+            bool offline = GUILayout.Toggle(g.OfflineMode, " Offline mode (template articles, no AI calls)", chip);
             if (offline != g.OfflineMode) { g.OfflineMode = offline; NewsSystem.Instance.SaveSettings(); }
 
             int perRow = 4, i = 0;
@@ -541,10 +607,10 @@ namespace KerbalNews.KSP
             var preset = g.Preset;
             GUILayout.Space(4);
             GUILayout.BeginHorizontal();
-            GUILayout.Label("API key", GUILayout.Width(120));
+            GUILayout.Label("API key", h3, GUILayout.Width(150));
             string key = g.Key;
-            string newKey = showKey ? GUILayout.TextField(key) : GUILayout.PasswordField(key, '*');
-            showKey = GUILayout.Toggle(showKey, "show", GUILayout.Width(60));
+            string newKey = showKey ? GUILayout.TextField(key, field) : GUILayout.PasswordField(key, '*', field);
+            showKey = GUILayout.Toggle(showKey, "show", chip, GUILayout.Width(70));
             GUILayout.EndHorizontal();
             if (newKey != key) g.Keys[g.ProviderId] = newKey.Trim();
             if (!preset.NeedsKey) GUILayout.Label("No key needed for this provider.", small);
@@ -556,12 +622,12 @@ namespace KerbalNews.KSP
             GUILayout.Label("The writer model handles big stories. The cheap model handles briefs, quiet-day features and archive summaries. Leave a field empty for the default shown.", small);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Max output tokens", GUILayout.Width(120));
+            GUILayout.Label("Max output tokens", h3, GUILayout.Width(150));
             int mt;
-            if (int.TryParse(GUILayout.TextField(g.MaxTokens.ToString(CultureInfo.InvariantCulture), GUILayout.Width(80)), out mt)) g.MaxTokens = Mathf.Clamp(mt, 1000, 32000);
+            if (int.TryParse(GUILayout.TextField(g.MaxTokens.ToString(CultureInfo.InvariantCulture), field, GUILayout.Width(90)), out mt)) g.MaxTokens = Mathf.Clamp(mt, 1000, 32000);
             GUILayout.EndHorizontal();
-            g.NotifyOnPublish = GUILayout.Toggle(g.NotifyOnPublish, " Show a message when news is published");
-            g.GenerateDuringWarp = GUILayout.Toggle(g.GenerateDuringWarp, " Allow AI calls during time warp");
+            g.NotifyOnPublish = GUILayout.Toggle(g.NotifyOnPublish, " Show a message when news is published", chip);
+            g.GenerateDuringWarp = GUILayout.Toggle(g.GenerateDuringWarp, " Allow AI calls during time warp", chip);
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Save settings", chip)) { NewsSystem.Instance.SaveSettings(); testResult = "Saved."; }
@@ -571,11 +637,21 @@ namespace KerbalNews.KSP
                 NewsSystem.Instance.SaveSettings();
                 testing = true;
                 testResult = "";
-                Engine.TestConnection((ok, msg) => { testing = false; testResult = (ok ? "<color=#8bc34a>" : "<color=#ff8a80>") + Esc(msg) + "</color>"; });
+                Engine.TestConnection((ok, msg) => { testing = false; testResult = (ok ? "<color=#2e7d32>" : "<color=#c62828>") + Esc(msg) + "</color>"; });
             }
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             if (testResult != "") GUILayout.Label(testResult, small);
+
+            GUILayout.Space(10);
+            GUILayout.Label("Display", h2);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Text size " + (g.UiScale > 0.4f ? g.UiScale.ToString("0.0", CultureInfo.InvariantCulture) + "x" : "auto (" + Scale.ToString("0.0", CultureInfo.InvariantCulture) + "x)"), h3, GUILayout.Width(220));
+            if (GUILayout.Button("Smaller", chip)) SetScale(Scale - 0.1f);
+            if (GUILayout.Button("Bigger", chip)) SetScale(Scale + 0.1f);
+            if (GUILayout.Button("Auto", chip)) { g.UiScale = 0; NewsSystem.Instance.SaveSettings(); }
+            GUILayout.EndHorizontal();
+            GUILayout.Label("Auto matches your screen (2x on 4K) and KSP's UI scale. The A- and A+ buttons in the address bar do the same.", small);
 
             GUILayout.Space(10);
             GUILayout.Label("Testing tools", h2);
@@ -591,9 +667,9 @@ namespace KerbalNews.KSP
             string cur;
             d.TryGetValue(id, out cur);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(120));
-            cur = GUILayout.TextField(cur ?? "");
-            GUILayout.Label("default: " + def, small, GUILayout.Width(230));
+            GUILayout.Label(label, h3, GUILayout.Width(150));
+            cur = GUILayout.TextField(cur ?? "", field);
+            GUILayout.Label("default: " + def, small, GUILayout.Width(260));
             GUILayout.EndHorizontal();
             return cur.Trim();
         }

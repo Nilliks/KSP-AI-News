@@ -12,7 +12,7 @@ namespace UnityEngine
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }
     public class Transform : Component { public Vector3 position; public Vector3 up; }
-    public struct Vector3 { public float x, y, z; public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
+    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
     public struct Rect
     {
@@ -33,25 +33,27 @@ namespace UnityEngine
     public class Texture2D : Texture { public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void Apply() { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup; }
-    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } }
+    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } }
     public static class Input { public static Vector3 mousePosition; }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
-    public class GUIStyleState { public Color textColor; }
+    public class GUIStyleState { public Color textColor; public Texture2D background; }
     public class GUIStyle
     {
         public GUIStyle(GUIStyle other) { }
         public int fontSize; public FontStyle fontStyle; public bool wordWrap, richText; public RectOffset padding;
-        public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState();
+        public GUIStyleState normal = new GUIStyleState(), hover = new GUIStyleState(), active = new GUIStyleState(), focused = new GUIStyleState(), onNormal = new GUIStyleState(), onHover = new GUIStyleState();
+        public RectOffset margin;
     }
-    public class GUISkin : Object { public GUIStyle label, button, box; }
+    public class GUISkin : Object { public GUIStyle label, button, box, window, textField; }
+    public struct Matrix4x4 { public static Matrix4x4 Scale(Vector3 v) { return new Matrix4x4(); } }
     public enum EventType { MouseDown, MouseUp, MouseDrag }
     public class Event { public static Event current; public EventType type; public Vector2 mousePosition; public void Use() { } }
     public class GUILayoutOption { }
     public static class GUI
     {
-        public static GUISkin skin; public static bool enabled;
+        public static GUISkin skin; public static bool enabled; public static Matrix4x4 matrix;
         public delegate void WindowFunction(int id);
         public static void DragWindow(Rect r) { }
         public static void Label(Rect r, string s, GUIStyle st) { }
@@ -59,6 +61,8 @@ namespace UnityEngine
     public static class GUILayout
     {
         public static Rect Window(int id, Rect r, GUI.WindowFunction f, string title, params GUILayoutOption[] o) { return r; }
+        public static Rect Window(int id, Rect r, GUI.WindowFunction f, string title, GUIStyle s, params GUILayoutOption[] o) { return r; }
+        public static GUILayoutOption MaxWidth(float f) { return null; }
         public static void BeginHorizontal(params GUILayoutOption[] o) { }
         public static void BeginHorizontal(GUIStyle s, params GUILayoutOption[] o) { }
         public static void EndHorizontal() { }
@@ -74,6 +78,9 @@ namespace UnityEngine
         public static bool Toggle(bool v, string s, params GUILayoutOption[] o) { return v; }
         public static bool Toggle(bool v, string s, GUIStyle st, params GUILayoutOption[] o) { return v; }
         public static string TextField(string s, params GUILayoutOption[] o) { return s; }
+        public static string TextField(string s, GUIStyle st, params GUILayoutOption[] o) { return s; }
+        public static string TextArea(string s, GUIStyle st, params GUILayoutOption[] o) { return s; }
+        public static string PasswordField(string s, char mask, GUIStyle st, params GUILayoutOption[] o) { return s; }
         public static string TextArea(string s, params GUILayoutOption[] o) { return s; }
         public static string PasswordField(string s, char mask, params GUILayoutOption[] o) { return s; }
         public static float HorizontalSlider(float v, float a, float b, params GUILayoutOption[] o) { return v; }
@@ -234,6 +241,7 @@ public class ResearchAndDevelopment { public static ResearchAndDevelopment Insta
 
 public enum ScreenMessageStyle { UPPER_LEFT, UPPER_CENTER, UPPER_RIGHT, LOWER_CENTER }
 public static class ScreenMessages { public static object PostScreenMessage(string m, float d, ScreenMessageStyle s) { return null; } }
+public static class GameSettings { public static float UI_SCALE = 1; }
 public static class TimeWarp { public static float CurrentRate; }
 
 [Flags]
