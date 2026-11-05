@@ -238,7 +238,7 @@ public struct Vector3d
 }
 public static class ScaledSpace { public static Vector3d LocalToScaledSpace(Vector3d v) { return v; } }
 public static class MapView { public static bool MapIsEnabled; }
-public static class FlightDriver { public static bool Pause; }
+public static class FlightDriver { public static bool Pause; public static void StartWithNewLaunch(string path, string flag, string site, VesselCrewManifest m) { } }
 public class CelestialBody : UnityEngine.MonoBehaviour
 {
     public string bodyName; public Vector3d position; public double Radius; public bool ocean;
@@ -298,10 +298,16 @@ public class ProtoVessel
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
 }
 
-public static class FlightGlobals { public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static CelestialBody GetHomeBody() { return null; } }
+public static class FlightGlobals { public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
 public class FlightState { public List<ProtoVessel> protoVessels; }
-public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; }
-public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; }
+public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
+public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public void Start() { } }
+public class GameParameters { }
+public enum SaveMode { OVERWRITE, APPEND, ABORT }
+public static class GamePersistence { public static string SaveGame(Game g, string file, string folder, SaveMode m) { return ""; } }
+public class VesselCrewManifest { public static VesselCrewManifest FromConfigNode(ConfigNode n) { return null; } }
+public class FlightCtrlState { public float mainThrottle; }
+public static class FlightInputHandler { public static FlightCtrlState state; }
 public static class HighLogic
 {
     public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static string SaveFolder; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
@@ -324,6 +330,7 @@ public class GameDatabase { public static GameDatabase Instance; public UnityEng
 namespace KSP.UI.Screens
 {
     public class MissionRecoveryDialog : UnityEngine.MonoBehaviour { }
+    public static class StageManager { public static void ActivateNextStage() { } }
     public class ApplicationLauncherButton : UnityEngine.MonoBehaviour { public void SetTrue(bool makeCall) { } public void SetFalse(bool makeCall) { } }
     public class ApplicationLauncher : UnityEngine.MonoBehaviour
     {

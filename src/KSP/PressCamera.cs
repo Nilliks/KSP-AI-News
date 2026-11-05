@@ -29,6 +29,9 @@ namespace KerbalNews.KSP
         bool busy;
         readonly Dictionary<string, float> lastExplosion = new Dictionary<string, float>();
 
+        /// <summary>The self-test shoots whatever the time of day.</summary>
+        public static bool IgnoreDaylight;
+
         static NewsEngine Eng { get { var s = NewsSystem.Instance; return s != null && s.HasGame ? s.Engine : null; } }
         static bool On { get { return NewsSystem.Settings != null && NewsSystem.Settings.PressPhotos; } }
 
@@ -194,7 +197,7 @@ namespace KerbalNews.KSP
             if (!found) return null;
 
             bool day = Daylight(body, cam);
-            if (!day && kind != "liftoff" && kind != "explosion") return null;
+            if (!day && !IgnoreDaylight && kind != "liftoff" && kind != "explosion") return null;
 
             double d = (target - cam).magnitude;
             float vfov = Mathf.Clamp((float)(2 * Math.Atan(frame * 0.5 / d) * 180 / Math.PI), 0.25f, 35f);

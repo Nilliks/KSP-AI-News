@@ -35,13 +35,13 @@ namespace KerbalNews.KSP
             outDir = Path.Combine(Root, "SelfTest");
             Directory.CreateDirectory(outDir);
             foreach (var f in Directory.GetFiles(outDir)) File.Delete(f);
-            StartCoroutine(Run(mode.Contains("ai"), !mode.Contains("stay")));
+            StartCoroutine(Run(mode.Contains("ai"), mode.Contains("flight"), !mode.Contains("stay")));
         }
 
         void Log(string s) { log.Add(s); Debug.Log("[KerbalNews] SELFTEST " + s); }
         void Check(bool ok, string what) { if (!ok) failures++; Log((ok ? "PASS " : "FAIL ") + what); }
 
-        IEnumerator Run(bool withAi, bool quit)
+        IEnumerator Run(bool withAi, bool withFlight, bool quit)
         {
             yield return new WaitForSeconds(4);
             var sys = NewsSystem.Instance;
@@ -127,7 +127,93 @@ namespace KerbalNews.KSP
             sys.Sites.Digest = oldSitesDigest;
             sys.Sites.Now = oldNow;
             sys.Attach(new NewsState());
+            if (withFlight) yield return FlightCheck(sys, br);
             Finish(quit);
+        }
+
+        public const string TestSave = "KerbalNewsSelfTest";
+
+        /// <summary>
+        /// In-flight check in a throwaway sandbox save (never the player's): launch the stock Kerbal X, go live,
+        /// stage, and check the press photos, the stream chat and its video. Writes into saves/KerbalNewsSelfTest only.
+        /// </summary>
+        IEnumerator FlightCheck(NewsSystem sys, Browser br)
+        {
+            string craft = Path.Combine(KSPUtil.ApplicationRootPath, "Ships/VAB/Kerbal X.craft");
+            if (!File.Exists(craft)) { Check(false, "flight: stock craft missing at " + craft); yield break; }
+            bool started = false;
+            try
+            {
+                var game = new Game();
+                game.Title = TestSave;
+                game.Mode = Game.Modes.SANDBOX;
+                game.Parameters = new GameParameters();
+                game.flightState = new FlightState();
+                game.CrewRoster = KerbalRoster.GenerateInitialCrewRoster(Game.Modes.SANDBOX);
+                game.startScene = GameScenes.SPACECENTER;
+                game.flagURL = "Squad/Flags/default";
+                HighLogic.SaveFolder = TestSave;
+                HighLogic.CurrentGame = game;
+                GamePersistence.SaveGame(game, "persistent", TestSave, SaveMode.OVERWRITE);
+                game.Start();
+                started = true;
+            }
+            catch (Exception e) { Check(false, "flight: new test game: " + e); }
+            if (!started) yield break;
+            float t0 = Time.realtimeSinceStartup;
+            while (HighLogic.LoadedScene != GameScenes.SPACECENTER && Time.realtimeSinceStartup - t0 < 120) yield return new WaitForSeconds(1);
+            Check(HighLogic.LoadedScene == GameScenes.SPACECENTER, "flight: test save " + TestSave + " reached the space center");
+            yield return new WaitForSeconds(5);
+            try { FlightDriver.StartWithNewLaunch(craft, "Squad/Flags/default", "LaunchPad", VesselCrewManifest.FromConfigNode(ConfigNode.Load(craft))); }
+            catch (Exception e) { Check(false, "flight: launch: " + e); yield break; }
+            t0 = Time.realtimeSinceStartup;
+            while (!(HighLogic.LoadedSceneIsFlight && FlightGlobals.ready && FlightGlobals.ActiveVessel != null) && Time.realtimeSinceStartup - t0 < 180) yield return new WaitForSeconds(1);
+            var v = FlightGlobals.ActiveVessel;
+            Check(v != null, "flight: Kerbal X on the pad");
+            if (v == null) yield break;
+            yield return new WaitForSeconds(3);
+            br = Browser.Instance ?? br;
+            var eng = sys.Engine;
+            string id = v.persistentId.ToString();
+            PressCamera.IgnoreDaylight = true;
+            br.Open("live.kb");
+            yield return new WaitForSeconds(0.5f);
+            br.Act("action:stream-start", null);
+            Check(eng.Stream != null && eng.Stream.VesselId == id, "flight: live stream started for " + v.vesselName);
+            float pad = Time.realtimeSinceStartup;
+            while (!eng.HasPressShot(id, "pad") && Time.realtimeSinceStartup - pad < 20) yield return new WaitForSeconds(0.5f);
+            Check(eng.HasPressShot(id, "pad"), "flight: press photo of the craft on the pad");
+            yield return Shot("flight-live-pad");
+
+            FlightInputHandler.state.mainThrottle = 1f;
+            global::KSP.UI.Screens.StageManager.ActivateNextStage();
+            float lift = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - lift < 45) yield return new WaitForSeconds(1);
+            Check(eng.HasPressShot(id, "liftoff"), "flight: liftoff photo");
+            Check(eng.HasPressShot(id, "ascent"), "flight: ascent photo");
+            var st = eng.Stream;
+            Check(st != null && st.Chat.Count(c => !c.System) >= 5, "flight: stream chat has " + (st != null ? st.Chat.Count(c => !c.System) : 0) + " viewer messages, " + (st != null ? st.Viewers : 0) + " viewers");
+            Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
+            Check(StreamDriver.Frame != null, "flight: stream video rendered");
+            if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(8)) Log("  chat " + c.Author + ": " + c.Text);
+            br.Open("live.kb");
+            yield return new WaitForSeconds(1.2f);
+            yield return Shot("flight-live-ascent");
+            var spot = eng.State.Forum.FirstOrDefault(t => t.Image != "");
+            Check(spot != null, "flight: a spotter posted a photo on Snackboard" + (spot != null ? ": " + spot.Title : ""));
+            if (spot != null) { br.Open(Sites.ForumHost + "/t/" + spot.Id); yield return new WaitForSeconds(1); yield return Shot("flight-spotter-thread"); }
+            br.Open(Sites.GalleryHost);
+            yield return new WaitForSeconds(1);
+            yield return Shot("flight-gallery");
+            foreach (var g2 in eng.State.Gallery.Where(x => x.IsPress))
+            {
+                Log("  press photo " + g2.Kind + ": " + g2.Credit);
+                try { File.Copy(Path.Combine(GalleryStore.Dir, g2.File), Path.Combine(outDir, "press-" + g2.Kind + "-" + g2.Id + ".jpg"), true); }
+                catch (Exception e) { Log("  could not copy " + g2.File + ": " + e.Message); }
+            }
+            br.Act("action:stream-end", null);
+            Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
+            PressCamera.IgnoreDaylight = false;
         }
 
         IEnumerator Visit(Browser br, string url)
