@@ -112,7 +112,9 @@ namespace KerbalNews
                 foreach (var a in list) AssistantSay("result", Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
                 return;
             }
-            var waiting = list;
+            // Bookings cost nothing and announce nothing, so they never wait behind a deal.
+            foreach (var a in list.Where(a => RunsNow(Arg(a, "cmd"))).ToList()) AssistantSay("result", Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
+            var waiting = list.Where(a => !RunsNow(Arg(a, "cmd"))).ToList();
             var p = AssistantSay("proposal", "Needs your OK:\n" + string.Join("\n", waiting.Select(a => "- " + Describe(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>())).ToArray()), ut);
             RaiseCommunity();
             p.Actions = Json.Write(waiting);
@@ -136,6 +138,8 @@ namespace KerbalNews
         }
 
         public void AssistantClear() { State.AssistantChat.Clear(); assistantRun++; AssistantBusy = false; AssistantStatus = ""; }
+
+        static bool RunsNow(string cmd) { return cmd == "schedule_appearance" || cmd == "cancel_appearance"; }
 
         static bool Spends(string cmd)
         {

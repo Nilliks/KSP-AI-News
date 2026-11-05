@@ -460,6 +460,7 @@ namespace KerbalNews.KSP
             while (Time.realtimeSinceStartup - start < 150 && eng.AssistantBusy) yield return new WaitForSeconds(1);
             var booked = state.Appearances.LastOrDefault(x => x.Kerbal == "Valentina Kerman");
             Check(booked != null && booked.Outlets.Contains("observer"), "assistant booked an interview: " + (booked != null ? booked.Kind + " with " + booked.Outlets + " on " + new KspClock().FormatDate(booked.AtUT) : "none"));
+            if (booked == null) foreach (var m in state.AssistantChat.Skip(before)) Log("  assistant " + m.Role + ": " + m.Text.Replace("\n", " / "));
         }
 
         void Finish(bool quit)

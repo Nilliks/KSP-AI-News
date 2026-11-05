@@ -84,17 +84,36 @@ namespace KerbalNews
         }
 
         /// <summary>"000_Toolbar" → "Toolbar", "SpaceY-Lifters" → "SpaceY Lifters", "KerbalEngineer" → "Kerbal Engineer".</summary>
+        static readonly string[] KeepWhole = { "MechJeb", "SCANsat", "ReStock", "TweakScale", "kOS", "KSPCF", "TUFX", "CryoTanks", "KerBalloons" };
+
         public static string PrettyName(string folder)
         {
             string s = (folder ?? "").Trim();
-            s = s.TrimStart('0', '_', '-', ' ');
+            // "000_Harmony", "001_ToolbarControl", "zzz_Deferred": load-order prefixes are not part of the name.
+            s = System.Text.RegularExpressions.Regex.Replace(s, "^([0-9]+|z+)_+", "");
             if (s == "") s = folder ?? "";
+            var keep = new List<KeyValuePair<int, int>>();
+            foreach (var w in KeepWhole)
+            {
+                int at = s.IndexOf(w, StringComparison.Ordinal);
+                if (at >= 0) keep.Add(new KeyValuePair<int, int>(at, at + w.Length));
+            }
+            Func<int, bool> inside = i => keep.Any(k => i > k.Key && i < k.Value);
             var sb = new StringBuilder();
             for (int i = 0; i < s.Length; i++)
             {
                 char c = s[i];
-                if (c == '_' || c == '-') { sb.Append(' '); continue; }
-                if (i > 0 && char.IsUpper(c) && char.IsLower(s[i - 1]) && i + 1 < s.Length && char.IsLower(s[i + 1]) && sb.Length > 0 && sb[sb.Length - 1] != ' ') sb.Append(' ');
+                if (c == '_' || c == '-' || (c == '.' && i + 1 < s.Length && char.IsLetter(s[i + 1]))) { sb.Append(' '); continue; }
+                if (i > 0 && !inside(i) && sb.Length > 0 && sb[sb.Length - 1] != ' ')
+                {
+                    char p = s[i - 1];
+                    bool next = i + 1 < s.Length && char.IsLower(s[i + 1]);
+                    // camelCase, the end of an acronym ("NTRMod"), a word after a digit ("G3Magnet"), a number after a word ("MechJeb2").
+                    bool acronym = i + 1 < s.Length && (char.IsUpper(s[i + 1]) || char.IsDigit(s[i + 1]));
+                    if ((char.IsUpper(c) && char.IsLower(p) && (next || acronym)) || (char.IsUpper(c) && char.IsUpper(p) && next && i >= 2) || (char.IsUpper(c) && char.IsDigit(p) && next)
+                        || (char.IsDigit(c) && char.IsLower(p) && !(i + 1 < s.Length && char.IsLetter(s[i + 1]))))
+                        sb.Append(' ');
+                }
                 sb.Append(c);
             }
             return string.Join(" ", sb.ToString().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
@@ -128,6 +147,7 @@ namespace KerbalNews
                 object root;
                 if (!Json.TryParse(File.ReadAllText(f), out root) || Json.Obj(root) == null) continue;
                 string name = Json.Str(root, "NAME", "");
+                name = System.Text.RegularExpressions.Regex.Replace(name, "<[^>]*>", "").Trim();
                 if (name != "" && name.Length < 60) m.Name = name;
                 var v = Json.Get(root, "VERSION");
                 if (Json.Obj(v) != null)
@@ -157,6 +177,7 @@ namespace KerbalNews
                 {
                     k.Installed = true;
                     if (f.Version != "") k.Version = f.Version;
+                    k.Name = f.Name;   // names come from the folder or .version file, so a better reading replaces the old one
                     continue;
                 }
                 f.Include = !f.Library;
