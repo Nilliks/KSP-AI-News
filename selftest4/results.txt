@@ -1,0 +1,74 @@
+PASS demo news built: 19 articles, 4 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 2324, 127 paragraphs, 65 links, 1 fields
+PASS kerbalnews.kb text fits its boxes
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2462, 164 paragraphs, 74 links, 2 fields
+PASS herald.kb/article/a2 text fits its boxes
+PASS kerbnet.kb -> "Kerbnet" height 3280, 173 paragraphs, 46 links, 0 fields
+PASS kerbnet.kb text fits its boxes
+PASS snackboard.kb -> "Snackboard" height 738, 69 paragraphs, 48 links, 0 fields
+PASS snackboard.kb text fits its boxes
+PASS snackboard.kb/t/t167 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 882, 78 paragraphs, 44 links, 2 fields
+PASS snackboard.kb/t/t167 text fits its boxes
+PASS snackboard.kb/submit -> "New post - Snackboard" height 670, 56 paragraphs, 37 links, 4 fields
+PASS snackboard.kb/submit text fits its boxes
+PASS tracker.kb -> "Universe tracker" height 598, 39 paragraphs, 18 links, 0 fields
+PASS tracker.kb text fits its boxes
+PASS agency.kb -> "Agency profile" height 1497, 49 paragraphs, 32 links, 10 fields
+PASS agency.kb text fits its boxes
+PASS settings.kb -> "Settings" height 1402, 74 paragraphs, 54 links, 5 fields
+PASS settings.kb text fits its boxes
+PASS telemetry.kb -> "Telemetry sharing" height 410, 33 paragraphs, 22 links, 0 fields
+PASS telemetry.kb text fits its boxes
+PASS kerbalnews.kb/search?q=mun -> "Search" height 739, 42 paragraphs, 26 links, 1 fields
+PASS kerbalnews.kb/search?q=mun text fits its boxes
+PASS herald.kb -> "Kerbin Daily Herald" height 483, 35 paragraphs, 22 links, 0 fields
+PASS herald.kb text fits its boxes
+PASS orbitalobserver.kb -> "Orbital Observer" height 303, 27 paragraphs, 21 links, 0 fields
+PASS orbitalobserver.kb text fits its boxes
+PASS inquirer.kb -> "The Kerbal Inquirer" height 455, 26 paragraphs, 21 links, 0 fields
+PASS inquirer.kb text fits its boxes
+PASS dailykraken.kb -> "The Daily Kraken" height 732, 34 paragraphs, 21 links, 0 fields
+PASS dailykraken.kb text fits its boxes
+PASS munmonthly.kb -> "Mun Monthly" height 405, 23 paragraphs, 19 links, 0 fields
+PASS munmonthly.kb text fits its boxes
+PASS kscwatch.kb -> "KSC Watch" height 395, 34 paragraphs, 22 links, 0 fields
+PASS kscwatch.kb text fits its boxes
+PASS kscireview.kb -> "Kerbin Science Review" height 315, 24 paragraphs, 19 links, 0 fields
+PASS kscireview.kb text fits its boxes
+PASS council.gov.kb -> "Planetary Council Press Office" height 282, 24 paragraphs, 19 links, 0 fields
+PASS council.gov.kb text fits its boxes
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t178
+PASS A+ makes text bigger: 3.40 -> 3.50
+AI check with DeepSeek / deepseek-chat
+PASS AI wrote 7 articles in 124 s
+AI headline: The Red World and the Two Who Went
+PASS munmonthly.kb/article/a187 -> "The Red World and the Two Who Went - Mun Monthly" height 2338, 118 paragraphs, 53 links, 2 fields
+PASS munmonthly.kb/article/a187 text fits its boxes
+PASS AI community replied to the official comment: 6 replies
+  FirstTimeReader: An actual reply from the agency! Sorry for the basic question, but four minutes each way means nobody can steer it live from Kerbin, right? So the crew and the onboard systems are doing the work alone out there?
+  TaxpayerTed: 'More soon' is not an answer. What did the insertion burn cost in fuel, and what's the total bill for this voyage? I'll read the trade piece while I wait. [[a188]]
+  RetiredRocketeer_Bob: 'Capture burn went exactly to plan.' Good words, and I believe them, but read the numbers in Orbital Observer before you get swept up. A clean insertion is engineering, not magic. [[a184]]
+  TruthOrbiter: An official account says the burn was fine. That's it? No telemetry, no crew voice, nothing anyone can check. I'm not saying staged this time. I'm saying show us something.
+PASS flight: test save KerbalNewsSelfTest reached the space center
+PASS flight: Kerbal X on the pad
+PASS flight: live stream started for #autoLOC_501232
+PASS flight: press photo of the craft on the pad
+FAIL flight: liftoff photo
+FAIL flight: ascent photo
+PASS flight: stream chat has 28 viewer messages, 2886 viewers
+PASS flight: liftoff shown on stream: stage 7 activated; liftoff
+PASS flight: stream video rendered
+  chat orbital_oddity: countdown clock reset to zero, are we actually holding?
+  chat JebediahFan_Kerman: stage 8, fuel full, sitting pretty. let's light this candle
+  chat Munbound_Marla: 91 m altitude on the pad is just the tower measurement, right? not a hop lol
+  chat skeptical_kessler: 0 seconds mission time and already 2600 of us watching a rocket do nothing
+  chat orbital_oddity: clock's at zero and the vehicle's moving. liftoff confirmed
+  chat JebediahFan_Kerman: there it is! she's off the pad!
+  chat TinyKerbina: is the rocket going to the mun today?? my class is watching
+  chat MunShot_Mila: 91 m and climbing, telemetry lag or is that real
+PASS flight: a spotter posted a photo on Snackboard: #autoLOC_501232 is on the pad. Got a shot from the causeway
+  press photo pad: Tobald Kerman for The Daily Kraken, 1750 mm from a field near the space center, about 3.3 km away
+PASS flight: stream ended and archived
+2 FAILED
