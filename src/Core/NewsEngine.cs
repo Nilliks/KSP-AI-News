@@ -170,6 +170,8 @@ namespace KerbalNews
         /// </summary>
         public void Tick(double ut, double realTime, bool allowCalls)
         {
+            FillerQuietDays = Settings.QuietDays;
+            StreamInterval = Settings.StreamSeconds;
             if (State.LastStoryUT < 0) State.LastStoryUT = ut;
             if (State.LastMoodDecayUT < 0) State.LastMoodDecayUT = ut;
             if (lastVisibleUT < 0) lastVisibleUT = ut;
@@ -223,10 +225,33 @@ namespace KerbalNews
 
         CoveragePlan PlanFor(Story s)
         {
-            if (s.Kind == "filler") return CoveragePlan.ForFiller(s.FillerOutlet == "" ? "herald" : s.FillerOutlet);
-            if (s.Kind == "tip") return CoveragePlan.ForTip(s);
-            if (s.Kind == "release") { var r = ReleaseOf(s); return CoveragePlan.ForRelease(s, r != null ? r.Type : "announcement"); }
-            return CoveragePlan.For(s);
+            CoveragePlan plan;
+            if (s.Kind == "filler") plan = CoveragePlan.ForFiller(s.FillerOutlet == "" ? "herald" : s.FillerOutlet);
+            else if (s.Kind == "tip") plan = CoveragePlan.ForTip(s);
+            else if (s.Kind == "release") { var r = ReleaseOf(s); plan = CoveragePlan.ForRelease(s, r != null ? r.Type : "announcement"); }
+            else plan = CoveragePlan.For(s);
+            return ApplyUsage(plan);
+        }
+
+        /// <summary>Order in which outlets keep their place when the usage settings cap how many cover a story.</summary>
+        static readonly string[] OutletPriority = { "herald", "observer", "kraken", "inquirer", "kscwatch", "science", "munmonthly", "council" };
+
+        /// <summary>The player's API-usage settings: fewer outlets, shorter pieces, fewer comments and posts (or more).</summary>
+        CoveragePlan ApplyUsage(CoveragePlan plan)
+        {
+            var g = Settings;
+            if (g.MaxOutlets > 0 && plan.Outlets.Count > g.MaxOutlets)
+                plan.Outlets = plan.Outlets.OrderBy(o => { int i = Array.IndexOf(OutletPriority, o.OutletId); return i < 0 ? 99 : i; }).Take(g.MaxOutlets).ToList();
+            if (Math.Abs(g.AmountScale - 1) > 0.01)
+            {
+                foreach (var o in plan.Outlets)
+                {
+                    o.Words = Math.Max(60, (int)Math.Round(o.Words * g.AmountScale));
+                    o.Comments = Math.Max(1, (int)Math.Round(o.Comments * g.AmountScale));
+                }
+                plan.SocialPosts = Math.Max(1, (int)Math.Round(plan.SocialPosts * g.AmountScale));
+            }
+            return plan;
         }
 
         void Generate(Story story, CoveragePlan plan, double ut, double realTime)
@@ -277,7 +302,15 @@ namespace KerbalNews
             return r.Error == null && (r.Status == 400 || r.Status == 401 || r.Status == 403 || r.Status == 404);
         }
 
-        static bool PlanTierCheap(CoveragePlan plan) { return plan.Tier == "brief" || plan.Tier == "feature"; }
+        bool PlanTierCheap(CoveragePlan plan)
+        {
+            switch (Settings.WriterFrom)
+            {
+                case "brief": return false;
+                case "major": return plan.Tier != "major" && plan.Tier != "historic";
+                default: return plan.Tier == "brief" || plan.Tier == "feature";
+            }
+        }
 
         void Finalize(Story story, GeneratedCoverage cov, CoveragePlan plan, double ut)
         {
@@ -391,6 +424,7 @@ namespace KerbalNews
         void MaybeQueueFiller(double ut)
         {
             double quiet = (ut - State.LastStoryUT) / Day;
+            if (FillerQuietDays <= 0) return;
             double sinceFiller = State.LastFillerUT < 0 ? double.MaxValue : (ut - State.LastFillerUT) / Day;
             if (quiet < FillerQuietDays || sinceFiller < FillerMinGapDays) return;
             if (State.Stories.Any(s => s.Status == StoryStatus.Pending)) return;

@@ -82,8 +82,28 @@ namespace KerbalNews.Web
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
+                case "usage": g.ApplyUsage(arg); SaveSettings(); break;
+                case "usage-quiet":
+                case "usage-amount":
+                case "usage-outlets":
+                case "usage-writer":
+                case "usage-stream":
+                case "toggle-retro":
+                {
+                    double v;
+                    double.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+                    if (verb == "usage-quiet") g.QuietDays = Math.Max(0, v);
+                    else if (verb == "usage-amount") g.AmountScale = Math.Max(0.3, Math.Min(2, v));
+                    else if (verb == "usage-outlets") g.MaxOutlets = Math.Max(0, (int)v);
+                    else if (verb == "usage-writer") g.WriterFrom = arg == "major" || arg == "brief" ? arg : "story";
+                    else if (verb == "usage-stream") g.StreamSeconds = Math.Max(10, v);
+                    else g.Retrospectives = !g.Retrospectives;
+                    g.Usage = g.UsageMatch;
+                    SaveSettings();
+                    break;
+                }
                 case "toggle-crewchat": g.CrewChatOn = !g.CrewChatOn; SaveSettings(); break;
-                case "toggle-ktv": g.KtvOn = !g.KtvOn; SaveSettings(); break;
+                case "toggle-ktv": g.KtvOn = !g.KtvOn; g.Usage = g.UsageMatch; SaveSettings(); break;
                 case "toggle-mods-context": g.ModsInContext = !g.ModsInContext; SaveSettings(); break;
                 case "mod-toggle":
                     foreach (var md in g.Mods) if (string.Equals(md.Folder, arg, StringComparison.OrdinalIgnoreCase)) md.Include = !md.Include;

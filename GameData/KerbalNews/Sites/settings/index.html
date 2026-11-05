@@ -33,6 +33,24 @@
     <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a>
     <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
 
+  <h2>API usage</h2>
+  <p class="hint">Turn AI use down to save money, or up for a busier news world. A preset sets everything below; any change makes it Custom.</p>
+  <div class="providers">{{#usagePresets}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/usagePresets}}</div>
+  <p class="hint">{{usageText}}</p>
+  <label>Quiet-day features and opinion pieces</label>
+  <div class="providers">{{#quietOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/quietOpts}}</div>
+  <label>Article length, comments and social posts</label>
+  <div class="providers">{{#amountOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/amountOpts}}</div>
+  <label>Most outlets covering one story</label>
+  <div class="providers">{{#outletOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/outletOpts}}</div>
+  <label>Use the writer model (the expensive one) for</label>
+  <div class="providers">{{#writerOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/writerOpts}}</div>
+  <label>Livestream chat updates</label>
+  <div class="providers">{{#streamOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamOpts}}</div>
+  <div class="row" style="margin-top: 8px"><a class="toggle{{#retro}} on{{/retro}}" href="action:toggle-retro">Anniversaries and year in review</a>
+    <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a></div>
+  <p class="hint">Calls you start yourself (the assistant, crew chat, your comments) are not limited.</p>
+
   <h2>Article photos (optional)</h2>
   <p class="hint">A separate image service, with its own key, draws one press photo for bigger stories. It is off unless you pick a service. It costs one image call per qualifying story.</p>
   <div class="providers"><a class="prov{{#imageOff}} on{{/imageOff}}" href="action:img-provider/off">Off</a>{{#imageProviders}}<a class="prov{{#on}} on{{/on}}" href="action:img-provider/{{id}}">{{name}}</a>{{/imageProviders}}</div>

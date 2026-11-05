@@ -20,6 +20,49 @@ namespace KerbalNews
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
         public bool KtvOn = true;
+
+        // ---- API usage. "balanced" is how the mod has always behaved; "saver" and "full" move every knob at once.
+        public string Usage = "balanced";
+        /// <summary>Days of quiet before a feature or opinion piece is written; 0 turns them off.</summary>
+        public double QuietDays = 3;
+        /// <summary>Scales article length, comment counts and social posts (output tokens).</summary>
+        public double AmountScale = 1;
+        /// <summary>Most outlets that cover one story; 0 means no limit.</summary>
+        public int MaxOutlets = 0;
+        /// <summary>Smallest story tier written by the writer model: "story" (default), "major" (saves money) or "brief" (everything).</summary>
+        public string WriterFrom = "story";
+        /// <summary>Seconds between livestream chat updates.</summary>
+        public double StreamSeconds = 30;
+        /// <summary>Anniversary retrospectives and the yearly review.</summary>
+        public bool Retrospectives = true;
+
+        public static readonly string[] UsagePresets = { "saver", "balanced", "full" };
+
+        public void ApplyUsage(string preset)
+        {
+            Usage = preset;
+            switch (preset)
+            {
+                case "saver": QuietDays = 0; AmountScale = 0.6; MaxOutlets = 3; WriterFrom = "major"; StreamSeconds = 60; Retrospectives = false; KtvOn = false; break;
+                case "full": QuietDays = 2; AmountScale = 1.3; MaxOutlets = 0; WriterFrom = "brief"; StreamSeconds = 20; Retrospectives = true; KtvOn = true; break;
+                default: Usage = "balanced"; QuietDays = 3; AmountScale = 1; MaxOutlets = 0; WriterFrom = "story"; StreamSeconds = 30; Retrospectives = true; KtvOn = true; break;
+            }
+        }
+
+        /// <summary>The preset the knobs match, or "custom".</summary>
+        public string UsageMatch
+        {
+            get
+            {
+                foreach (var p in UsagePresets)
+                {
+                    var t = new GlobalSettings(); t.ApplyUsage(p);
+                    if (t.QuietDays == QuietDays && Math.Abs(t.AmountScale - AmountScale) < 0.01 && t.MaxOutlets == MaxOutlets && t.WriterFrom == WriterFrom
+                        && t.StreamSeconds == StreamSeconds && t.Retrospectives == Retrospectives && t.KtvOn == KtvOn) return p;
+                }
+                return "custom";
+            }
+        }
         public Dictionary<string, string> BaseUrls = new Dictionary<string, string>();
         public Dictionary<string, string> WriterModels = new Dictionary<string, string>();
         public Dictionary<string, string> CheapModels = new Dictionary<string, string>();
@@ -96,6 +139,13 @@ namespace KerbalNews
             settings.Add("assistantConfirm", AssistantConfirm);
             settings.Add("crewChat", CrewChatOn);
             settings.Add("ktv", KtvOn);
+            settings.Add("usage", Usage);
+            settings.Add("quietDays", QuietDays);
+            settings.Add("amountScale", AmountScale);
+            settings.Add("maxOutlets", MaxOutlets);
+            settings.Add("writerFrom", WriterFrom);
+            settings.Add("streamSeconds", StreamSeconds);
+            settings.Add("retrospectives", Retrospectives);
             settings.Add("uiScale", (double)UiScale);
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
@@ -138,6 +188,13 @@ namespace KerbalNews
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
                 g.CrewChatOn = settings.GetBool("crewChat", true);
                 g.KtvOn = settings.GetBool("ktv", true);
+                g.Usage = settings.Get("usage", "balanced");
+                g.QuietDays = Math.Max(0, settings.GetDouble("quietDays", 3));
+                g.AmountScale = Math.Max(0.3, Math.Min(2, settings.GetDouble("amountScale", 1)));
+                g.MaxOutlets = Math.Max(0, settings.GetInt("maxOutlets", 0));
+                g.WriterFrom = settings.Get("writerFrom", "story");
+                g.StreamSeconds = Math.Max(10, settings.GetDouble("streamSeconds", 30));
+                g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 g.ImageProviderId = settings.Get("imageProvider", "");
                 g.ImageMinTier = settings.Get("imageMinTier", "major");

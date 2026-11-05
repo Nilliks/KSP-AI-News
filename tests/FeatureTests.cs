@@ -284,4 +284,39 @@ public static class FeatureTests
         var n = new DataNode("K"); s.Save(n);
         Assert(NewsState.Load(n).Tv.Count == 1, "segments survive a save");
     }
+
+    public static void TestApiUsageSettings()
+    {
+        var g = CoreTests.OnlineSettings();
+        g.ApplyUsage("saver");
+        var s = new NewsState();
+        var t = new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply };
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        // A big story with many outlets, written on the cheap model under Saver.
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, 400, "v1", "Mun", "Jebediah Kerman"));
+        eng.Tick(10 + Day * 3, 2, true);
+        Assert(t.Sent.Count == 1, "one call");
+        var outlets = s.Articles.Select(a => a.Outlet).Distinct().Count();
+        Assert(outlets <= 3, "saver caps outlets: " + outlets);
+        Assert(!t.Sent[0].Body.Contains("KTV News television segment"), "saver turns KTV off");
+        // Quiet days: no filler under Saver.
+        for (double ut = Day * 4; ut < Day * 20; ut += Day / 2) eng.Tick(ut, ut, true);
+        Assert(!s.Stories.Any(x => x.Kind == "filler"), "no quiet-day features under saver");
+        Assert(g.UsageMatch == "saver", "matches saver");
+
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
+        Assert(sites.Render("settings.kb").Html.Contains("API usage") && sites.Render("settings.kb").Html.Contains("usage-outlets/2"), "settings shows the knobs");
+        sites.Handle("action:usage-outlets/5", null);
+        Assert(g.MaxOutlets == 5 && g.Usage == "custom", "a knob makes it custom");
+        sites.Handle("action:usage/balanced", null);
+        Assert(g.MaxOutlets == 0 && g.QuietDays == 3 && g.Usage == "balanced", "balanced restores the defaults");
+        g.ApplyUsage("full");
+        var n = new DataNode("S"); var k = new DataNode("K"); g.Save(n, k);
+        var back = GlobalSettings.Load(n, k);
+        Assert(back.UsageMatch == "full" && back.WriterFrom == "brief" && back.StreamSeconds == 20, "usage settings survive a save");
+    }
 }

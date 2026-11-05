@@ -270,6 +270,7 @@ namespace KerbalNews
         void TickAnniversaries(double ut)
         {
             if (State.LastAnniversaryCheckUT >= 0 && ut - State.LastAnniversaryCheckUT < Day * 0.5) return;
+            if (!Settings.Retrospectives) { State.LastAnniversaryCheckUT = ut; return; }
             double last = State.LastAnniversaryCheckUT < 0 ? ut : State.LastAnniversaryCheckUT;
             State.LastAnniversaryCheckUT = ut;
             if (ut < last) return; // reverted
