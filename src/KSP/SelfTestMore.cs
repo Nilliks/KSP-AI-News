@@ -114,7 +114,7 @@ namespace KerbalNews.KSP
             var mun = FlightGlobals.Bodies.FirstOrDefault(b => b.bodyName == "Mun");
             if (mun != null)
             {
-                try { FlightGlobals.fetch.SetVesselTarget(mun, false); } catch (Exception e) { Log("  could not set target: " + e.Message); }
+                try { FlightGlobals.fetch.SetVesselTarget(mun, true); }   // the open browser holds input locks, which block targeting otherwise catch (Exception e) { Log("  could not set target: " + e.Message); }
                 yield return new WaitForSeconds(1);
                 s = EngineeringCapture.Snapshot();
                 double ut = Planetarium.GetUniversalTime();
@@ -124,7 +124,7 @@ namespace KerbalNews.KSP
                 double expect = Vector3d.Dot(Vector3d.Cross(rv, rm), n) > 0 ? ang : 360 - ang;
                 double diff = Math.Abs(((s.PhaseAngle - expect) % 360 + 540) % 360 - 180);
                 Log("  phase angle: engine " + s.PhaseAngle.ToString("0.0") + ", independent " + expect.ToString("0.0") + ", ideal " + EngMath.TransferPhase(s.TransferR1, s.TransferR2).ToString("0.0") + ", transfer r1 " + s.TransferR1.ToString("0") + " r2 " + s.TransferR2.ToString("0"));
-                Check(s.Target == "Mun" && s.PhaseAngle >= 0 && diff < 3, "eng: target Mun, phase angle " + s.PhaseAngle.ToString("0") + "° (independent check " + expect.ToString("0") + "°)");
+                Check(s.Target == "Mun" && s.PhaseAngle >= 0 && diff < 3, "eng: target " + (s.Target != "" ? s.Target : "not set") + ", phase angle " + s.PhaseAngle.ToString("0") + "° (independent check " + expect.ToString("0") + "°)");
             }
 
             // A maneuver node: 150 m/s prograde, five minutes out.
