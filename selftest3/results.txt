@@ -1,0 +1,52 @@
+PASS demo news built: 16 articles, 3 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 2071, 111 paragraphs, 56 links, 1 fields
+PASS kerbalnews.kb text fits its boxes
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2431, 161 paragraphs, 71 links, 2 fields
+PASS herald.kb/article/a2 text fits its boxes
+PASS kerbnet.kb -> "Kerbnet" height 3280, 171 paragraphs, 44 links, 0 fields
+PASS kerbnet.kb text fits its boxes
+PASS snackboard.kb -> "Snackboard" height 652, 61 paragraphs, 42 links, 0 fields
+PASS snackboard.kb text fits its boxes
+PASS snackboard.kb/t/t142 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 882, 76 paragraphs, 42 links, 2 fields
+PASS snackboard.kb/t/t142 text fits its boxes
+PASS snackboard.kb/submit -> "New post - Snackboard" height 670, 54 paragraphs, 35 links, 4 fields
+PASS snackboard.kb/submit text fits its boxes
+PASS tracker.kb -> "Universe tracker" height 598, 37 paragraphs, 16 links, 0 fields
+PASS tracker.kb text fits its boxes
+PASS agency.kb -> "Agency profile" height 1497, 47 paragraphs, 30 links, 10 fields
+PASS agency.kb text fits its boxes
+PASS settings.kb -> "Settings" height 1402, 71 paragraphs, 51 links, 5 fields
+PASS settings.kb text fits its boxes
+PASS telemetry.kb -> "Telemetry sharing" height 410, 31 paragraphs, 20 links, 0 fields
+PASS telemetry.kb text fits its boxes
+PASS kerbalnews.kb/search?q=mun -> "Search" height 666, 37 paragraphs, 23 links, 1 fields
+PASS kerbalnews.kb/search?q=mun text fits its boxes
+PASS herald.kb -> "Kerbin Daily Herald" height 483, 33 paragraphs, 20 links, 0 fields
+PASS herald.kb text fits its boxes
+PASS orbitalobserver.kb -> "Orbital Observer" height 303, 25 paragraphs, 19 links, 0 fields
+PASS orbitalobserver.kb text fits its boxes
+PASS inquirer.kb -> "The Kerbal Inquirer" height 455, 24 paragraphs, 19 links, 0 fields
+PASS inquirer.kb text fits its boxes
+PASS munmonthly.kb -> "Mun Monthly" height 405, 21 paragraphs, 17 links, 0 fields
+PASS munmonthly.kb text fits its boxes
+PASS kscwatch.kb -> "KSC Watch" height 395, 32 paragraphs, 20 links, 0 fields
+PASS kscwatch.kb text fits its boxes
+PASS kscireview.kb -> "Kerbin Science Review" height 315, 22 paragraphs, 17 links, 0 fields
+PASS kscireview.kb text fits its boxes
+PASS council.gov.kb -> "Planetary Council Press Office" height 282, 22 paragraphs, 17 links, 0 fields
+PASS council.gov.kb text fits its boxes
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t153
+PASS A+ makes text bigger: 3.40 -> 3.50
+AI check with DeepSeek / deepseek-chat
+PASS AI wrote 6 articles in 38 s
+AI headline: The Long Road to Duna: Valentina and Bob's Quiet Courage
+PASS munmonthly.kb/article/a161 -> "The Long Road to Duna: Valentina and Bob's Quiet Courage - Mun Monthly" height 2403, 113 paragraphs, 50 links, 2 fields
+PASS munmonthly.kb/article/a161 text fits its boxes
+PASS AI community replied to the official comment: 6 replies
+  JebFan4Ever: THE AGENCY IS HERE!!! Hello!! Please tell Valentina and Bob we are all cheering for them!!! This is the best comment section ever!
+  RetiredRocketeer_Bob: Good to hear the capture burn went to plan. Two questions if the team is reading: what is the post-capture orbit, and how much delta-v remains in the descent stage? Numbers would calm a lot of nerves down here.
+  TaxpayerTed: 'More soon.' More what, exactly? A cost breakdown would be appreciated. I have asked three times. Still waiting.
+  TruthOrbiter: An official account posting in a comment section is just PR doing damage control. Why not a press briefing? Why here, under a magazine article? Ask yourselves that.
+ALL PASSED
