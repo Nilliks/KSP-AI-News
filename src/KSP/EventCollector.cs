@@ -40,6 +40,8 @@ namespace KerbalNews.KSP
             GameEvents.Contract.onCompleted.Add(OnContractCompleted);
             GameEvents.Contract.onFailed.Add(OnContractFailed);
             GameEvents.Contract.onAccepted.Add(OnContractAccepted);
+            GameEvents.Contract.onDeclined.Add(OnContractDeclined);
+            GameEvents.Contract.onCancelled.Add(OnContractCancelled);
             GameEvents.onGameSceneLoadRequested.Add(OnSceneLoadRequested);
             GameEvents.onLevelWasLoadedGUIReady.Add(OnSceneLoaded);
         }
@@ -59,6 +61,8 @@ namespace KerbalNews.KSP
             GameEvents.OnScienceRecieved.Remove(OnScience);
             GameEvents.Contract.onCompleted.Remove(OnContractCompleted);
             GameEvents.Contract.onFailed.Remove(OnContractFailed);
+            GameEvents.Contract.onDeclined.Remove(OnContractDeclined);
+            GameEvents.Contract.onCancelled.Remove(OnContractCancelled);
             GameEvents.Contract.onAccepted.Remove(OnContractAccepted);
             GameEvents.onGameSceneLoadRequested.Remove(OnSceneLoadRequested);
             GameEvents.onLevelWasLoadedGUIReady.Remove(OnSceneLoaded);
@@ -378,6 +382,8 @@ namespace KerbalNews.KSP
 
         void OnContractCompleted(Contracts.Contract c) { Safe("contract", () => engine().Ingest(new NewsEvent { Type = EventTypes.ContractDone, UT = UT, Detail = c.Title })); }
         void OnContractFailed(Contracts.Contract c) { Safe("contract", () => engine().Ingest(new NewsEvent { Type = EventTypes.ContractFailed, UT = UT, Detail = c.Title })); }
+        void OnContractDeclined(Contracts.Contract c) { var k = c as KnnContract; if (k != null) Safe("contract", () => engine().TieInChanged(k.TieId, "declined")); }
+        void OnContractCancelled(Contracts.Contract c) { var k = c as KnnContract; if (k != null) Safe("contract", () => engine().TieInChanged(k.TieId, "cancelled")); }
         void OnContractAccepted(Contracts.Contract c) { Safe("contract", () => engine().Ingest(new NewsEvent { Type = EventTypes.ContractAccepted, UT = UT, Detail = c.Title })); }
     }
 }

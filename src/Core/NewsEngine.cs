@@ -83,6 +83,8 @@ namespace KerbalNews
             if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream)
                 StreamMoment(StreamMomentText(e), lastRealTime);
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;
+            if (HoldForSide(e)) return null;
+            try { if (SuppressEvent(e)) return null; } catch { }
             // A silent vessel only makes news through what anyone can see from the ground.
             if (State.IsSilent(e.VesselId) && !VisibleFromGround(e)) return null;
             string key = Significance.NoveltyKey(e);
@@ -93,6 +95,7 @@ namespace KerbalNews
             State.Novelty[key] = seen + 1;
             RecordCrew(e);
             RecordIncident(e);
+            AnnotateContractEvent(e);
 
             Story story = null;
             if (!string.IsNullOrEmpty(e.VesselId))
@@ -173,6 +176,9 @@ namespace KerbalNews
         {
             FillerQuietDays = Settings.QuietDays;
             StreamInterval = Settings.StreamSeconds;
+            bool side = InSide();
+            if (side) allowCalls = false;   // FMRS side timeline: nothing done here survives
+            else FlushSide();
             allowCalls = WarpGate(ut, realTime, allowCalls);
             if (State.LastStoryUT < 0) State.LastStoryUT = ut;
             if (State.LastMoodDecayUT < 0) State.LastMoodDecayUT = ut;
@@ -196,6 +202,7 @@ namespace KerbalNews
             TickAssistant(ut);
             TickAnniversaries(ut);
             TickAppearances(ut);
+            if (State.TieIns.Count > 0 && State.TieIns.Any(t => t.Open)) TickTieIns(ut);
             MaybePoll(ut);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
@@ -395,6 +402,7 @@ namespace KerbalNews
                     tv.History.Add(Clock.FormatDate(e.UT) + ": " + e.Type + (e.Body != "" ? " (" + e.Body + ")" : ""));
             if (tv != null && tv.History.Count > 12) tv.History.RemoveRange(0, tv.History.Count - 12);
             if (Status.StartsWith("Writing")) Status = "Idle";
+            if (!rewritten) ConsiderTieIn(story, cov.Articles, ut);
             State.Prune();
         }
 

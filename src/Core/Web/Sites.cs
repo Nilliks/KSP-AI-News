@@ -451,6 +451,7 @@ namespace KerbalNews.Web
             m["crewChat"] = g.CrewChatOn;
             m["ktv"] = g.KtvOn;
             m["engineering"] = g.EngineeringOn;
+            m["tieIns"] = g.ContractTieIns;
             m["modsInContext"] = g.ModsInContext;
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };
             string match = g.UsageMatch;

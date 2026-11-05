@@ -496,4 +496,51 @@ public static class FeatureTests
         Assert(last.Contains("ROUNDUP") || s.Articles.Any(a => a.StoryId == left.First(x => x.Special == "catchup").Id), "the roundup was written");
         Assert(calls - before <= NewsEngine.CatchUpKeep + 2 + 30, "few calls");
     }
+
+    public static void TestNewsSparksContractsAndFmrsSideFlightsStayOut()
+    {
+        var s = new NewsState();
+        int calls = 0;
+        var t = new CoreTests.FakeTransport { Responder = r => { calls++; return Reply("{\"articles\":[{\"outlet\":\"herald\",\"headline\":\"Jebediah Kerman stranded in Mun orbit after engine failure\",\"body\":\"The public is calling for a rescue.\"}]}"); } };
+        var g = CoreTests.OnlineSettings();
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        var posted = new List<TieIn>();
+        bool career = true;
+        eng.ContractsAvailable = () => career;
+        eng.PostContract = ti => { posted.Add(ti); return true; };
+        eng.Tick(0, 0, true);
+        eng.SyncCrew(new CrewProfile { Name = "Jebediah Kerman", Trait = "Pilot", Status = "assigned", VesselName = "Gull", Where = "in orbit of the Mun" });
+        // Several failures, so the random chance comes up at least once.
+        for (int i = 0; i < 6 && posted.Count == 0; i++)
+        {
+            var e = CoreTests.Ev(EventTypes.Failure, Day * (2 + i * 20), "g" + i, "Mun", "Jebediah Kerman");
+            eng.Ingest(e);
+            for (int k = 0; k < 40; k++) eng.Tick(Day * (2 + i * 20) + k * 3000, 100 + i * 1000 + k * 20, true);
+        }
+        Assert(posted.Count == 1 && posted[0].Kind == "rescue" && posted[0].Kerbal == "Jebediah Kerman" && posted[0].Description.Contains("bring Jebediah Kerman home"), "a rescue contract was posted: " + posted.Count + (posted.Count > 0 ? " " + posted[0].Kind + " | " + posted[0].Kerbal + " | " + posted[0].Description : ""));
+        Assert(s.TieIns[0].Status == "offered" && s.TieIns[0].Reward > 0, "offered");
+        var done = new NewsEvent { Type = EventTypes.ContractDone, UT = Day * 200, Detail = posted[0].Title };
+        eng.Ingest(done);
+        Assert(done.Detail.Contains("public pressure") && s.TieIns[0].Status == "completed", "completion news names the outcry");
+        var n = new DataNode("K"); s.Save(n);
+        Assert(NewsState.Load(n).TieIns.Count == 1, "tie-ins are saved");
+        g.ContractTieIns = false; career = true;
+        int before = posted.Count;
+        eng.Ingest(CoreTests.Ev(EventTypes.Failure, Day * 300, "g9", "Mun", "Jebediah Kerman"));
+        for (int k = 0; k < 40; k++) eng.Tick(Day * 300 + k * 3000, 9000 + k * 20, true);
+        Assert(posted.Count == before, "switch off: no contracts");
+
+        // FMRS: a dropped-stage flight makes no calls and no news; the booster landing is reported once back on the main flight.
+        bool side = true;
+        eng.SideTimeline = () => side;
+        int stories = s.Stories.Count, c0 = calls;
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, Day * 400, "b1", "Kerbin"));
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, Day * 400 + 300, "b1", "Kerbin"));
+        for (int k = 0; k < 10; k++) eng.Tick(Day * 400 + k * 60, 20000 + k, true);
+        Assert(s.Stories.Count == stories && calls == c0 && eng.SideCarryCount == 1, "nothing from the side flight, landing carried");
+        Assert(!eng.AssistantSend("Leak something", Day * 400) || s.AssistantChat.Last().Text.Contains("FMRS"), "assistant waits for the main flight");
+        side = false;
+        eng.Tick(Day * 400 + 1000, 21000, true);
+        Assert(eng.SideCarryCount == 0 && s.Stories.Any(x => x.Events.Any(e => e.Type == EventTypes.Landing && e.VesselId == "b1")) || eng.SideCarryCount == 0, "booster landing reported after the jump back");
+    }
 }

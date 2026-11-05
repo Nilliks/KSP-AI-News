@@ -738,6 +738,8 @@ namespace KerbalNews
         /// <summary>The mission the director last asked the team to plan, and every crash or failure with its investigation.</summary>
         public string EngMission = "";
         public List<Incident> Incidents = new List<Incident>();
+        /// <summary>Contracts the news sparked.</summary>
+        public List<TieIn> TieIns = new List<TieIn>();
         /// <summary>KTV news segments, newest last.</summary>
         public List<TvSegment> Tv = new List<TvSegment>();
         public const int MaxTv = 150;
@@ -879,6 +881,8 @@ namespace KerbalNews
             foreach (var m in EngChat) m.Save(eng.AddNode("MSG"));
             eng.AddText("mission", EngMission);
             foreach (var inc in Incidents) inc.Save(eng.AddNode("INCIDENT"));
+            var tin = n.AddNode("TIEINS");
+            foreach (var ti in TieIns) ti.Save(tin.AddNode("TIEIN"));
             var aps = n.AddNode("APPEARANCES");
             foreach (var ap in Appearances.Skip(Math.Max(0, Appearances.Count - 60))) ap.Save(aps.AddNode("APPEARANCE"));
             var sci = n.AddNode("SCIENCE");
@@ -982,6 +986,8 @@ namespace KerbalNews
                 s.EngMission = engNode.GetText("mission");
                 foreach (var inn in engNode.GetNodes("INCIDENT")) s.Incidents.Add(Incident.Load(inn));
             }
+            var tiNode = n.GetNode("TIEINS");
+            if (tiNode != null) foreach (var tn in tiNode.GetNodes("TIEIN")) s.TieIns.Add(TieIn.Load(tn));
             var apNode = n.GetNode("APPEARANCES");
             if (apNode != null) foreach (var an2 in apNode.GetNodes("APPEARANCE")) s.Appearances.Add(CrewAppearance.Load(an2));
             var sciNode = n.GetNode("SCIENCE");

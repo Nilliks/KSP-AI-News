@@ -183,7 +183,7 @@ public class ConfigNode
     public ConfigNodeList nodes;
     public ConfigNode() { }
     public ConfigNode(string name) { }
-    public void AddValue(string k, string v) { }
+    public void AddValue(string k, string v) { } public void AddValue(string k, object v) { } public string GetValue(string k) { return null; }
     public ConfigNode AddNode(string name) { return null; }
     public ConfigNode AddNode(ConfigNode n) { return n; }
     public ConfigNode GetNode(string name) { return null; }
@@ -197,7 +197,7 @@ public static class KSPUtil { public static IDateTimeFormatter dateTimeFormatter
 public class EventReport { public string sender; public Part origin; public string msg; }
 
 public class EventVoid { public void Add(Callback c) { } public void Remove(Callback c) { } }
-public class EventData<T> { public delegate void OnEvent(T data); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
+public class EventData<T> { public delegate void OnEvent(T data); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } public void Fire(T d) { } }
 public class EventData<T, U> { public delegate void OnEvent(T a, U b); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
 public class EventData<T, U, V, W> { public delegate void OnEvent(T a, U b, V c, W d); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
 public class ScienceSubject { public string id, title; public float science, scienceCap, dataScale, subjectValue; }
@@ -221,10 +221,36 @@ public static class GameEvents
     public static EventData<float, ScienceSubject, ProtoVessel, bool> OnScienceRecieved;
     public static EventData<GameScenes> onGameSceneLoadRequested, onLevelWasLoadedGUIReady, onGUIApplicationLauncherUnreadifying;
     public static EventVoid onGUIApplicationLauncherReady;
-    public static class Contract { public static EventData<Contracts.Contract> onCompleted, onFailed, onAccepted; }
+    public static class Contract { public static EventData<Contracts.Contract> onCompleted, onFailed, onAccepted, onDeclined, onCancelled, onOffered; }
 }
 
-namespace Contracts { public class Contract { public string Title; } }
+namespace Contracts
+{
+    public class Contract
+    {
+        public enum ContractPrestige { Trivial, Significant, Exceptional }
+        public enum State { Generated, Offered, OfferExpired, Declined, Cancelled, Active, Completed, DeadlineExpired, Failed, Withdrawn }
+        public string Title; public Guid ContractGuid;
+        public static Contract Generate(Type t, ContractPrestige p, int seed, State s) { return null; }
+        protected virtual bool Generate() { return false; }
+        public virtual bool CanBeCancelled() { return true; } public virtual bool CanBeDeclined() { return true; } public virtual bool MeetRequirements() { return true; }
+        protected virtual string GetHashString() { return ""; } protected virtual string GetTitle() { return ""; } protected virtual string GetDescription() { return ""; }
+        protected virtual string GetSynopsys() { return ""; } protected virtual string MessageCompleted() { return ""; }
+        protected virtual void OnSave(ConfigNode n) { } protected virtual void OnLoad(ConfigNode n) { }
+        protected void SetFunds(float a, float c, float f, CelestialBody b = null) { } protected void SetReputation(float c, float f, CelestialBody b = null) { } protected void SetScience(float c, CelestialBody b = null) { }
+        protected void SetExpiry(float min, float max) { } protected void SetDeadlineDays(float d, CelestialBody b = null) { }
+        public ContractParameter AddParameter(ContractParameter p, string id = null) { return p; }
+    }
+    public class ContractParameter
+    {
+        protected virtual string GetTitle() { return ""; } protected virtual string GetHashString() { return ""; }
+        protected virtual void OnUpdate() { } protected virtual void OnRegister() { } protected virtual void OnUnregister() { }
+        protected virtual void OnSave(ConfigNode n) { } protected virtual void OnLoad(ConfigNode n) { }
+        protected void SetComplete() { } protected void SetFailed() { }
+    }
+    public class ContractSystem { public static ContractSystem Instance; public List<Contract> Contracts; }
+}
+public static class AssemblyLoader { public class LoadedAssembly { public System.Reflection.Assembly assembly; } public static List<LoadedAssembly> loadedAssemblies; }
 
 public class ProgressNode { public string Id; }
 public struct Vector3d
@@ -321,7 +347,7 @@ public class ProtoVessel
 
 public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
 public class FlightState { public List<ProtoVessel> protoVessels; }
-public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
+public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public ProtoCrewMember this[string name] { get { return null; } } public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } }
 public class GameParameters { }
 public enum SaveMode { OVERWRITE, APPEND, ABORT }

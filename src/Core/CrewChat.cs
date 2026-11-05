@@ -120,6 +120,16 @@ namespace KerbalNews
             if (text == "" || string.IsNullOrEmpty(name) || !State.Crew.TryGetValue(name, out c)) return false;
             if (c.Dead || !Settings.CrewChatOn) return false;
             CrewLine(c, "player", ResponseParser.Clip(text, 1200), ut);
+            if (c.RosterStatus == "frozen")
+            {
+                CrewLine(c, "crew", "(" + FirstName(c.Name) + " is frozen in a DeepFreeze pod and can't talk until thawed.)", ut);
+                return true;
+            }
+            if (InSide())
+            {
+                CrewLine(c, "crew", "(You're flying a dropped stage with FMRS, and this talk would be forgotten when you jump back. Talk again on the main flight.)", ut);
+                return true;
+            }
             if (!Settings.CanCallAi)
             {
                 CrewLine(c, "crew", OfflineCrewReply(c), ut);

@@ -47,6 +47,11 @@ namespace KerbalNews
             text = (text ?? "").Trim();
             if (text == "" || !Settings.AssistantOn) return false;
             AssistantSay("player", ResponseParser.Clip(text, 2000), ut);
+            if (InSide())
+            {
+                AssistantSay("assistant", "You're flying a dropped stage with FMRS right now, and anything I did here would be undone when you jump back. Ask me again once you're back on the main flight.", ut);
+                return true;
+            }
             if (!Settings.CanCallAi)
             {
                 AssistantSay("assistant", "I can only help with that when the AI connection is on. Turn off offline mode in Settings and pick a provider.", ut);

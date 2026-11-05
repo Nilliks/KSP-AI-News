@@ -69,7 +69,7 @@ namespace KerbalNews.KSP
         void Update()
         {
             var eng = Eng;
-            if (eng == null || eng.Stream == null) return;
+            if (eng == null || eng.Stream == null || ModCompat.InFmrsSideFlight()) return;
             float now = Time.realtimeSinceStartup;
             eng.SetRealTime(now);
             var v = Streamed();

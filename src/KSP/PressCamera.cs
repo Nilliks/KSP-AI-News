@@ -41,6 +41,7 @@ namespace KerbalNews.KSP
 
         void Update()
         {
+            if (ModCompat.InFmrsSideFlight()) return;   // a dropped-stage flight that FMRS will undo
             var eng = Eng;
             var v = FlightGlobals.ActiveVessel;
             if (eng == null || !On || v == null || v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody()) return;

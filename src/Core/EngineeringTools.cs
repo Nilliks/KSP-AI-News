@@ -213,6 +213,9 @@ namespace KerbalNews
             if (has(new[] { "kerbalalarmclock", "alarm clock" })) hints.Add("Kerbal Alarm Clock is installed: suggest alarms for nodes and transfer windows.");
             if (has(new[] { "scansat" })) hints.Add("SCANsat is installed: scanning orbits (inclination, altitude) matter for mapping missions.");
             if (has(new[] { "kerbaljointreinforcement", "kjr" })) hints.Add("Kerbal Joint Reinforcement is installed, so wobbly stacks are less of a problem.");
+            if (has(new[] { "transferwindowplanner", "transfer window planner", "triggertech" })) hints.Add("Transfer Window Planner is installed: point the director to it for interplanetary departure dates and ejection burns.");
+            if (has(new[] { "kos" })) hints.Add("kOS is installed: scripts can automate launches and burns if the director asks.");
+            if (has(new[] { "persistentthrust" })) hints.Add("Persistent Thrust is installed: low-thrust engines keep burning during time warp.");
             if (has(new[] { "tweakscale" })) hints.Add("TweakScale is installed: parts can be resized, which changes their mass and thrust.");
             return hints;
         }

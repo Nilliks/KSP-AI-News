@@ -32,6 +32,10 @@ namespace KerbalNews.KSP
             Engine = new NewsEngine(new NewsState(), Settings, transport, clock);
             Engine.Digest = () => Snapshots.Digest(Engine.State);
             Engine.EngineeringData = EngineeringCapture.Snapshot;
+            Engine.SideTimeline = ModCompat.InFmrsSideFlight;
+            Engine.SuppressEvent = e => e != null && e.VesselId != "" && ModCompat.VesselMoverBusy(e.VesselId);
+            Engine.PostContract = KnnContract.Post;
+            Engine.ContractsAvailable = KnnContract.Available;
             // Career money for the assistant's deals. Sandbox and science games have none.
             Engine.FundsAvailable = () => HighLogic.CurrentGame != null && HighLogic.CurrentGame.Mode == Game.Modes.CAREER && Funding.Instance != null ? Funding.Instance.Funds : double.NaN;
             Engine.ChangeFunds = (d, why) =>
@@ -164,9 +168,11 @@ namespace KerbalNews.KSP
                     var crew = v.GetVesselCrew();
                     if (crew != null) foreach (var c in crew) if (c != null && c.name != null) aboard[c.name] = v;
                 }
+            var frozen = ModCompat.FrozenKerbals();
             foreach (var k in roster.Crew)
             {
                 if (k == null || string.IsNullOrEmpty(k.name)) continue;
+                if (frozen.Contains(k.name)) { Engine.SyncCrew(new CrewProfile { Name = k.name, Trait = k.trait ?? "", Level = k.experienceLevel, Courage = k.courage, Stupidity = k.stupidity, Badass = k.isBadass, Veteran = k.veteran, Gender = k.gender == ProtoCrewMember.Gender.Female ? "female" : "male", Status = "frozen", Where = "frozen in a DeepFreeze pod" }); continue; }
                 if (k.type == ProtoCrewMember.KerbalType.Applicant || k.type == ProtoCrewMember.KerbalType.Unowned) continue;
                 var p = new CrewProfile
                 {
