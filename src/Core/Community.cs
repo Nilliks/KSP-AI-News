@@ -124,6 +124,14 @@ namespace KerbalNews
 
         // ------------------------------------------------------------ community replies
 
+        /// <summary>The one outlet a comment job is about ("" for forum threads), so the prompt carries only that outlet.</summary>
+        string CommunityOutlet(CommunityJob job)
+        {
+            if (!job.Target.StartsWith("a:")) return "";
+            var a = State.Articles.FirstOrDefault(x => x.Id == job.Target.Substring(2));
+            return a != null ? a.Outlet : null;
+        }
+
         /// <summary>One community request at a time, independent of the news queue. Player-triggered, so it is the only extra AI use.</summary>
         void TickCommunity(double ut, double realTime, bool allowCalls)
         {
@@ -141,7 +149,7 @@ namespace KerbalNews
             job.Attempts++;
             CommunityStatus = "The community is typing...";
             var preset = Settings.Preset;
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.System(State, Settings.ModsText), PromptBuilder.Community(this, job, Clock, ut), Math.Min(Settings.MaxTokens, 3000), preset.JsonMode);
+            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.System(State, Settings.ModsText, CommunityOutlet(job)), PromptBuilder.Community(this, job, Clock, ut), Math.Min(Settings.MaxTokens, 3000), preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {

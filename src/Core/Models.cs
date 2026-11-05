@@ -421,6 +421,8 @@ namespace KerbalNews
         /// <summary>Taken down by the outlet (paid off, or retracted after a legal threat). The page says so; lists skip it.</summary>
         public bool Removed;
         public string RemovedNote = "";
+        /// <summary>A stub in the long-term archive: only the opening lines were kept.</summary>
+        public bool Archived;
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
@@ -441,6 +443,7 @@ namespace KerbalNews
             n.AddText("model", Model);
             if (Image != "") n.Add("image", Image);
             if (Removed) { n.Add("removed", true); n.AddText("removedNote", RemovedNote); }
+            if (Archived) n.Add("archived", true);
             foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
         }
 
@@ -463,6 +466,7 @@ namespace KerbalNews
                 Model = n.GetText("model"),
                 Image = n.Get("image", ""),
                 Removed = n.GetBool("removed"),
+                Archived = n.GetBool("archived"),
                 RemovedNote = n.GetText("removedNote"),
             };
             foreach (var t in n.GetText("tags").Split(',')) if (t.Trim() != "") a.Tags.Add(t.Trim());
@@ -746,13 +750,32 @@ namespace KerbalNews
                 // Drop the least significant old articles first, never the most recent 100.
                 var keep = new HashSet<Article>(Articles.OrderByDescending(a => a.PublishedUT).Take(100));
                 var removable = Articles.Where(a => !keep.Contains(a)).OrderBy(a => a.Significance).ThenBy(a => a.PublishedUT).Take(Articles.Count - MaxArticles).ToList();
-                foreach (var a in removable) Articles.Remove(a);
+                foreach (var a in removable) { Articles.Remove(a); Archive.Add(ToStub(a)); }
+                if (Archive.Count > MaxArchive) Archive.RemoveRange(0, Archive.Count - MaxArchive);
             }
             if (Social.Count > MaxSocial) Social = Social.OrderByDescending(p => p.UT).Take(MaxSocial).ToList();
             if (DigestHistory.Count > MaxDigestHistory) DigestHistory.RemoveRange(0, DigestHistory.Count - MaxDigestHistory);
             // Published stories only need to stay while articles reference them (for "related" and memory).
             var referenced = new HashSet<string>(Articles.Select(a => a.StoryId));
             Stories.RemoveAll(s => s.Status == StoryStatus.Published && !referenced.Contains(s.Id));
+        }
+
+        /// <summary>Articles dropped from the full archive, kept small (opening lines, no comments) so search still finds every story.</summary>
+        public List<Article> Archive = new List<Article>();
+        public const int MaxArchive = 4000;
+
+        Article ToStub(Article a)
+        {
+            var st = Stories.FirstOrDefault(x => x.Id == a.StoryId);
+            if (st != null)
+                foreach (var t in st.Events.Select(e => e.VesselName).Concat(st.Events.SelectMany(e => e.Crew)).Where(t => t != "").Distinct().Take(6))
+                    if (!a.Tags.Contains(t.ToLowerInvariant())) a.Tags.Add(t.ToLowerInvariant());
+            string first = a.Body.Split(new[] { "\n\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).FirstOrDefault(x => x != "") ?? "";
+            a.Body = first.Length > 320 ? first.Substring(0, 320) + "..." : first;
+            a.Comments.Clear();
+            a.Image = "";
+            a.Archived = true;
+            return a;
         }
 
         public void Save(DataNode n)
@@ -797,6 +820,8 @@ namespace KerbalNews
             foreach (var s in Stories) s.Save(st.AddNode("STORY"));
             var ar = n.AddNode("ARTICLES");
             foreach (var a in Articles) a.Save(ar.AddNode("ARTICLE"));
+            var arc = n.AddNode("ARCHIVE");
+            foreach (var a in Archive) a.Save(arc.AddNode("ARTICLE"));
             var so = n.AddNode("SOCIAL");
             foreach (var p in Social) p.Save(so.AddNode("POST"));
             n.AddText("anonHandle", AnonHandle);
@@ -889,6 +914,8 @@ namespace KerbalNews
             if (st != null) foreach (var sn in st.GetNodes("STORY")) s.Stories.Add(Story.Load(sn));
             var ar = n.GetNode("ARTICLES");
             if (ar != null) foreach (var an in ar.GetNodes("ARTICLE")) s.Articles.Add(Article.Load(an));
+            var arc = n.GetNode("ARCHIVE");
+            if (arc != null) foreach (var an in arc.GetNodes("ARTICLE")) s.Archive.Add(Article.Load(an));
             var so = n.GetNode("SOCIAL");
             if (so != null) foreach (var pn in so.GetNodes("POST")) s.Social.Add(SocialPost.Load(pn));
             s.AnonHandle = n.GetText("anonHandle");

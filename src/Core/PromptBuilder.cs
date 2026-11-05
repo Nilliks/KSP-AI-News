@@ -36,7 +36,8 @@ namespace KerbalNews
         /// The system prompt holds everything that rarely changes within a save (rules, outlets,
         /// commenters, agency canon), so providers with prompt caching can reuse it.
         /// </summary>
-        public static string System(NewsState state, string mods = "")
+        /// <param name="onlyOutlet">null lists every outlet; "" none (forum jobs); an id just that one (comment jobs).</param>
+        public static string System(NewsState state, string mods = "", string onlyOutlet = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine("You are the newsroom of the Kerbin universe: you write in-universe news coverage, comment sections and social media posts about a kerbal space agency.");
@@ -55,10 +56,13 @@ namespace KerbalNews
             sb.AppendLine("TONE");
             sb.AppendLine(SillinessText(state == null ? 0 : state.Silliness));
             sb.AppendLine();
-            sb.AppendLine("OUTLETS (id: name. style. bias.)");
-            foreach (var o in Outlets.All)
-                sb.AppendLine("- " + o.Id + ": " + o.Name + ". " + o.Style + " Bias: " + o.Bias);
-            sb.AppendLine();
+            if (onlyOutlet != "")
+            {
+                sb.AppendLine("OUTLETS (id: name. style. bias.)");
+                foreach (var o in Outlets.All.Where(o => onlyOutlet == null || o.Id == onlyOutlet))
+                    sb.AppendLine("- " + o.Id + ": " + o.Name + ". " + o.Style + " Bias: " + o.Bias);
+                sb.AppendLine();
+            }
             sb.AppendLine("RECURRING COMMENTERS (use these handles often, alongside one-off handles you invent, so the community feels familiar):");
             foreach (var c in Outlets.Commenters) sb.AppendLine("- " + c.Handle + ": " + c.Persona);
             sb.AppendLine();

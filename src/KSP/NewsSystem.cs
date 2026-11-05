@@ -131,6 +131,9 @@ namespace KerbalNews.KSP
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
             try
             {
+                // Four times a second is plenty for news; checking every frame only costs frame time.
+                if (Time.realtimeSinceStartup < nextTick) return;
+                nextTick = Time.realtimeSinceStartup + 0.25f;
                 bool warping = TimeWarp.CurrentRate > 1.01f;
                 Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping);
                 if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
@@ -142,7 +145,7 @@ namespace KerbalNews.KSP
             }
         }
 
-        float nextCrewSync;
+        float nextCrewSync, nextTick;
 
         /// <summary>Copies each kerbal's stats and whereabouts into the engine, for crew chat and profiles.</summary>
         void SyncRoster()

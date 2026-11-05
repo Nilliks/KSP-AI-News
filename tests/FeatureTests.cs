@@ -237,4 +237,22 @@ public static class FeatureTests
         var n = new DataNode("K"); s.Save(n);
         Assert(NewsState.Load(n).Appearances.Single().Coaching.Count == 1, "appearances survive a save");
     }
+
+    public static void TestArchiveKeepsEveryHeadline()
+    {
+        var s = new NewsState();
+        for (int i = 0; i < NewsState.MaxArticles + 50; i++)
+            s.Articles.Add(new Article { Id = "a" + i, Outlet = "herald", Headline = "Story number " + i + (i == 3 ? " about Zebulon" : ""), Body = "First paragraph " + i + ".\n\nSecond paragraph that is dropped.", PublishedUT = i * 10, Significance = 10, Comments = { new Comment { Text = "hi" } } });
+        var n = new DataNode("K"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.Articles.Count == NewsState.MaxArticles && back.Archive.Count == 50, "50 moved to the archive: " + back.Archive.Count);
+        var stub = back.Archive.First(a => a.Id == "a3");
+        Assert(stub.Archived && stub.Comments.Count == 0 && !stub.Body.Contains("Second"), "stubs are small");
+        var eng = new NewsEngine(back, CoreTests.OnlineSettings(), new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply }, new SimpleClock(Day));
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
+        sites.Now = () => 1e9;
+        Assert(sites.Render("kerbalnews.kb/search?q=zebulon").Html.Contains("about Zebulon"), "search finds archived stories");
+        Assert(sites.Render("herald.kb/article/a3").Html.Contains("From the archive"), "the archived page opens");
+    }
 }

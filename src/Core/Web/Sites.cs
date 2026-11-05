@@ -92,7 +92,8 @@ namespace KerbalNews.Web
                 {
                     if (path.StartsWith("article/"))
                     {
-                        var a = State.Articles.FirstOrDefault(x => x.Id == path.Substring(8) && x.PublishedUT <= Now());
+                        var a = State.Articles.FirstOrDefault(x => x.Id == path.Substring(8) && x.PublishedUT <= Now())
+                            ?? State.Archive.FirstOrDefault(x => x.Id == path.Substring(8) && x.PublishedUT <= Now());
                         if (a == null) return NotFound(url);
                         if (a.Removed) return new PageResult { Url = url, Title = "Removed - " + outlet.Name, Html = "<body><div style=\"padding: 60px 40px\"><h1>" + Html.Escape(outlet.Name) + "</h1><p>" + Html.Escape(a.RemovedNote != "" ? a.RemovedNote : "This article is no longer available.") + "</p><p><a href=\"" + outlet.Domain + "\">Back to the front page</a></p></div></body>", Css = "body { background: #ffffff; color: #222222; } h1 { font-size: 30px; } p { font-size: 18px; }" };
                         a.Read = true;
@@ -273,6 +274,7 @@ namespace KerbalNews.Web
             m["tags"] = a.Tags.Select(t => (object)t).ToList();
             m["model"] = a.Model != "" ? a.Model : (a.Offline ? "offline templates" : "");
             m["offline"] = a.Offline;
+            m["archived"] = a.Archived;
             if (full)
             {
                 m["paragraphs"] = paras.Select((p, i) => (object)new Dictionary<string, object> { { "text", p }, { "html", Linked(p) }, { "first", i == 0 } }).ToList();
@@ -476,7 +478,7 @@ namespace KerbalNews.Web
             var m = M();
             m["q"] = q;
             var ql = q.Trim().ToLowerInvariant();
-            var list = Visible().Where(a => ql == "" || a.Headline.ToLowerInvariant().Contains(ql) || a.Body.ToLowerInvariant().Contains(ql)
+            var list = Visible().Concat(State.Archive.Where(a => !a.Removed && a.PublishedUT <= Now()).OrderByDescending(a => a.PublishedUT)).Where(a => ql == "" || a.Headline.ToLowerInvariant().Contains(ql) || a.Body.ToLowerInvariant().Contains(ql)
                 || a.Tags.Any(t => t.Contains(ql)) || Outlets.NameOf(a.Outlet).ToLowerInvariant().Contains(ql)).Take(80).ToList();
             m["results"] = list.Select(a => (object)ArticleModel(a, false)).ToList();
             m["count"] = list.Count;

@@ -282,14 +282,7 @@ ACTIONS:
             sb.AppendLine("You act only through the commands below. The director writes in plain English and may phrase things any way; work out which commands they mean, and chain several if needed. If an essential detail is missing (an amount, which article), look it up or pick a sensible default and say which. If the request is truly unclear, ask one short question and take no action.");
             sb.AppendLine("Be a capable, loyal, realistic aide: carry out what the director asks, but warn briefly when something is risky (bribes can backfire, leaks can be traced, legal threats can draw attention). Never say an action succeeded: you do not know yet. Results are reported to the director separately after you act.");
             sb.AppendLine("When asked for a briefing or summary, use lookups (news, mood, finances, forum) and answer in a few short paragraphs. Keep replies short and conversational otherwise.");
-            if (Settings.AssistantConfirm) sb.AppendLine("The director has asked to approve anything that costs money: when your plan includes spending, the whole plan waits for an Approve button. So say what you have prepared (\"I've lined up...\", \"approve below and I'll send it\"), never that it is done.");
             sb.AppendLine("Write any press release, comment or post text yourself, in good in-universe style, unless the director gives exact wording. Stay consistent with the agency profile and lore.");
-            if (Settings.ModsText != "") sb.AppendLine("Installed mods in this world: " + Settings.ModsText + ".");
-            if (State.Orders.Count > 0)
-            {
-                sb.AppendLine("STANDING ORDERS FROM THE DIRECTOR (always follow these unless the director's new message clearly overrides one; if a request conflicts, say so):");
-                for (int i = 0; i < State.Orders.Count; i++) sb.AppendLine((i + 1) + ". " + State.Orders[i].Text);
-            }
             sb.AppendLine("When the director gives a lasting instruction (\"from now on\", \"always\", \"never\", a spending limit), store it with add_order.");
             sb.AppendLine("Reporters remember how the agency treats them: exclusives and tips build goodwill, threats, bribe attempts, denials and snubs build grudges. Use the reporters lookup when choosing who to approach.");
             sb.AppendLine();
@@ -298,6 +291,15 @@ ACTIONS:
             sb.AppendLine("Reply with JSON only, in this shape:");
             sb.AppendLine("{\"thinking\": \"one or two sentences\", \"lookups\": [{\"cmd\": \"news\", \"args\": {\"query\": \"...\"}}], \"actions\": [{\"cmd\": \"donate\", \"args\": {\"recipient\": \"...\", \"amount\": 25000}}], \"reply\": \"what you tell the director\"}");
             sb.AppendLine("Use lookups when you need ids or facts; you will get the results and continue. When lookups is empty you are done: actions run and your reply is shown. Do not put lookups and actions in the same reply.");
+            // Everything above is fixed, so providers can cache it. Things the director changes go last.
+            sb.AppendLine();
+            if (Settings.AssistantConfirm) sb.AppendLine("The director has asked to approve anything that costs money: when your plan includes spending, the whole plan waits for an Approve button. So say what you have prepared (\"I've lined up...\", \"approve below and I'll send it\"), never that it is done.");
+            if (Settings.ModsText != "") sb.AppendLine("Installed mods in this world: " + Settings.ModsText + ".");
+            if (State.Orders.Count > 0)
+            {
+                sb.AppendLine("STANDING ORDERS FROM THE DIRECTOR (always follow these unless the director's new message clearly overrides one; if a request conflicts, say so):");
+                for (int i = 0; i < State.Orders.Count; i++) sb.AppendLine((i + 1) + ". " + State.Orders[i].Text);
+            }
             return sb.ToString();
         }
 
