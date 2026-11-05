@@ -20,7 +20,7 @@ namespace KerbalNews.Web
     /// Templates and stylesheets are plain files under GameData/KerbalNews/Sites/&lt;site&gt;/,
     /// so sites can be restyled without recompiling.
     /// </summary>
-    public class Sites
+    public partial class Sites
     {
         public const string Home = "kerbalnews.kb";
         readonly Func<string, string> read;   // reads "site/file.html"; null if missing
@@ -111,6 +111,7 @@ namespace KerbalNews.Web
                         case "telemetry": return Page(url, "telemetry", "index.html", TelemetryModel(), "Telemetry sharing", false);
                     }
                 }
+                if (host == ForumHost) return Snackboard(url, path, query);
                 if (host == Home)
                 {
                     if (path == "search") return Page(url, "portal", "search.html", SearchModel(query.ContainsKey("q") ? query["q"] : ""), "Search", false);
@@ -232,16 +233,16 @@ namespace KerbalNews.Web
             m["unread"] = !a.Read;
             m["lead"] = paras.Count > 0 ? Clip(paras[0], 240) : "";
             m["commentCount"] = a.Comments.Count;
+            m["thumb"] = a.Image != "" ? "kbimg:" + a.Image : "";
             m["tags"] = a.Tags.Select(t => (object)t).ToList();
             m["model"] = a.Model != "" ? a.Model : (a.Offline ? "offline templates" : "");
             m["offline"] = a.Offline;
             if (full)
             {
                 m["paragraphs"] = paras.Select((p, i) => (object)new Dictionary<string, object> { { "text", p }, { "first", i == 0 } }).ToList();
-                m["comments"] = a.Comments.Select(c => (object)new Dictionary<string, object>
-                {
-                    { "author", c.Author }, { "text", c.Text }, { "likes", c.Likes }, { "initial", c.Author.Length > 0 ? c.Author.Substring(0, 1).ToUpperInvariant() : "?" },
-                }).ToList();
+                m["comments"] = CommentsModel("a:" + a.Id, a.Comments);
+                m["reply"] = ReplyBox("a:" + a.Id, a.Comments);
+                m["image"] = a.Image != "" ? "kbimg:" + a.Image : "";
                 double now = Now();
                 m["related"] = State.Articles.Where(x => x.StoryId == a.StoryId && x.Id != a.Id && x.PublishedUT <= now)
                     .Select(x => (object)ArticleModel(x, false)).ToList();
@@ -407,6 +408,7 @@ namespace KerbalNews.Web
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;
+            AddImageSettings(m, g);
             return m;
         }
 

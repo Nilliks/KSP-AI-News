@@ -1,0 +1,11 @@
+{{#reply}}<div class="replybox">
+  {{#replyingTo}}<p class="meta">Replying to <b>{{replyingTo}}</b> &middot; <a href="{{cancelUrl}}">cancel</a></p>{{/replyingTo}}
+  <textarea name="comment" rows="3" placeholder="Join the discussion"></textarea>
+  <div class="replyrow">
+    <button class="btn" data-action="{{agencyUrl}}">Post as {{agencyName}}</button>
+    <span class="meta">or</span>
+    <div style="width: 200px"><input name="handle" value="{{anonHandle}}"></div>
+    <button class="btn alt" data-action="{{anonUrl}}">Post anonymously</button>
+  </div>
+  <p class="meta">Official posts carry the agency's name and a badge. Anonymous posts look like any other reader.{{#status}} <b>{{status}}</b>{{/status}}</p>
+</div>{{/reply}}

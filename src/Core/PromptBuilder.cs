@@ -109,7 +109,7 @@ namespace KerbalNews
         static string Clip(string s, int n) { return s.Length <= n ? s : s.Substring(0, n) + "..."; }
 
         /// <summary>The per-request fact sheet and assignment.</summary>
-        public static string User(Story story, CoveragePlan plan, NewsState state, WorldDigest digest, IGameClock clock, double now)
+        public static string User(Story story, CoveragePlan plan, NewsState state, WorldDigest digest, IGameClock clock, double now, bool wantImage = false)
         {
             var sb = new StringBuilder();
             sb.AppendLine("FACT SHEET");
@@ -174,8 +174,96 @@ namespace KerbalNews
             sb.AppendLine();
             sb.AppendLine("JSON SCHEMA");
             sb.AppendLine("{\"articles\":[{\"outlet\":\"<outlet id>\",\"kind\":\"<kind>\",\"headline\":\"...\",\"subhead\":\"one sentence\",\"reporter\":\"<kerbal name> Kerman\",\"body\":\"paragraphs separated by \\n\\n\",\"tags\":[\"short\",\"tags\"],\"comments\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":12}]}],\"social\":[{\"handle\":\"@name\",\"persona\":\"enthusiast|skeptic|scientist|official|local|meme|worried|budget\",\"text\":\"under 240 characters\",\"likes\":40,\"reshares\":5}]}");
+            if (wantImage)
+                sb.AppendLine("Also add a top-level field \"image_prompt\": two or three sentences describing one realistic press photograph for this story, showing only what a photographer could actually see (the rocket on the pad, the launch plume, crowds, the crew waving, the recovered capsule, a press conference). No text in the picture.");
+            if (plan.Tier == "story" || plan.Tier == "major" || plan.Tier == "historic")
+                sb.AppendLine("Also add a top-level field \"forum\": one thread a member of the public starts on Snackboard (the community forum) about this news: {\"board\":\"general|launches|missions|science|policy|memes\",\"title\":\"...\",\"body\":\"short post\",\"author\":\"handle\",\"score\":120,\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":30,\"reply_to\":\"\"}]} with " + (plan.Tier == "story" ? "3 to 5" : "6 to 10") + " replies; reply_to is \"\" for a top-level reply or \"r1\", \"r2\"... to answer an earlier reply in the list.");
             sb.AppendLine("Likes and reshares should scale with significance (a brief gets single or double digits; a historic first gets thousands).");
             return sb.ToString();
+        }
+
+        /// <summary>Asks for the community's replies to something the player posted, or for AMA questions.</summary>
+        public static string Community(NewsEngine eng, CommunityJob job, IGameClock clock, double now)
+        {
+            var state = eng.State;
+            var sb = new StringBuilder();
+            sb.AppendLine("COMMUNITY DISCUSSION");
+            sb.AppendLine("Today: " + clock.FormatDate(now) + ".");
+            var a = eng.ArticleOf(job.Target);
+            var t = eng.ThreadOf(job.Target);
+            List<Comment> list;
+            if (a != null)
+            {
+                sb.AppendLine("Where: the comment section under the " + Outlets.NameOf(a.Outlet) + " article \"" + a.Headline + "\".");
+                sb.AppendLine("Article (start): " + Excerpt(a.Body, 900));
+                list = a.Comments;
+            }
+            else
+            {
+                sb.AppendLine("Where: Snackboard, the community forum, board b/" + t.Board + ". Thread \"" + t.Title + "\" by " + Who(t.Author, t.Player, t.Agency, eng) + ":");
+                if (t.Body != "") sb.AppendLine(Excerpt(t.Body, 1500));
+                list = t.Comments;
+            }
+            sb.AppendLine();
+            sb.AppendLine("PUBLIC MOOD: " + state.Mood.Describe());
+            sb.AppendLine();
+            var shown = Comment.Threaded(list).Select(x => x.Key).ToList();
+            if (shown.Count > 30) shown = shown.Skip(shown.Count - 30).ToList();
+            if (shown.Count > 0)
+            {
+                sb.AppendLine("Discussion so far (oldest first; [id] author: text):");
+                foreach (var c in shown)
+                    sb.AppendLine("[" + c.Id + "]" + (c.ReplyTo != "" ? " (reply to " + c.ReplyTo + ")" : "") + " " + Who(c.Author, c.Player, c.Agency, eng) + ": " + Excerpt(c.Text, 500) + " (" + c.Likes + " likes)");
+                sb.AppendLine();
+            }
+            var mine = list.FirstOrDefault(c => c.Id == job.CommentId);
+            bool agency = mine != null ? mine.Agency : t != null && t.Agency;
+            sb.AppendLine("ASSIGNMENT");
+            if (job.Mode == "ama")
+            {
+                sb.AppendLine("The agency's official account opened this Ask Me Anything thread. Write " + job.Count + " questions from different members of the public, as top-level replies (reply_to \"\"). Mix them: technical, budget, crew safety, future plans, fun or silly, one pointed or skeptical. Each question is short and specific to this agency's history. Do not answer them; the agency will.");
+            }
+            else
+            {
+                string what = mine != null ? "comment [" + mine.Id + "]" : "the opening post of this thread";
+                if (agency)
+                    sb.AppendLine("The player just posted " + what + " from the verified official account of " + eng.AgencyName + ". Everyone can see it is the agency. React the way people react when an organization's official account joins a discussion: some thank them or are excited, some ask pointed follow-up questions, some mock corporate or PR language, skeptics push back. Do not invent facts the agency did not state.");
+                else
+                    sb.AppendLine("The player just posted " + what + " anonymously as \"" + (mine != null ? mine.Author : t.Author) + "\". Nobody knows this is the agency: treat it as an ordinary member of the public. If it sounds like insider knowledge or PR spin, people may get suspicious and say so.");
+                sb.AppendLine("Write " + job.Count + " replies from different people. Most answer the player's post (reply_to \"" + (mine != null ? mine.Id : "") + "\"), some answer each other. Keep each reply under 80 words, in the voice of the recurring commenters or new ones.");
+            }
+            sb.AppendLine();
+            sb.AppendLine("JSON SCHEMA");
+            sb.AppendLine("{\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":12,\"reply_to\":\"<an [id] above, or r1, r2... for an earlier reply in this list, or empty>\"}],\"player_likes\":25}");
+            sb.AppendLine("player_likes is how many likes the player's post gets. Scale likes with how many people follow this news" + (agency ? "; official posts draw more attention." : "."));
+            return sb.ToString();
+        }
+
+        static string Who(string author, bool player, bool agency, NewsEngine eng)
+        {
+            if (player && agency) return author + " (OFFICIAL " + eng.AgencyName + " account)";
+            return author;
+        }
+
+        static string Excerpt(string s, int n) { s = (s ?? "").Replace("\n", " "); return s.Length <= n ? s : s.Substring(0, n) + "..."; }
+
+        /// <summary>A photo description when the writer didn't give one (offline mode or an older model).</summary>
+        public static string FallbackImagePrompt(Story story, NewsState state)
+        {
+            var lead = OfflineWriter.LeadEvent(story);
+            string v = story.Craft != null && story.Craft.VesselName != "" ? story.Craft.VesselName : lead != null ? lead.VesselName : "the rocket";
+            string size = story.Craft != null ? SizeClass(story.Craft) : "a rocket";
+            if (lead == null) return "Kerbals gather outside the space center for a press briefing.";
+            switch (lead.Type)
+            {
+                case EventTypes.Launch: return size + " named " + v + " lifts off from the launch pad on a column of flame and smoke, watched by kerbals behind a fence.";
+                case EventTypes.Failure: return "A plume of smoke and debris in the sky above the space center where " + v + " broke apart, kerbal onlookers staring upward.";
+                case EventTypes.CrewKilled: return "Flags at half staff at the space center at dusk, flowers left by kerbals at the main gate.";
+                case EventTypes.Splashdown: return "A scorched capsule floating in the ocean under parachutes, recovery boat approaching.";
+                case EventTypes.Recovery: return "Recovery crews around a scorched capsule, kerbonauts climbing out and waving.";
+                case EventTypes.Landing: return lead.Body == "Kerbin" ? "A capsule resting on grassland after landing, kerbal recovery crews approaching." : "A grainy broadcast image of a lander on the grey surface of " + lead.Body + ", shown on a big screen in mission control as kerbals cheer.";
+                default: return "Mission control at the space center, kerbal engineers cheering in front of large screens showing " + v + ".";
+            }
         }
 
         static string TierText(string tier)

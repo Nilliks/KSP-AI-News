@@ -1,0 +1,19 @@
+<html><body>
+{{> _top}}
+<div class="layout"><div class="main"><div class="form">
+  <h2>Start a thread</h2>
+  <label>Board</label>
+  <div class="chips">{{#boards}}<a class="chip{{#on}} on{{/on}}" href="{{pickUrl}}">b/{{name}}</a>{{/boards}}</div>
+  <label>Title</label><input name="title" placeholder="What do you want to talk about?">
+  <label>Text (optional)</label><textarea name="body" rows="5"></textarea>
+  <div class="actions">
+    <button class="btn" data-action="action:post-thread/agency">Post as {{agencyName}}</button>
+    <span class="meta">or anonymously as</span><div style="width: 180px"><input name="handle" value="{{anonHandle}}"></div>
+    <button class="btn alt" data-action="action:post-thread/anon">Post anonymously</button>
+  </div>
+  <h2 style="margin-top: 20px">Host an Ask Me Anything</h2>
+  <p class="meta">Posted in b/ama from the official account. Use the title above, for example "We just landed on the Mun. Ask us anything." The community sends questions and you answer them one by one.</p>
+  <div class="actions"><span>Number of questions</span><div style="width: 70px"><input name="questions" value="5"></div>
+    <button class="btn gold" data-action="action:post-thread/ama">Start the AMA</button></div>
+</div></div>{{> _side}}</div>
+</body></html>

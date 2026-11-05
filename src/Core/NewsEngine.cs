@@ -9,7 +9,7 @@ namespace KerbalNews
     /// then are written (by AI or templates) and published into the save.
     /// Game-independent so it can be tested outside KSP.
     /// </summary>
-    public class NewsEngine
+    public partial class NewsEngine
     {
         public NewsState State { get; private set; }
 
@@ -181,6 +181,8 @@ namespace KerbalNews
             else if (days < 0) State.LastMoodDecayUT = ut; // time went backwards (shouldn't after a proper load)
 
             FireVisible(ut);
+            TickCommunity(ut, realTime, allowCalls);
+            TickImages(allowCalls);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
 
@@ -224,7 +226,7 @@ namespace KerbalNews
             bool cheap = PlanTierCheap(plan);
             string model = cheap ? Settings.CheapModel : Settings.WriterModel;
             string system = PromptBuilder.System(State);
-            string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut);
+            string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan));
             var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
@@ -300,6 +302,23 @@ namespace KerbalNews
                 p.UT = first + (i / (double)Math.Max(1, cov.Social.Count)) * Day + rng.NextDouble() * 0.05 * Day;
                 State.Social.Add(p);
             }
+            if (cov.Forum != null && story.Kind != "filler")
+            {
+                var t = cov.Forum;
+                t.Id = State.NewId("t");
+                t.StoryId = story.Id;
+                t.UT = first + 0.1 * Day;
+                foreach (var c in t.Comments) { c.Id = State.NewId("c"); c.UT = t.UT; }
+                for (int i = 0; i < t.Comments.Count; i++)
+                {
+                    var c = t.Comments[i];
+                    int k;
+                    if (c.ReplyTo.StartsWith("#")) c.ReplyTo = int.TryParse(c.ReplyTo.Substring(1), out k) && k >= 0 && k < i ? t.Comments[k].Id : "";
+                }
+                State.Forum.Add(t);
+            }
+            foreach (var a in cov.Articles) EnsureIds(a.Comments);
+            if (cov.Articles.Count > 0 && !rewritten && WantsImage(story, plan)) QueueImage(story, cov.ImagePrompt);
             story.Status = StoryStatus.Published;
             if (story.Kind == "filler") State.LastFillerUT = ut;
             else State.LastStoryUT = Math.Max(State.LastStoryUT, story.CreatedUT);

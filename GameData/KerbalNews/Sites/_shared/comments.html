@@ -1,0 +1,8 @@
+{{#comments}}<div class="comment{{#isReply}} reply{{/isReply}}{{#agency}} official{{/agency}}" style="margin-left: {{indent}}">
+  <div class="avatar{{#agency}} av-official{{/agency}}">{{initial}}</div>
+  <div style="flex: 1">
+    <div class="who">{{author}}{{#agency}} <span class="badge">OFFICIAL</span>{{/agency}}{{#mine}} <span class="badge you">you</span>{{/mine}}</div>
+    <p>{{text}}</p>
+    <div class="cacts"><a class="vote{{#up}} on{{/up}}" href="{{upUrl}}">&#9650;</a><span class="likes">{{likes}}</span><a class="vote{{#down}} on{{/down}}" href="{{downUrl}}">&#9660;</a><a class="replylink{{#replying}} on{{/replying}}" href="{{replyUrl}}">Reply</a></div>
+  </div>
+</div>{{/comments}}

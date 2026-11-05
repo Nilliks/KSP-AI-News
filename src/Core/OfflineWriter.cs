@@ -51,7 +51,51 @@ namespace KerbalNews
                     Reshares = rng.Next(0, 3 + (int)story.Significance),
                 });
             }
+            if (plan.Tier == "story" || plan.Tier == "major" || plan.Tier == "historic")
+            {
+                var who = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
+                var t = new ForumThread
+                {
+                    Board = failed || killed ? "general" : "launches",
+                    Title = (killed ? "Thread for " + vessel + ": thinking of the crew" : failed ? "What went wrong with " + vessel + "?" : vessel + " discussion thread"),
+                    Body = cov.Articles.Count > 0 ? cov.Articles[0].Subhead : "",
+                    Author = who.Handle, Score = rng.Next(5, 20 + (int)story.Significance * 4),
+                };
+                int replies = plan.Tier == "story" ? 3 : 6;
+                for (int i = 0; i < replies; i++)
+                {
+                    var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
+                    t.Comments.Add(new Comment { Author = c.Handle, Text = CannedComment(c.Handle, killed, failed, rng), Likes = rng.Next(1, 10 + (int)story.Significance), ReplyTo = i > 0 && rng.Next(3) == 0 ? "#" + rng.Next(i) : "" });
+                }
+                cov.Forum = t;
+            }
             return cov;
+        }
+
+        /// <summary>Template replies to the player's post when no AI is available.</summary>
+        public static List<Comment> CommunityReplies(NewsEngine eng, CommunityJob job)
+        {
+            var rng = new Random(StableHash(job.Target + job.CommentId + job.UT.ToString("R", Inv)));
+            var list = eng.CommentsOf(job.Target) ?? new List<Comment>();
+            var mine = list.FirstOrDefault(c => c.Id == job.CommentId);
+            var thread = eng.ThreadOf(job.Target);
+            bool agency = mine != null ? mine.Agency : thread != null && thread.Agency;
+            var outList = new List<Comment>();
+            for (int i = 0; i < job.Count; i++)
+            {
+                var c = Outlets.Commenters[(StableHash(job.Target) + i * 3) % Outlets.Commenters.Count];
+                string text;
+                if (job.Mode == "ama")
+                    text = Pick(rng, "What is the next big mission?", "How do you decide who flies?", "What does a launch actually cost?", "Is it true the cafeteria runs out of snacks before every launch?",
+                        "How do you keep the crews safe after what happened last time?", "When are we going to Duna?", "What happens to all the debris?", "Do you ever get scared watching a launch?");
+                else if (agency)
+                    text = Pick(rng, "Appreciate the official response. Any numbers you can share?", "That reads like it came straight from the press office.", "Thanks for engaging with us here, that's rare.",
+                        "So what are you NOT telling us?", "Good to hear it from you directly.", "Can you confirm the crew is safe?");
+                else
+                    text = Pick(rng, "Interesting take.", "Source?", "I was thinking the same thing.", "Hard disagree, but fair point.", "You sound like you work at KSC.", "This. Exactly this.");
+                outList.Add(new Comment { Author = c.Handle, Text = text, Likes = rng.Next(1, agency ? 40 : 12), ReplyTo = job.Mode == "ama" ? "" : job.CommentId });
+            }
+            return outList;
         }
 
         public static NewsEvent LeadEvent(Story s)

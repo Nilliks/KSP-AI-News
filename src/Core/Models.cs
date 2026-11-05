@@ -144,6 +144,8 @@ namespace KerbalNews
         public bool MoodApplied;
         /// <summary>Telemetry was kept silent: the press gets no specs, only what is visible.</summary>
         public bool Silent;
+        /// <summary>Description of the press photo to generate (not saved; a reload simply skips the photo).</summary>
+        public string ImagePrompt = "";
         public double Significance;
         public CraftSnapshot Craft;
         public List<NewsEvent> Events = new List<NewsEvent>();
@@ -202,12 +204,111 @@ namespace KerbalNews
 
     public class Comment
     {
+        public string Id = "";
         public string Author = "";
         public string Text = "";
         public int Likes;
+        /// <summary>Id of the comment this answers, or "" for a top-level comment.</summary>
+        public string ReplyTo = "";
+        public double UT;
+        /// <summary>Written by the player, either as the agency's official account or under an anonymous handle.</summary>
+        public bool Player, Agency;
+        /// <summary>The player's own vote: -1, 0 or 1.</summary>
+        public int Vote;
 
-        public void Save(DataNode n) { n.AddText("author", Author); n.AddText("text", Text); n.Add("likes", Likes); }
-        public static Comment Load(DataNode n) { return new Comment { Author = n.GetText("author"), Text = n.GetText("text"), Likes = n.GetInt("likes") }; }
+        public void Save(DataNode n)
+        {
+            n.AddText("author", Author); n.AddText("text", Text); n.Add("likes", Likes);
+            if (Id != "") n.Add("id", Id);
+            if (ReplyTo != "") n.Add("replyTo", ReplyTo);
+            if (UT != 0) n.Add("ut", UT);
+            if (Player) n.Add("player", true);
+            if (Agency) n.Add("agency", true);
+            if (Vote != 0) n.Add("vote", Vote);
+        }
+
+        public static Comment Load(DataNode n)
+        {
+            return new Comment
+            {
+                Author = n.GetText("author"), Text = n.GetText("text"), Likes = n.GetInt("likes"),
+                Id = n.Get("id", ""), ReplyTo = n.Get("replyTo", ""), UT = n.GetDouble("ut"),
+                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"),
+            };
+        }
+
+        /// <summary>Orders a flat list into threads (parents first, replies under them) with their depth.</summary>
+        public static List<KeyValuePair<Comment, int>> Threaded(List<Comment> list)
+        {
+            var result = new List<KeyValuePair<Comment, int>>();
+            var ids = new HashSet<string>(list.Where(c => c.Id != "").Select(c => c.Id));
+            var done = new HashSet<Comment>();
+            Action<Comment, int> add = null;
+            add = (c, d) =>
+            {
+                if (!done.Add(c)) return;
+                result.Add(new KeyValuePair<Comment, int>(c, d));
+                if (c.Id == "") return;
+                foreach (var r in list.Where(x => x.ReplyTo == c.Id)) add(r, Math.Min(d + 1, 4));
+            };
+            foreach (var c in list.Where(c => c.ReplyTo == "" || !ids.Contains(c.ReplyTo))) add(c, 0);
+            foreach (var c in list) add(c, 0);
+            return result;
+        }
+    }
+
+    /// <summary>A thread on Snackboard, the in-universe community forum.</summary>
+    public class ForumThread
+    {
+        public string Id = "";
+        public string Board = "general";
+        public string Title = "";
+        public string Body = "";
+        public string Author = "";
+        public string StoryId = "";
+        public string Kind = "post";    // post, ama
+        public double UT;
+        public int Score;
+        public bool Player, Agency;
+        public int Vote;
+        public List<Comment> Comments = new List<Comment>();
+
+        public void Save(DataNode n)
+        {
+            n.Add("id", Id); n.Add("board", Board); n.AddText("title", Title); n.AddText("body", Body); n.AddText("author", Author);
+            n.Add("story", StoryId); n.Add("kind", Kind); n.Add("ut", UT); n.Add("score", Score);
+            n.Add("player", Player); n.Add("agency", Agency); n.Add("vote", Vote);
+            foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
+        }
+
+        public static ForumThread Load(DataNode n)
+        {
+            var t = new ForumThread
+            {
+                Id = n.Get("id", ""), Board = n.Get("board", "general"), Title = n.GetText("title"), Body = n.GetText("body"), Author = n.GetText("author"),
+                StoryId = n.Get("story", ""), Kind = n.Get("kind", "post"), UT = n.GetDouble("ut"), Score = n.GetInt("score"),
+                Player = n.GetBool("player"), Agency = n.GetBool("agency"), Vote = n.GetInt("vote"),
+            };
+            foreach (var cn in n.GetNodes("COMMENT")) t.Comments.Add(Comment.Load(cn));
+            return t;
+        }
+    }
+
+    /// <summary>A pending request for the community to react to something the player posted. Saved, so a reload keeps it.</summary>
+    public class CommunityJob
+    {
+        public string Target = "";     // "a:<articleId>" or "t:<threadId>"
+        public string CommentId = "";  // the player's comment, or "" for a thread's opening post
+        public string Mode = "react";  // react, ama
+        public int Count = 3;
+        public int Attempts;
+        public double UT;
+
+        public void Save(DataNode n) { n.Add("target", Target); n.Add("comment", CommentId); n.Add("mode", Mode); n.Add("count", Count); n.Add("attempts", Attempts); n.Add("ut", UT); }
+        public static CommunityJob Load(DataNode n)
+        {
+            return new CommunityJob { Target = n.Get("target", ""), CommentId = n.Get("comment", ""), Mode = n.Get("mode", "react"), Count = n.GetInt("count", 3), Attempts = n.GetInt("attempts"), UT = n.GetDouble("ut") };
+        }
     }
 
     public class Article
@@ -226,6 +327,8 @@ namespace KerbalNews
         public bool Read;
         public bool Offline;
         public string Model = "";
+        /// <summary>File name of the generated press photo under PluginData/Images, or "".</summary>
+        public string Image = "";
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
@@ -244,6 +347,7 @@ namespace KerbalNews
             n.Add("read", Read);
             n.Add("offline", Offline);
             n.AddText("model", Model);
+            if (Image != "") n.Add("image", Image);
             foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
         }
 
@@ -264,6 +368,7 @@ namespace KerbalNews
                 Read = n.GetBool("read"),
                 Offline = n.GetBool("offline"),
                 Model = n.GetText("model"),
+                Image = n.Get("image", ""),
             };
             foreach (var t in n.GetText("tags").Split(',')) if (t.Trim() != "") a.Tags.Add(t.Trim());
             foreach (var cn in n.GetNodes("COMMENT")) a.Comments.Add(Comment.Load(cn));
@@ -461,6 +566,11 @@ namespace KerbalNews
         public string ProfileSummary = "";
         public string ProfileSummaryHash = "";
 
+        public List<ForumThread> Forum = new List<ForumThread>();
+        public List<CommunityJob> CommunityJobs = new List<CommunityJob>();
+        /// <summary>The handle the player last used to post anonymously.</summary>
+        public string AnonHandle = "";
+
         public string NewId(string prefix) { return prefix + (NextId++); }
 
         public IEnumerable<Article> PublishedArticles(double ut)
@@ -471,13 +581,20 @@ namespace KerbalNews
         public const int MaxArticles = 600;
         public const int MaxSocial = 400;
         public const int MaxCommentsPerArticle = 20;
+        public const int MaxCommentsKept = 80;
+        public const int MaxForumThreads = 250;
         public const int MaxDigestHistory = 200;
 
         /// <summary>Keeps the save from growing without bound.</summary>
         public void Prune()
         {
             foreach (var a in Articles)
-                if (a.Comments.Count > MaxCommentsPerArticle) a.Comments.RemoveRange(MaxCommentsPerArticle, a.Comments.Count - MaxCommentsPerArticle);
+                if (a.Comments.Count > MaxCommentsKept) a.Comments.RemoveRange(0, a.Comments.Count - MaxCommentsKept);
+            if (Forum.Count > MaxForumThreads)
+            {
+                var keepT = new HashSet<ForumThread>(Forum.Where(t => t.Player).Concat(Forum.OrderByDescending(t => t.UT).Take(MaxForumThreads / 2)));
+                Forum = Forum.Where(t => keepT.Contains(t)).Concat(Forum.Where(t => !keepT.Contains(t)).OrderByDescending(t => t.Score).Take(Math.Max(0, MaxForumThreads - keepT.Count))).ToList();
+            }
             if (Articles.Count > MaxArticles)
             {
                 // Drop the least significant old articles first, never the most recent 100.
@@ -536,6 +653,11 @@ namespace KerbalNews
             foreach (var a in Articles) a.Save(ar.AddNode("ARTICLE"));
             var so = n.AddNode("SOCIAL");
             foreach (var p in Social) p.Save(so.AddNode("POST"));
+            n.AddText("anonHandle", AnonHandle);
+            var fo = n.AddNode("FORUM");
+            foreach (var t in Forum) t.Save(fo.AddNode("THREAD"));
+            var jo = n.AddNode("COMMUNITYJOBS");
+            foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
         }
 
         public static NewsState Load(DataNode n)
@@ -594,6 +716,11 @@ namespace KerbalNews
             if (ar != null) foreach (var an in ar.GetNodes("ARTICLE")) s.Articles.Add(Article.Load(an));
             var so = n.GetNode("SOCIAL");
             if (so != null) foreach (var pn in so.GetNodes("POST")) s.Social.Add(SocialPost.Load(pn));
+            s.AnonHandle = n.GetText("anonHandle");
+            var fo = n.GetNode("FORUM");
+            if (fo != null) foreach (var tn in fo.GetNodes("THREAD")) s.Forum.Add(ForumThread.Load(tn));
+            var jo = n.GetNode("COMMUNITYJOBS");
+            if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
             return s;
         }
     }

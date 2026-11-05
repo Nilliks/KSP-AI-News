@@ -1,0 +1,53 @@
+body { background: #e8efe9; font-family: sans; color: #1c2a24; }
+a { color: #1c2a24; }
+a:hover { color: #0f7a5c; }
+.top { background: #12443a; padding: 10px 22px; display: flex; align-items: center; gap: 14px; }
+.logo { font-size: 26px; font-weight: bold; color: #ffd166; }
+.logo-sub { font-size: 13px; color: #b9d8cc; }
+.top .spacer { flex: 1; }
+.newpost { background: #ffd166; color: #12443a; padding: 6px 14px; font-weight: bold; }
+.newpost:hover { background: #ffe39b; color: #12443a; }
+.layout { display: flex; gap: 18px; padding: 14px 22px; }
+.main { flex: 1; max-width: 760px; }
+.side { width: 270px; }
+.boardhead { background: #ffffff; padding: 12px 14px; margin-bottom: 10px; border-left: 4px solid #0f7a5c; }
+.boardhead h1 { font-size: 22px; margin-bottom: 2px; }
+.sorts { display: flex; gap: 8px; margin-bottom: 10px; }
+.sort { padding: 4px 12px; background: #d6e3da; color: #12443a; font-size: 13px; font-weight: bold; }
+.sort.on { background: #12443a; color: #ffffff; }
+.post { display: flex; gap: 10px; background: #ffffff; padding: 10px 12px; margin-bottom: 8px; }
+.post:hover { background: #f6faf7; }
+.votes { width: 44px; text-align: center; font-size: 13px; font-weight: bold; color: #3d5249; }
+.votes a { color: #8aa298; font-size: 15px; }
+.votes a.on { color: #e07a1f; }
+.ptitle { font-size: 17px; font-weight: bold; }
+.pmeta { font-size: 12px; color: #6b7f76; margin-top: 3px; }
+.pmeta a { color: #0f7a5c; font-weight: bold; }
+.flair { font-size: 11px; padding: 1px 6px; background: #ffd166; color: #12443a; font-weight: bold; }
+.flair.official { background: #12443a; color: #ffd166; }
+.excerpt { font-size: 14px; color: #3d5249; margin-top: 4px; }
+.news { font-size: 12px; margin-top: 4px; }
+.news a { color: #1f6aa5; }
+.box { background: #ffffff; padding: 12px 14px; margin-bottom: 10px; }
+.box h3 { font-size: 15px; margin-bottom: 6px; }
+.board { padding-top: 5px; padding-bottom: 5px; border-bottom: 1px solid #e3ebe5; }
+.board a { font-weight: bold; color: #0f7a5c; }
+.board .about { font-size: 12px; color: #6b7f76; }
+.board.on a { color: #12443a; }
+.thread { background: #ffffff; padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 10px; }
+.thread h1 { font-size: 22px; margin-bottom: 6px; }
+.thread .para { margin-bottom: 8px; }
+.discussion { background: #ffffff; padding: 12px 16px; }
+.amahint { background: #fff4d1; padding: 8px 12px; margin-bottom: 10px; font-size: 14px; }
+.form { background: #ffffff; padding: 14px 16px; }
+.form label { font-weight: bold; font-size: 14px; margin-top: 10px; margin-bottom: 4px; }
+.form input, .form textarea { width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 4px 10px; background: #d6e3da; color: #12443a; font-size: 13px; }
+.chip.on { background: #12443a; color: #ffffff; }
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.btn { background: #12443a; color: #ffffff; }
+.btn:hover { background: #0f7a5c; }
+.btn.alt { background: #6b7f76; }
+.btn.gold { background: #ffd166; color: #12443a; }
+.empty { padding: 30px; text-align: center; color: #6b7f76; background: #ffffff; }

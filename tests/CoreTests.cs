@@ -14,7 +14,7 @@ public static class CoreTests
     public static int Main()
     {
         int pass = 0, fail = 0;
-        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
+        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
         {
             try { m.Invoke(null, null); pass++; Console.WriteLine("PASS " + m.Name); }
             catch (Exception e)
@@ -34,7 +34,7 @@ public static class CoreTests
 
     // ---------------------------------------------------------------- fakes
 
-    class FakeTransport : IHttpTransport
+    public class FakeTransport : IHttpTransport
     {
         public List<HttpRequestSpec> Sent = new List<HttpRequestSpec>();
         public List<Action<HttpResult>> Pending = new List<Action<HttpResult>>();
@@ -47,7 +47,7 @@ public static class CoreTests
         }
     }
 
-    static GlobalSettings OnlineSettings()
+    public static GlobalSettings OnlineSettings()
     {
         var g = new GlobalSettings { ProviderId = "anthropic", OfflineMode = false };
         g.Keys["anthropic"] = "test-key";
@@ -55,7 +55,7 @@ public static class CoreTests
     }
 
     /// <summary>Makes a valid Anthropic-shaped response that covers every outlet the prompt asks for.</summary>
-    static HttpResult AnthropicReply(HttpRequestSpec req)
+    public static HttpResult AnthropicReply(HttpRequestSpec req)
     {
         var body = Json.Parse(req.Body);
         string user = Json.Str(Json.Arr(Json.Get(body, "messages"))[0], "content");
@@ -77,14 +77,14 @@ public static class CoreTests
         return new HttpResult { Status = 200, Body = Json.Write(resp) };
     }
 
-    static NewsEvent Ev(string type, double ut, string vessel = "v1", string body = "Kerbin", params string[] crew)
+    public static NewsEvent Ev(string type, double ut, string vessel = "v1", string body = "Kerbin", params string[] crew)
     {
         var e = new NewsEvent { Type = type, UT = ut, VesselId = vessel, VesselName = "Test Rocket " + vessel, Body = body };
         e.Crew.AddRange(crew);
         return e;
     }
 
-    static CraftSnapshot Craft()
+    public static CraftSnapshot Craft()
     {
         return new CraftSnapshot { VesselName = "Test Rocket v1", VesselType = "Ship", Parts = 42, MassTons = 61.3, HeightM = 24, Stages = 3, DeltaV = 4100, Engines = "LV-T45 x1, Swivel x1", CrewCapacity = 1, LaunchSite = "LaunchPad" };
     }
@@ -455,12 +455,12 @@ public static class CoreTests
         for (int i = 0; i < 800; i++)
         {
             var a = new Article { Id = "a" + i, StoryId = "s", PublishedUT = i, Significance = i % 100 };
-            for (int c = 0; c < 30; c++) a.Comments.Add(new Comment { Text = "c" });
+            for (int c = 0; c < 100; c++) a.Comments.Add(new Comment { Text = "c" });
             s.Articles.Add(a);
         }
         s.Prune();
         Eq(NewsState.MaxArticles, s.Articles.Count, "article cap");
-        Assert(s.Articles.All(a => a.Comments.Count <= NewsState.MaxCommentsPerArticle), "comment cap");
+        Assert(s.Articles.All(a => a.Comments.Count <= NewsState.MaxCommentsKept), "comment cap");
         Assert(s.Articles.Any(a => a.PublishedUT == 799), "newest kept");
     }
 

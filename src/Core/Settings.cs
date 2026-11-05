@@ -24,6 +24,18 @@ namespace KerbalNews
         public bool GenerateDuringWarp = false;
         /// <summary>News window scale; 0 means automatic from screen size.</summary>
         public float UiScale = 0;
+        /// <summary>Image generation for article photos: "" means off. Uses its own key, stored as "img:&lt;id&gt;".</summary>
+        public string ImageProviderId = "";
+        public Dictionary<string, string> ImageModels = new Dictionary<string, string>();
+        public Dictionary<string, string> ImageBaseUrls = new Dictionary<string, string>();
+        /// <summary>Smallest story tier that gets a photo: story, major or historic.</summary>
+        public string ImageMinTier = "major";
+
+        public ImagePreset ImagePreset { get { return ImageProviders.Get(ImageProviderId); } }
+        public string ImageModel { get { var p = ImagePreset; return p == null ? "" : Lookup(ImageModels, p.Id, p.Model); } }
+        public string ImageBaseUrl { get { var p = ImagePreset; return p == null ? "" : Lookup(ImageBaseUrls, p.Id, p.BaseUrl); } }
+        public string ImageKey { get { return ImageProviderId == "" ? "" : Lookup(Keys, "img:" + ImageProviderId, ""); } }
+        public bool ImagesOn { get { return ImagePreset != null && (ImageKey != "" || ImageProviderId == "custom") && ImageModel != ""; } }
 
         public ProviderPreset Preset { get { return Providers.Get(ProviderId); } }
 
@@ -66,6 +78,15 @@ namespace KerbalNews
             settings.Add("notify", NotifyOnPublish);
             settings.Add("warpGeneration", GenerateDuringWarp);
             settings.Add("uiScale", (double)UiScale);
+            settings.Add("imageProvider", ImageProviderId);
+            settings.Add("imageMinTier", ImageMinTier);
+            foreach (var p in ImageProviders.All)
+            {
+                var n = settings.AddNode("IMAGEPROVIDER");
+                n.Add("id", p.Id);
+                n.AddText("model", Lookup(ImageModels, p.Id, ""));
+                n.AddText("baseUrl", Lookup(ImageBaseUrls, p.Id, ""));
+            }
             foreach (var p in Providers.All)
             {
                 var n = settings.AddNode("PROVIDER");
@@ -91,6 +112,15 @@ namespace KerbalNews
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
+                g.ImageProviderId = settings.Get("imageProvider", "");
+                g.ImageMinTier = settings.Get("imageMinTier", "major");
+                foreach (var n in settings.GetNodes("IMAGEPROVIDER"))
+                {
+                    string id = n.Get("id", "");
+                    if (id == "") continue;
+                    g.ImageModels[id] = n.GetText("model");
+                    g.ImageBaseUrls[id] = n.GetText("baseUrl");
+                }
                 foreach (var n in settings.GetNodes("PROVIDER"))
                 {
                     string id = n.Get("id", "");

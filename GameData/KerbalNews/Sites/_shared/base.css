@@ -33,3 +33,19 @@ a:hover { color: #a3201c; }
 .meter { width: 120px; background: #d9d2c1; }
 .meter div { background: #2e7d32; padding-top: 4px; padding-bottom: 4px; }
 .meter.trust div { background: #1f6aa5; }
+.comment.reply { border-bottom: 0; padding-top: 4px; }
+.comment.official { background: #eef4fb; }
+.av-official { background: #1f3b5a; }
+.badge { font-size: 11px; padding: 1px 6px; background: #1f3b5a; color: #ffffff; font-weight: bold; }
+.badge.you { background: #8a8478; }
+.cacts { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #6b665c; }
+.vote { color: #8a8478; }
+.vote.on { color: #c2560a; font-weight: bold; }
+.replylink { color: #6b665c; font-weight: bold; }
+.replylink.on { color: #a3201c; }
+.replybox { background: #ffffff; padding: 10px 12px; margin-top: 8px; margin-bottom: 10px; border: 1px solid #ddd6c6; }
+.replybox textarea { width: 100%; margin-bottom: 6px; }
+.replyrow { display: flex; gap: 8px; align-items: center; }
+.btn.alt { background: #6b665c; }
+.photo { margin-top: 6px; margin-bottom: 12px; }
+.caption { font-size: 12px; color: #6b665c; margin-top: 4px; }

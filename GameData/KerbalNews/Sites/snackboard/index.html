@@ -1,0 +1,9 @@
+<html><body>
+{{> _top}}
+<div class="layout"><div class="main">
+  <div class="boardhead"><h1>{{boardTitle}}</h1><p class="meta">{{boardAbout}}</p></div>
+  <div class="sorts"><a class="sort{{#sortHot}} on{{/sortHot}}" href="{{base}}?sort=hot">Hot</a><a class="sort{{#sortNew}} on{{/sortNew}}" href="{{base}}?sort=new">New</a><a class="sort{{#sortTop}} on{{/sortTop}}" href="{{base}}?sort=top">Top</a></div>
+  {{#threads}}{{> _post}}{{/threads}}
+  {{#empty}}<div class="empty">Nothing here yet. Big news brings people out, or start a thread yourself.</div>{{/empty}}
+</div>{{> _side}}</div>
+</body></html>

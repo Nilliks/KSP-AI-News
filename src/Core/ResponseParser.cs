@@ -8,6 +8,10 @@ namespace KerbalNews
     {
         public List<Article> Articles = new List<Article>();
         public List<SocialPost> Social = new List<SocialPost>();
+        /// <summary>The writer's description of a press photo, when one was asked for.</summary>
+        public string ImagePrompt = "";
+        /// <summary>A Snackboard thread about the news, for bigger stories.</summary>
+        public ForumThread Forum;
     }
 
     /// <summary>Turns the model's JSON into articles, and rejects output we should not save.</summary>
@@ -103,8 +107,61 @@ namespace KerbalNews
                         Reshares = (int)Math.Max(0, Json.Num(p, "reshares", 0)),
                     });
                 }
+            cov.ImagePrompt = Clip(Clean(Json.Str(root, "image_prompt", "")), 1200);
+            cov.Forum = ParseThread(Json.Get(root, "forum"));
             result = cov;
             return true;
+        }
+
+        public static readonly string[] Boards = { "general", "launches", "missions", "science", "policy", "memes", "ama" };
+
+        public static ForumThread ParseThread(object f)
+        {
+            if (Json.Obj(f) == null) return null;
+            string title = Clean(Json.Str(f, "title", ""));
+            if (title.Length < 4 || ContainsForbidden(title)) return null;
+            string board = Clean(Json.Str(f, "board", "general")).ToLowerInvariant().TrimStart('b', '/');
+            if (Array.IndexOf(Boards, board) < 0) board = "general";
+            var t = new ForumThread
+            {
+                Board = board, Title = Clip(title, 200),
+                Body = Clip((Json.Str(f, "body", "") ?? "").Replace("\r\n", "\n").Trim(), 3000),
+                Author = Clip(Clean(Json.Str(f, "author", "kerbal_reader")), 40).TrimStart('@'),
+                Score = (int)Math.Max(1, Json.Num(f, "score", 10)),
+            };
+            if (ContainsForbidden(t.Body)) t.Body = "";
+            t.Comments = ParseReplies(Json.Arr(Json.Get(f, "replies")), null, 30);
+            return t;
+        }
+
+        /// <summary>
+        /// Community replies. reply_to is an existing comment id, "rN" for the N-th reply in this list, or "" for top level.
+        /// knownIds are the comments already in the discussion. Ids are filled in by the engine.
+        /// </summary>
+        public static List<Comment> ParseReplies(List<object> arr, ICollection<string> knownIds, int max)
+        {
+            var list = new List<Comment>();
+            if (arr == null) return list;
+            var refs = new List<Comment>();
+            foreach (var c in arr.Take(max))
+            {
+                string text = Clean(Json.Str(c, "text", ""));
+                if (text == "" || ContainsForbidden(text)) { refs.Add(null); continue; }
+                var cm = new Comment
+                {
+                    Author = Clip(Clean(Json.Str(c, "author", "kerbal_reader")), 40).TrimStart('@'),
+                    Text = Clip(text, 1200),
+                    Likes = (int)Math.Max(0, Json.Num(c, "likes", 1)),
+                };
+                string rt = Clean(Json.Str(c, "reply_to", "") ?? "");
+                int n;
+                if (rt.StartsWith("r") && int.TryParse(rt.Substring(1), out n) && n >= 1 && n <= refs.Count && refs[n - 1] != null)
+                    cm.ReplyTo = "#" + list.IndexOf(refs[n - 1]);   // position among kept replies; the engine turns it into an id
+                else if (knownIds != null && knownIds.Contains(rt)) cm.ReplyTo = rt;
+                refs.Add(cm);
+                list.Add(cm);
+            }
+            return list;
         }
 
         public static bool ContainsForbidden(string s)
@@ -113,7 +170,7 @@ namespace KerbalNews
             return ForbiddenPhrases.Any(f => l.Contains(f));
         }
 
-        static string Clean(string s) { return (s ?? "").Replace("\r", " ").Replace("\n", " ").Trim(); }
-        static string Clip(string s, int n) { return s.Length <= n ? s : s.Substring(0, n); }
+        public static string Clean(string s) { return (s ?? "").Replace("\r", " ").Replace("\n", " ").Trim(); }
+        public static string Clip(string s, int n) { return s.Length <= n ? s : s.Substring(0, n); }
     }
 }

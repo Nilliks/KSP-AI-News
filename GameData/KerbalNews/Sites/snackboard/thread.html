@@ -1,0 +1,18 @@
+<html><body>
+{{> _top}}
+<div class="layout"><div class="main">
+  {{#thread}}<div class="thread"><div class="votes"><a class="{{#up}}on{{/up}}" href="{{upUrl}}">&#9650;</a><div>{{score}}</div><a class="{{#down}}on{{/down}}" href="{{downUrl}}">&#9660;</a></div>
+    <div style="flex: 1"><div class="pmeta"><a href="{{boardUrl}}">b/{{board}}</a> &middot; {{author}} {{#agency}}<span class="flair official">OFFICIAL</span>{{/agency}}{{#ama}} <span class="flair">AMA</span>{{/ama}} &middot; {{date}}</div>
+      <h1>{{title}}</h1>
+      {{#news}}<p class="news">In the news: <a href="{{newsUrl}}">{{news}}</a></p>{{/news}}
+  {{/thread}}
+      {{#paragraphs}}<p class="para">{{.}}</p>{{/paragraphs}}
+    </div></div>
+  <div class="discussion"><h3>{{commentCount}} comments</h3>
+    {{#ama}}<div class="amahint">Your AMA is live. Click Reply under a question to answer it as the agency.{{#unanswered}} <b>{{unanswered}} unanswered.</b>{{/unanswered}}</div>{{/ama}}
+    {{> reply_box}}
+    {{> comments}}
+    {{^comments}}<p class="muted">No comments yet.</p>{{/comments}}
+  </div>
+</div>{{> _side}}</div>
+</body></html>

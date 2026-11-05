@@ -24,6 +24,24 @@
   {{#testResult}}<p class="{{#testOk}}ok{{/testOk}}{{^testOk}}bad{{/testOk}}">{{testResult}}</p>{{/testResult}}
   <p class="hint">{{providerName}} &middot; {{status}}{{#error}} &middot; last error: {{error}}{{/error}}</p>
 
+  <h2>Article photos (optional)</h2>
+  <p class="hint">A separate image service, with its own key, draws one press photo for bigger stories. It is off unless you pick a service. It costs one image call per qualifying story.</p>
+  <div class="providers"><a class="prov{{#imageOff}} on{{/imageOff}}" href="action:img-provider/off">Off</a>{{#imageProviders}}<a class="prov{{#on}} on{{/on}}" href="action:img-provider/{{id}}">{{name}}</a>{{/imageProviders}}</div>
+  {{#image}}
+  <label>API key for {{name}} images</label><input name="imgKey" type="password" placeholder="{{#hasKey}}saved (type to replace){{/hasKey}}{{^hasKey}}{{keyHint}}{{/hasKey}}">
+  <p class="hint">{{#hasKey}}A key is saved.{{/hasKey}}{{^hasKey}}No key saved yet. It can be the same key as your writer if it is the same company.{{/hasKey}}</p>
+  <label>Image model: <span class="current">{{model}}</span></label>
+  <div class="models">{{#models}}<a class="prov{{#on}} on{{/on}}" href="action:img-model/{{id}}">{{id}}</a>{{/models}}</div>
+  <div class="row"><div><input name="imgModel" value="{{modelOverride}}" placeholder="or type any model name, e.g. {{defaultModel}}"></div></div>
+  <label>Endpoint</label><input name="imgBaseUrl" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
+  {{/image}}
+  <label>Which stories get a photo</label>
+  <div class="providers">{{#imageTiers}}<a class="prov{{#on}} on{{/on}}" href="action:img-tier/{{id}}">{{label}}</a>{{/imageTiers}}</div>
+  {{#image}}<div class="save row"><button class="btn" data-action="save-images">Save</button><button class="btn" data-action="test-image">Save and make a test photo</button></div>{{/image}}
+  {{#imageTestResult}}<p class="{{#imageTestOk}}ok{{/imageTestOk}}{{^imageTestOk}}bad{{/imageTestOk}}">{{imageTestResult}}</p>{{/imageTestResult}}
+  {{#imageTest}}<div style="width: 480px"><img src="{{imageTest}}" style="width: 100%; aspect-ratio: 3/2"></div>{{/imageTest}}
+  {{#imageStatus}}<p class="hint">Last photo: {{imageStatus}}</p>{{/imageStatus}}
+
   <h2>Telemetry</h2>
   <p class="hint">Choose per craft whether the public gets its telemetry and specs, or only what can be seen from the ground. <a href="telemetry.kb">Open telemetry sharing</a></p>
 

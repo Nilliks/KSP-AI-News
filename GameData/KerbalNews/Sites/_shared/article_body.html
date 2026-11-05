@@ -13,6 +13,7 @@
     </div>
     {{#crew}}<p class="meta">Crew: {{crew}}</p>{{/crew}}
   </div>{{/craft}}
+  {{#image}}<div class="photo"><img src="{{image}}" style="width: 100%; aspect-ratio: 3/2"><p class="caption">Photo: {{outletName}} / pool</p></div>{{/image}}
   <div class="body">{{#paragraphs}}<p class="para">{{text}}</p>{{/paragraphs}}</div>
   <div class="tags">{{#tags}}<span class="tag">{{.}}</span>{{/tags}}</div>
   <div class="tools">
@@ -23,7 +24,8 @@
   {{#related.0}}<div class="related"><h4>Elsewhere on this story</h4>
     {{#related}}<p><a href="{{url}}"><b>{{outletName}}:</b> {{headline}}</a></p>{{/related}}</div>{{/related.0}}
   <div class="comments"><h3>{{commentCount}} comments</h3>
-    {{#comments}}<div class="comment"><div class="avatar">{{initial}}</div><div style="flex: 1"><div class="who">{{author}}</div><p>{{text}}</p><div class="likes">&#9650; {{likes}}</div></div></div>{{/comments}}
-    {{^comments}}<p class="muted">No comments yet.</p>{{/comments}}
+    {{> reply_box}}
+    {{> comments}}
+    {{^comments}}<p class="muted">No comments yet. Be the first.</p>{{/comments}}
   </div>
 </div>
