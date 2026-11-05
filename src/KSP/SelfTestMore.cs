@@ -114,7 +114,8 @@ namespace KerbalNews.KSP
             var mun = FlightGlobals.Bodies.FirstOrDefault(b => b.bodyName == "Mun");
             if (mun != null)
             {
-                try { FlightGlobals.fetch.SetVesselTarget(mun, true); }   // the open browser holds input locks, which block targeting otherwise catch (Exception e) { Log("  could not set target: " + e.Message); }
+                // The open browser holds input locks, which block targeting otherwise.
+                try { FlightGlobals.fetch.SetVesselTarget(mun, true); } catch (Exception e) { Log("  could not set target: " + e.Message); }
                 yield return new WaitForSeconds(1);
                 s = EngineeringCapture.Snapshot();
                 double ut = Planetarium.GetUniversalTime();
