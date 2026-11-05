@@ -465,4 +465,35 @@ public static class FeatureTests
         var back = NewsState.Load(n);
         Assert(back.Incidents.Count == 1 && back.Incidents[0].Cause == s.Incidents[0].Cause && back.Incidents[0].Telemetry.Count == 2 && back.EngMission == "land on Minmus and come back", "incidents and mission are saved");
     }
+
+    public static void TestTimeWarpHoldsCallsAndCatchesUpInOneRoundup()
+    {
+        var s = new NewsState();
+        int calls = 0; string last = "";
+        var t = new CoreTests.FakeTransport { Responder = r => { calls++; last = r.Body; return CoreTests.AnthropicReply(r); } };
+        var g = CoreTests.OnlineSettings();
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        int before = calls;
+        // A year of warp: launches, landings and anniversaries pile up while the game says "no calls".
+        double real = 100;
+        for (int i = 0; i < 8; i++)
+        {
+            eng.Ingest(CoreTests.Ev(EventTypes.Launch, Day * (10 + i * 40), "w" + i, "Kerbin", "Jebediah Kerman"));
+            eng.Ingest(CoreTests.Ev(EventTypes.Landing, Day * (10 + i * 40) + 5000, "w" + i, i % 2 == 0 ? "Mun" : "Minmus", "Jebediah Kerman"));
+        }
+        for (double ut = 0; ut < Year; ut += Day * 3) { real += 0.25; eng.Tick(ut, real, false); }
+        Assert(calls == before, "no AI calls during the warp: " + (calls - before));
+        Assert(eng.WarpHold, "holding");
+        eng.Tick(Year, real + 1, true);
+        Assert(calls == before && eng.WarpHold, "still waits a few seconds after the warp ends, in case the player warps again");
+        int pending = s.Stories.Count(x => x.Status == StoryStatus.Pending);
+        eng.Tick(Year, real + NewsEngine.WarpSettleSeconds + 1, true);
+        Assert(!eng.WarpHold, "released");
+        var left = s.Stories.Where(x => x.Status == StoryStatus.Pending).ToList();
+        Assert(left.Count(x => x.Kind != "filler") <= NewsEngine.CatchUpKeep && left.Any(x => x.Special == "catchup"), "backlog trimmed to a few stories and one roundup: " + pending + " -> " + left.Count);
+        for (int k = 0; k < 30; k++) eng.Tick(Year + k, real + 20 + k * 30, true);
+        Assert(last.Contains("ROUNDUP") || s.Articles.Any(a => a.StoryId == left.First(x => x.Special == "catchup").Id), "the roundup was written");
+        Assert(calls - before <= NewsEngine.CatchUpKeep + 2 + 30, "few calls");
+    }
 }

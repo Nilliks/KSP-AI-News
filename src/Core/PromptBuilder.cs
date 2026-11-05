@@ -128,6 +128,7 @@ namespace KerbalNews
             if (story.Kind == "filler")
             {
                 if (story.Special == "retrospective") sb.AppendLine("A SPECIAL RETROSPECTIVE for an anniversary. Use only facts from this brief, the archive summary and the records below; do not invent new events: " + story.Topic);
+                else if (story.Special == "catchup") sb.AppendLine("A ROUNDUP of what happened at the agency while things were quiet in the news. Cover these developments together in one piece, biggest first, with dates; use only these facts: " + story.Topic);
                 else if (story.Special == "review") sb.AppendLine("A SPECIAL YEAR-IN-REVIEW EDITION. Use only the stories listed here and the archive summary; do not invent events: " + story.Topic);
                 else sb.AppendLine("Nothing major has happened for a while. Write a feature or opinion piece on this topic: " + story.Topic);
             }

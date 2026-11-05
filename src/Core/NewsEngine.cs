@@ -173,6 +173,7 @@ namespace KerbalNews
         {
             FillerQuietDays = Settings.QuietDays;
             StreamInterval = Settings.StreamSeconds;
+            allowCalls = WarpGate(ut, realTime, allowCalls);
             if (State.LastStoryUT < 0) State.LastStoryUT = ut;
             if (State.LastMoodDecayUT < 0) State.LastMoodDecayUT = ut;
             if (lastVisibleUT < 0) lastVisibleUT = ut;
@@ -204,7 +205,7 @@ namespace KerbalNews
             var due = State.Stories.Where(s => s.Status == StoryStatus.Pending && s.PublishUT <= ut).OrderBy(s => s.PublishUT).FirstOrDefault();
             if (due == null)
             {
-                MaybeQueueFiller(ut);
+                if (allowCalls) MaybeQueueFiller(ut);   // nothing gets queued for days skipped in a warp
                 return;
             }
             ApplyPrivacy(due);

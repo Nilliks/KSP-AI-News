@@ -86,7 +86,7 @@ namespace KerbalNews.KSP
                 try { eng.StreamSample(Sample(v), now); }
                 catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream telemetry: " + e.Message); }
             }
-            eng.TickStream(now, true);
+            eng.TickStream(now, !eng.WarpHold && TimeWarp.CurrentRate <= 1.01f);   // the stream chat waits out a time warp too
         }
 
         void LateUpdate()

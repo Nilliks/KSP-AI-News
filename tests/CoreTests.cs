@@ -339,6 +339,8 @@ public static class CoreTests
         eng.Tick(Day * 3, 1, false);
         Eq(0, t.Sent.Count, "warp: no calls");
         eng.Tick(Day * 3, 2, true);
+        Eq(0, t.Sent.Count, "warp just ended: waits a few seconds in case of another warp");
+        eng.Tick(Day * 3, 2 + NewsEngine.WarpSettleSeconds + 1, true);
         Eq(1, t.Sent.Count, "warp ended: call made");
     }
 
