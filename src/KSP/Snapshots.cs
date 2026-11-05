@@ -14,7 +14,7 @@ namespace KerbalNews.KSP
             if (v == null) return s;
             try
             {
-                s.VesselName = v.vesselName;
+                s.VesselName = Names.Of(v);
                 s.VesselType = v.vesselType.ToString();
                 s.Parts = v.parts.Count;
                 s.MassTons = Math.Round(v.GetTotalMass(), 1);

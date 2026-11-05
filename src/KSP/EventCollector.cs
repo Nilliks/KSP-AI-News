@@ -81,7 +81,7 @@ namespace KerbalNews.KSP
             if (v != null)
             {
                 e.VesselId = Id(v);
-                e.VesselName = v.vesselName;
+                e.VesselName = Names.Of(v);
                 e.Body = v.mainBody != null ? v.mainBody.bodyName : "";
                 e.Situation = v.situation.ToString();
                 foreach (var c in v.GetVesselCrew()) e.Crew.Add(c.name);
@@ -199,7 +199,7 @@ namespace KerbalNews.KSP
                 var other = tracked == a ? b : a;
                 if (Track(tracked) == null && engine().Tracked(Id(tracked)) == null) return;
                 var e = Make(EventTypes.Docking, tracked);
-                e.Detail = other.vesselName;
+                e.Detail = Names.Of(other);
                 engine().Ingest(e);
             });
         }
@@ -243,7 +243,7 @@ namespace KerbalNews.KSP
                 var t = engine().Tracked(id);
                 if (t == null) return;
                 if (!Flag(t, "recovered")) return;
-                var e = new NewsEvent { Type = EventTypes.Recovery, UT = UT, VesselId = id, VesselName = pv.vesselName, Body = "Kerbin" };
+                var e = new NewsEvent { Type = EventTypes.Recovery, UT = UT, VesselId = id, VesselName = Names.Of(pv.vesselName), Body = "Kerbin" };
                 foreach (var c in pv.GetVesselCrew()) e.Crew.Add(c.name);
                 engine().Ingest(e);
             });

@@ -50,7 +50,7 @@ namespace KerbalNews.KSP
             Sites.SaveSettings = SaveSettings;
             Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.ActiveVesselId = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.persistentId.ToString() : null;
-            Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.vesselName : null;
+            Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? Names.Of(FlightGlobals.ActiveVessel) : null;
             collector = new EventCollector(() => HasGame ? Engine : null);
             collector.Register();
             GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);

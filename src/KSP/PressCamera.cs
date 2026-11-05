@@ -122,9 +122,9 @@ namespace KerbalNews.KSP
                             Directory.CreateDirectory(GalleryStore.Dir);
                             string file = "press-" + v.persistentId + "-" + kind + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jpg";
                             File.WriteAllBytes(Path.Combine(GalleryStore.Dir, file), GalleryStore.Jpeg(tex));
-                            eng.AddPressShot(file, Planetarium.GetUniversalTime(), v.persistentId.ToString(), v.vesselName, v.mainBody.bodyName, v.situation.ToString(), kind, credit);
+                            eng.AddPressShot(file, Planetarium.GetUniversalTime(), v.persistentId.ToString(), Names.Of(v), v.mainBody.bodyName, v.situation.ToString(), kind, credit);
                             if (kind != "ascent")
-                                ScreenMessages.PostScreenMessage("Kerbal News: a press photographer got a shot of " + v.vesselName + " (" + kind + ")", 3f, ScreenMessageStyle.UPPER_RIGHT);
+                                ScreenMessages.PostScreenMessage("Kerbal News: a press photographer got a shot of " + Names.Of(v) + " (" + kind + ")", 3f, ScreenMessageStyle.UPPER_RIGHT);
                         }
                         finally { Destroy(tex); }
                     }
@@ -235,6 +235,8 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>True when no hill stands between the photographer and the subject.</summary>
+        const int SceneryMask = 1 << 15;
+
         internal static bool ClearView(CelestialBody body, Vector3d from, Vector3d to)
         {
             for (int i = 1; i < 12; i++)
@@ -243,6 +245,19 @@ namespace KerbalNews.KSP
                 double lat = body.GetLatitude(p), lon = body.GetLongitude(p);
                 if (body.TerrainAltitude(lat, lon, false) > body.GetAltitude(p) - 1) return false;
             }
+            // Buildings, the tower and other scenery are colliders on the "Local Scenery" layer, not terrain.
+            // Stop short of the craft so the pad under it does not count.
+            try
+            {
+                Vector3d dir = to - from;
+                double len = dir.magnitude;
+                if (len > 80)
+                {
+                    Vector3d end = from + dir * ((len - 60) / len);
+                    if (Physics.Linecast((Vector3)from, (Vector3)end, SceneryMask)) return false;
+                }
+            }
+            catch (Exception) { }
             return true;
         }
 

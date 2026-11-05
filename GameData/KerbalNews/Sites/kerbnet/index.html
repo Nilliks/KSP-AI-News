@@ -9,7 +9,7 @@
       <div style="flex: 1"><div><span class="who">{{handle}}</span> <span class="persona">{{persona}} &middot; {{date}}</span></div>
         <p class="text">{{{html}}}</p>
         {{#storyUrl}}<p class="about"><a href="{{storyUrl}}">{{storyHeadline}}</a></p>{{/storyUrl}}
-        <div class="acts"><span>&hearts; {{likes}}</span><span>&#8635; {{reshares}}</span></div></div></div>{{/posts}}
+        <div class="acts"><span>{{likes}} likes</span><span>{{reshares}} reshares</span></div></div></div>{{/posts}}
   </div>
   <div class="side"><div class="box"><h3>Trending</h3>
     {{#topics}}<div class="topic"><a href="{{url}}">{{headline}}</a><div class="persona">{{posts}} posts</div></div>{{/topics}}

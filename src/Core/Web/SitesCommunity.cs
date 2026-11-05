@@ -108,13 +108,15 @@ namespace KerbalNews.Web
             return (t.Score + 2 * t.Comments.Count) / Math.Pow(ageDays + 1, 1.5);
         }
 
+        static string Plural(int n, string word) { return n + " " + word + (n == 1 ? "" : "s"); }
+
         Dictionary<string, object> BoardsModel(string current)
         {
             var m = M();
             m["boards"] = BoardInfo.Select(kv => (object)new Dictionary<string, object>
             {
                 { "name", kv.Key }, { "about", kv.Value }, { "url", ForumHost + "/b/" + kv.Key }, { "on", kv.Key == current },
-                { "count", State.Forum.Count(t => t.Board == kv.Key) }, { "pickUrl", "action:submit-board/" + kv.Key },
+                { "count", State.Forum.Count(t => t.Board == kv.Key) }, { "countText", Plural(State.Forum.Count(t => t.Board == kv.Key), "thread") }, { "pickUrl", "action:submit-board/" + kv.Key },
             }).ToList();
             m["current"] = current;
             return m;

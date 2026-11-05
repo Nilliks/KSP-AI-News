@@ -178,19 +178,41 @@ namespace KerbalNews.KSP
             var eng = sys.Engine;
             string id = v.persistentId.ToString();
             PressCamera.IgnoreDaylight = true;
-            br.Open("live.kb");
-            yield return new WaitForSeconds(0.5f);
+            yield return Go("live.kb");
+            br = Browser.Instance ?? br;
             br.Act("action:stream-start", null);
-            Check(eng.Stream != null && eng.Stream.VesselId == id, "flight: live stream started for " + v.vesselName);
+            Check(eng.Stream != null && eng.Stream.VesselId == id, "flight: live stream started for " + Names.Of(v));
             float pad = Time.realtimeSinceStartup;
             while (!eng.HasPressShot(id, "pad") && Time.realtimeSinceStartup - pad < 20) yield return new WaitForSeconds(0.5f);
             Check(eng.HasPressShot(id, "pad"), "flight: press photo of the craft on the pad");
             yield return Shot("flight-live-pad");
 
-            FlightInputHandler.state.mainThrottle = 1f;
-            global::KSP.UI.Screens.StageManager.ActivateNextStage();
-            float lift = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup - lift < 45) yield return new WaitForSeconds(1);
+            // Full throttle, then stage until the craft actually moves (the first stage may be only clamps or
+            // decouplers, and another mod can eat a single activation). Throttle is held every frame in case
+            // something else resets it.
+            float lift = Time.realtimeSinceStartup, nextStage = 0;
+            int staged = 0;
+            double startAlt = v.altitude;
+            bool moving = false;
+            while (Time.realtimeSinceStartup - lift < 50)
+            {
+                if (FlightInputHandler.state != null) FlightInputHandler.state.mainThrottle = 1f;
+                if (v.ctrlState != null) v.ctrlState.mainThrottle = 1f;
+                if (!moving && (v.srfSpeed > 2 || v.altitude > startAlt + 5))
+                {
+                    moving = true;
+                    Log("  craft moving after " + staged + " staging(s), " + (Time.realtimeSinceStartup - lift).ToString("0.0") + " s, situation " + v.situation);
+                }
+                if (!moving && staged < 4 && Time.realtimeSinceStartup > nextStage)
+                {
+                    global::KSP.UI.Screens.StageManager.ActivateNextStage();
+                    staged++;
+                    nextStage = Time.realtimeSinceStartup + 2.5f;
+                    Log("  staged (" + staged + "), now stage " + v.currentStage + ", situation " + v.situation + ", speed " + v.srfSpeed.ToString("0.0"));
+                }
+                yield return null;
+            }
+            Check(moving, "flight: Kerbal X left the pad (" + staged + " stagings, situation " + v.situation + ", altitude " + v.altitude.ToString("0") + " m)");
             Check(eng.HasPressShot(id, "liftoff"), "flight: liftoff photo");
             Check(eng.HasPressShot(id, "ascent"), "flight: ascent photo");
             var st = eng.Stream;
@@ -198,14 +220,12 @@ namespace KerbalNews.KSP
             Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
             Check(StreamDriver.Frame != null, "flight: stream video rendered");
             if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(8)) Log("  chat " + c.Author + ": " + c.Text);
-            br.Open("live.kb");
-            yield return new WaitForSeconds(1.2f);
+            yield return Go("live.kb");
             yield return Shot("flight-live-ascent");
             var spot = eng.State.Forum.FirstOrDefault(t => t.Image != "");
             Check(spot != null, "flight: a spotter posted a photo on Snackboard" + (spot != null ? ": " + spot.Title : ""));
-            if (spot != null) { br.Open(Sites.ForumHost + "/t/" + spot.Id); yield return new WaitForSeconds(1); yield return Shot("flight-spotter-thread"); }
-            br.Open(Sites.GalleryHost);
-            yield return new WaitForSeconds(1);
+            if (spot != null) { yield return Go(Sites.ForumHost + "/t/" + spot.Id); yield return Shot("flight-spotter-thread"); }
+            yield return Go(Sites.GalleryHost);
             yield return Shot("flight-gallery");
             foreach (var g2 in eng.State.Gallery.Where(x => x.IsPress))
             {
@@ -216,6 +236,22 @@ namespace KerbalNews.KSP
             br.Act("action:stream-end", null);
             Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
             PressCamera.IgnoreDaylight = false;
+        }
+
+        /// <summary>Opens a page in whichever browser this scene has, and waits until it is really showing.</summary>
+        IEnumerator Go(string url)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                var b = Browser.Instance;
+                if (b == null) { Log("  no browser in this scene yet"); yield return new WaitForSeconds(1); continue; }
+                b.Open(url);
+                yield return null;
+                yield return new WaitForSeconds(0.8f);
+                if (b.Showing && b.Url == url && b.CurrentPage != null && b.CurrentPage.Url == url) yield break;
+                Log("  browser did not show " + url + " (showing " + b.Showing + ", url " + b.Url + ", page " + (b.CurrentPage != null ? b.CurrentPage.Url : "none") + "), retrying");
+            }
+            Check(false, "browser opened " + url);
         }
 
         IEnumerator Visit(Browser br, string url)

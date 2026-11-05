@@ -7,6 +7,7 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
+    public static class Physics { public static bool Linecast(Vector3 a, Vector3 b, int mask) { return false; } }
     public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } public static T Instantiate<T>(T o) where T : Object { return o; } }
     public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } }
     public sealed class GameObject : Object
@@ -258,6 +259,7 @@ public class Vessel : UnityEngine.MonoBehaviour
 {
     public enum Situations { LANDED = 1, SPLASHED = 2, PRELAUNCH = 4, FLYING = 8, SUB_ORBITAL = 16, ORBITING = 32, ESCAPING = 64, DOCKED = 128 }
     public string vesselName, landedAt;
+    public FlightCtrlState ctrlState;
     public VesselType vesselType;
     public Situations situation;
     public CelestialBody mainBody;
@@ -339,4 +341,9 @@ namespace KSP.UI.Screens
         public ApplicationLauncherButton AddModApplication(Callback onTrue, Callback onFalse, Callback onHover, Callback onHoverOut, Callback onEnable, Callback onDisable, AppScenes scenes, UnityEngine.Texture texture) { return null; }
         public void RemoveModApplication(ApplicationLauncherButton b) { }
     }
+}
+
+namespace KSP.Localization
+{
+    public static class Localizer { public static string Format(string s, params object[] args) { return s; } }
 }

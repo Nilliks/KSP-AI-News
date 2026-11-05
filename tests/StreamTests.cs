@@ -34,7 +34,10 @@ public static class StreamTests
         Assert(st.Viewers > 0 && st.Chat.Count == 1, "stream starts with a welcome");
         eng.StreamSample(Sample(12, 100), 101);
         eng.Ingest(CoreTests.Ev(EventTypes.Launch, 12));
-        Assert(st.Moments.Contains("liftoff"), "an ingested event becomes a stream moment");
+        Assert(!st.Moments.Contains("liftoff"), "a launch event alone is not liftoff; the host reports it when the craft moves");
+        eng.Ingest(CoreTests.Ev(EventTypes.Orbit, 13));
+        Assert(st.Moments.Any(m => m.Contains("orbit")), "an ingested event becomes a stream moment");
+        eng.StreamMoment("liftoff", 102);
         eng.SetRealTime(105);
         eng.TickStream(105, true);
         Assert(st.Batches == 1 && st.Queue.Count > 0, "offline chat batch queued");

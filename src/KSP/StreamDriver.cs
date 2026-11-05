@@ -16,6 +16,7 @@ namespace KerbalNews.KSP
         public static RenderTexture Frame { get; private set; }
 
         float nextSample, nextFrame, lastBoom;
+        string liftedFor = "";
         string trackerFor = "";
         double trackLat, trackLon, trackAlt;
         bool haveTracker;
@@ -75,6 +76,13 @@ namespace KerbalNews.KSP
             if (v != null && now > nextSample)
             {
                 nextSample = now + 3f;
+                // Liftoff is when the craft actually leaves the ground, not when the first stage fires.
+                string vid = v.persistentId.ToString();
+                if (liftedFor != vid && v.situation == Vessel.Situations.FLYING && v.srfSpeed > 3)
+                {
+                    liftedFor = vid;
+                    eng.StreamMoment("liftoff", now);
+                }
                 try { eng.StreamSample(Sample(v), now); }
                 catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream telemetry: " + e.Message); }
             }

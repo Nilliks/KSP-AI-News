@@ -217,7 +217,7 @@ namespace KerbalNews
         {
             switch (e.Type)
             {
-                case EventTypes.Launch: return "liftoff";
+                case EventTypes.Launch: return null; // the host reports liftoff once the craft really leaves the pad
                 case EventTypes.Orbit: return "the vessel reached orbit around " + e.Body;
                 case EventTypes.Soi: return "the vessel entered " + e.Body + "'s sphere of influence";
                 case EventTypes.Landing: return "touchdown on " + e.Body;

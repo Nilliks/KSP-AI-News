@@ -41,3 +41,4 @@ a { color: #b6ff3b; }
 .btn { background: #2a0f3b; color: #b6ff3b; }
 .reply-box { background: #241231; }
 .muted { color: #9a88aa; }
+a:hover { color: #ffe600; }

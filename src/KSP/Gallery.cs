@@ -53,7 +53,7 @@ namespace KerbalNews.KSP
                 string file = "shot-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jpg";
                 File.WriteAllBytes(Path.Combine(Dir, file), Jpeg(tex));
                 var v = HighLogic.LoadedSceneIsFlight ? FlightGlobals.ActiveVessel : null;
-                sys.Engine.AddShot(file, Planetarium.GetUniversalTime(), v != null ? v.persistentId.ToString() : "", v != null ? v.vesselName : "",
+                sys.Engine.AddShot(file, Planetarium.GetUniversalTime(), v != null ? v.persistentId.ToString() : "", v != null ? Names.Of(v) : "",
                     v != null && v.mainBody != null ? v.mainBody.bodyName : "", v != null ? v.situation.ToString() : "");
                 ScreenMessages.PostScreenMessage("Kerbal News: screenshot added to your gallery (private)", 3f, ScreenMessageStyle.UPPER_CENTER);
             }
