@@ -74,7 +74,7 @@ namespace KerbalNews.KSP
             var top = state.Articles.OrderByDescending(a => a.Significance).First();
             var ama = state.Forum.First(t => t.Kind == "ama");
             var urls = new List<string> { Sites.Home, Sites.ArticleUrl(top), "kerbnet.kb", Sites.ForumHost, Sites.ForumHost + "/t/" + ama.Id, Sites.ForumHost + "/submit",
-                "tracker.kb", "agency.kb", "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
+                "tracker.kb", "agency.kb", "agency.kb/assistant", "agency.kb/ledger", "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
             var rumor = state.Articles.FirstOrDefault(a => a.Outlet == "kraken");
             if (rumor != null) urls.Add(Sites.ArticleUrl(rumor));
             urls.AddRange(Outlets.All.Select(o => o.Domain));
@@ -419,6 +419,25 @@ namespace KerbalNews.KSP
             yield return new WaitForSeconds(0.5f);
             br.ScrollTo(1);
             yield return Shot("ai-article-comments");
+
+            // The personal assistant: a lookup step, then an action that waits for approval.
+            yield return Go("agency.kb/assistant");
+            br = Browser.Instance ?? br;
+            int before = state.AssistantChat.Count;
+            br.Act("action:assistant-send", new Dictionary<string, string> { { "ask", "Give me a two-line briefing on the latest coverage, then donate 5k to the Kerbin Museum of Flight and announce it." } });
+            start = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - start < 150 && eng.AssistantBusy) yield return new WaitForSeconds(1);
+            var said = state.AssistantChat.Skip(before).ToList();
+            foreach (var m in said) Log("  assistant " + m.Role + ": " + m.Text.Replace("\n", " / "));
+            Check(said.Any(m => m.Role == "assistant"), "assistant answered in " + (Time.realtimeSinceStartup - start).ToString("0") + " s" + (eng.LastError != "" ? " (last error: " + eng.LastError + ")" : ""));
+            var ask = said.FirstOrDefault(m => m.Role == "proposal" && m.State == "pending");
+            Check(ask != null, "assistant asked before spending");
+            if (ask != null) br.Act("action:assistant-yes/" + ask.Id, null);
+            Check(state.Deals.Any(d => d.Kind == "donation"), "donation on the paper trail");
+            yield return Go("agency.kb/assistant");
+            yield return Shot("ai-assistant");
+            yield return Go("agency.kb/ledger");
+            yield return Shot("ai-ledger");
         }
 
         void Finish(bool quit)

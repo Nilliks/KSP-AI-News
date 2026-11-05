@@ -13,8 +13,6 @@ namespace KerbalNews
         {
             removed = 0;
             var lines = craft.Replace("\r\n", "\n").Split('\n');
-            var blocks = new List<KeyValuePair<string, List<string>>>(); // name ("" = not a part) and lines
-            var outside = new List<string>();
             int i = 0;
             var gone = new HashSet<string>();
             var kept = new List<object>(); // string lines or part blocks

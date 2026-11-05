@@ -38,6 +38,8 @@ namespace KerbalNews
             bool crewed = story.Events.Any(e => e.Crewed) || (story.Craft != null && story.Craft.Crew.Count > 0);
             bool rescued = failed && !killed && crewed && (story.HasEvent(EventTypes.Recovery) || story.HasEvent(EventTypes.Landing) || story.HasEvent(EventTypes.Splashdown));
 
+            // The assistant's deals only cost or earn money; their coverage does not move the public mood.
+            if (story.Kind == "tip") return;
             if (story.Kind == "filler")
             {
                 Excitement = Clamp(Excitement + 1);

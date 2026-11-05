@@ -94,6 +94,7 @@ namespace KerbalNews.Web
                     {
                         var a = State.Articles.FirstOrDefault(x => x.Id == path.Substring(8) && x.PublishedUT <= Now());
                         if (a == null) return NotFound(url);
+                        if (a.Removed) return new PageResult { Url = url, Title = "Removed - " + outlet.Name, Html = "<body><div style=\"padding: 60px 40px\"><h1>" + Html.Escape(outlet.Name) + "</h1><p>" + Html.Escape(a.RemovedNote != "" ? a.RemovedNote : "This article is no longer available.") + "</p><p><a href=\"" + outlet.Domain + "\">Back to the front page</a></p></div></body>", Css = "body { background: #ffffff; color: #222222; } h1 { font-size: 30px; } p { font-size: 18px; }" };
                         a.Read = true;
                         return Page(url, outlet.Id, "article.html", ArticleModel(a, true), a.Headline + " - " + outlet.Name, false);
                     }
@@ -106,7 +107,10 @@ namespace KerbalNews.Web
                     {
                         case "kerbnet": return Page(url, "kerbnet", "index.html", KerbnetModel(path.StartsWith("story/") ? path.Substring(6) : null), "Kerbnet", true);
                         case "tracker": return Page(url, "tracker", "index.html", TrackerModel(), "Universe tracker", true);
-                        case "agency": return Page(url, "agency", "index.html", AgencyModel(), "Agency profile", false);
+                        case "agency":
+                            if (path == "assistant") return Page(url, "agency", "assistant.html", AssistantModel(), "Assistant", false);
+                            if (path == "ledger") return Page(url, "agency", "ledger.html", LedgerModel(), "Paper trail", false);
+                            return Page(url, "agency", "index.html", AgencyModel(), "Agency profile", false);
                         case "settings": return Page(url, "settings", "index.html", SettingsModel(), "Settings", false);
                         case "telemetry": return Page(url, "telemetry", "index.html", TelemetryModel(), "Telemetry sharing", false);
                     }
@@ -438,6 +442,8 @@ namespace KerbalNews.Web
             m["notify"] = g.NotifyOnPublish;
             m["warp"] = g.GenerateDuringWarp;
             m["pressPhotos"] = g.PressPhotos;
+            m["assistantOn"] = g.AssistantOn;
+            m["assistantConfirm"] = g.AssistantConfirm;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;

@@ -118,6 +118,12 @@ namespace KerbalNews
             {
                 sb.AppendLine("Nothing major has happened for a while. Write a feature or opinion piece on this topic: " + story.Topic);
             }
+            else if (story.Kind == "tip")
+            {
+                sb.AppendLine("A development the outlet(s) below learned about directly (a tip, an approach from the agency, or a document). Write ONLY what this brief says the outlet knows; do not invent other events:");
+                sb.AppendLine(story.Topic);
+                if (story.TipKind == "sponsored") sb.AppendLine("This is PAID CONTENT bought by the agency. Write it as a clearly labelled sponsored piece in the agency's favour; start the subhead with \"Sponsored by " + (state.Profile.Name != "" ? state.Profile.Name : "the agency") + "\". Commenters notice it is an ad.");
+            }
             else if (story.Kind == "release")
             {
                 var rel = state.Releases.FirstOrDefault(r => r.Id == story.ReleaseId);
@@ -127,6 +133,7 @@ namespace KerbalNews
                 if (rel != null && rel.Body != "") sb.AppendLine("Full text: " + rel.Body);
                 if (rel != null && rel.Shots.Count > 0) sb.AppendLine("It came with " + rel.Shots.Count + " official photo(s)" + Captions(state, rel) + ".");
                 if (rel != null && rel.VesselName != "") sb.AppendLine("It concerns the vessel \"" + rel.VesselName + "\".");
+                if (state.PrFirm != "" && state.PrFirmUntilUT > story.CreatedUT) sb.AppendLine("The release was crafted by the PR firm " + state.PrFirm + ": unusually polished, confident and on-message. Outlets may note how slick it is.");
                 var known = state.Articles.Where(a => a.PublishedUT <= now && state.Stories.Any(st => st.Id == a.StoryId && st.VesselId != "" && st.VesselId == story.VesselId)).OrderByDescending(a => a.PublishedUT).Take(4).ToList();
                 if (known.Count > 0) sb.AppendLine("What the press already reported about this vessel: " + string.Join("; ", known.Select(a => "\"" + a.Headline + "\" (" + Outlets.NameOf(a.Outlet) + ")").ToArray()) + ".");
                 sb.AppendLine("Cover the release itself: what the agency said, what it left out, and how it fits the public record. Quote it accurately. If it contradicts facts the public already knows (for example it claims success for a vessel that was seen to explode), outlets call that out sharply. If it withholds details or calls them classified, outlets speculate and the watchdog complains. A clear, honest incident statement softens criticism. Teasers get speculation about what is coming.");

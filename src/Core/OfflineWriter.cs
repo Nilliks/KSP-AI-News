@@ -17,6 +17,7 @@ namespace KerbalNews
         public static GeneratedCoverage Write(Story story, CoveragePlan plan, NewsState state, IGameClock clock)
         {
             if (story.Kind == "release") return WriteRelease(story, plan, state, clock);
+            if (story.Kind == "tip") return WriteTip(story, plan, state);
             var rng = new Random(StableHash(story.Id));
             var cov = new GeneratedCoverage();
             var lead = LeadEvent(story);
@@ -182,6 +183,27 @@ namespace KerbalNews
         {
             return s.Events.OrderByDescending(e => e.Type == EventTypes.CrewKilled ? 1000 : e.Type == EventTypes.Failure ? 500
                 : e.Type == EventTypes.Milestone ? e.Significance - 10 : e.Significance).FirstOrDefault();
+        }
+
+        static GeneratedCoverage WriteTip(Story story, CoveragePlan plan, NewsState state)
+        {
+            var rng = new Random(StableHash(story.Id));
+            var cov = new GeneratedCoverage();
+            foreach (var o in plan.Outlets)
+            {
+                string head = story.TipHeadline != "" ? story.TipHeadline : "A development at " + (state.Profile.ShortName != "" ? state.Profile.ShortName : "KSC");
+                if (o.OutletId == "kraken") head = head.ToUpperInvariant() + "!";
+                var art = new Article { Outlet = o.OutletId, Kind = o.Kind, Offline = true, Headline = head, Reporter = Reporter(o.OutletId, rng) };
+                art.Subhead = o.Kind == "sponsored" ? "Sponsored by " + state.Profile.Name : "";
+                art.Body = story.TipBody != "" ? story.TipBody : story.Topic;
+                for (int i = 0; i < o.Comments; i++)
+                {
+                    var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
+                    art.Comments.Add(new Comment { Author = c.Handle, Text = Pick(rng, "Interesting.", "Well, well, well.", "Can anyone confirm this?", "Follow the money.", "Not surprised.", "This is going to be a long week for the press office."), Likes = rng.Next(0, 30) });
+                }
+                cov.Articles.Add(art);
+            }
+            return cov;
         }
 
         static string Pick(Random r, params string[] options) { return options[r.Next(options.Length)]; }

@@ -317,7 +317,8 @@ public static class HighLogic
 {
     public static GameScenes LoadedScene; public static bool LoadedSceneIsFlight; public static string SaveFolder; public static Game CurrentGame; public static UnityEngine.GUISkin Skin;
 }
-public class Funding { public static Funding Instance; public double Funds; }
+public class Funding { public static Funding Instance; public double Funds; public void AddFunds(double v, TransactionReasons r) { } }
+public enum TransactionReasons { None, Any }
 public class Reputation { public static Reputation Instance; public float reputation; }
 public class ResearchAndDevelopment { public static ResearchAndDevelopment Instance; public float Science; }
 

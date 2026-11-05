@@ -210,6 +210,21 @@ namespace KerbalNews
             return plan;
         }
 
+        /// <summary>A tip from the assistant's dealings: one or more named outlets, each writing what it was told or found.</summary>
+        public static CoveragePlan ForTip(Story s)
+        {
+            var plan = new CoveragePlan { Tier = s.Significance >= 45 ? "story" : "feature", SocialPosts = s.Significance >= 35 ? 3 : 1 };
+            foreach (var id in (s.FillerOutlet ?? "").Split(','))
+            {
+                var o = KerbalNews.Outlets.Get(id.Trim());
+                if (o == null || plan.Outlets.Any(x => x.OutletId == o.Id)) continue;
+                string kind = s.TipKind != "" ? s.TipKind : o.Id == "kraken" ? "rumor" : "news";
+                int words = o.Id == "kraken" ? 170 : kind == "sponsored" ? 150 : 240;
+                plan.Outlets.Add(new OutletAssignment { OutletId = o.Id, Kind = kind, Words = words, Comments = kind == "sponsored" ? 3 : 5, DelayDays = 0 });
+            }
+            return plan;
+        }
+
         public static CoveragePlan ForFiller(string outletId)
         {
             var o = KerbalNews.Outlets.Get(outletId) ?? KerbalNews.Outlets.All[0];

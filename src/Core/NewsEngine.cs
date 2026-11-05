@@ -186,6 +186,7 @@ namespace KerbalNews
             TickCommunity(ut, realTime, allowCalls);
             TickImages(allowCalls);
             TickTownHalls(ut);
+            TickAssistant(ut);
             MaybePoll(ut);
 
             if (inFlight != null || compressing || realTime < retryAfterReal) return;
@@ -200,7 +201,7 @@ namespace KerbalNews
             }
             ApplyPrivacy(due);
             var plan = PlanFor(due);
-            if (plan.IsEmpty || (due.Kind != "filler" && due.Events.Count == 0))
+            if (plan.IsEmpty || (due.Kind != "filler" && due.Kind != "tip" && due.Events.Count == 0))
             {
                 // Too small for anyone to cover. It still becomes part of the public memory.
                 Finalize(due, new GeneratedCoverage(), plan, ut);
@@ -218,6 +219,7 @@ namespace KerbalNews
         CoveragePlan PlanFor(Story s)
         {
             if (s.Kind == "filler") return CoveragePlan.ForFiller(s.FillerOutlet == "" ? "herald" : s.FillerOutlet);
+            if (s.Kind == "tip") return CoveragePlan.ForTip(s);
             if (s.Kind == "release") { var r = ReleaseOf(s); return CoveragePlan.ForRelease(s, r != null ? r.Type : "announcement"); }
             return CoveragePlan.For(s);
         }
@@ -281,7 +283,7 @@ namespace KerbalNews
             {
                 a.Model = model;
                 var assign = plan.Outlets.FirstOrDefault(o => o.OutletId == a.Outlet);
-                double delay = story.Kind == "filler" ? 0 : (assign != null ? assign.DelayDays : 1);
+                double delay = story.Kind == "filler" || story.Kind == "tip" ? 0 : (assign != null ? assign.DelayDays : 1);
                 a.Id = State.NewId("a");
                 a.StoryId = story.Id;
                 a.Significance = story.Significance;

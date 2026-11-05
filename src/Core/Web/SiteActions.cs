@@ -82,6 +82,17 @@ namespace KerbalNews.Web
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
+                case "toggle-assistant": g.AssistantOn = !g.AssistantOn; SaveSettings(); break;
+                case "toggle-assistant-confirm": g.AssistantConfirm = !g.AssistantConfirm; SaveSettings(); break;
+                case "assistant-send":
+                    Engine.AssistantSend(Get(form, "ask"), Now());
+                    break;
+                case "assistant-ask":
+                    Engine.AssistantSend(arg, Now());
+                    break;
+                case "assistant-yes": Engine.AssistantDecide(arg, true, Now()); break;
+                case "assistant-no": Engine.AssistantDecide(arg, false, Now()); break;
+                case "assistant-clear": Engine.AssistantClear(); break;
                 case "scale":
                     float cur = g.UiScale > 0.4f ? g.UiScale : UiScale();
                     if (arg == "auto") g.UiScale = 0;

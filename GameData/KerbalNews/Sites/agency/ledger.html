@@ -1,0 +1,10 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Paper trail</h1><p>Everything your assistant did. Secret deals stay secret until someone finds the records. Spent {{spent}}, received {{received}}.</p></div>
+{{> _tabs}}
+<div class="wrap">
+{{#empty}}<p class="hint">Nothing yet. Ask your <a href="agency.kb/assistant">assistant</a> to do something.</p>{{/empty}}
+{{#deals}}<div class="deal{{#backfired}} bad{{/backfired}}{{#exposed}} bad{{/exposed}}">
+  <div class="dtop"><span class="meta">{{date}} · {{kind}}</span>{{#secret}}<span class="tag">SECRET</span>{{/secret}}{{#exposed}}<span class="tag red">EXPOSED</span>{{/exposed}}<span class="spacer"></span><span class="amt{{#income}} plus{{/income}}">{{amount}}</span></div>
+  <p>{{summary}}</p>{{#outcome}}<p class="hint">{{outcome}}</p>{{/outcome}}</div>{{/deals}}
+</div></body></html>

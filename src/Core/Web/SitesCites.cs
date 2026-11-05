@@ -24,7 +24,7 @@ namespace KerbalNews.Web
                 string id = m.Groups[1].Value;
                 if (id[0] == 'a')
                 {
-                    var a = State.Articles.FirstOrDefault(x => x.Id == id && x.PublishedUT <= now);
+                    var a = State.Articles.FirstOrDefault(x => x.Id == id && x.PublishedUT <= now && !x.Removed);
                     if (a != null) sb.Append("<a class=\"cite\" href=\"" + Html.Escape(ArticleUrl(a)) + "\">" + Html.Escape(Outlets.NameOf(a.Outlet) + ": “" + a.Headline + "”") + "</a>");
                 }
                 else

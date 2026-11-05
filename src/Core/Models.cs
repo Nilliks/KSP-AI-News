@@ -140,6 +140,11 @@ namespace KerbalNews
         public string Topic = "";       // for filler: what to write about
         public string ReleaseId = "";   // for release: the press release it answers
         public string FillerOutlet = "";
+        /// <summary>For a tip (Kind "tip"): extra outlets beyond FillerOutlet, the article kind, and a fallback headline and body for offline mode.</summary>
+        public string TipKind = "";
+        public string TipHeadline = "";
+        public string TipBody = "";
+        public string DealId = "";
         public double CreatedUT;
         public double PublishUT;
         public string Status = StoryStatus.Pending;
@@ -159,6 +164,7 @@ namespace KerbalNews
             get
             {
                 if (Kind == "filler") return "Feature: " + Topic;
+                if (Kind == "tip") return "Tip: " + (TipHeadline != "" ? TipHeadline : Topic);
                 if (Kind == "release") return "Press release: " + Topic;
                 var name = Craft != null && Craft.VesselName != "" ? Craft.VesselName : (Events.Count > 0 ? Events[0].VesselName : "");
                 return (name == "" ? Kind : name) + " (" + string.Join(", ", Events.Select(e => e.Type).Distinct().ToArray()) + ")";
@@ -173,6 +179,7 @@ namespace KerbalNews
             n.AddText("topic", Topic);
             if (ReleaseId != "") n.Add("release", ReleaseId);
             n.Add("fillerOutlet", FillerOutlet);
+            if (Kind == "tip") { n.Add("tipKind", TipKind); n.AddText("tipHeadline", TipHeadline); n.AddText("tipBody", TipBody); n.Add("deal", DealId); }
             n.Add("created", CreatedUT);
             n.Add("publish", PublishUT);
             n.Add("status", Status);
@@ -194,6 +201,10 @@ namespace KerbalNews
                 Topic = n.GetText("topic"),
                 ReleaseId = n.Get("release", ""),
                 FillerOutlet = n.Get("fillerOutlet", ""),
+                TipKind = n.Get("tipKind", ""),
+                TipHeadline = n.GetText("tipHeadline"),
+                TipBody = n.GetText("tipBody"),
+                DealId = n.Get("deal", ""),
                 CreatedUT = n.GetDouble("created"),
                 PublishUT = n.GetDouble("publish"),
                 Status = n.Get("status", StoryStatus.Pending),
@@ -403,6 +414,9 @@ namespace KerbalNews
         public string Model = "";
         /// <summary>File name of the generated press photo under PluginData/Images, or "".</summary>
         public string Image = "";
+        /// <summary>Taken down by the outlet (paid off, or retracted after a legal threat). The page says so; lists skip it.</summary>
+        public bool Removed;
+        public string RemovedNote = "";
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
@@ -422,6 +436,7 @@ namespace KerbalNews
             n.Add("offline", Offline);
             n.AddText("model", Model);
             if (Image != "") n.Add("image", Image);
+            if (Removed) { n.Add("removed", true); n.AddText("removedNote", RemovedNote); }
             foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
         }
 
@@ -443,6 +458,8 @@ namespace KerbalNews
                 Offline = n.GetBool("offline"),
                 Model = n.GetText("model"),
                 Image = n.Get("image", ""),
+                Removed = n.GetBool("removed"),
+                RemovedNote = n.GetText("removedNote"),
             };
             foreach (var t in n.GetText("tags").Split(',')) if (t.Trim() != "") a.Tags.Add(t.Trim());
             foreach (var cn in n.GetNodes("COMMENT")) a.Comments.Add(Comment.Load(cn));
@@ -647,6 +664,12 @@ namespace KerbalNews
         public List<StreamArchive> Streams = new List<StreamArchive>();
         public List<Poll> Polls = new List<Poll>();
         public List<CommunityJob> CommunityJobs = new List<CommunityJob>();
+        /// <summary>The personal assistant's chat, and the paper trail of everything it did.</summary>
+        public List<AssistantMessage> AssistantChat = new List<AssistantMessage>();
+        public List<Deal> Deals = new List<Deal>();
+        /// <summary>A PR firm the assistant hired, and until when.</summary>
+        public string PrFirm = "";
+        public double PrFirmUntilUT = -1;
         /// <summary>The handle the player last used to post anonymously.</summary>
         public string AnonHandle = "";
 
@@ -654,7 +677,7 @@ namespace KerbalNews
 
         public IEnumerable<Article> PublishedArticles(double ut)
         {
-            return Articles.Where(a => a.PublishedUT <= ut).OrderByDescending(a => a.PublishedUT);
+            return Articles.Where(a => a.PublishedUT <= ut && !a.Removed).OrderByDescending(a => a.PublishedUT);
         }
 
         public const int MaxArticles = 600;
@@ -745,7 +768,15 @@ namespace KerbalNews
             foreach (var p in Polls) p.Save(pl.AddNode("POLL"));
             var jo = n.AddNode("COMMUNITYJOBS");
             foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
+            var asn = n.AddNode("ASSISTANT");
+            foreach (var m in AssistantChat.Skip(Math.Max(0, AssistantChat.Count - MaxAssistantMessages))) m.Save(asn.AddNode("MSG"));
+            n.AddText("prFirm", PrFirm);
+            n.Add("prFirmUntil", PrFirmUntilUT);
+            var dealNode = n.AddNode("DEALS");
+            foreach (var d in Deals) d.Save(dealNode.AddNode("DEAL"));
         }
+
+        public const int MaxAssistantMessages = 120;
 
         public static NewsState Load(DataNode n)
         {
@@ -816,6 +847,12 @@ namespace KerbalNews
             if (pl != null) foreach (var pn in pl.GetNodes("POLL")) s.Polls.Add(Poll.Load(pn));
             var jo = n.GetNode("COMMUNITYJOBS");
             if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
+            var asn = n.GetNode("ASSISTANT");
+            if (asn != null) foreach (var mn in asn.GetNodes("MSG")) s.AssistantChat.Add(AssistantMessage.Load(mn));
+            s.PrFirm = n.GetText("prFirm");
+            s.PrFirmUntilUT = n.GetDouble("prFirmUntil", -1);
+            var dealNode = n.GetNode("DEALS");
+            if (dealNode != null) foreach (var x in dealNode.GetNodes("DEAL")) s.Deals.Add(Deal.Load(x));
             return s;
         }
     }
