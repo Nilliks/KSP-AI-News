@@ -14,7 +14,7 @@ public static class CoreTests
     public static int Main()
     {
         int pass = 0, fail = 0;
-        foreach (var m in typeof(CoreTests).GetMethods().Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
+        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
         {
             try { m.Invoke(null, null); pass++; Console.WriteLine("PASS " + m.Name); }
             catch (Exception e)

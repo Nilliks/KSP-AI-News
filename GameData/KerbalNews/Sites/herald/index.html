@@ -1,0 +1,13 @@
+<html><body>
+{{> netbar}}
+<div class="mast"><div class="name">Kerbin Daily Herald</div>
+  <div class="line"><span>{{today}}</span><span>Est. by the Kerbin Press Guild</span><span>Price: 2 funds</span></div></div>
+<div class="page">
+  {{#empty}}<div class="empty"><p>The presses are quiet. Nothing has been published yet.</p></div>{{/empty}}
+  <div class="front">
+    <div class="leadcol">{{#top}}<div class="kicker">{{kindLabel}}</div><a class="hl" href="{{url}}">{{headline}}</a>{{#subhead}}<p class="dek">{{subhead}}</p>{{/subhead}}<p class="lede">{{lead}}</p><p class="meta">{{#reporter}}By {{reporter}} &middot; {{/reporter}}{{date}} &middot; {{commentCount}} comments</p>{{/top}}
+      {{#rest}}{{> headline_item}}{{/rest}}</div>
+    <div class="sidecol">{{#secondary}}<div class="item"><div class="kicker">{{kindLabel}}</div><a class="hl" href="{{url}}">{{headline}}</a><p class="meta">{{lead}}</p></div>{{/secondary}}
+      {{^secondary}}<p class="meta">More stories as they break.</p>{{/secondary}}</div>
+  </div>
+</div></body></html>

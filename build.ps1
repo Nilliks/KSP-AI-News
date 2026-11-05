@@ -40,7 +40,7 @@ $root = $PSScriptRoot
 $out = Join-Path $root "GameData\KerbalNews\Plugins\KerbalNews.dll"
 New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
 $cscArgs = @("-nologo","-target:library","-optimize+","-debug-","-nostdlib+","-langversion:7.3","-warn:4","-out:`"$out`"") + $refs +
-        @("`"$root\src\Core\*.cs`"","`"$root\src\KSP\*.cs`"")
+        @("`"$root\src\Core\*.cs`"","`"$root\src\Core\Web\*.cs`"","`"$root\src\KSP\*.cs`"")
 Write-Host "Compiling with $csc"
 $p = Start-Process -FilePath $csc -ArgumentList $cscArgs -NoNewWindow -Wait -PassThru
 if ($p.ExitCode -ne 0) { throw "Build failed." }

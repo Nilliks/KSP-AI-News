@@ -122,9 +122,14 @@ namespace KerbalNews
             {
                 sb.AppendLine("Events in this story (in order):");
                 foreach (var e in story.Events.OrderBy(x => x.UT))
-                    sb.AppendLine("- " + clock.FormatDate(e.UT) + ": " + Describe(e));
+                    sb.AppendLine("- " + clock.FormatDate(e.UT) + ": " + (story.Silent ? DescribeSilent(e) : Describe(e)));
             }
-            if (story.Craft != null) sb.AppendLine(CraftText(story.Craft));
+            if (story.Silent)
+            {
+                if (story.Craft != null) sb.AppendLine(VisibleCraftText(story.Craft));
+                sb.AppendLine("TELEMETRY SILENT: the agency has released no telemetry, specifications or crew details for this vessel. The press knows only what was visible from the ground or reported above. Do not state its mass, part count, delta-v, crew, destination or orbital details. Outlets may note the secrecy: the tabloid and the watchdog speculate, the trade press grumbles about missing data, commenters guess.");
+            }
+            else if (story.Craft != null) sb.AppendLine(CraftText(story.Craft));
 
             TrackedVessel tv;
             if (story.VesselId != "" && state.Tracked.TryGetValue(story.VesselId, out tv) && tv.History.Count > 0)
@@ -208,6 +213,45 @@ namespace KerbalNews
                 case EventTypes.ContractAccepted: return "The agency accepted a contract: " + e.Detail + ".";
                 default: return e.Type + ": " + v + " " + e.Detail;
             }
+        }
+
+        /// <summary>What a ground observer could say about an event on a silent vessel.</summary>
+        public static string DescribeSilent(NewsEvent e)
+        {
+            string v = "\"" + e.VesselName + "\"";
+            switch (e.Type)
+            {
+                case EventTypes.Launch: return "A rocket the agency calls " + v + " launched" + (e.Detail != "" ? " from " + e.Detail : "") + "; the agency did not say whether crew were aboard.";
+                case EventTypes.Failure: return v + " was seen to be destroyed" + (e.Body == "Kerbin" || e.Body == "" ? " in the skies over Kerbin; the explosion was visible for kilometres" : "") + ".";
+                case EventTypes.Orbit: return "Amateur satellite trackers report a new object in orbit around Kerbin, presumably " + v + ". Its exact orbit and purpose are not public.";
+                case EventTypes.CrewKilled: return "The agency confirmed that kerbonaut " + string.Join(", ", e.Crew.ToArray()) + " was killed aboard " + v + ".";
+                case EventTypes.Recovery: return v + " was recovered by agency teams.";
+                case EventTypes.Splashdown: return "A capsule believed to be from " + v + " was seen splashing down.";
+                case EventTypes.Landing: return "A craft believed to be " + v + " was seen landing.";
+                default: return Describe(e);
+            }
+        }
+
+        /// <summary>What photographers at the fence could see of a silent craft on the pad: size and shape, no specs.</summary>
+        public static string VisibleCraftText(CraftSnapshot c)
+        {
+            var sb = new StringBuilder();
+            sb.Append("Seen on the launch pad");
+            if (c.LaunchSite != "") sb.Append(" at " + c.LaunchSite);
+            sb.Append(": \"" + c.VesselName + "\", ");
+            if (c.HeightM > 0) sb.AppendFormat(Inv, "roughly {0:0} m tall, ", Math.Round(c.HeightM / 5) * 5);
+            sb.Append(SizeClass(c));
+            if (c.Stages > 1) sb.AppendFormat(Inv, ", with about {0} visible stages", c.Stages);
+            if (c.CrewCapacity > 0) sb.Append(", with what looks like a crew capsule on top");
+            sb.Append(". Photographers at the fence got pictures; nothing else is known.");
+            return sb.ToString();
+        }
+
+        public static string SizeClass(CraftSnapshot c)
+        {
+            if (c.MassTons > 150 || c.HeightM > 50) return "a large rocket";
+            if (c.MassTons > 40 || c.HeightM > 25) return "a mid-size rocket";
+            return "a small rocket";
         }
 
         static string DetailText(NewsEvent e) { return e.Detail != "" ? " " + e.Detail : ""; }

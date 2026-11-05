@@ -1,0 +1,17 @@
+body { background: #faf7fb; font-family: serif; }
+.mast { padding: 22px 30px; text-align: center; background: #2b1d45; }
+.mast .name { font-size: 44px; color: #f3e9ff; font-style: italic; font-family: serif; }
+.mast .sub { font-size: 13px; color: #cbb8ea; letter-spacing: 3px; text-transform: uppercase; font-family: sans; }
+.page { padding: 20px 40px; }
+.cover { padding: 18px 0px; border-bottom: 1px solid #d8cde6; margin-bottom: 10px; }
+.cover .hl { font-size: 36px; color: #2b1d45; font-style: italic; }
+.cover p { font-size: 19px; color: #4a3d5f; }
+.item { padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #e6dcef; }
+.item .hl { font-size: 22px; color: #2b1d45; font-style: italic; }
+.new { color: #5b3f86; }
+.kicker { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: #5b3f86; font-family: sans; }
+.headline { font-size: 40px; font-style: italic; color: #2b1d45; }
+.subhead { font-size: 21px; color: #4a3d5f; }
+.byline { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #6f6283; font-family: sans; }
+.article { max-width: 720px; }
+.para { font-size: 19px; line-height: 1.6; }

@@ -1,0 +1,8 @@
+<html><body>
+{{> netbar}}
+<div class="mast"><div class="name">Mun Monthly</div><div class="sub">Stories of the kerbals who reach for the sky</div></div>
+<div class="page">
+  {{#empty}}<div class="empty"><p>Our next issue is in the works.</p></div>{{/empty}}
+  {{#top}}<div class="cover"><div class="kicker">Cover story</div><a class="hl" href="{{url}}">{{headline}}</a><p>{{lead}}</p></div>{{/top}}
+  {{#articles}}{{> headline_item}}{{/articles}}
+</div></body></html>

@@ -1,0 +1,8 @@
+<html><body>
+{{> netbar}}
+<div class="mast"><span class="name">Kerbin Science Review</span><span class="sub">Commentary from the Kerbin research community</span></div>
+<div class="page">
+  {{#empty}}<div class="empty"><p>Awaiting data worth reviewing.</p></div>{{/empty}}
+  {{#top}}<div class="abstract"><div class="kicker">Abstract</div><a class="hl" href="{{url}}">{{headline}}</a><p>{{lead}}</p><p class="meta">{{date}}</p></div>{{/top}}
+  {{#articles}}{{> headline_item}}{{/articles}}
+</div></body></html>

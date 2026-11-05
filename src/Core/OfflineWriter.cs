@@ -76,7 +76,7 @@ namespace KerbalNews
                     if (e.Type == EventTypes.Failure) return Pick(r, "KABOOM! " + vessel + " goes up in smoke", "Another " + agency + " rocket, another fireball");
                     return Pick(r, "WOW! ", "THEY DID IT! ", "") + what.ToUpperInvariant().Substring(0, 1) + what.Substring(1) + "!";
                 case "observer":
-                    if (s.Craft != null && s.Craft.Parts > 0) return what + ": a " + Math.Round(s.Craft.MassTons) + "-tonne, " + s.Craft.Stages + "-stage design under the microscope";
+                    if (!s.Silent && s.Craft != null && s.Craft.Parts > 0) return what + ": a " + Math.Round(s.Craft.MassTons) + "-tonne, " + s.Craft.Stages + "-stage design under the microscope";
                     return "Analysis: " + what;
                 case "kscwatch":
                     if (e.Type == EventTypes.CrewKilled || e.Type == EventTypes.Failure) return "Questions " + agency + " must answer after the " + vessel + " loss";
@@ -139,11 +139,16 @@ namespace KerbalNews
                 return sb.ToString();
             }
             foreach (var e in s.Events.OrderBy(x => x.UT))
-                sb.Append(clock.FormatDate(e.UT) + ": " + PromptBuilder.Describe(e) + " ");
+                sb.Append(clock.FormatDate(e.UT) + ": " + (s.Silent ? PromptBuilder.DescribeSilent(e) : PromptBuilder.Describe(e)) + " ");
             sb.Append("\n\n");
-            if (s.Craft != null)
+            if (s.Silent)
+            {
+                if (s.Craft != null) sb.Append(PromptBuilder.VisibleCraftText(s.Craft) + " ");
+                sb.Append(agency + " has released no telemetry or specifications for this flight.\n\n");
+            }
+            else if (s.Craft != null)
                 sb.Append(PromptBuilder.CraftText(s.Craft) + "\n\n");
-            if (outlet == "observer" && s.Craft != null && s.Craft.Parts > 0)
+            if (outlet == "observer" && !s.Silent && s.Craft != null && s.Craft.Parts > 0)
                 sb.AppendFormat(Inv, "At {0:0.#} tonnes and {1} parts, the vehicle is {2} by the standards of the program so far.\n\n",
                     s.Craft.MassTons, s.Craft.Parts, s.Craft.MassTons > 150 ? "a heavy lifter" : s.Craft.MassTons > 40 ? "a mid-size launcher" : "a light vehicle");
             if (lead != null && lead.Type == EventTypes.CrewKilled)

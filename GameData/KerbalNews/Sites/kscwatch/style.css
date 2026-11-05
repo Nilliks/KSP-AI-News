@@ -1,0 +1,20 @@
+body { background: #fbfaf5; }
+.mast { padding: 14px 22px; background: #fbfaf5; border-bottom: 4px solid #8a6d1d; display: flex; align-items: center; gap: 16px; }
+.mast .name { font-size: 30px; font-weight: bold; color: #3d3011; }
+.mast .sub { font-size: 14px; color: #8a6d1d; font-style: italic; }
+.page { padding: 16px 24px; }
+.blog { display: flex; gap: 22px; }
+.posts { flex: 1; }
+.tally { width: 260px; background: #f1ebd6; padding: 12px 14px; }
+.tally h3 { font-size: 15px; color: #3d3011; text-transform: uppercase; }
+.tally .n { font-size: 26px; font-weight: bold; color: #8a6d1d; }
+.post { padding-top: 10px; padding-bottom: 12px; border-bottom: 1px dashed #c8b98a; }
+.post .hl { font-size: 22px; font-weight: bold; color: #3d3011; }
+.item .hl { font-size: 18px; font-weight: bold; color: #3d3011; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px dashed #c8b98a; }
+.new { color: #8a6d1d; }
+.kicker { font-size: 12px; color: #8a6d1d; font-weight: bold; text-transform: uppercase; }
+.headline { font-size: 32px; color: #3d3011; }
+.byline { font-size: 13px; color: #6b5a2e; font-style: italic; }
+.article { max-width: 760px; }
+.para { font-size: 17px; line-height: 1.5; }

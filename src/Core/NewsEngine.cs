@@ -81,6 +81,8 @@ namespace KerbalNews
         public Story Ingest(NewsEvent e)
         {
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;
+            // A silent vessel only makes news through what anyone can see from the ground.
+            if (State.IsSilent(e.VesselId) && !VisibleFromGround(e)) return null;
             string key = Significance.NoveltyKey(e);
             double seen;
             State.Novelty.TryGetValue(key, out seen);
@@ -117,6 +119,36 @@ namespace KerbalNews
             }
             Reschedule(story);
             return story;
+        }
+
+        /// <summary>Launches, explosions, deaths and returns home cannot be hidden, and amateur trackers
+        /// can spot a new object in orbit of Kerbin. Everything else needs telemetry.</summary>
+        public static bool VisibleFromGround(NewsEvent e)
+        {
+            switch (e.Type)
+            {
+                case EventTypes.Orbit:
+                    return e.Body == "Kerbin";
+                case EventTypes.Launch:
+                case EventTypes.Failure:
+                case EventTypes.CrewKilled:
+                case EventTypes.Recovery:
+                    return true;
+                case EventTypes.Splashdown:
+                case EventTypes.Landing:
+                    return e.Body == "Kerbin";
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>Applies the vessel's current telemetry setting right before a story is written.</summary>
+        void ApplyPrivacy(Story s)
+        {
+            s.Silent = s.Kind == "mission" && State.IsSilent(s.VesselId);
+            if (!s.Silent) return;
+            s.Events.RemoveAll(e => !VisibleFromGround(e));
+            s.Significance = Significance.StoryScore(s);
         }
 
         void Reschedule(Story s)
@@ -160,8 +192,9 @@ namespace KerbalNews
                 MaybeQueueFiller(ut);
                 return;
             }
+            ApplyPrivacy(due);
             var plan = PlanFor(due);
-            if (plan.IsEmpty)
+            if (plan.IsEmpty || (due.Kind != "filler" && due.Events.Count == 0))
             {
                 // Too small for anyone to cover. It still becomes part of the public memory.
                 Finalize(due, new GeneratedCoverage(), plan, ut);
@@ -448,6 +481,23 @@ namespace KerbalNews
                 var json = ResponseParser.ExtractJson(text);
                 bool ok = json != null && Json.TryParse(json, out root) && Json.Get(root, "ok") is bool;
                 done(true, ok ? "Connected to " + preset.Name + " (" + Settings.CheapModel + ")." : "Connected, but the reply was not clean JSON: " + text.Substring(0, Math.Min(120, text.Length)));
+            });
+        }
+
+        /// <summary>Asks the provider which models this key can use, and remembers the list.</summary>
+        public void FetchModels(Action<bool, string> done)
+        {
+            var preset = Settings.Preset;
+            if (preset.NeedsKey && Settings.Key == "") { done(false, "Enter an API key first."); return; }
+            var req = Providers.BuildListModels(preset, Settings.BaseUrl, Settings.Key);
+            string id = preset.Id;
+            Transport.Send(req, res =>
+            {
+                if (!res.Ok) { done(false, res.Error ?? ("HTTP " + res.Status + " listing models")); return; }
+                var models = Providers.ParseModelList(preset.Kind, res.Body);
+                if (models.Count == 0) { done(false, "The provider returned no models."); return; }
+                Settings.FetchedModels[id] = string.Join(" ", models.ToArray());
+                done(true, models.Count + " models available from " + preset.Name + ".");
             });
         }
 

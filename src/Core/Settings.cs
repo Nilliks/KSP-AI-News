@@ -16,6 +16,8 @@ namespace KerbalNews
         public Dictionary<string, string> WriterModels = new Dictionary<string, string>();
         public Dictionary<string, string> CheapModels = new Dictionary<string, string>();
         public Dictionary<string, string> Keys = new Dictionary<string, string>();
+        /// <summary>Models fetched live from each provider (space-separated), kept between sessions.</summary>
+        public Dictionary<string, string> FetchedModels = new Dictionary<string, string>();
         public int MaxTokens = 6000;
         public int TimeoutSeconds = 120;
         public bool NotifyOnPublish = true;
@@ -35,6 +37,20 @@ namespace KerbalNews
         public string WriterModel { get { return Lookup(WriterModels, ProviderId, Preset.WriterModel); } }
         public string CheapModel { get { return Lookup(CheapModels, ProviderId, Preset.CheapModel); } }
         public string Key { get { return Lookup(Keys, ProviderId, ""); } }
+
+        /// <summary>Suggested plus fetched models for the current provider, without duplicates.</summary>
+        public List<string> ModelChoices
+        {
+            get
+            {
+                var l = new List<string>(Preset.Models);
+                foreach (var m in Lookup(FetchedModels, ProviderId, "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                    if (!l.Contains(m)) l.Add(m);
+                if (!l.Contains(WriterModel)) l.Insert(0, WriterModel);
+                if (!l.Contains(CheapModel)) l.Insert(0, CheapModel);
+                return l;
+            }
+        }
 
         public bool CanCallAi
         {
@@ -57,6 +73,7 @@ namespace KerbalNews
                 n.AddText("baseUrl", Lookup(BaseUrls, p.Id, ""));
                 n.AddText("writer", Lookup(WriterModels, p.Id, ""));
                 n.AddText("cheap", Lookup(CheapModels, p.Id, ""));
+                n.AddText("fetched", Lookup(FetchedModels, p.Id, ""));
             }
             foreach (var kv in Keys)
                 if (!string.IsNullOrEmpty(kv.Value)) { var k = secrets.AddNode("KEY"); k.Add("id", kv.Key); k.AddText("key", kv.Value); }
@@ -81,6 +98,7 @@ namespace KerbalNews
                     g.BaseUrls[id] = n.GetText("baseUrl");
                     g.WriterModels[id] = n.GetText("writer");
                     g.CheapModels[id] = n.GetText("cheap");
+                    g.FetchedModels[id] = n.GetText("fetched");
                 }
             }
             if (secrets != null)

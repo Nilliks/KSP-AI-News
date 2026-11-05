@@ -1,0 +1,16 @@
+<html><body>
+{{> netbar}}
+<div class="mast"><span class="name">KSC Watch</span><span class="sub">Independent. Unimpressed. Counting every piece of junk since day one.</span></div>
+<div class="page"><div class="blog">
+  <div class="posts">
+    {{#empty}}<div class="empty"><p>Nothing to report. Suspicious.</p></div>{{/empty}}
+    {{#top}}<div class="post"><div class="kicker">{{kindLabel}} &middot; {{date}}</div><a class="hl" href="{{url}}">{{headline}}</a><p>{{lead}}</p><p class="meta">{{commentCount}} comments</p></div>{{/top}}
+    {{#articles}}{{> headline_item}}{{/articles}}
+  </div>
+  <div class="tally"><h3>The tally</h3>
+    <p class="meta">Public trust</p><p class="n">{{mood.trust}} / 100</p>
+    <p class="meta">Public excitement</p><p class="n">{{mood.excitement}} / 100</p>
+    {{#mood.concerns}}<p class="meta">Concern: <b>{{name}}</b> ({{level}})</p>{{/mood.concerns}}
+    <p class="meta">See the full count on the <a href="tracker.kb">Universe tracker</a>.</p>
+  </div>
+</div></div></body></html>

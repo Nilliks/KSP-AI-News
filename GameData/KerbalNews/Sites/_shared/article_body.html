@@ -1,0 +1,29 @@
+<div class="article">
+  <div class="kicker">{{kindLabel}}</div>
+  <h1 class="headline">{{headline}}</h1>
+  {{#subhead}}<p class="subhead">{{subhead}}</p>{{/subhead}}
+  <p class="byline">{{#reporter}}By {{reporter}} &middot; {{/reporter}}{{date}}</p>
+  {{#craft}}<div class="craft"><h4>{{name}}</h4><p class="meta">{{desc}}</p>
+    <div class="specs">
+      <div class="spec"><div class="n">{{mass}} t</div><div class="l">mass</div></div>
+      <div class="spec"><div class="n">{{parts}}</div><div class="l">parts</div></div>
+      <div class="spec"><div class="n">{{height}} m</div><div class="l">height</div></div>
+      <div class="spec"><div class="n">{{stages}}</div><div class="l">stages</div></div>
+      {{#dv}}<div class="spec"><div class="n">{{dv}}</div><div class="l">m/s delta-v</div></div>{{/dv}}
+    </div>
+    {{#crew}}<p class="meta">Crew: {{crew}}</p>{{/crew}}
+  </div>{{/craft}}
+  <div class="body">{{#paragraphs}}<p class="para">{{text}}</p>{{/paragraphs}}</div>
+  <div class="tags">{{#tags}}<span class="tag">{{.}}</span>{{/tags}}</div>
+  <div class="tools">
+    {{#socialCount}}<a class="btn" href="{{socialUrl}}">{{socialCount}} posts on Kerbnet</a>{{/socialCount}}
+    <a class="btn" href="action:rewrite/{{storyId}}">Rewrite with current model</a>
+    <span class="meta">Written by {{model}}</span>
+  </div>
+  {{#related.0}}<div class="related"><h4>Elsewhere on this story</h4>
+    {{#related}}<p><a href="{{url}}"><b>{{outletName}}:</b> {{headline}}</a></p>{{/related}}</div>{{/related.0}}
+  <div class="comments"><h3>{{commentCount}} comments</h3>
+    {{#comments}}<div class="comment"><div class="avatar">{{initial}}</div><div style="flex: 1"><div class="who">{{author}}</div><p>{{text}}</p><div class="likes">&#9650; {{likes}}</div></div></div>{{/comments}}
+    {{^comments}}<p class="muted">No comments yet.</p>{{/comments}}
+  </div>
+</div>

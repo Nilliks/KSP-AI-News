@@ -1,0 +1,16 @@
+body { background: #f5fafb; }
+.mast { padding: 14px 22px; background: #11657a; display: flex; align-items: center; gap: 14px; }
+.mast .name { font-size: 28px; font-weight: bold; color: #ffffff; font-family: serif; }
+.mast .sub { font-size: 13px; color: #bfe3ea; }
+.page { padding: 16px 26px; }
+.item { padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #d3e6ea; }
+.item .hl { font-size: 18px; font-weight: bold; color: #0b3f4c; font-family: serif; }
+.abstract { background: #ffffff; border-left: 4px solid #11657a; padding: 12px 16px; margin-bottom: 14px; }
+.abstract .hl { font-size: 26px; color: #0b3f4c; font-family: serif; }
+.new { color: #11657a; }
+.kicker { font-size: 12px; color: #11657a; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+.headline { font-size: 32px; color: #0b3f4c; font-family: serif; }
+.subhead { font-size: 18px; color: #2f5761; font-style: italic; }
+.byline { font-size: 13px; color: #4f6c73; }
+.article { max-width: 760px; }
+.para { font-size: 17px; line-height: 1.5; font-family: serif; }

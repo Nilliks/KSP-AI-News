@@ -1,0 +1,22 @@
+body { background: #f7f4ec; font-family: serif; }
+.mast { padding: 16px 22px 8px 22px; text-align: center; border-bottom: 4px double #1d1d1b; }
+.mast .name { font-size: 46px; font-weight: bold; letter-spacing: 1px; color: #111111; font-family: serif; }
+.mast .line { display: flex; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #444444; border-top: 1px solid #1d1d1b; padding-top: 4px; margin-top: 4px; }
+.mast .line span { flex: 1; }
+.page { padding: 16px 28px; }
+.front { display: flex; gap: 24px; }
+.leadcol { flex: 2; }
+.sidecol { flex: 1; border-left: 1px solid #c9c2b0; padding-left: 18px; }
+.leadcol .hl { font-size: 34px; font-weight: bold; color: #111111; }
+.leadcol .dek { font-size: 18px; font-style: italic; color: #333333; margin-top: 6px; }
+.leadcol .lede { font-size: 17px; margin-top: 8px; }
+.sidecol .hl, .item .hl { font-size: 18px; font-weight: bold; color: #111111; }
+.item { padding-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #d8d1bf; }
+.new { color: #a3201c; }
+.kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #a3201c; font-weight: bold; font-family: sans; }
+.headline { font-size: 38px; font-weight: bold; color: #111111; }
+.subhead { font-size: 20px; font-style: italic; color: #333333; }
+.byline { font-size: 13px; color: #555555; text-transform: uppercase; letter-spacing: 1px; font-family: sans; border-bottom: 1px solid #c9c2b0; padding-bottom: 8px; }
+.article { max-width: 760px; }
+.para { font-size: 18px; line-height: 1.5; }
+h3 { font-family: sans; }

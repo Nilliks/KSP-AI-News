@@ -1,0 +1,23 @@
+body { background: #eef0f3; }
+.top { background: #0f2238; padding: 18px 22px; }
+.top .logo { font-size: 30px; font-weight: bold; color: #ffffff; letter-spacing: 2px; }
+.top .tag { background: #0f2238; color: #9fb3c8; font-size: 13px; padding: 0; }
+.searchbar { display: flex; gap: 8px; margin-top: 10px; }
+.searchbar input { width: 360px; }
+.searchbar button { background: #ffd27f; color: #0f2238; font-weight: bold; }
+.cols { display: flex; gap: 22px; }
+.main { flex: 1; }
+.side { width: 300px; }
+.lead { background: #ffffff; padding: 16px 18px; margin-bottom: 14px; border-top: 4px solid #a3201c; }
+.lead .src { font-size: 13px; font-weight: bold; color: #a3201c; text-transform: uppercase; letter-spacing: 1px; }
+.lead .hl { font-size: 28px; font-weight: bold; color: #0f2238; }
+.lead p { font-size: 17px; color: #333333; margin-top: 6px; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #d5dae1; }
+.item .hl { font-size: 17px; font-weight: bold; color: #0f2238; }
+.item .src { font-size: 12px; font-weight: bold; color: #a3201c; text-transform: uppercase; }
+.new { color: #a3201c; }
+.box { background: #ffffff; padding: 12px 14px; margin-bottom: 14px; }
+.box h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: #0f2238; border-bottom: 2px solid #0f2238; padding-bottom: 4px; }
+.section-link { font-weight: bold; font-size: 14px; }
+.post { padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid #e3e6ea; font-size: 14px; }
+h2.sec { font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: #6b7785; margin-top: 10px; }

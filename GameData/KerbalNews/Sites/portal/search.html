@@ -1,0 +1,7 @@
+<html><body>
+{{> netbar}}
+<div class="top"><div class="logo">ARCHIVE SEARCH</div>
+  <div class="searchbar"><input name="q" value="{{q}}" placeholder="Vessel, kerbal, outlet, anything"><button data-action="search">Search</button></div></div>
+<div class="wrap"><p class="meta">{{count}} results</p>
+  {{#results}}<div class="item"><div class="src">{{outletName}}</div><a class="hl" href="{{url}}">{{headline}}</a><div class="meta">{{date}} &middot; {{kindLabel}}</div></div>{{/results}}
+</div></body></html>

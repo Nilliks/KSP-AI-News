@@ -1,0 +1,16 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Telemetry sharing</h1><p>Shared: the press gets specs, orbits, landings and crew. Silent: only what anyone can see from the ground (launches, explosions, returns home). The press will notice the secrecy.</p></div>
+<div class="wrap">
+  {{#active}}<div class="activebox"><p>Vessel you are flying</p><div class="name">{{name}}</div>
+    <div class="row" style="margin-top: 8px"><a class="toggle{{^silent}} on{{/silent}}" href="action:privacy/{{id}}/share">Share telemetry</a><a class="toggle{{#silent}} on{{/silent}}" href="action:privacy/{{id}}/silent">Keep silent</a></div></div>{{/active}}
+  {{^active}}<p class="hint">Go to the launch pad or fly a vessel to set its telemetry before launch. The setting below applies to new launches.</p>{{/active}}
+  <div class="row" style="align-items: center; margin-bottom: 12px"><span>New launches:</span>
+    <a class="toggle{{^silentDefault}} on{{/silentDefault}}" href="action:privacy-default/share">Share by default</a>
+    <a class="toggle{{#silentDefault}} on{{/silentDefault}}" href="action:privacy-default/silent">Silent by default</a></div>
+  <h2>Vessels the press knows about</h2>
+  {{#vessels}}<div class="vessel"><span class="name">{{name}}</span><span class="meta">launched {{launched}}</span>
+    {{#silent}}<span class="state silent">Silent</span> <a href="action:privacy/{{id}}/share">Share</a>{{/silent}}
+    {{^silent}}<span class="state shared">Shared</span> <a href="action:privacy/{{id}}/silent">Make silent</a>{{/silent}}</div>{{/vessels}}
+  {{^vessels}}<p class="hint">No other vessels yet.</p>{{/vessels}}
+</div></body></html>

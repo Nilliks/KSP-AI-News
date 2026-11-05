@@ -1,0 +1,18 @@
+body { background: #ffffff; }
+.mast { background: #c4161c; padding: 10px 22px; display: flex; align-items: center; gap: 16px; }
+.mast .name { font-size: 40px; font-weight: bold; color: #ffffff; text-transform: uppercase; letter-spacing: -1px; }
+.mast .flash { background: #ffe600; color: #111111; font-weight: bold; padding: 4px 10px; text-transform: uppercase; font-size: 14px; }
+.page { padding: 14px 20px; }
+.splash { background: #111111; padding: 16px 18px; margin-bottom: 14px; }
+.splash .hl { font-size: 40px; font-weight: bold; color: #ffe600; text-transform: uppercase; }
+.splash p { color: #ffffff; font-size: 18px; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 2px solid #c4161c; }
+.item .hl { font-size: 20px; font-weight: bold; color: #c4161c; text-transform: uppercase; }
+.new { color: #111111; }
+.kicker { background: #ffe600; color: #111111; font-weight: bold; padding: 2px 8px; text-transform: uppercase; font-size: 13px; }
+.headline { font-size: 42px; color: #c4161c; text-transform: uppercase; }
+.subhead { font-size: 20px; font-weight: bold; }
+.byline { font-size: 13px; color: #555555; }
+.article { max-width: 760px; }
+.para { font-size: 18px; font-weight: bold; }
+.comments { border-top: 4px solid #c4161c; }

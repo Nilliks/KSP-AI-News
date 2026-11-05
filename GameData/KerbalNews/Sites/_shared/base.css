@@ -1,0 +1,35 @@
+/* Shared by every site. Each site's style.css is loaded after this. */
+body { font-family: sans; font-size: 16px; color: #1d1d1b; background: #f4f1ea; line-height: 1.35; }
+a { color: #1a4f8b; }
+a:hover { color: #a3201c; }
+.netbar { display: flex; background: #111418; padding: 6px 14px; gap: 14px; align-items: center; }
+.netbar a { color: #c9ced6; font-size: 13px; }
+.netbar a:hover { color: #ffffff; }
+.netbar .brand { color: #ffd27f; font-weight: bold; }
+.aibanner { background: #fff3cd; color: #5c4400; padding: 8px 14px; border-bottom: 1px solid #e0c46c; display: flex; gap: 12px; align-items: center; }
+.aibanner a { color: #5c4400; font-weight: bold; }
+.wrap { padding: 16px 22px; }
+.meta { font-size: 13px; color: #6b665c; }
+.muted { color: #6b665c; }
+.pill { font-size: 12px; padding: 2px 8px; background: #e6e0d2; color: #3a372f; }
+.tag { font-size: 12px; padding: 2px 8px; background: #e6e0d2; color: #3a372f; }
+.tags { display: flex; gap: 6px; margin-top: 8px; margin-bottom: 8px; }
+.comments { margin-top: 18px; padding-top: 10px; border-top: 2px solid #1d1d1b; }
+.comment { display: flex; gap: 10px; padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #ddd6c6; }
+.avatar { width: 34px; padding-top: 6px; padding-bottom: 6px; text-align: center; background: #8a8478; color: #ffffff; font-weight: bold; }
+.comment .who { font-weight: bold; font-size: 14px; }
+.comment .likes { font-size: 12px; color: #6b665c; }
+.craft { background: #ffffff; padding: 10px 14px; margin-top: 10px; margin-bottom: 14px; border-left: 4px solid #1f3b5a; }
+.craft h4 { margin-bottom: 4px; }
+.specs { display: flex; gap: 18px; }
+.spec .n { font-size: 20px; font-weight: bold; }
+.spec .l { font-size: 12px; color: #6b665c; }
+.related { margin-top: 16px; padding: 10px 14px; background: #ebe5d6; }
+.tools { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.btn { background: #1f3b5a; color: #ffffff; padding: 6px 12px; }
+.btn:hover { background: #a3201c; }
+.empty { padding: 30px; text-align: center; color: #6b665c; }
+.moodbar { display: flex; gap: 18px; align-items: center; font-size: 13px; }
+.meter { width: 120px; background: #d9d2c1; }
+.meter div { background: #2e7d32; padding-top: 4px; padding-bottom: 4px; }
+.meter.trust div { background: #1f6aa5; }

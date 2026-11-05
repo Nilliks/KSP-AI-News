@@ -1,0 +1,12 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Universe tracker</h1><p>Everything the public can see from the ground &middot; {{today}}</p></div>
+<div class="wrap">
+  <div class="stats">{{#stats}}<div class="stat"><div class="v">{{value}}</div><div class="l">{{label}}</div></div>{{/stats}}</div>
+  {{#crewNames}}<div class="panel"><h3>Kerbals in space now</h3><p>{{crewNames}}</p></div>{{/crewNames}}
+  {{#debrisByBody.0}}<div class="panel"><h3>Debris by body</h3>{{#debrisByBody}}<p>{{body}}: <b>{{count}}</b></p>{{/debrisByBody}}</div>{{/debrisByBody.0}}
+  {{#hasHistory}}<div class="panel"><h3>Debris over time</h3><div class="chart" style="height: 80px">{{#debrisHistory}}<div class="col" style="height: 80px"><div style="height: {{h}}"></div></div>{{/debrisHistory}}</div>
+    <h3 style="margin-top: 12px">Satellites and stations over time</h3><div class="chart" style="height: 80px">{{#satHistory}}<div class="col" style="height: 80px"><div style="height: {{h}}"></div></div>{{/satHistory}}</div></div>{{/hasHistory}}
+  {{#records.0}}<div class="panel"><h3>Firsts and records</h3><ul>{{#records}}<li>{{.}}</li>{{/records}}</ul></div>{{/records.0}}
+  {{#memory}}<div class="panel"><h3>The story so far</h3><p>{{memory}}</p></div>{{/memory}}
+</div></body></html>

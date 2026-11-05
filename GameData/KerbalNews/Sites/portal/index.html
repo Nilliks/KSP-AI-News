@@ -1,0 +1,31 @@
+<html><body>
+{{> netbar}}
+<div class="top">
+  <div class="logo">KERBAL NEWS NETWORK</div>
+  <div class="tag">Every launch, every landing, every headline across the Kerbin press &middot; {{today}}</div>
+  <div class="searchbar"><input name="q" placeholder="Search the archive"><button data-action="search">Search</button></div>
+</div>
+<div class="wrap">
+  {{> mood}}
+  <div class="cols" style="margin-top: 12px">
+    <div class="main">
+      {{#empty}}<div class="empty"><h2>No news yet</h2><p>Launch something. The press reports on it about a Kerbin day later.</p>{{#pending}}<p>{{pending}} stories are being written.</p>{{/pending}}</div>{{/empty}}
+      {{#top}}<div class="lead"><div class="src">{{outletName}} &middot; {{kindLabel}}</div><a class="hl" href="{{url}}">{{headline}}</a>{{#subhead}}<p>{{subhead}}</p>{{/subhead}}<div class="meta">{{date}} &middot; {{commentCount}} comments</div></div>{{/top}}
+      {{#latest.0}}<h2 class="sec">Latest</h2>{{/latest.0}}
+      {{#latest}}<div class="item"><div class="src">{{outletName}}</div><a class="hl" href="{{url}}">{{#unread}}<span class="new">&bull; </span>{{/unread}}{{headline}}</a><div class="meta">{{date}} &middot; {{kindLabel}}{{#commentCount}} &middot; {{commentCount}} comments{{/commentCount}}</div></div>{{/latest}}
+    </div>
+    <div class="side">
+      <div class="box"><h3>Trending on Kerbnet</h3>
+        {{#trending}}<div class="post"><b>{{handle}}</b> {{text}} <span class="meta">&hearts; {{likes}}</span></div>{{/trending}}
+        {{^trending}}<p class="muted">Quiet for now.</p>{{/trending}}
+        <p><a class="section-link" href="kerbnet.kb">Open Kerbnet &raquo;</a></p>
+      </div>
+      {{#sections}}<div class="box"><h3>{{name}}</h3>
+        {{#items}}<p><a href="{{url}}">{{headline}}</a></p>{{/items}}
+        {{^hasItems}}<p class="muted">Nothing yet.</p>{{/hasItems}}
+        <a class="section-link" href="{{domain}}">Visit {{domain}} &raquo;</a></div>{{/sections}}
+      <div class="box"><h3>Newsroom</h3><p class="meta">{{providerName}} &middot; {{status}}</p>{{#pending}}<p class="meta">{{pending}} stories in the works</p>{{/pending}}{{#error}}<p class="meta" style="color: #c62828">{{error}}</p>{{/error}}</div>
+    </div>
+  </div>
+</div>
+</body></html>

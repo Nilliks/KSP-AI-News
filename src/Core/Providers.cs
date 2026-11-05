@@ -17,6 +17,8 @@ namespace KerbalNews
         public bool NeedsKey = true;
         public bool JsonMode = true;
         public string KeyHint = "";
+        /// <summary>Suggested model ids shown in settings. The live list can be fetched from the provider.</summary>
+        public List<string> Models = new List<string>();
     }
 
     public class HttpRequestSpec
@@ -72,6 +74,79 @@ namespace KerbalNews
             new ProviderPreset { Id = "custom", Name = "Custom (OpenAI-compatible)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:8000/v1",
                 WriterModel = "model", CheapModel = "model", NeedsKey = false, JsonMode = false },
         };
+
+        static Providers()
+        {
+            Suggest("anthropic", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1");
+            Suggest("openai", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4o-mini");
+            Suggest("gemini", "gemini-3.7-flash", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite");
+            Suggest("xai", "grok-4", "grok-3", "grok-3-mini");
+            Suggest("mistral", "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest");
+            Suggest("deepseek", "deepseek-chat", "deepseek-reasoner");
+            Suggest("openrouter", "anthropic/claude-sonnet-5.5", "openai/gpt-5-mini", "google/gemini-2.5-flash", "deepseek/deepseek-chat");
+            Suggest("ollama", "llama3.1", "qwen2.5", "mistral");
+        }
+
+        static void Suggest(string id, params string[] models)
+        {
+            var p = All.FirstOrDefault(x => x.Id == id);
+            if (p != null) p.Models.AddRange(models);
+        }
+
+        /// <summary>A request that lists the provider's available models.</summary>
+        public static HttpRequestSpec BuildListModels(ProviderPreset p, string baseUrl, string apiKey)
+        {
+            var req = new HttpRequestSpec { Method = "GET", TimeoutSeconds = 30 };
+            string root = (string.IsNullOrEmpty(baseUrl) ? p.BaseUrl : baseUrl).TrimEnd('/');
+            req.Url = root + "/models" + (p.Kind == ApiKind.Gemini ? "?pageSize=200" : "");
+            switch (p.Kind)
+            {
+                case ApiKind.Anthropic:
+                    req.Url = root + "/models?limit=100";
+                    req.Headers["x-api-key"] = apiKey ?? "";
+                    req.Headers["anthropic-version"] = "2023-06-01";
+                    break;
+                case ApiKind.Gemini:
+                    req.Headers["x-goog-api-key"] = apiKey ?? "";
+                    break;
+                default:
+                    if (!string.IsNullOrEmpty(apiKey)) req.Headers["Authorization"] = "Bearer " + apiKey;
+                    break;
+            }
+            return req;
+        }
+
+        public static List<string> ParseModelList(ApiKind kind, string body)
+        {
+            var list = new List<string>();
+            object root;
+            if (!Json.TryParse(body, out root)) return list;
+            if (kind == ApiKind.Gemini)
+            {
+                foreach (var m in Json.Arr(Json.Get(root, "models")) ?? new List<object>())
+                {
+                    var methods = Json.Arr(Json.Get(m, "supportedGenerationMethods"));
+                    if (methods != null && !methods.OfType<string>().Contains("generateContent")) continue;
+                    var name = Json.Str(m, "name", "");
+                    if (name.StartsWith("models/")) name = name.Substring(7);
+                    if (name != "") list.Add(name);
+                }
+            }
+            else
+            {
+                foreach (var m in Json.Arr(Json.Get(root, "data")) ?? new List<object>())
+                {
+                    var id = Json.Str(m, "id", "");
+                    if (id == "") continue;
+                    // Skip models that cannot write text (embeddings, images, audio, moderation).
+                    var l = id.ToLowerInvariant();
+                    if (l.Contains("embed") || l.Contains("whisper") || l.Contains("tts") || l.Contains("dall-e") || l.Contains("image") || l.Contains("moderation") || l.Contains("audio") || l.Contains("realtime") || l.Contains("transcribe")) continue;
+                    list.Add(id);
+                }
+            }
+            list.Sort(StringComparer.OrdinalIgnoreCase);
+            return list.Distinct().ToList();
+        }
 
         public static ProviderPreset Get(string id)
         {

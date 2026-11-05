@@ -1,0 +1,10 @@
+<html><body>
+{{> netbar}}
+<div class="mast"><span class="name">Orbital Observer</span><span class="sub">// aerospace engineering &amp; orbital affairs &middot; {{today}}</span></div>
+<div class="page">
+  {{#empty}}<div class="empty"><p>No telemetry yet. Our analysts are standing by.</p></div>{{/empty}}
+  <div class="grid">
+    {{#top}}<div class="feature"><div class="kicker">{{kindLabel}} &middot; {{date}}</div><a class="hl" href="{{url}}">{{headline}}</a><p>{{lead}}</p></div>{{/top}}
+    <div class="list">{{#articles}}{{> headline_item}}{{/articles}}</div>
+  </div>
+</div></body></html>

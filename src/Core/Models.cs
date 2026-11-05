@@ -142,6 +142,8 @@ namespace KerbalNews
         public string Status = StoryStatus.Pending;
         public int Attempts;
         public bool MoodApplied;
+        /// <summary>Telemetry was kept silent: the press gets no specs, only what is visible.</summary>
+        public bool Silent;
         public double Significance;
         public CraftSnapshot Craft;
         public List<NewsEvent> Events = new List<NewsEvent>();
@@ -169,6 +171,7 @@ namespace KerbalNews
             n.Add("status", Status);
             n.Add("attempts", Attempts);
             n.Add("moodApplied", MoodApplied);
+            n.Add("silent", Silent);
             n.Add("significance", Significance);
             if (Craft != null) Craft.Save(n.AddNode("CRAFT"));
             foreach (var e in Events) e.Save(n.AddNode("EVENT"));
@@ -188,6 +191,7 @@ namespace KerbalNews
                 Status = n.Get("status", StoryStatus.Pending),
                 Attempts = n.GetInt("attempts"),
                 MoodApplied = n.GetBool("moodApplied"),
+                Silent = n.GetBool("silent"),
                 Significance = n.GetDouble("significance"),
                 Craft = CraftSnapshot.Load(n.GetNode("CRAFT")),
             };
@@ -430,6 +434,26 @@ namespace KerbalNews
         public double LastMoodDecayUT = -1;
         public int Silliness;
         public bool RumorsEnabled = true;
+        /// <summary>Vessels whose telemetry the agency keeps silent (persistentId). Saved per save, so it rolls back too.</summary>
+        public HashSet<string> SilentVessels = new HashSet<string>();
+        /// <summary>New launches start silent instead of sharing telemetry.</summary>
+        public bool SilentByDefault;
+        /// <summary>Vessels explicitly set to share even when SilentByDefault is on.</summary>
+        public HashSet<string> SharedVessels = new HashSet<string>();
+
+        public bool IsSilent(string vesselId)
+        {
+            if (string.IsNullOrEmpty(vesselId)) return false;
+            if (SilentVessels.Contains(vesselId)) return true;
+            return SilentByDefault && !SharedVessels.Contains(vesselId);
+        }
+
+        public void SetSilent(string vesselId, bool silent)
+        {
+            if (string.IsNullOrEmpty(vesselId)) return;
+            if (silent) { SilentVessels.Add(vesselId); SharedVessels.Remove(vesselId); }
+            else { SilentVessels.Remove(vesselId); SharedVessels.Add(vesselId); }
+        }
         /// <summary>Running archive summary of older news and lore (context compression).</summary>
         public List<string> Records = new List<string>();
         public string MemorySummary = "";
@@ -478,6 +502,9 @@ namespace KerbalNews
             n.Add("lastMoodDecay", LastMoodDecayUT);
             n.Add("silliness", Silliness);
             n.Add("rumors", RumorsEnabled);
+            n.Add("silentDefault", SilentByDefault);
+            foreach (var v in SilentVessels) n.Add("silentVessel", v);
+            foreach (var v in SharedVessels) n.Add("sharedVessel", v);
             n.AddText("memory", MemorySummary);
             foreach (var r in Records) n.AddText("record", r);
             n.Add("memoryUpTo", MemoryUpToUT);
@@ -521,6 +548,9 @@ namespace KerbalNews
             s.LastMoodDecayUT = n.GetDouble("lastMoodDecay", -1);
             s.Silliness = Math.Max(0, Math.Min(10, n.GetInt("silliness")));
             s.RumorsEnabled = n.GetBool("rumors", true);
+            s.SilentByDefault = n.GetBool("silentDefault");
+            foreach (var v in n.GetAll("silentVessel")) s.SilentVessels.Add(v);
+            foreach (var v in n.GetAll("sharedVessel")) s.SharedVessels.Add(v);
             s.MemorySummary = n.GetText("memory");
             foreach (var r in n.GetAll("record")) s.Records.Add(TextCodec.Decode(r));
             s.MemoryUpToUT = n.GetDouble("memoryUpTo", -1);

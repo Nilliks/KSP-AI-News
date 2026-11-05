@@ -1,0 +1,16 @@
+body { background: #f3f4f6; }
+.mast { background: #2f3640; padding: 12px 22px; display: flex; align-items: center; gap: 14px; }
+.seal { width: 44px; padding-top: 10px; padding-bottom: 10px; background: #c9a227; color: #2f3640; text-align: center; font-weight: bold; }
+.mast .name { font-size: 24px; color: #ffffff; font-weight: bold; }
+.mast .sub { font-size: 12px; color: #c7ccd4; text-transform: uppercase; letter-spacing: 2px; }
+.page { padding: 18px 26px; }
+.notice { background: #ffffff; border-top: 4px solid #c9a227; padding: 14px 18px; margin-bottom: 14px; }
+.notice .hl { font-size: 24px; color: #2f3640; font-weight: bold; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #d9dce1; }
+.item .hl { font-size: 17px; font-weight: bold; color: #2f3640; }
+.new { color: #c9a227; }
+.kicker { font-size: 12px; color: #7a6312; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+.headline { font-size: 30px; color: #2f3640; }
+.byline { font-size: 13px; color: #59616d; }
+.article { max-width: 740px; }
+.para { font-size: 17px; line-height: 1.5; }

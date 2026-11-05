@@ -1,0 +1,39 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Settings</h1><p>Shared by all saves. Keys are stored in GameData/KerbalNews/PluginData/secrets.cfg, never in your save.</p></div>
+<div class="wrap">
+  <h2>AI writing</h2>
+  <div class="row" style="align-items: center"><a class="toggle{{^offline}} on{{/offline}}" href="action:toggle-offline">{{#offline}}AI is OFF (offline templates). Click to turn on{{/offline}}{{^offline}}AI is ON. Click to use offline templates{{/offline}}</a></div>
+  <label>Provider</label>
+  <div class="providers">{{#providers}}<a class="prov{{#on}} on{{/on}}" href="action:provider/{{id}}">{{name}}</a>{{/providers}}</div>
+  {{#provider}}
+  {{#needsKey}}<label>API key for {{name}}</label><input name="key" type="password" placeholder="{{#hasKey}}saved (type to replace){{/hasKey}}{{^hasKey}}{{keyHint}}{{/hasKey}}"><p class="hint">{{#hasKey}}A key is saved.{{/hasKey}}{{^hasKey}}No key saved yet.{{/hasKey}}</p>{{/needsKey}}
+  {{^needsKey}}<p class="hint">No key needed for {{name}}.</p>{{/needsKey}}
+  <label>Writer model (big stories): <span class="current">{{writerModel}}</span></label>
+  <div class="models">{{#writerChoices}}<a class="prov{{#on}} on{{/on}}" href="action:writer/{{id}}">{{id}}</a>{{/writerChoices}}</div>
+  <div class="row"><div><input name="writer" value="{{writer}}" placeholder="or type any model name, e.g. {{defaultWriter}}"></div></div>
+  <label>Cheap model (briefs, quiet-day features, summaries): <span class="current">{{cheapModel}}</span></label>
+  <div class="models">{{#cheapChoices}}<a class="prov{{#on}} on{{/on}}" href="action:cheap/{{id}}">{{id}}</a>{{/cheapChoices}}</div>
+  <div class="row"><div><input name="cheap" value="{{cheap}}" placeholder="or type any model name, e.g. {{defaultCheap}}"></div></div>
+  <div class="row" style="align-items: center; margin-top: 6px"><a class="toggle" href="action:fetch-models">Get the full model list from {{name}}</a><span class="hint">{{fetchResult}}</span></div>
+  <label>Endpoint</label><input name="baseUrl" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
+  <p class="hint">Click a model to use it, or type any exact model name and Save. An empty field means the default.</p>
+  {{/provider}}
+  <label>Max output tokens</label><input name="maxTokens" value="{{maxTokens}}">
+  <div class="save row"><button class="btn" data-action="save-settings">Save</button><button class="btn" data-action="test-connection">Save and test connection</button></div>
+  {{#testResult}}<p class="{{#testOk}}ok{{/testOk}}{{^testOk}}bad{{/testOk}}">{{testResult}}</p>{{/testResult}}
+  <p class="hint">{{providerName}} &middot; {{status}}{{#error}} &middot; last error: {{error}}{{/error}}</p>
+
+  <h2>Telemetry</h2>
+  <p class="hint">Choose per craft whether the public gets its telemetry and specs, or only what can be seen from the ground. <a href="telemetry.kb">Open telemetry sharing</a></p>
+
+  <h2>Display</h2>
+  <div class="row" style="align-items: center"><span>Text size: <b>{{scale}}</b></span>
+    <a class="toggle" href="action:scale/-">Smaller</a><a class="toggle" href="action:scale/+">Bigger</a><a class="toggle" href="action:scale/auto">Auto</a></div>
+  <div class="row" style="margin-top: 8px"><a class="toggle{{#notify}} on{{/notify}}" href="action:toggle-notify">Message when news is published</a>
+    <a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a></div>
+
+  <h2>Testing tools</h2>
+  <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>
+  <p class="hint">Normally news arrives about one Kerbin day after an event. Publish pending news now skips the wait.</p>
+</div></body></html>

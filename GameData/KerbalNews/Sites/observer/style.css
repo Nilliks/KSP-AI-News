@@ -1,0 +1,20 @@
+body { background: #ffffff; }
+.mast { display: flex; align-items: center; background: #ffffff; padding: 12px 22px; border-bottom: 3px solid #2d5d3a; gap: 14px; }
+.mast .name { font-size: 30px; font-weight: bold; color: #2d5d3a; letter-spacing: 1px; text-transform: uppercase; }
+.mast .sub { font-size: 13px; color: #555555; font-family: mono; }
+.page { padding: 16px 24px; }
+.grid { display: flex; gap: 20px; }
+.feature { flex: 2; background: #f2f6f3; padding: 14px 16px; border-left: 5px solid #2d5d3a; }
+.feature .hl { font-size: 28px; font-weight: bold; color: #10261a; }
+.list { flex: 1; }
+.item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #e1e8e3; }
+.item .hl { font-size: 16px; font-weight: bold; color: #10261a; }
+.new { color: #2d5d3a; }
+.kicker { font-family: mono; font-size: 12px; color: #2d5d3a; text-transform: uppercase; letter-spacing: 1px; }
+.headline { font-size: 32px; color: #10261a; }
+.subhead { font-size: 18px; color: #3b4a40; }
+.byline { font-family: mono; font-size: 12px; color: #555555; }
+.craft { border-left: 4px solid #2d5d3a; background: #f2f6f3; }
+.spec .n { font-family: mono; color: #2d5d3a; }
+.article { max-width: 780px; }
+.para { font-size: 17px; line-height: 1.45; }

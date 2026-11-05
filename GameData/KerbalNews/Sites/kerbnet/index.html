@@ -1,0 +1,17 @@
+<html><body>
+{{> netbar}}
+<div class="head"><span class="logo">kerbnet</span><span class="sub">What Kerbin is saying &middot; {{today}}</span></div>
+<div class="layout">
+  <div class="feed">
+    {{#filtered}}<div class="filter">Showing posts about <b>{{filterHeadline}}</b> &middot; <a href="kerbnet.kb">show everything</a></div>{{/filtered}}
+    {{#empty}}<div class="empty"><p>Quiet on Kerbnet. Big news gets people talking.</p></div>{{/empty}}
+    {{#posts}}<div class="card"><div class="av" style="background: {{avatarColor}}">{{initial}}</div>
+      <div style="flex: 1"><div><span class="who">{{handle}}</span> <span class="persona">{{persona}} &middot; {{date}}</span></div>
+        <p class="text">{{text}}</p>
+        {{#storyUrl}}<p class="about"><a href="{{storyUrl}}">{{storyHeadline}}</a></p>{{/storyUrl}}
+        <div class="acts"><span>&hearts; {{likes}}</span><span>&#8635; {{reshares}}</span></div></div></div>{{/posts}}
+  </div>
+  <div class="side"><div class="box"><h3>Trending</h3>
+    {{#topics}}<div class="topic"><a href="{{url}}">{{headline}}</a><div class="persona">{{posts}} posts</div></div>{{/topics}}
+    {{^topics}}<p class="persona">Nothing trending yet.</p>{{/topics}}</div></div>
+</div></body></html>
