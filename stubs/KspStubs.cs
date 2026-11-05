@@ -199,6 +199,8 @@ public class EventReport { public string sender; public Part origin; public stri
 public class EventVoid { public void Add(Callback c) { } public void Remove(Callback c) { } }
 public class EventData<T> { public delegate void OnEvent(T data); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
 public class EventData<T, U> { public delegate void OnEvent(T a, U b); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
+public class EventData<T, U, V, W> { public delegate void OnEvent(T a, U b, V c, W d); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
+public class ScienceSubject { public string id, title; public float science, scienceCap, dataScale, subjectValue; }
 public class EventData<T, U, V> { public delegate void OnEvent(T a, U b, V c); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } }
 
 public static class GameEvents
@@ -216,6 +218,7 @@ public static class GameEvents
     public static EventData<ProtoVessel, KSP.UI.Screens.MissionRecoveryDialog, float> onVesselRecoveryProcessing;
     public static EventData<ProtoVessel> onVesselTerminated;
     public static EventData<ProgressNode> OnProgressComplete;
+    public static EventData<float, ScienceSubject, ProtoVessel, bool> OnScienceRecieved;
     public static EventData<GameScenes> onGameSceneLoadRequested, onLevelWasLoadedGUIReady, onGUIApplicationLauncherUnreadifying;
     public static EventVoid onGUIApplicationLauncherReady;
     public static class Contract { public static EventData<Contracts.Contract> onCompleted, onFailed, onAccepted; }
@@ -242,7 +245,7 @@ public static class MapView { public static bool MapIsEnabled; }
 public static class FlightDriver { public static bool Pause; public static void SetPause(bool p) { } public static void StartWithNewLaunch(string path, string flag, string site, VesselCrewManifest m) { } }
 public class CelestialBody : UnityEngine.MonoBehaviour
 {
-    public string bodyName; public Vector3d position; public double Radius; public bool ocean;
+    public string bodyName; public Vector3d position; public double Radius; public bool ocean; public bool isHomeWorld;
     public double GetLatitude(Vector3d p) { return 0; } public double GetLongitude(Vector3d p) { return 0; } public double GetAltitude(Vector3d p) { return 0; }
     public double TerrainAltitude(double lat, double lon, bool allowNegative = false) { return 0; }
     public Vector3d GetWorldSurfacePosition(double lat, double lon, double alt) { return new Vector3d(); }
@@ -268,7 +271,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public List<Part> parts;
     public Guid id;
     public uint persistentId;
-    public double altitude, horizontalSrfSpeed, srfSpeed, obt_speed, geeForce;
+    public double latitude, longitude, altitude, horizontalSrfSpeed, srfSpeed, obt_speed, geeForce;
     public int currentStage;
     public bool loaded;
     public Orbit orbit;

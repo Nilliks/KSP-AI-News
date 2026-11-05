@@ -36,6 +36,7 @@ namespace KerbalNews.KSP
             GameEvents.onVesselRecoveryProcessing.Add(OnRecoveryProcessing);
             GameEvents.onVesselTerminated.Add(OnTerminated);
             GameEvents.OnProgressComplete.Add(OnProgress);
+            GameEvents.OnScienceRecieved.Add(OnScience);
             GameEvents.Contract.onCompleted.Add(OnContractCompleted);
             GameEvents.Contract.onFailed.Add(OnContractFailed);
             GameEvents.Contract.onAccepted.Add(OnContractAccepted);
@@ -55,6 +56,7 @@ namespace KerbalNews.KSP
             GameEvents.onVesselRecoveryProcessing.Remove(OnRecoveryProcessing);
             GameEvents.onVesselTerminated.Remove(OnTerminated);
             GameEvents.OnProgressComplete.Remove(OnProgress);
+            GameEvents.OnScienceRecieved.Remove(OnScience);
             GameEvents.Contract.onCompleted.Remove(OnContractCompleted);
             GameEvents.Contract.onFailed.Remove(OnContractFailed);
             GameEvents.Contract.onAccepted.Remove(OnContractAccepted);
@@ -231,6 +233,37 @@ namespace KerbalNews.KSP
         void OnTerminated(ProtoVessel pv)
         {
             if (pv != null) benignDestroy[pv.vesselID] = Time.realtimeSinceStartup;
+        }
+
+        /// <summary>Science reaching Kerbin, transmitted or recovered. Kept for the journal; it makes no story by itself.</summary>
+        void OnScience(float amount, ScienceSubject subject, ProtoVessel pv, bool reverseEngineered)
+        {
+            Safe("science", () =>
+            {
+                if (subject == null || amount <= 0 || reverseEngineered) return;
+                string exp, body, sit, biome;
+                ScienceResult.ParseSubject(subject.id, FlightGlobals.Bodies != null ? FlightGlobals.Bodies.Select(b => b.bodyName) : null, out exp, out body, out sit, out biome);
+                var r = new ScienceResult
+                {
+                    UT = UT, SubjectId = subject.id ?? "", Title = subject.title ?? "", Experiment = exp, Body = body, Situation = sit, Biome = biome,
+                    Amount = amount, Completion = subject.scienceCap > 0 ? Math.Min(1, subject.science / subject.scienceCap) : 0,
+                };
+                if (pv != null)
+                {
+                    r.VesselId = pv.persistentId.ToString();
+                    r.VesselName = Names.Of(pv.vesselName);
+                    var crew = pv.GetVesselCrew();
+                    if (crew != null) foreach (var c in crew) r.Crew.Add(c.name);
+                }
+                else if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null)
+                {
+                    // Transmissions come with no ProtoVessel: credit the craft in flight.
+                    r.Transmitted = true;
+                    r.VesselId = Id(FlightGlobals.ActiveVessel);
+                    r.VesselName = Names.Of(FlightGlobals.ActiveVessel);
+                }
+                engine().RecordScience(r);
+            });
         }
 
         void OnRecovered(ProtoVessel pv, bool quick)

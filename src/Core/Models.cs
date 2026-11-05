@@ -701,6 +701,8 @@ namespace KerbalNews
         public List<LoreEntry> Orders = new List<LoreEntry>();
         /// <summary>Fame of every kerbal who has flown, by name.</summary>
         public Dictionary<string, CrewFame> Crew = new Dictionary<string, CrewFame>();
+        /// <summary>Science results that reached Kerbin, for the journal.</summary>
+        public List<ScienceResult> Science = new List<ScienceResult>();
         /// <summary>Anniversaries already marked ("storyId:years"), the last year that got a review, and the last daily check.</summary>
         public HashSet<string> Anniversaries = new HashSet<string>();
         public int LastReviewYear = -1;
@@ -812,6 +814,8 @@ namespace KerbalNews
             foreach (var m in AssistantChat.Skip(Math.Max(0, AssistantChat.Count - MaxAssistantMessages))) m.Save(asn.AddNode("MSG"));
             var ord = n.AddNode("ORDERS");
             foreach (var o in Orders) { var on = ord.AddNode("ORDER"); on.Add("ut", o.UT); on.AddText("text", o.Text); }
+            var sci = n.AddNode("SCIENCE");
+            foreach (var r in Science) r.Save(sci.AddNode("RESULT"));
             var crew = n.AddNode("CREW");
             foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
             foreach (var a in Anniversaries) n.Add("anniversary", a);
@@ -900,6 +904,8 @@ namespace KerbalNews
             if (asn != null) foreach (var mn in asn.GetNodes("MSG")) s.AssistantChat.Add(AssistantMessage.Load(mn));
             var ord = n.GetNode("ORDERS");
             if (ord != null) foreach (var on in ord.GetNodes("ORDER")) s.Orders.Add(new LoreEntry { UT = on.GetDouble("ut"), Text = on.GetText("text") });
+            var sciNode = n.GetNode("SCIENCE");
+            if (sciNode != null) foreach (var rn in sciNode.GetNodes("RESULT")) s.Science.Add(ScienceResult.Load(rn));
             var crewNode = n.GetNode("CREW");
             if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
             foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);

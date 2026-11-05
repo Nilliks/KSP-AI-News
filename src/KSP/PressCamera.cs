@@ -162,6 +162,9 @@ namespace KerbalNews.KSP
             bool silent = Eng != null && Eng.State.IsSilent(v.persistentId.ToString());
             string style = kind == "recovery" ? "helicopter" : kind == "ascent" && !silent && v.altitude > 1500 && rng.Next(3) == 0 ? "chase" : "ground";
             if (style != "ground" && silent) style = "ground";
+            // At the space center itself, accredited photographers work from the press site and remote cameras by the pad.
+            bool atKsc = body.isHomeWorld && Math.Abs(v.latitude - KscLat) < 0.08 && Math.Abs(v.longitude - KscLon) < 0.25;
+            if (atKsc && (kind == "pad" || kind == "liftoff") && rng.Next(100) < 55) style = kind == "liftoff" && rng.Next(3) == 0 ? "remote" : "onsite";
 
             Vector3d cam = Vector3d.zero;
             bool found = false;
@@ -180,6 +183,8 @@ namespace KerbalNews.KSP
                 {
                     case "helicopter": dist = 500 + rng.Next(400); break;
                     case "chase": dist = 900 + rng.Next(900); break;
+                    case "onsite": dist = kind == "pad" ? 260 + rng.Next(450) : 450 + rng.Next(700); break;
+                    case "remote": dist = 110 + rng.Next(90); break;
                     default:
                         dist = kind == "pad" ? 1800 + rng.Next(2500) : kind == "liftoff" ? 3000 + rng.Next(3500) : kind == "explosion" ? 5000 + rng.Next(6000)
                             : Math.Min(30000, 5000 + alt * 0.7 + rng.Next(4000));
@@ -191,6 +196,8 @@ namespace KerbalNews.KSP
                 bool sea = body.ocean && ground < 0;
                 double camAlt = style == "helicopter" ? Math.Max(ground, 0) + 120 + rng.Next(120)
                     : style == "chase" ? Math.Max(alt - 200 + rng.Next(400), Math.Max(ground, 0) + 300)
+                    : style == "onsite" ? Math.Max(ground, 0) + (rng.Next(3) == 0 ? 18 : 2)
+                    : style == "remote" ? Math.Max(ground, 0) + 0.6
                     : Math.Max(ground, 0) + (sea ? 3 : 2);
                 cam = body.GetWorldSurfacePosition(lat, lon, camAlt);
                 if (!ClearView(body, cam, target)) continue;
@@ -198,6 +205,8 @@ namespace KerbalNews.KSP
                 if (kind == "pad" && !ClearView(body, cam, target - up * (size * 0.42), 20)) continue;
                 found = true;
                 place = style == "helicopter" ? "from a news helicopter" : style == "chase" ? "from a chase plane"
+                    : style == "remote" ? "with a sound-triggered remote camera beside the pad"
+                    : style == "onsite" ? (camAlt - Math.Max(ground, 0) > 10 ? "from the roof of the KSC press site" : "from the KSC press site")
                     : sea ? "from a press boat offshore" : PlaceName(body, lat, lon, ground);
             }
             if (!found) { Debug.Log("[KerbalNews] Press photo (" + kind + "): no clear view from any spot"); return null; }
@@ -208,7 +217,7 @@ namespace KerbalNews.KSP
             double d = (target - cam).magnitude;
             float vfov = Mathf.Clamp((float)(2 * Math.Atan(frame * 0.5 / d) * 180 / Math.PI), 0.25f, 35f);
             // A little unsteadiness: hand-held from a helicopter, tracking a fast rocket, or wind on a tripod.
-            float wobble = style == "ground" && kind == "pad" ? 0.004f : 0.012f;
+            float wobble = style == "remote" ? 0.002f : (style == "ground" || style == "onsite") && kind == "pad" ? 0.004f : 0.012f;
             Vector3d aim = (target - cam).normalized;
             aim = (aim + new Vector3d(Jitter(wobble), Jitter(wobble), Jitter(wobble)) * (vfov * Math.PI / 180)).normalized;
             Vector3 camUp = (Vector3)((cam - body.position).normalized);
@@ -217,12 +226,17 @@ namespace KerbalNews.KSP
             if (tex == null) { Debug.Log("[KerbalNews] Press photo (" + kind + "): render failed"); return null; }
             Develop(tex, d, style, kind);
 
-            int lens = (int)Math.Round(12.0 / Math.Tan(vfov * Math.PI / 360) / 50) * 50;
+            double mm = 12.0 / Math.Tan(vfov * Math.PI / 360);
+            int lens = mm < 100 ? (int)Math.Round(mm / 5) * 5 : (int)Math.Round(mm / 50) * 50;
             string who = Photographers[rng.Next(Photographers.Length)];
             string outlet = Outlets.NameOf(PhotoOutlets[rng.Next(PhotoOutlets.Length)]);
-            credit = who + " for " + outlet + ", " + Math.Max(50, lens) + " mm " + place + (style == "ground" ? string.Format(", about {0:0.#} km away", d / 1000) : "");
+            if (style == "onsite" || style == "remote") outlet = "the KSC press pool";
+            credit = who + " for " + outlet + ", " + Math.Max(style == "remote" ? 14 : 24, lens) + " mm " + place
+                + (style == "ground" ? string.Format(", about {0:0.#} km away", d / 1000) : style == "onsite" ? string.Format(", {0:0} m from the pad", d) : "");
             return tex;
         }
+
+        const double KscLat = -0.0972, KscLon = -74.5577;
 
         double Jitter(float amount) { return (rng.NextDouble() * 2 - 1) * amount; }
 
@@ -343,7 +357,8 @@ namespace KerbalNews.KSP
             var src = (Color32[])px.Clone();
             float haze = Mathf.Clamp((float)(dist / 40000.0), 0.04f, 0.3f);
             int sx = rng.Next(-2, 3), sy = rng.Next(-1, 2);
-            if (style != "ground") { sx *= 2; sy *= 2; }
+            if (style == "helicopter" || style == "chase") { sx *= 2; sy *= 2; }
+            else if (style == "onsite" || style == "remote") { sx /= 2; sy = 0; }
             const float hr = 196, hg = 206, hb = 216;
             int seed = rng.Next();
             for (int y = 0; y < H; y++)

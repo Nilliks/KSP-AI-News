@@ -122,4 +122,21 @@ public static class FeatureTests
         Assert(s.Stories.Count(x => x.Special == "retrospective") == 1 && s.Stories.Count(x => x.Special == "review") == 1, "each happens once");
         Assert(t.Sent.Any(x => x.Body.Contains("SPECIAL RETROSPECTIVE")), "the retrospective was written with its own brief");
     }
+
+    public static void TestScienceIsRecordedForTheJournal()
+    {
+        string e, b, si, bi;
+        ScienceResult.ParseSubject("surfaceSample@MunSrfLandedFarsideCrater", new[] { "Kerbin", "Mun", "Minmus" }, out e, out b, out si, out bi);
+        Assert(e == "surfaceSample" && b == "Mun" && si == "SrfLanded" && bi == "FarsideCrater", "parsed: " + e + "|" + b + "|" + si + "|" + bi);
+        ScienceResult.ParseSubject("crewReport@KerbinFlyingLow", new[] { "Kerbin", "Mun" }, out e, out b, out si, out bi);
+        Assert(b == "Kerbin" && si == "FlyingLow" && bi == "", "no biome");
+        var s = new NewsState();
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply }, new SimpleClock(Day));
+        eng.RecordScience(new ScienceResult { UT = 100, SubjectId = "x@MunSrfLanded", Amount = 10, VesselId = "v1" });
+        eng.RecordScience(new ScienceResult { UT = 150, SubjectId = "x@MunSrfLanded", Amount = 5, VesselId = "v1" });
+        eng.RecordScience(new ScienceResult { UT = 150, SubjectId = "y@MunSrfLanded", Amount = 0, VesselId = "v1" });
+        Assert(s.Science.Count == 1 && s.Science[0].Amount == 15, "repeats merge, zero ignored");
+        var n = new DataNode("K"); s.Save(n);
+        Assert(NewsState.Load(n).Science.Count == 1, "science survives a save");
+    }
 }
