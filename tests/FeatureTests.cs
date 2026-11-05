@@ -363,6 +363,19 @@ public static class FeatureTests
         eng.EngSend("And the transfer window?", Day);
         Assert(body.Contains("Director wants to land") && body.Contains("260 m/s short"), "memory and chat history come back");
 
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
+        sites.Now = () => Day;
+        var page = sites.Render("engineering.kb").Html;
+        Assert(page.Contains("Gull II") && page.Contains("Flight · Map view") && page.Contains("Stage 2") && page.Contains("Terrier upper stage") && page.Contains("transfer window to Mun"), "page shows live data, chat and quick asks");
+        Assert(sites.Render("kerbalnews.kb").Html.Contains("engineering.kb"), "netbar links the team");
+        sites.Handle("action:eng-ask/" + Uri.EscapeDataString("Review my design"), null);
+        Assert(body.Contains("Review my design"), "quick ask sends");
+        snap.Scene = "vab"; snap.Stages[0].TwrAsl = 1.05;
+        page = sites.Render("engineering.kb").Html;
+        Assert(page.Contains("Vehicle Assembly Building") && page.Contains("Is my TWR good for launch?") && page.Contains("too low to lift off"), "editor view: launch TWR warning");
+        snap.Scene = "map";
+
         snap.StockSystem = false;
         eng.EngSend("What about here?", Day);
         Assert(!body.Contains("Mun landing 580") && body.Contains("planet pack"), "no stock map with a planet pack");

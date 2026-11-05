@@ -121,6 +121,7 @@ namespace KerbalNews.Web
                 if (host == PressHost) return PressRoom(url);
                 if (host == GalleryHost) return GalleryPage(url, path);
                 if (host == LiveHost) return LivePage(url, path);
+                if (host == EngineeringHost) return Page(url, "engineering", "index.html", EngineeringModel(), "KSC Engineering", false);
                 if (host == Home)
                 {
                     if (path == "polls") return Page(url, "portal", "polls.html", PollsModel(), "Polls", true);
@@ -449,6 +450,7 @@ namespace KerbalNews.Web
             m["assistantConfirm"] = g.AssistantConfirm;
             m["crewChat"] = g.CrewChatOn;
             m["ktv"] = g.KtvOn;
+            m["engineering"] = g.EngineeringOn;
             m["modsInContext"] = g.ModsInContext;
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };
             string match = g.UsageMatch;

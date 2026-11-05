@@ -1,0 +1,47 @@
+body { background: #0f1419; color: #dfe6ee; }
+a { color: #8ab4ff; }
+.head { background: #16202a; padding: 10px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #263340; }
+.head h1 { color: #ffffff; font-size: 22px; margin-bottom: 0px; }
+.head p { color: #8b9aa8; font-size: 13px; margin-bottom: 0px; }
+.scene { background: #23303c; color: #4fc3f7; font-size: 13px; padding: 4px 10px; }
+.spacer { flex: 1; }
+.cols { display: flex; gap: 16px; padding: 14px 20px; }
+.data { width: 340px; }
+.talk { flex: 1; }
+.cap { font-size: 12px; color: #8b9aa8; margin-bottom: 8px; }
+.box { background: #16202a; padding: 10px 12px; margin-bottom: 10px; }
+.vname { font-size: 16px; font-weight: bold; color: #ffffff; }
+.meta { font-size: 12px; color: #8b9aa8; }
+.grid { display: flex; flex-wrap: wrap; margin-top: 8px; }
+.cell { width: 50%; font-size: 13px; margin-bottom: 4px; }
+.cell b { color: #ffffff; }
+.btitle { font-size: 13px; font-weight: bold; color: #ffffff; margin-bottom: 6px; }
+.stage { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.sl { width: 60px; color: #8b9aa8; }
+.sv { width: 76px; text-align: right; }
+.bar { flex: 1; height: 8px; background: #23303c; }
+.bar div { height: 8px; background: #4fc3f7; }
+.twr { font-size: 11px; color: #8b9aa8; margin-left: 68px; margin-bottom: 4px; }
+.total { display: flex; border-top: 1px solid #263340; padding-top: 4px; margin-top: 4px; font-size: 13px; }
+.total span { flex: 1; color: #8b9aa8; }
+.total b { color: #ffffff; }
+.fact { background: #2a2216; color: #ffd27f; padding: 8px 12px; font-size: 13px; margin-bottom: 8px; }
+.fl { font-size: 13px; margin-bottom: 3px; }
+.note { font-size: 12px; color: #8b9aa8; }
+.team { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.chipt { background: #23303c; padding: 4px 10px; font-size: 13px; border: 1px solid #23303c; }
+.chipt.on { border: 1px solid #4fc3f7; }
+.small { font-size: 13px; }
+.chat { margin-bottom: 8px; }
+.msg { padding: 8px 12px; margin-bottom: 8px; font-size: 15px; }
+.msg p { margin-bottom: 4px; }
+.you { background: #23405f; margin-left: 120px; }
+.eng { background: #16202a; margin-right: 80px; }
+.who { font-size: 12px; color: #4fc3f7; margin-bottom: 2px; }
+.status { color: #8b9aa8; font-style: italic; font-size: 13px; margin-bottom: 8px; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.qa { background: #23303c; color: #dfe6ee; border: 1px solid #36475a; padding: 6px 10px; font-size: 13px; }
+.sendrow { display: flex; gap: 8px; align-items: center; }
+.sendrow input { flex: 1; font-size: 15px; background: #0b1015; color: #dfe6ee; }
+.btn { background: #4fc3f7; color: #0f1419; font-weight: bold; padding: 8px 18px; }
+.warn { background: #2a2216; color: #ffd27f; padding: 8px 12px; }

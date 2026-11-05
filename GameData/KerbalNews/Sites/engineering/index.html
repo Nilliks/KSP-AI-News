@@ -1,0 +1,41 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>KSC Engineering</h1><p>Your flight dynamics, propulsion and mission planning team</p><span class="spacer"></span><span class="scene">Scene: {{scene}}</span></div>
+<div class="cols">
+<div class="data">
+  <div class="cap">Live data the team can see</div>
+  {{#hasVessel}}<div class="box">
+    <div class="vname">{{vessel}}</div>
+    <div class="meta">{{situation}}{{#crewText}} · {{crewText}}{{/crewText}} · {{mass}}</div>
+    {{#cells.0}}<div class="grid">{{#cells}}<div class="cell"><span>{{label}}</span> <b>{{value}}</b></div>{{/cells}}</div>{{/cells.0}}
+  </div>{{/hasVessel}}
+  {{#hasStages}}<div class="box">
+    <div class="btitle">Delta-v by stage ({{dvKind}})</div>
+    {{#stages}}<div class="stage"><span class="sl">Stage {{n}}</span><div class="bar"><div style="width: {{pct}}"></div></div><span class="sv">{{dv}}</span></div>
+    <div class="twr">TWR {{twr}} · burn {{burn}}</div>{{/stages}}
+    <div class="total"><span>Total remaining</span><b>{{total}}</b></div>
+  </div>{{/hasStages}}
+  {{#noDv}}<div class="box meta">The game's delta-v readout is not ready yet. It appears once the craft has engines and staging.</div>{{/noDv}}
+  {{#facts}}<div class="fact">{{.}}</div>{{/facts}}
+  {{#hasFleet}}<div class="box"><div class="btitle">Active vessels</div>{{#fleet}}<div class="fl">{{.}}</div>{{/fleet}}</div>{{/hasFleet}}
+  <div class="note">{{sceneNote}}</div>
+</div>
+<div class="talk">
+  {{#off}}<p class="warn">The engineering team is turned off. Turn it on in <a href="settings.kb">Settings</a>.</p>{{/off}}
+  {{#on}}
+  <div class="team">{{#team}}<span class="chipt{{#spoke}} on{{/spoke}}">{{name}}</span>{{/team}}<span class="spacer"></span><a class="small" href="action:eng-clear">Clear chat</a></div>
+  {{#offline}}<p class="warn">Offline, the team can only give the computed numbers. Turn off offline mode in <a href="settings.kb">Settings</a> to talk to them.</p>{{/offline}}
+  {{#empty}}<p class="meta">Ask about your orbit, your delta-v budget, transfer windows, staging or craft design. The team sees the live data on the left.</p>{{/empty}}
+  <div class="chat">
+  {{#messages}}
+    {{#player}}<div class="msg you">{{#lines}}<p>{{.}}</p>{{/lines}}</div>{{/player}}
+    {{^player}}<div class="msg eng"><div class="who">{{who}}</div>{{#lines}}<p>{{.}}</p>{{/lines}}</div>{{/player}}
+  {{/messages}}
+  {{#busy}}<div class="status">The team is working it out...</div>{{/busy}}
+  </div>
+  <div class="quick">{{#quick}}<a class="qa" href="{{url}}">{{text}}</a>{{/quick}}</div>
+  <div class="sendrow"><span class="meta">Ask</span><input name="ask" value="" placeholder="Ask the engineering team"><button class="btn" data-action="eng-send">Send</button></div>
+  {{/on}}
+</div>
+</div>
+</body></html>

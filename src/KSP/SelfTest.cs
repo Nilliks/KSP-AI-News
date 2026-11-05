@@ -74,7 +74,7 @@ namespace KerbalNews.KSP
             var top = state.Articles.OrderByDescending(a => a.Significance).First();
             var ama = state.Forum.First(t => t.Kind == "ama");
             var urls = new List<string> { Sites.Home, Sites.ArticleUrl(top), "kerbnet.kb", Sites.ForumHost, Sites.ForumHost + "/t/" + ama.Id, Sites.ForumHost + "/submit",
-                "tracker.kb", "agency.kb", "agency.kb/assistant", "agency.kb/ledger", "agency.kb/mods", "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
+                "tracker.kb", "agency.kb", "agency.kb/assistant", "agency.kb/ledger", "agency.kb/mods", Sites.EngineeringHost, "settings.kb", "telemetry.kb", Sites.Home + "/search?q=mun", Sites.Home + "/polls", Sites.PressHost, Sites.GalleryHost, Sites.LiveHost };
             var rumor = state.Articles.FirstOrDefault(a => a.Outlet == "kraken");
             if (rumor != null) urls.Add(Sites.ArticleUrl(rumor));
             urls.AddRange(Outlets.All.Select(o => o.Domain));

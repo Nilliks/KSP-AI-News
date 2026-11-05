@@ -50,6 +50,7 @@ namespace KerbalNews.KSP
         readonly Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>> linkTexts = new Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>>();
         int hoverLink = -1;
         bool dirty, wantRender;
+        float nextEngRender;
         float lastWidth, nextStatus;
         string renderedUrl;
 
@@ -201,6 +202,8 @@ namespace KerbalNews.KSP
             bool typing = fields.Values.Any(f => f != null && f.isFocused) || chromeFields.Any(f => f != null && f.isFocused);
             if (streamDirty && Time.realtimeSinceStartup > nextStreamRender) { streamDirty = false; dirty = true; nextStreamRender = Time.realtimeSinceStartup + 1f; }
             // Live pages refresh when news arrives; never while the player is typing into the page.
+            // The engineering page shows live craft data, so it refreshes every few seconds.
+            if (url.StartsWith(Sites.EngineeringHost) && Time.realtimeSinceStartup > nextEngRender) { nextEngRender = Time.realtimeSinceStartup + 3f; dirty = true; }
             if (dirty && !typing) { dirty = false; wantRender = true; }
             if (wantRender && width > 10) { wantRender = false; Render(true); }
 

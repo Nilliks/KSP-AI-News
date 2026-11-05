@@ -129,6 +129,10 @@ namespace KerbalNews.Web
                 case "assistant-yes": Engine.AssistantDecide(arg, true, Now()); break;
                 case "assistant-no": Engine.AssistantDecide(arg, false, Now()); break;
                 case "assistant-clear": Engine.AssistantClear(); break;
+                case "eng-send": Engine.EngSend(Get(form, "ask"), Now()); break;
+                case "eng-ask": Engine.EngSend(arg, Now()); break;
+                case "eng-clear": Engine.EngClear(); break;
+                case "toggle-engineering": g.EngineeringOn = !g.EngineeringOn; SaveSettings(); break;
                 case "assistant-unorder": Engine.RemoveOrder(arg); break;
                 case "assistant-order":
                     string order = Get(form, "order").Trim();
