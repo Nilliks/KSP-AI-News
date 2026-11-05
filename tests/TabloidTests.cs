@@ -24,10 +24,10 @@ public static class TabloidTests
     {
         NewsState s;
         var sites = DemoSites(out s);
-        var rumor = s.Articles.FirstOrDefault(a => a.Outlet == "kraken");
+        var rumor = s.Articles.FirstOrDefault(a => a.Outlet == "kraken" && s.Forum.Any(t => t.Body.Contains("[[" + a.Id + "]]")));
         Assert(rumor != null, "the Daily Kraken wrote something in the demo");
         var home = sites.Render("dailykraken.kb");
-        Assert(home.Title.Contains("Daily Kraken") && home.Html.Contains(rumor.Headline.Replace("'", "&#39;").Substring(0, 6)), "tabloid front page lists its rumor");
+        Assert(home.Title.Contains("Daily Kraken") && home.Html.Contains(Sites.ArticleUrl(rumor)), "tabloid front page lists its rumor");
         var thread = s.Forum.First(t => t.Body.Contains("[[" + rumor.Id + "]]"));
         var page = sites.Render(Sites.ForumHost + "/t/" + thread.Id).Html;
         Assert(page.Contains("href=\"" + Sites.ArticleUrl(rumor) + "\"") && page.Contains("class=\"cite\""), "Snackboard thread links the cited article");
