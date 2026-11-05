@@ -139,4 +139,57 @@ public static class FeatureTests
         var n = new DataNode("K"); s.Save(n);
         Assert(NewsState.Load(n).Science.Count == 1, "science survives a save");
     }
+
+    static HttpResult Reply(string text)
+    {
+        var resp = new Dictionary<string, object> { { "content", new List<object> { new Dictionary<string, object> { { "type", "text" }, { "text", text } } } } };
+        return new HttpResult { Status = 200, Body = Json.Write(resp) };
+    }
+
+    public static void TestTalkToCrewWithMemoryAndPersonality()
+    {
+        var s = new NewsState();
+        string lastSystem = "", lastUser = "";
+        int calls = 0, compress = 0;
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            if (r.Body.Contains("condense a kerbal")) { compress++; return Reply("{\"summary\":\"The director promised me the first Duna seat. I trust them.\"}"); }
+            if (!r.Body.Contains("chatting privately")) return CoreTests.AnthropicReply(r);
+            calls++;
+            lastSystem = r.Body; lastUser = r.Body;
+            return Reply("{\"reply\":\"Ha, the Mun was a blast, boss!\",\"remember\":\"The director promised me the first Duna seat, number " + calls + ".\"}");
+        } };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        eng.SyncCrew(new CrewProfile { Name = "Jebediah Kerman", Trait = "Pilot", Level = 3, Courage = 0.5, Stupidity = 0.5, Badass = true, Veteran = true });
+        eng.SyncCrew(new CrewProfile { Name = "Bob Kerman", Trait = "Scientist", Level = 1, Courage = 0.1, Stupidity = 0.1 });
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman", "Gusemy Kerman"));
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, 5000, "v1", "Mun", "Jebediah Kerman", "Gusemy Kerman"));
+        eng.Ingest(CoreTests.Ev(EventTypes.CrewKilled, 9000, "v1", "Mun", "Gusemy Kerman"));
+        var jeb = s.Crew["Jebediah Kerman"];
+        Assert(jeb.Log.Any(l => l.Contains("landed on Mun")) && jeb.Log.Any(l => l.Contains("lost former crewmate Gusemy Kerman")), "life log: " + string.Join(" | ", jeb.Log.ToArray()));
+        Assert(NewsEngine.Personality(s.Crew["Bob Kerman"]).Contains("anxious") && NewsEngine.Personality(s.Crew["Bob Kerman"]).Contains("sharp"), "stats shape personality");
+
+        Assert(eng.CrewSend("Jebediah Kerman", "How was the Mun?", Day), "message sent");
+        Assert(jeb.Chat.Count == 2 && jeb.Chat[1].Role == "crew" && jeb.Chat[1].Text.Contains("blast"), "Jeb answered");
+        Assert(lastSystem.Contains("badass") && lastUser.Contains("landed on Mun") && lastUser.Contains("How was the Mun?"), "the prompt carries stats, memories and the chat");
+        Assert(jeb.Notes.Count == 1 && jeb.Notes[0].Contains("Duna seat"), "a memory was noted");
+        eng.CrewSend("Jebediah Kerman", "Remember what I promised?", Day * 2);
+        Assert(lastUser.Contains("Things you noted") && lastUser.Contains("Duna seat"), "memories come back next time");
+
+        for (int i = 0; i < 12; i++) jeb.Notes.Add("Y1: a long note about many things that happened and were said, padded out to take up room in memory, then padded some more so that the budget fills " + i);
+        eng.CrewSend("Jebediah Kerman", "Anything else?", Day * 3);
+        Assert(compress == 1 && jeb.MemorySummary.Contains("Duna") && jeb.Notes.Count <= 5, "old memories were condensed: " + jeb.Notes.Count);
+        Assert(!eng.CrewSend("Gusemy Kerman", "Hello?", Day * 3), "the dead do not answer");
+
+        var n = new DataNode("K"); s.Save(n);
+        var back = NewsState.Load(n).Crew["Jebediah Kerman"];
+        Assert(back.Chat.Count == jeb.Chat.Count && back.MemorySummary == jeb.MemorySummary && back.Badass && back.Trait == "Pilot" && back.Log.Count == jeb.Log.Count, "chat and memories are saved in the save");
+
+        var off = CoreTests.OnlineSettings(); off.OfflineMode = true;
+        var eng2 = new NewsEngine(s, off, t, new SimpleClock(Day));
+        int before = calls;
+        eng2.CrewSend("Bob Kerman", "Hi Bob", Day * 4);
+        Assert(calls == before && s.Crew["Bob Kerman"].Chat.Last().Text.Contains("Turn the AI on"), "offline: no call, a polite note");
+    }
 }

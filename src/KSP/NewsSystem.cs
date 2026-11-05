@@ -133,11 +133,66 @@ namespace KerbalNews.KSP
             {
                 bool warping = TimeWarp.CurrentRate > 1.01f;
                 Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping);
+                if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
             }
             catch (Exception e)
             {
                 Debug.LogError("[KerbalNews] Tick failed: " + e);
                 Engine.LastError = e.Message;
+            }
+        }
+
+        float nextCrewSync;
+
+        /// <summary>Copies each kerbal's stats and whereabouts into the engine, for crew chat and profiles.</summary>
+        void SyncRoster()
+        {
+            var roster = HighLogic.CurrentGame.CrewRoster;
+            if (roster == null || roster.Crew == null) return;
+            var aboard = new Dictionary<string, Vessel>();
+            if (FlightGlobals.Vessels != null)
+                foreach (var v in FlightGlobals.Vessels)
+                {
+                    if (v == null) continue;
+                    var crew = v.GetVesselCrew();
+                    if (crew != null) foreach (var c in crew) if (c != null && c.name != null) aboard[c.name] = v;
+                }
+            foreach (var k in roster.Crew)
+            {
+                if (k == null || string.IsNullOrEmpty(k.name)) continue;
+                if (k.type == ProtoCrewMember.KerbalType.Applicant || k.type == ProtoCrewMember.KerbalType.Unowned) continue;
+                var p = new CrewProfile
+                {
+                    Name = k.name, Trait = k.trait ?? "", Level = k.experienceLevel, Courage = k.courage, Stupidity = k.stupidity,
+                    Badass = k.isBadass, Veteran = k.veteran, Gender = k.gender == ProtoCrewMember.Gender.Female ? "female" : "male",
+                    Status = k.rosterStatus == ProtoCrewMember.RosterStatus.Assigned ? "assigned" : k.rosterStatus == ProtoCrewMember.RosterStatus.Dead ? "dead"
+                        : k.rosterStatus == ProtoCrewMember.RosterStatus.Missing ? "missing" : "available",
+                };
+                if (k.type == ProtoCrewMember.KerbalType.Tourist) p.Trait = "Tourist";
+                Vessel ves;
+                if (aboard.TryGetValue(k.name, out ves) && ves.mainBody != null)
+                {
+                    p.VesselName = Names.Of(ves);
+                    p.Where = WhereText(ves);
+                }
+                Engine.SyncCrew(p);
+            }
+        }
+
+        static string WhereText(Vessel v)
+        {
+            string b = v.mainBody.bodyName;
+            switch (v.situation)
+            {
+                case Vessel.Situations.PRELAUNCH: return "on the launch pad";
+                case Vessel.Situations.LANDED: return "landed on " + b;
+                case Vessel.Situations.SPLASHED: return "splashed down on " + b;
+                case Vessel.Situations.FLYING: return "flying over " + b;
+                case Vessel.Situations.SUB_ORBITAL: return "on a suborbital arc above " + b;
+                case Vessel.Situations.ORBITING: return "in orbit of " + b;
+                case Vessel.Situations.ESCAPING: return "leaving " + b + "'s sphere of influence";
+                case Vessel.Situations.DOCKED: return "docked in orbit of " + b;
+                default: return "near " + b;
             }
         }
 

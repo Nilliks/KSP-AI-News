@@ -256,7 +256,7 @@ public enum VesselType { Debris, SpaceObject, Unknown, Probe, Relay, Rover, Land
 public enum AttachModes { STACK, SRF_ATTACH }
 
 public class VesselDeltaV { public double TotalDeltaVVac; }
-public class ProtoCrewMember { public enum RosterStatus { Available, Assigned, Dead, Missing } public string name; public RosterStatus rosterStatus; }
+public class ProtoCrewMember { public enum RosterStatus { Available, Assigned, Dead, Missing } public enum Gender { Male, Female } public enum KerbalType { Crew, Applicant, Unowned, Tourist } public string name, trait; public RosterStatus rosterStatus; public KerbalType type; public Gender gender; public int experienceLevel; public float courage, stupidity; public bool isBadass, veteran; }
 
 public class Vessel : UnityEngine.MonoBehaviour
 {

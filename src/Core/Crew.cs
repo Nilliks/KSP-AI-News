@@ -24,6 +24,18 @@ namespace KerbalNews
         public string DiedOn = "";
         /// <summary>Vessels already counted as a flight.</summary>
         public HashSet<string> Vessels = new HashSet<string>();
+        // From the game roster (refreshed by the KSP layer).
+        public string Trait = "";
+        public int Level;
+        public double Courage = 0.5, Stupidity = 0.5;
+        public bool Badass, Veteran, OnRoster;
+        public string Gender = "", Where = "", VesselName = "", RosterStatus = "available";
+        /// <summary>What they have been through, in plain words with dates, oldest first.</summary>
+        public List<string> Log = new List<string>();
+        /// <summary>Crew chat with the director, recent notes from it, and a summary of older talks.</summary>
+        public List<AssistantMessage> Chat = new List<AssistantMessage>();
+        public List<string> Notes = new List<string>();
+        public string MemorySummary = "";
 
         public string Tier
         {
@@ -54,6 +66,14 @@ namespace KerbalNews
             foreach (var h in Highlights) n.AddText("hl", h);
             foreach (var s in Scandals) n.AddText("scandal", s);
             foreach (var v in Vessels) n.Add("vessel", v);
+            n.Add("trait", Trait); n.Add("level", Level); n.Add("courage", Courage); n.Add("stupidity", Stupidity);
+            n.Add("badass", Badass); n.Add("veteran", Veteran); n.Add("onRoster", OnRoster); n.Add("gender", Gender);
+            n.AddText("where", Where); n.AddText("vesselName", VesselName); n.Add("roster", RosterStatus);
+            foreach (var l in Log) n.AddText("log", l);
+            foreach (var x in Notes) n.AddText("note", x);
+            n.AddText("memory", MemorySummary);
+            var chat = n.AddNode("CHAT");
+            foreach (var m in Chat) m.Save(chat.AddNode("MSG"));
         }
 
         public static CrewFame Load(DataNode n)
@@ -67,6 +87,14 @@ namespace KerbalNews
             foreach (var h in n.GetAll("hl")) c.Highlights.Add(TextCodec.Decode(h));
             foreach (var s in n.GetAll("scandal")) c.Scandals.Add(TextCodec.Decode(s));
             foreach (var v in n.GetAll("vessel")) c.Vessels.Add(v);
+            c.Trait = n.Get("trait", ""); c.Level = n.GetInt("level"); c.Courage = n.GetDouble("courage", 0.5); c.Stupidity = n.GetDouble("stupidity", 0.5);
+            c.Badass = n.GetBool("badass"); c.Veteran = n.GetBool("veteran"); c.OnRoster = n.GetBool("onRoster"); c.Gender = n.Get("gender", "");
+            c.Where = n.GetText("where"); c.VesselName = n.GetText("vesselName"); c.RosterStatus = n.Get("roster", "available");
+            foreach (var l in n.GetAll("log")) c.Log.Add(TextCodec.Decode(l));
+            foreach (var x in n.GetAll("note")) c.Notes.Add(TextCodec.Decode(x));
+            c.MemorySummary = n.GetText("memory");
+            var chat = n.GetNode("CHAT");
+            if (chat != null) foreach (var mn in chat.GetNodes("MSG")) c.Chat.Add(AssistantMessage.Load(mn));
             return c;
         }
     }
@@ -127,6 +155,19 @@ namespace KerbalNews
                     case EventTypes.CrewKilled:
                         break;
                 }
+                string when = Clock.FormatDate(e.UT) + ": ";
+                string on = e.VesselName != "" ? " aboard " + e.VesselName : "";
+                switch (e.Type)
+                {
+                    case EventTypes.Launch: if (gain > 0) LifeLog(c, when + (c.Flights == 1 ? "first flight, launched" : "launched (flight " + c.Flights + ")") + on); break;
+                    case EventTypes.Orbit: if (e.Body != "Kerbin") LifeLog(c, when + "reached orbit of " + e.Body + on); else if (c.Flights <= 1) LifeLog(c, when + "first time in orbit" + on); break;
+                    case EventTypes.Soi: LifeLog(c, when + "flew to " + e.Body + on); break;
+                    case EventTypes.Landing: if (e.Body != "Kerbin") LifeLog(c, when + "landed on " + e.Body + on); break;
+                    case EventTypes.Failure: LifeLog(c, when + "survived a failure" + on + (e.Detail != "" ? " (" + ResponseParser.Clip(e.Detail, 80) + ")" : "")); break;
+                    case EventTypes.Splashdown:
+                    case EventTypes.Recovery: LifeLog(c, when + "came home" + on); break;
+                    case EventTypes.Milestone: if (e.Detail != "") LifeLog(c, when + e.Detail); break;
+                }
                 // Bigger moments make bigger names, and each point is harder to earn near the top.
                 gain *= 0.6 + e.Significance / 100.0;
                 gain *= 1 - c.Fame / 130.0;
@@ -142,6 +183,10 @@ namespace KerbalNews
                     c.Dead = true;
                     c.DiedUT = e.UT;
                     c.DiedOn = e.VesselName;
+                    LifeLog(c, Clock.FormatDate(e.UT) + ": died" + (e.VesselName != "" ? " aboard " + e.VesselName : ""));
+                    // Everyone who ever flew with them carries it.
+                    foreach (var o in State.Crew.Values.Where(o => o != c && !o.Dead && !e.Crew.Contains(o.Name) && o.Vessels.Overlaps(c.Vessels)))
+                        LifeLog(o, Clock.FormatDate(e.UT) + ": lost former crewmate " + name + (e.VesselName != "" ? " on " + e.VesselName : ""));
                     // Martyrdom: the lost are remembered.
                     c.Fame = Math.Min(100, Math.Max(c.Fame, 15) + 10);
                     c.PeakFame = Math.Max(c.PeakFame, c.Fame);
