@@ -39,6 +39,8 @@ namespace KerbalNews.Web
                 { "date", Date(x.UT) }, { "yesUrl", "action:assistant-yes/" + x.Id }, { "noUrl", "action:assistant-no/" + x.Id },
             }).ToList();
             m["empty"] = State.AssistantChat.Count == 0;
+            m["orders"] = State.Orders.Select((o, i) => (object)new Dictionary<string, object> { { "n", i + 1 }, { "text", o.Text }, { "removeUrl", "action:assistant-unorder/" + (i + 1) } }).ToList();
+            m["hasOrders"] = State.Orders.Count > 0;
             return m;
         }
 
@@ -55,6 +57,12 @@ namespace KerbalNews.Web
                 { "secret", d.Secret && !d.Exposed }, { "exposed", d.Exposed }, { "backfired", d.Status == "backfired" },
             }).ToList();
             m["empty"] = State.Deals.Count == 0;
+            m["ties"] = State.Ties.Where(t => t.Score != 0).OrderBy(t => t.Score).Select(t => (object)new Dictionary<string, object>
+            {
+                { "name", t.Name }, { "outlet", Outlets.NameOf(t.Outlet) }, { "feeling", t.Feeling }, { "score", (t.Score > 0 ? "+" : "") + t.Score }, { "good", t.Score > 0 },
+                { "notes", string.Join(" · ", t.Notes.Skip(Math.Max(0, t.Notes.Count - 3)).ToArray()) },
+            }).ToList();
+            m["hasTies"] = State.Ties.Any(t => t.Score != 0);
             return m;
         }
     }

@@ -611,6 +611,32 @@ namespace KerbalNews
         public List<string> Flags = new List<string>();
     }
 
+    /// <summary>A named reporter's relationship with the agency: positive is goodwill, negative is a grudge.</summary>
+    public class ReporterTie
+    {
+        public string Outlet = "", Name = "";
+        public int Score;
+        public List<string> Notes = new List<string>();
+
+        public string Feeling
+        {
+            get { return Score >= 5 ? "a close, friendly contact" : Score >= 2 ? "warm toward the agency" : Score <= -5 ? "holds a serious grudge" : Score <= -2 ? "cool and suspicious" : "neutral"; }
+        }
+
+        public void Save(DataNode n)
+        {
+            n.Add("outlet", Outlet); n.AddText("name", Name); n.Add("score", Score);
+            foreach (var x in Notes) n.AddText("note", x);
+        }
+
+        public static ReporterTie Load(DataNode n)
+        {
+            var t = new ReporterTie { Outlet = n.Get("outlet", ""), Name = n.GetText("name"), Score = n.GetInt("score") };
+            foreach (var x in n.GetAll("note")) t.Notes.Add(TextCodec.Decode(x));
+            return t;
+        }
+    }
+
     /// <summary>The whole news world. Lives only inside the save file.</summary>
     public class NewsState
     {
@@ -667,6 +693,10 @@ namespace KerbalNews
         /// <summary>The personal assistant's chat, and the paper trail of everything it did.</summary>
         public List<AssistantMessage> AssistantChat = new List<AssistantMessage>();
         public List<Deal> Deals = new List<Deal>();
+        /// <summary>Standing orders the director gave the assistant; it follows them in every request.</summary>
+        public List<LoreEntry> Orders = new List<LoreEntry>();
+        /// <summary>How named reporters feel about the agency after its dealings with them.</summary>
+        public List<ReporterTie> Ties = new List<ReporterTie>();
         /// <summary>A PR firm the assistant hired, and until when.</summary>
         public string PrFirm = "";
         public double PrFirmUntilUT = -1;
@@ -770,6 +800,10 @@ namespace KerbalNews
             foreach (var j in CommunityJobs) j.Save(jo.AddNode("JOB"));
             var asn = n.AddNode("ASSISTANT");
             foreach (var m in AssistantChat.Skip(Math.Max(0, AssistantChat.Count - MaxAssistantMessages))) m.Save(asn.AddNode("MSG"));
+            var ord = n.AddNode("ORDERS");
+            foreach (var o in Orders) { var on = ord.AddNode("ORDER"); on.Add("ut", o.UT); on.AddText("text", o.Text); }
+            var ties = n.AddNode("TIES");
+            foreach (var t in Ties) t.Save(ties.AddNode("TIE"));
             n.AddText("prFirm", PrFirm);
             n.Add("prFirmUntil", PrFirmUntilUT);
             var dealNode = n.AddNode("DEALS");
@@ -849,6 +883,10 @@ namespace KerbalNews
             if (jo != null) foreach (var jn in jo.GetNodes("JOB")) s.CommunityJobs.Add(CommunityJob.Load(jn));
             var asn = n.GetNode("ASSISTANT");
             if (asn != null) foreach (var mn in asn.GetNodes("MSG")) s.AssistantChat.Add(AssistantMessage.Load(mn));
+            var ord = n.GetNode("ORDERS");
+            if (ord != null) foreach (var on in ord.GetNodes("ORDER")) s.Orders.Add(new LoreEntry { UT = on.GetDouble("ut"), Text = on.GetText("text") });
+            var ties = n.GetNode("TIES");
+            if (ties != null) foreach (var tn in ties.GetNodes("TIE")) s.Ties.Add(ReporterTie.Load(tn));
             s.PrFirm = n.GetText("prFirm");
             s.PrFirmUntilUT = n.GetDouble("prFirmUntil", -1);
             var dealNode = n.GetNode("DEALS");

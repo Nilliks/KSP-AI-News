@@ -237,6 +237,8 @@ namespace KerbalNews
 - mood {}: public mood and the latest poll.
 - outlets {}: every outlet's id, name and character.
 - lore {}: the agency profile and lore journal.
+- reporters {}: named reporters at each outlet and how they feel about the agency (goodwill or grudges, and why).
+- orders {}: your standing orders.
 ACTIONS:
 - press_release {type: announcement|update|incident|teaser, title, body, vessel?, photos?: [gallery ids]}: official release on the press room. Write the text yourself if not given.
 - leak {outlet, info, importance?: 1-5}: anonymously give information to one outlet. It runs a story within a day. Leaks can be traced back to the agency.
@@ -265,7 +267,9 @@ ACTIONS:
 - award {name, honoree?, amount}: fund an award or scholarship, e.g. in a kerbal's name.
 - set_silent {vessel, silent: true|false}: keep a craft's telemetry from the press, or share it again.
 - delete_post {target}: delete one of the agency's own comments or threads (id or words from it). Someone may have screenshotted it.
-- edit_post {target, text}: change the text of one of the agency's own comments or threads.";
+- edit_post {target, text}: change the text of one of the agency's own comments or threads.
+- add_order {text}: remember a standing order from the director (""from now on..."", ""always..."", ""never...""). Follow it in every later request.
+- remove_order {order}: drop a standing order (its number or words from it).";
 
         string AssistantSystem()
         {
@@ -277,6 +281,13 @@ ACTIONS:
             sb.AppendLine("When asked for a briefing or summary, use lookups (news, mood, finances, forum) and answer in a few short paragraphs. Keep replies short and conversational otherwise.");
             if (Settings.AssistantConfirm) sb.AppendLine("The director has asked to approve anything that costs money: when your plan includes spending, the whole plan waits for an Approve button. So say what you have prepared (\"I've lined up...\", \"approve below and I'll send it\"), never that it is done.");
             sb.AppendLine("Write any press release, comment or post text yourself, in good in-universe style, unless the director gives exact wording. Stay consistent with the agency profile and lore.");
+            if (State.Orders.Count > 0)
+            {
+                sb.AppendLine("STANDING ORDERS FROM THE DIRECTOR (always follow these unless the director's new message clearly overrides one; if a request conflicts, say so):");
+                for (int i = 0; i < State.Orders.Count; i++) sb.AppendLine((i + 1) + ". " + State.Orders[i].Text);
+            }
+            sb.AppendLine("When the director gives a lasting instruction (\"from now on\", \"always\", \"never\", a spending limit), store it with add_order.");
+            sb.AppendLine("Reporters remember how the agency treats them: exclusives and tips build goodwill, threats, bribe attempts, denials and snubs build grudges. Use the reporters lookup when choosing who to approach.");
             sb.AppendLine();
             sb.AppendLine(AssistantCommands);
             sb.AppendLine();
@@ -395,6 +406,22 @@ ACTIONS:
                     case "outlets":
                         foreach (var o in Outlets.All) sb.AppendLine(o.Id + " | " + o.Name + " | " + o.Style + " " + (o.Bias ?? ""));
                         return sb.ToString();
+                    case "reporters":
+                    {
+                        foreach (var o in Outlets.All)
+                        {
+                            List<string> reps;
+                            var names = State.Reporters.TryGetValue(o.Id, out reps) ? reps : new List<string>();
+                            var ties = State.Ties.Where(t => t.Outlet == o.Id).ToList();
+                            var all = names.Concat(ties.Select(t => t.Name)).Distinct().ToList();
+                            if (all.Count == 0) continue;
+                            sb.AppendLine(o.Name + ": " + string.Join("; ", all.Select(n => { var t = ties.FirstOrDefault(x => x.Name == n); return n + (t == null ? " (no dealings yet)" : " (" + t.Feeling + ", " + t.Score + (t.Notes.Count > 0 ? ": " + string.Join(", ", t.Notes.ToArray()) : "") + ")"); }).ToArray()));
+                        }
+                        return sb.Length == 0 ? "No named reporters yet." : sb.ToString();
+                    }
+                    case "orders":
+                        for (int i = 0; i < State.Orders.Count; i++) sb.AppendLine((i + 1) + ". " + State.Orders[i].Text + " (given " + Clock.FormatDate(State.Orders[i].UT) + ")");
+                        return sb.Length == 0 ? "No standing orders." : sb.ToString();
                     case "lore":
                     {
                         var pr = State.Profile;
@@ -531,6 +558,19 @@ ACTIONS:
                         State.SetSilent(tv.VesselId, silent);
                         return (tv.Craft != null ? tv.Craft.VesselName : "The craft") + (silent ? " is now silent: the press only sees what anyone can see from the ground." : " now shares its telemetry with the press again.");
                     }
+                    case "add_order":
+                    {
+                        string text = ResponseParser.Clip(Arg(a, "text"), 300);
+                        if (text == "") return "There was no order to remember.";
+                        if (State.Orders.Count >= 20) return "I already have 20 standing orders; drop one first.";
+                        State.Orders.Add(new LoreEntry { UT = ut, Text = text });
+                        return "Standing order noted: " + text;
+                    }
+                    case "remove_order":
+                    {
+                        int i = RemoveOrder(Arg(a, "order"));
+                        return i < 0 ? "I couldn't find that standing order." : "Dropped the standing order.";
+                    }
                     case "delete_post": return EditPost(a, ut, true);
                     case "edit_post": return EditPost(a, ut, false);
                     case "add_lore":
@@ -545,6 +585,41 @@ ACTIONS:
             }
             catch (Exception e) { return "Something went wrong with " + cmd + ": " + e.Message; }
         }
+
+        /// <summary>Removes a standing order by its number (from 1) or by words from it. Returns its index, or -1.</summary>
+        public int RemoveOrder(string which)
+        {
+            which = (which ?? "").Trim();
+            int n;
+            int i = int.TryParse(which, NumberStyles.Integer, AInv, out n) ? n - 1 : State.Orders.FindIndex(o => which.Length > 2 && o.Text.IndexOf(which, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (i < 0 || i >= State.Orders.Count) return -1;
+            State.Orders.RemoveAt(i);
+            return i;
+        }
+
+        static readonly string[] ReporterFirstNames = { "Bill", "Linfrey", "Sonbro", "Maddy", "Gusby", "Haldred", "Neldo", "Tessa", "Corvin", "Dilsy", "Ambrey", "Joleen" };
+
+        /// <summary>Changes how a reporter feels about the agency. With no name, the outlet's best-known reporter (or a new one).</summary>
+        public ReporterTie Tie(string outlet, string reporter, int delta, string note, double ut)
+        {
+            if (string.IsNullOrEmpty(outlet) || Outlets.Get(outlet) == null) return null;
+            if (string.IsNullOrEmpty(reporter))
+            {
+                var known = State.Ties.Where(t => t.Outlet == outlet).OrderByDescending(t => Math.Abs(t.Score)).FirstOrDefault();
+                List<string> reps;
+                reporter = known != null ? known.Name : State.Reporters.TryGetValue(outlet, out reps) && reps.Count > 0 ? reps[0] : ReporterFirstNames[dealRng.Next(ReporterFirstNames.Length)] + " Kerman";
+            }
+            List<string> list;
+            if (!State.Reporters.TryGetValue(outlet, out list)) State.Reporters[outlet] = list = new List<string>();
+            if (!list.Contains(reporter) && list.Count < 6) list.Add(reporter);
+            var tie = State.Ties.FirstOrDefault(t => t.Outlet == outlet && t.Name == reporter);
+            if (tie == null) { tie = new ReporterTie { Outlet = outlet, Name = reporter }; State.Ties.Add(tie); }
+            tie.Score = Math.Max(-10, Math.Min(10, tie.Score + delta));
+            if (!string.IsNullOrEmpty(note)) { tie.Notes.Add(Clock.FormatDate(ut) + ": " + note); if (tie.Notes.Count > 6) tie.Notes.RemoveAt(0); }
+            return tie;
+        }
+
+        string ReporterOf(Article a) { return a != null && !string.IsNullOrEmpty(a.Reporter) ? a.Reporter : null; }
 
         Deal Log(string kind, string summary, double amount, bool secret, double ut, double exposePerDay = 0, double exposeDays = 40)
         {
@@ -587,6 +662,7 @@ ACTIONS:
             string info = ResponseParser.Clip(Arg(a, "info"), 1500);
             if (info == "") return "There was nothing to leak.";
             int imp = Math.Max(1, Math.Min(5, (int)ArgNum(a, "importance", 2)));
+            Tie(o.Id, null, 2, "got a leak from inside the agency", ut);
             var d = Log("leak", "Leak to " + o.Name + ": " + ResponseParser.Clip(info, 100), 0, true, ut, o.Id == "kraken" ? 0.03 : 0.015);
             d.Target = o.Id; d.Detail = info;
             double when = ut + (0.25 + dealRng.NextDouble() * 0.5) * Day;
@@ -646,6 +722,7 @@ ACTIONS:
             const double fee = 12000;
             string problem;
             if (!Pay(fee, "Legal fees", out problem)) return problem;
+            Tie(art.Outlet, ReporterOf(art), -4, "threatened with lawyers over \"" + ResponseParser.Clip(art.Headline, 50) + "\"", ut);
             var d = Log("legal", "Legal letter to " + Outlets.NameOf(art.Outlet) + " over \"" + art.Headline + "\"", -fee, false, ut);
             d.Target = art.Outlet; d.ArticleId = art.Id; d.Status = "pending"; d.Detail = Arg(a, "demand", "retraction");
             d.ResolveUT = ut + (0.5 + dealRng.NextDouble()) * Day;
@@ -706,6 +783,7 @@ ACTIONS:
             var broke = new List<string>();
             foreach (var o in outlets)
             {
+                Tie(o.Id, null, 1, "invited to an embargoed briefing", ut);
                 double chance = o.Id == "kraken" ? 0.5 : 0.05;
                 bool breaks = dealRng.NextDouble() < chance;
                 if (breaks) broke.Add(o.Name);
@@ -722,13 +800,15 @@ ACTIONS:
             var o = FindOutlet(Arg(a, "outlet")) ?? Outlets.Get("herald");
             string who = Arg(a, "kerbal", "the director");
             string topic = ResponseParser.Clip(Arg(a, "topic", "the program"), 600);
+            var interviewer = Tie(o.Id, Arg(a, "reporter", null), 3, "got an exclusive interview with " + who, ut);
             var d = Log("interview", "Exclusive interview with " + who + " for " + o.Name + ": " + ResponseParser.Clip(topic, 60), 0, false, ut);
             d.Target = o.Id;
-            Tip(o.Id, o.Name + " landed an exclusive sit-down interview with " + who + " of " + AgencyName + " about " + topic + ". Write it as an interview feature with quotes from " + who + " that fit the agency profile and lore.",
+            Tip(o.Id, o.Name + " landed an exclusive sit-down interview with " + who + " of " + AgencyName + " about " + topic + ". Write it as an interview feature with quotes from " + who + " that fit the agency profile and lore. The interviewer and byline is " + interviewer.Name + ".",
                 "Exclusive: " + who + " on " + ResponseParser.Clip(topic, 70), o.Name + " spoke with " + who + " about " + topic + ".", 32, ut + 0.4 * Day, o.Id == "kraken" ? "rumor" : "feature", d.Id);
             if (dealRng.NextDouble() < 0.4)
             {
                 var rival = new[] { "herald", "observer", "inquirer" }.Where(x => x != o.Id).OrderBy(x => dealRng.Next()).First();
+                Tie(rival, null, -1, "snubbed when " + o.Name + " got an exclusive", ut);
                 Tip(rival, AgencyName + " gave " + o.Name + " an exclusive interview with " + who + ". " + Outlets.NameOf(rival) + " notes, a little sourly, that the agency picks favourites, and asks what questions " + who + " was not asked.", AgencyName + " picks favourites with " + o.Name + " exclusive", "", 20, ut + 1 * Day, "opinion", d.Id);
             }
             return "Set up an exclusive interview with " + who + " for " + o.Name + ". It runs within a day.";
@@ -741,6 +821,8 @@ ACTIONS:
             string stance = Arg(a, "stance", "deny");
             string statement = ResponseParser.Clip(Arg(a, "statement"), 800);
             var o = Outlets.Get(art.Outlet);
+            if (stance != "confirm") Tie(art.Outlet, ReporterOf(art), stance == "no_comment" ? -1 : -2, (stance == "no_comment" ? "stonewalled on \"" : "had the story \"") + ResponseParser.Clip(art.Headline, 50) + (stance == "no_comment" ? "\"" : "\" publicly denied"), ut);
+            else Tie(art.Outlet, ReporterOf(art), 1, "had \"" + ResponseParser.Clip(art.Headline, 50) + "\" confirmed", ut);
             Log("response", (stance == "no_comment" ? "No comment on" : stance == "confirm" ? "Confirmed" : "Denied") + " \"" + art.Headline + "\"", 0, false, ut);
             string brief = stance == "no_comment"
                 ? AgencyName + " declined to comment on " + o.Name + "'s story \"" + art.Headline + "\". The silence fuels speculation."
@@ -756,6 +838,7 @@ ACTIONS:
         {
             var art = FindArticle(Arg(a, "article"), ut);
             if (art == null) return "I couldn't find that article.";
+            Tie(art.Outlet, ReporterOf(art), -1, "asked to correct \"" + ResponseParser.Clip(art.Headline, 50) + "\"", ut);
             var d = Log("correction", "Asked " + Outlets.NameOf(art.Outlet) + " to correct \"" + art.Headline + "\"", 0, false, ut);
             d.Target = art.Outlet; d.ArticleId = art.Id; d.Detail = ResponseParser.Clip(Arg(a, "details"), 600); d.Status = "pending";
             d.ResolveUT = ut + (0.3 + dealRng.NextDouble() * 0.7) * Day;
@@ -965,6 +1048,7 @@ ACTIONS:
                             {
                                 d.Status = "done";
                                 d.Outcome = d.Kind == "takedown" ? "Accepted. The article is gone." : "Accepted. A friendly story is coming.";
+                                Tie("kraken", ReporterOf(art), 2, "was paid by the agency", ut);
                                 d.ExposeChance = 0.02; d.ExposeUntilUT = ut + 60 * Day;
                             }
                         }
@@ -988,11 +1072,12 @@ ACTIONS:
                         if (o != null && dealRng.NextDouble() < ethic)
                         {
                             d.Outcome = name + " refused and is reporting the attempt.";
+                            Tie(o.Id, ReporterOf(art), -4, "was offered a bribe by the agency", ut);
                             Tip(o.Id, AgencyName + " offered " + name + " √" + Money(d.Offered) + " to " + (d.Kind == "takedown" ? "remove its article" + (art != null ? " \"" + art.Headline + "\"" : "") : "publish favourable coverage") + ". The outlet refused and is reporting the attempt as a serious breach of press ethics.",
                                 AgencyName + " offered " + name + " money to " + (d.Kind == "takedown" ? "pull a story" : "cover it favourably"), AgencyName + " offered this newspaper √" + Money(d.Offered) + ". We declined.", 50, ut + 0.5 * Day, "news", d.Id);
                             d.ExposedUT = ut;
                         }
-                        else { d.Outcome = name + " refused politely and kept it quiet, for now."; d.ExposeChance = 0.02; d.ExposeUntilUT = ut + 40 * Day; }
+                        else { d.Outcome = name + " refused politely and kept it quiet, for now."; d.ExposeChance = 0.02; d.ExposeUntilUT = ut + 40 * Day; if (o != null) Tie(o.Id, ReporterOf(art), -2, "was quietly offered money by the agency", ut); }
                     }
                     break;
                 }
@@ -1013,6 +1098,7 @@ ACTIONS:
                     {
                         d.Status = "backfired";
                         d.Outcome = name + " refused and published a story about the legal threat.";
+                        Tie(d.Target, ReporterOf(art), -1, "fought off the agency's lawyers", ut);
                         Tip(d.Target, AgencyName + "'s lawyers sent " + name + " a letter demanding a " + d.Detail + (art != null ? " of \"" + art.Headline + "\"" : "") + ". " + name + " stands by its reporting and accuses the agency of trying to intimidate the press. Other readers now pay more attention to the original story.",
                             kraken ? AgencyName.ToUpperInvariant() + " LAWYERS TRY TO SILENCE THE KRAKEN" : AgencyName + " threatens " + name + " with legal action", name + " has received a legal letter from " + AgencyName + " and stands by its story.", 42, ut + 0.4 * Day, kraken ? "rumor" : "news", d.Id);
                     }

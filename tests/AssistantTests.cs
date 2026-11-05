@@ -174,4 +174,48 @@ public static class AssistantTests
         Assert(s.Articles.Any(x => x.Outlet == "herald" && x.Headline.StartsWith("Exclusive")), "the interview ran");
         Assert(s.Deals.Count >= 12, "everything is on the paper trail: " + s.Deals.Count);
     }
+
+    public static void TestStandingOrdersAndReporterMemory()
+    {
+        var s = new NewsState();
+        var art = Kraken(s, "a4", "THE KRAKEN STRIKES KSC");
+        art.Reporter = "Gusby Kerman";
+        s.Articles.Add(new Article { Id = "a6", Outlet = "inquirer", Kind = "news", Headline = "Questions over KSC safety", Body = "Body text that is long enough.", PublishedUT = 10, Significance = 40, Reporter = "Tessa Kerman", StoryId = "s0" });
+        string lastSystem = "";
+        var replies = new Queue<string>();
+        replies.Enqueue("{\"lookups\":[],\"actions\":[{\"cmd\":\"add_order\",\"args\":{\"text\":\"Never pay the Kraken more than 20k.\"}}],\"reply\":\"Noted.\"}");
+        replies.Enqueue("{\"lookups\":[{\"cmd\":\"reporters\",\"args\":{}}],\"actions\":[],\"reply\":\"\"}");
+        replies.Enqueue("{\"lookups\":[],\"actions\":[],\"reply\":\"Tessa at the Inquirer dislikes us.\"}");
+        string lastUser = "";
+        var t = new CoreTests.FakeTransport { Responder = r => { lastSystem = r.Body; lastUser = r.Body; return Reply(replies.Count > 0 ? replies.Dequeue() : "{\"reply\":\"ok\"}"); } };
+        var eng = new NewsEngine(s, CoreTests.OnlineSettings(), t, new SimpleClock(21600));
+        eng.SeedDeals(1);
+        eng.AssistantSend("From now on, never pay the Kraken more than 20k", 20);
+        Assert(s.Orders.Count == 1 && s.Orders[0].Text.Contains("20k"), "order stored");
+        eng.Execute("legal_threat", new Dictionary<string, object> { { "article", "a6" } }, 21);
+        eng.Execute("interview", new Dictionary<string, object> { { "outlet", "herald" }, { "kerbal", "Gene Kerman" }, { "topic", "safety" } }, 22);
+        var tessa = s.Ties.Single(x => x.Name == "Tessa Kerman");
+        Assert(tessa.Score <= -4 && tessa.Notes.Any(n => n.Contains("lawyers")), "the Inquirer reporter holds a grudge: " + tessa.Score);
+        Assert(s.Ties.Any(x => x.Outlet == "herald" && x.Score >= 3), "the Herald reporter is grateful");
+        eng.AssistantSend("who in the press dislikes us?", 23);
+        Assert(lastSystem.Contains("STANDING ORDERS") && lastSystem.Contains("20k"), "orders go into every request");
+        Assert(lastUser.Contains("Tessa Kerman") && lastUser.Contains("grudge"), "the reporters lookup shows the grudge");
+        var story = new Story { Id = "s9", Kind = "tip", FillerOutlet = "inquirer", Topic = "x", Significance = 40 };
+        var prompt = PromptBuilder.User(story, CoveragePlan.ForTip(story), s, null, new SimpleClock(21600), 30);
+        Assert(prompt.Contains("Tessa Kerman is holds") || prompt.Contains("Tessa Kerman is cool") || prompt.Contains("Tessa Kerman is holds a serious grudge") || prompt.Contains("Tessa Kerman"), "writers see the relationship");
+        Assert(prompt.Contains("dig harder"), "writers are told how to use it");
+
+        string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
+        sites.Now = () => 30;
+        Assert(sites.Render("agency.kb/assistant").Html.Contains("Never pay the Kraken"), "orders listed");
+        Assert(sites.Render("agency.kb/ledger").Html.Contains("Tessa Kerman"), "press contacts listed");
+        sites.Handle("action:assistant-unorder/1", null);
+        Assert(s.Orders.Count == 0, "order removed");
+        var node = new DataNode("NEWS");
+        s.Orders.Add(new LoreEntry { UT = 1, Text = "Always be polite." });
+        s.Save(node);
+        var back = NewsState.Load(node);
+        Assert(back.Orders.Count == 1 && back.Ties.Count == s.Ties.Count && back.Ties.First(x => x.Name == "Tessa Kerman").Score == tessa.Score, "orders and ties saved");
+    }
 }

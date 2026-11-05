@@ -3,6 +3,10 @@
 <div class="head"><h1>Paper trail</h1><p>Everything your assistant did. Secret deals stay secret until someone finds the records. Spent {{spent}}, received {{received}}.</p></div>
 {{> _tabs}}
 <div class="wrap">
+{{#hasTies}}<h2>Press contacts</h2>
+<p class="hint">Reporters remember how you treat them. Goodwill gets you the benefit of the doubt; grudges mean they dig harder.</p>
+{{#ties}}<div class="deal"><div class="dtop"><b>{{name}}</b><span class="meta">{{outlet}} · {{feeling}}</span><span class="spacer"></span><span class="amt{{#good}} plus{{/good}}">{{score}}</span></div>{{#notes}}<p class="hint">{{notes}}</p>{{/notes}}</div>{{/ties}}
+<h2>Deals</h2>{{/hasTies}}
 {{#empty}}<p class="hint">Nothing yet. Ask your <a href="agency.kb/assistant">assistant</a> to do something.</p>{{/empty}}
 {{#deals}}<div class="deal{{#backfired}} bad{{/backfired}}{{#exposed}} bad{{/exposed}}">
   <div class="dtop"><span class="meta">{{date}} · {{kind}}</span>{{#secret}}<span class="tag">SECRET</span>{{/secret}}{{#exposed}}<span class="tag red">EXPOSED</span>{{/exposed}}<span class="spacer"></span><span class="amt{{#income}} plus{{/income}}">{{amount}}</span></div>

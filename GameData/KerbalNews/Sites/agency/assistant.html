@@ -21,6 +21,11 @@
       {{^pending}}<p class="state">{{stateText}}</p>{{/pending}}</div>{{/proposal}}
   {{/messages}}
   </div>
+  <h2>Standing orders</h2>
+  <p class="hint">Rules {{name}} follows in every request. You can also just tell her ("from now on, never pay the Kraken more than 20k").</p>
+  {{#orders}}<div class="lore"><span class="meta">{{n}}.</span><p>{{text}}</p><a href="{{removeUrl}}">Remove</a></div>{{/orders}}
+  <input name="order" value="" placeholder="Add a standing order">
+  <div class="sendrow"><button class="btn" data-action="assistant-order">Add order</button></div>
   <p class="hint">Newest first. Spending {{#confirm}}waits for your approval{{/confirm}}{{^confirm}}happens without asking{{/confirm}} (change it in Settings). Everything the assistant does is recorded in the <a href="agency.kb/ledger">paper trail</a>.</p>
 {{/on}}
 </div></body></html>

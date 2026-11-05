@@ -93,6 +93,11 @@ namespace KerbalNews.Web
                 case "assistant-yes": Engine.AssistantDecide(arg, true, Now()); break;
                 case "assistant-no": Engine.AssistantDecide(arg, false, Now()); break;
                 case "assistant-clear": Engine.AssistantClear(); break;
+                case "assistant-unorder": Engine.RemoveOrder(arg); break;
+                case "assistant-order":
+                    string order = Get(form, "order").Trim();
+                    if (order != "") State.Orders.Add(new LoreEntry { UT = Now(), Text = ResponseParser.Clip(order, 300) });
+                    break;
                 case "scale":
                     float cur = g.UiScale > 0.4f ? g.UiScale : UiScale();
                     if (arg == "auto") g.UiScale = 0;
