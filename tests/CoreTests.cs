@@ -609,9 +609,11 @@ public static class CoreTests
         var t = new FakeTransport { Responder = AnthropicReply };
         var eng = Engine(s, t);
         eng.Tick(0, 0, true);
-        eng.Ingest(Ev(EventTypes.Launch, 100, "v1", "Kerbin", "Jebediah Kerman"));
+        eng.Ingest(Ev(EventTypes.Landing, 100, "v1", "Duna", "Jebediah Kerman"));
         Eq(1, eng.SkipDelay(200), "one story moved");
+        eng.Tick(200, 0.5, true);
+        Assert(s.Articles.Count >= 3, "multi-outlet story");
         eng.Tick(200, 1, true);
-        Assert(s.Articles.Count > 0 && s.Articles.All(a => a.PublishedUT <= 200 + 0.2 * Day), "published right away");
+        Assert(s.Articles.Count > 0 && s.Articles.All(a => a.PublishedUT <= 200), "every outlet published right away");
     }
 }

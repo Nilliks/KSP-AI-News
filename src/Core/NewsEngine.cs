@@ -419,7 +419,10 @@ namespace KerbalNews
             int n = 0;
             foreach (var s in State.Stories.Where(s => s.Status == StoryStatus.Pending))
             {
-                double shift = s.PublishUT - ut;
+                // Move the story back far enough that every outlet's own delay has passed too.
+                var plan = PlanFor(s);
+                double maxDelay = plan.IsEmpty ? 1 : plan.Outlets.Max(o => o.DelayDays);
+                double shift = s.CreatedUT + (maxDelay + 0.11) * Day - ut;
                 if (shift <= 0) continue;
                 s.CreatedUT -= shift;
                 s.PublishUT = ut;
