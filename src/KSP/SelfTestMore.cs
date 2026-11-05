@@ -14,7 +14,7 @@ namespace KerbalNews.KSP
     /// a crash investigation, saving the new data, and posting a news contract. All inside the throwaway save.</summary>
     public partial class SelfTest
     {
-        bool modeEng, modeCareer;
+        bool modeEng, modeCareer, modeImg;
 
         static object CallStatic(string type, string method, params object[] args)
         {
@@ -213,6 +213,53 @@ namespace KerbalNews.KSP
                     "save: engineering chat, incidents and mission plan survive a real save (" + (back != null ? back.EngChat.Count + " lines, " + back.Incidents.Count + " incidents" : "no news node") + ")");
             }
             catch (Exception e) { Check(false, "save: read back: " + e); }
+        }
+
+        /// <summary>"img" mode: a press photo from the image service. The key comes from PluginData/selftest-imgkey.txt (deleted at once),
+        /// lives in memory only for the test and is never written to settings or secrets.</summary>
+        IEnumerator ImageCheck(NewsSystem sys)
+        {
+            var eng = sys.Engine;
+            var g = eng.Settings;
+            string keyFile = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/PluginData/selftest-imgkey.txt");
+            string key = "";
+            try { if (File.Exists(keyFile)) { key = File.ReadAllText(keyFile).Trim(); File.Delete(keyFile); } } catch (Exception e) { Check(false, "img: read the test key: " + e.Message); }
+            if (key == "") { Check(false, "img: no test key in selftest-imgkey.txt"); yield break; }
+            string oldProvider = g.ImageProviderId, oldTier = g.ImageMinTier, oldKey;
+            g.Keys.TryGetValue("img:gemini", out oldKey);
+            g.ImageProviderId = "gemini"; g.Keys["img:gemini"] = key; g.ImageMinTier = "brief";
+            key = "";
+            try
+            {
+                Check(g.ImagesOn, "img: images on with " + g.ImagePreset.Name + " (" + g.ImageModel + ")");
+                bool? ok = null; string msg = "", file = "";
+                eng.TestImage((a, b, c) => { ok = a; msg = b; file = c; });
+                float t0 = Time.realtimeSinceStartup;
+                while (ok == null && Time.realtimeSinceStartup - t0 < 180) yield return new WaitForSeconds(1);
+                Check(ok == true, "img: sample photo in " + (Time.realtimeSinceStartup - t0).ToString("0") + " s: " + msg + (file != "" ? " (" + file + ")" : ""));
+
+                // A real story: the photo lands on its articles.
+                var r = eng.PublishRelease("announcement", "Agency unveils new launch pad floodlights", "The space center installed new floodlights at the launch pad so night launches can be photographed properly.", "", null, Planetarium.GetUniversalTime());
+                string storyId = r != null ? r.StoryId : "";
+                t0 = Time.realtimeSinceStartup;
+                while (Time.realtimeSinceStartup - t0 < 300 && !eng.State.Articles.Any(a => a.StoryId == storyId && a.Image != "")) yield return new WaitForSeconds(1);
+                var art = eng.State.Articles.FirstOrDefault(a => a.StoryId == storyId && a.Image != "");
+                Check(art != null, "img: article photo in " + (Time.realtimeSinceStartup - t0).ToString("0") + " s (" + eng.ImageStatus + ", " + eng.State.Articles.Count(a => a.StoryId == storyId) + " articles)");
+                var story = eng.State.Stories.FirstOrDefault(x => x.Id == storyId);
+                if (story != null) Log("    prompt: " + story.ImagePrompt);
+                if (art != null)
+                {
+                    string path = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/PluginData/Images/" + art.Image);
+                    if (File.Exists(path)) { try { File.Copy(path, Path.Combine(outDir, "img-" + art.Image), true); } catch { } }
+                    yield return Go(Sites.ArticleUrl(art));
+                    yield return Shot("img-article");
+                }
+            }
+            finally
+            {
+                g.ImageProviderId = oldProvider; g.ImageMinTier = oldTier;
+                if (oldKey != null) g.Keys["img:gemini"] = oldKey; else g.Keys.Remove("img:gemini");
+            }
         }
 
         IEnumerator ContractCheck(NewsSystem sys)

@@ -37,7 +37,8 @@ namespace KerbalNews.KSP
             foreach (var f in Directory.GetFiles(outDir)) File.Delete(f);
             modeEng = mode.Contains("eng");
             modeCareer = mode.Contains("career");
-            StartCoroutine(Run(mode.Contains("ai"), mode.Contains("flight") || modeCareer, !mode.Contains("stay")));
+            modeImg = mode.Contains("img");
+            StartCoroutine(Run(mode.Contains("ai"), mode.Contains("flight") || modeCareer || modeImg, !mode.Contains("stay")));
         }
 
         void Log(string s) { log.Add(s); Debug.Log("[KerbalNews] SELFTEST " + s); }
@@ -173,6 +174,7 @@ namespace KerbalNews.KSP
             while (HighLogic.LoadedScene != GameScenes.SPACECENTER && Time.realtimeSinceStartup - t0 < 120) yield return new WaitForSeconds(1);
             Check(HighLogic.LoadedScene == GameScenes.SPACECENTER, "flight: test save " + TestSave + " reached the space center");
             yield return new WaitForSeconds(5);
+            if (modeImg) { yield return ImageCheck(sys); yield break; }
             if (modeCareer) { yield return ContractCheck(sys); yield break; }
             if (modeEng) { yield return WarpCheck(sys); yield return EditorCheck(sys, craft); }
             // Launch clamps depend on other mods (in a heavily modded install they can fail to release), so the test
