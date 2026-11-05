@@ -31,7 +31,7 @@ if (-not $csc) {
 if (-not $csc) { throw "No Roslyn csc.exe found. Install Visual Studio Build Tools (C# compiler)." }
 
 # Reference the core libraries plus every Unity module, so new Unity type dependencies never break the build.
-$names = @("mscorlib","System","System.Core","netstandard","Assembly-CSharp","Assembly-CSharp-firstpass")
+$names = @("mscorlib","System","System.Core","netstandard","Assembly-CSharp","Assembly-CSharp-firstpass","Unity.TextMeshPro")
 $refFiles = ($names | ForEach-Object { Join-Path $managed "$_.dll" } | Where-Object { Test-Path $_ }) +
             (Get-ChildItem $managed -Filter "UnityEngine*.dll" | ForEach-Object { $_.FullName })
 $refs = $refFiles | Select-Object -Unique | ForEach-Object { "-r:`"$_`"" }
@@ -48,7 +48,7 @@ Write-Host "Built $out"
 
 if ($Install) {
     $dest = Join-Path $KspDir "GameData\KerbalNews"
-    foreach ($sub in "Plugins","Icons") {
+    foreach ($sub in "Plugins","Icons","Sites") {
         New-Item -ItemType Directory -Force -Path (Join-Path $dest $sub) | Out-Null
         Copy-Item -Force -Recurse (Join-Path $root "GameData\KerbalNews\$sub\*") (Join-Path $dest $sub)
     }

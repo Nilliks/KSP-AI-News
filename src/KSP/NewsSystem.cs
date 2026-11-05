@@ -17,6 +17,7 @@ namespace KerbalNews.KSP
         public static GlobalSettings Settings;
 
         public NewsEngine Engine { get; private set; }
+        public KerbalNews.Web.Sites Sites { get; private set; }
         public bool HasGame { get; private set; }
         readonly UnityHttpTransport transport = new UnityHttpTransport();
         readonly KspClock clock = new KspClock();
@@ -31,6 +32,19 @@ namespace KerbalNews.KSP
             Engine = new NewsEngine(new NewsState(), Settings, transport, clock);
             Engine.Digest = () => Snapshots.Digest(Engine.State);
             Engine.ArticlesPublished += OnPublished;
+            Engine.SaveImage = SaveImage;
+            string sitesDir = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/Sites");
+            Sites = new KerbalNews.Web.Sites(Engine, rel =>
+            {
+                var p = System.IO.Path.Combine(sitesDir, rel);
+                return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null;
+            });
+            Sites.Now = () => Planetarium.GetUniversalTime();
+            Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
+            Sites.UiScale = () => Browser.Scale;
+            Sites.SaveSettings = SaveSettings;
+            Sites.ActiveVesselId = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.persistentId.ToString() : null;
+            Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.vesselName : null;
             collector = new EventCollector(() => HasGame ? Engine : null);
             collector.Register();
             GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);
@@ -58,6 +72,17 @@ namespace KerbalNews.KSP
         }
 
         public void SaveSettings() { SettingsStore.Save(Settings); }
+
+        static void SaveImage(string file, byte[] bytes)
+        {
+            try
+            {
+                string dir = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/PluginData/Images");
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, System.IO.Path.GetFileName(file)), bytes);
+            }
+            catch (Exception e) { Debug.LogError("[KerbalNews] Could not save a press photo: " + e.Message); }
+        }
 
         static bool InGameScene
         {

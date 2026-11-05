@@ -8,12 +8,38 @@ using System.Collections.Generic;
 namespace UnityEngine
 {
     public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } }
-    public class Component : Object { public Transform transform; }
+    public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } }
+    public sealed class GameObject : Object
+    {
+        public GameObject(string name, params Type[] components) { }
+        public Transform transform;
+        public T AddComponent<T>() where T : Component { return null; }
+        public T GetComponent<T>() { return default(T); }
+        public void SetActive(bool v) { }
+    }
+    public class RectTransform : Transform
+    {
+        public Vector2 anchorMin, anchorMax, pivot, anchoredPosition, sizeDelta, offsetMin, offsetMax;
+        public Rect rect;
+    }
+    public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } }
+    public class Camera : Behaviour { }
+    public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
+    public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
+    public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
+    public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } }
     public class Behaviour : Component { public bool enabled; }
     public class MonoBehaviour : Behaviour { }
-    public class Transform : Component { public Vector3 position; public Vector3 up; }
+    public class Transform : Component { public Vector3 position; public Vector3 up; public void SetParent(Transform p, bool worldPositionStays) { } }
     public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
-    public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; }
+    public struct Vector2
+    {
+        public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero;
+        public static Vector2 operator +(Vector2 a, Vector2 b) { return a; } public static Vector2 operator -(Vector2 a, Vector2 b) { return a; }
+        public static Vector2 operator /(Vector2 a, float d) { return a; } public static Vector2 operator *(Vector2 a, float d) { return a; }
+        public static implicit operator Vector3(Vector2 v) { return new Vector3(v.x, v.y, 0); }
+        public static implicit operator Vector2(Vector3 v) { return new Vector2(v.x, v.y); }
+    }
     public struct Rect
     {
         public float x, y, width, height;
@@ -25,7 +51,7 @@ namespace UnityEngine
         public float r, g, b, a;
         public Color(float r, float g, float b) { this.r = r; this.g = g; this.b = b; a = 1; }
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static Color white; public static Color Lerp(Color a, Color b, float t) { return a; }
+        public static Color white, black, grey; public static Color Lerp(Color a, Color b, float t) { return a; }
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
     public enum TextureFormat { ARGB32 }
@@ -245,7 +271,7 @@ public static class GameSettings { public static float UI_SCALE = 1; }
 public static class TimeWarp { public static float CurrentRate; }
 
 [Flags]
-public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8 }
+public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8, KEYBOARDINPUT = 16, ALL_SHIP_CONTROLS = 32, STAGING = 64, TIMEWARP = 128, MAP = 256, QUICKSAVE = 512, QUICKLOAD = 1024, PAUSE = 2048, MISC = 4096 }
 public static class InputLockManager { public static void SetControlLock(ControlTypes t, string id) { } public static void RemoveControlLock(string id) { } }
 
 public class GameDatabase { public static GameDatabase Instance; public UnityEngine.Texture2D GetTexture(string url, bool normal) { return null; } }
