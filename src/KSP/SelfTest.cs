@@ -210,6 +210,11 @@ namespace KerbalNews.KSP
             v.OnFlyByWire += full;
             if (FlightInputHandler.state != null) FlightInputHandler.state.mainThrottle = 1f;
             yield return new WaitForSeconds(0.5f);
+            // Engines only run while physics does: wait for the craft to unpack and make sure the game is not paused.
+            float unpack = Time.realtimeSinceStartup;
+            while (v.packed && Time.realtimeSinceStartup - unpack < 20) yield return new WaitForSeconds(0.5f);
+            if (FlightDriver.Pause) { Log("  game was paused; unpausing"); FlightDriver.SetPause(false); yield return new WaitForSeconds(0.5f); }
+            Log("  before staging: packed " + v.packed + ", paused " + FlightDriver.Pause + ", timeScale " + Time.timeScale.ToString("0.00") + ", warp " + TimeWarp.CurrentRate.ToString("0.0") + ", ctrlState throttle " + (v.ctrlState != null ? v.ctrlState.mainThrottle.ToString("0.00") : "?"));
             float lift = Time.realtimeSinceStartup, nextStage = 0;
             int staged = 0;
             double startAlt = v.altitude;
@@ -228,7 +233,7 @@ namespace KerbalNews.KSP
                     global::KSP.UI.Screens.StageManager.ActivateNextStage();
                     staged++;
                     nextStage = Time.realtimeSinceStartup + 2.5f;
-                    Log("  staged (" + staged + "), now stage " + v.currentStage + ", situation " + v.situation + ", speed " + v.srfSpeed.ToString("0.0") + ", throttle " + (FlightInputHandler.state != null ? FlightInputHandler.state.mainThrottle.ToString("0.00") : "?"));
+                    Log("  staged (" + staged + "), now stage " + v.currentStage + ", situation " + v.situation + ", speed " + v.srfSpeed.ToString("0.0") + ", throttle " + (FlightInputHandler.state != null ? FlightInputHandler.state.mainThrottle.ToString("0.00") : "?") + "/" + (v.ctrlState != null ? v.ctrlState.mainThrottle.ToString("0.00") : "?") + ", packed " + v.packed + ", timeScale " + Time.timeScale.ToString("0.00"));
                     StartCoroutine(LogEngines(v));
                 }
                 yield return null;

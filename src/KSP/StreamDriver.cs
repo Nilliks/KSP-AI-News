@@ -143,7 +143,10 @@ namespace KerbalNews.KSP
                 Vector3d spot = center + (east * Math.Cos(az) + north * Math.Sin(az)) * dist;
                 double lat = body.GetLatitude(spot), lon = body.GetLongitude(spot);
                 double alt = Math.Max(0, body.TerrainAltitude(lat, lon, true)) + 3;
-                if (!PressCamera.ClearView(body, body.GetWorldSurfacePosition(lat, lon, alt), center)) continue;
+                Vector3d camAt = body.GetWorldSurfacePosition(lat, lon, alt);
+                if (!PressCamera.ClearView(body, camAt, center)) continue;
+                if (v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED)
+                    if (!PressCamera.ClearView(body, camAt, center - up * 15, 20)) continue;
                 trackLat = lat; trackLon = lon; trackAlt = alt;
                 haveTracker = true;
             }

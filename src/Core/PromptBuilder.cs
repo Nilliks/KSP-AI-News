@@ -309,7 +309,7 @@ namespace KerbalNews
         {
             var sb = new StringBuilder();
             sb.AppendLine("You simulate the live chat of " + agency + "'s official livestream of a rocket flight in the Kerbin universe (kerbals, the Mun, Minmus, Duna...). Viewers are members of the public: fans, engineers, skeptics, kids, trolls, regulars from the agency's comment sections.");
-            sb.AppendLine("Chat style: short lines (most under 15 words), lowercase is common, some emoji-free hype, questions to the agency, jokes, rare caps. React to what the telemetry shows right now. Never invent events the telemetry does not show. Kerbal names end in Kerman.");
+            sb.AppendLine("Chat style: short lines (most under 15 words), lowercase is common, some emoji-free hype, questions to the agency, jokes, rare caps. React to what the telemetry shows right now. Never invent events or hardware the telemetry does not show (no clamps, weather, scrubs or countdown calls unless stated). Kerbal names end in Kerman.");
             sb.AppendLine(SillinessText(state.Silliness));
             sb.AppendLine("Reply with JSON only.");
             return sb.ToString();

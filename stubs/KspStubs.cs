@@ -72,7 +72,7 @@ namespace UnityEngine
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public class Texture2D : Texture { public int width, height; public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
-    public static class Time { public static float realtimeSinceStartup, deltaTime; }
+    public static class Time { public static float realtimeSinceStartup, deltaTime, timeScale; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } }
     public static class Input { public static Vector3 mousePosition; public static bool GetKeyDown(KeyCode k) { return false; } }
     public static class Screen { public static int width, height; }
@@ -239,7 +239,7 @@ public struct Vector3d
 }
 public static class ScaledSpace { public static Vector3d LocalToScaledSpace(Vector3d v) { return v; } }
 public static class MapView { public static bool MapIsEnabled; }
-public static class FlightDriver { public static bool Pause; public static void StartWithNewLaunch(string path, string flag, string site, VesselCrewManifest m) { } }
+public static class FlightDriver { public static bool Pause; public static void SetPause(bool p) { } public static void StartWithNewLaunch(string path, string flag, string site, VesselCrewManifest m) { } }
 public class CelestialBody : UnityEngine.MonoBehaviour
 {
     public string bodyName; public Vector3d position; public double Radius; public bool ocean;
@@ -259,7 +259,7 @@ public class Vessel : UnityEngine.MonoBehaviour
 {
     public enum Situations { LANDED = 1, SPLASHED = 2, PRELAUNCH = 4, FLYING = 8, SUB_ORBITAL = 16, ORBITING = 32, ESCAPING = 64, DOCKED = 128 }
     public string vesselName, landedAt;
-    public FlightCtrlState ctrlState;
+    public FlightCtrlState ctrlState; public bool packed;
     public FlightInputCallback OnFlyByWire;
     public System.Collections.Generic.List<T> FindPartModulesImplementing<T>() where T : class { return new System.Collections.Generic.List<T>(); }
     public VesselType vesselType;
