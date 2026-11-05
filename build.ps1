@@ -30,10 +30,11 @@ if (-not $csc) {
 }
 if (-not $csc) { throw "No Roslyn csc.exe found. Install Visual Studio Build Tools (C# compiler)." }
 
-$refs = @("mscorlib","System","System.Core","netstandard","Assembly-CSharp","Assembly-CSharp-firstpass","UnityEngine",
-          "UnityEngine.CoreModule","UnityEngine.IMGUIModule","UnityEngine.UnityWebRequestModule","UnityEngine.InputLegacyModule",
-          "UnityEngine.TextRenderingModule","UnityEngine.ImageConversionModule","UnityEngine.UI") |
-    ForEach-Object { Join-Path $managed "$_.dll" } | Where-Object { Test-Path $_ } | ForEach-Object { "-r:`"$_`"" }
+# Reference the core libraries plus every Unity module, so new Unity type dependencies never break the build.
+$names = @("mscorlib","System","System.Core","netstandard","Assembly-CSharp","Assembly-CSharp-firstpass")
+$refFiles = ($names | ForEach-Object { Join-Path $managed "$_.dll" } | Where-Object { Test-Path $_ }) +
+            (Get-ChildItem $managed -Filter "UnityEngine*.dll" | ForEach-Object { $_.FullName })
+$refs = $refFiles | Select-Object -Unique | ForEach-Object { "-r:`"$_`"" }
 
 $root = $PSScriptRoot
 $out = Join-Path $root "GameData\KerbalNews\Plugins\KerbalNews.dll"
