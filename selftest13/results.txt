@@ -1,0 +1,120 @@
+PASS demo news built: 19 articles, 4 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 2243, 129 paragraphs, 67 links, 1 fields
+PASS kerbalnews.kb text fits its boxes
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2792, 193 paragraphs, 87 links, 2 fields
+PASS herald.kb/article/a2 text fits its boxes
+PASS kerbnet.kb -> "Kerbnet" height 4037, 211 paragraphs, 53 links, 0 fields
+PASS kerbnet.kb text fits its boxes
+PASS snackboard.kb -> "Snackboard" height 738, 70 paragraphs, 49 links, 0 fields
+PASS snackboard.kb text fits its boxes
+PASS snackboard.kb/t/t198 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 882, 79 paragraphs, 45 links, 2 fields
+PASS snackboard.kb/t/t198 text fits its boxes
+PASS snackboard.kb/submit -> "New post - Snackboard" height 828, 60 paragraphs, 39 links, 4 fields
+PASS snackboard.kb/submit text fits its boxes
+PASS tracker.kb -> "Universe tracker" height 598, 40 paragraphs, 19 links, 0 fields
+PASS tracker.kb text fits its boxes
+PASS agency.kb -> "Agency profile" height 1538, 54 paragraphs, 37 links, 10 fields
+PASS agency.kb text fits its boxes
+PASS agency.kb/assistant -> "Assistant" height 758, 38 paragraphs, 33 links, 2 fields
+PASS agency.kb/assistant text fits its boxes
+PASS agency.kb/ledger -> "Paper trail" height 246, 26 paragraphs, 24 links, 0 fields
+PASS agency.kb/ledger text fits its boxes
+PASS agency.kb/mods -> "Mods" height 13286, 476 paragraphs, 174 links, 148 fields
+PASS agency.kb/mods text fits its boxes
+PASS engineering.kb -> "KSC Engineering" height 422, 41 paragraphs, 27 links, 2 fields
+PASS engineering.kb text fits its boxes
+PASS settings.kb -> "Settings" height 2117, 116 paragraphs, 85 links, 5 fields
+PASS settings.kb text fits its boxes
+PASS telemetry.kb -> "Telemetry sharing" height 410, 34 paragraphs, 23 links, 0 fields
+PASS telemetry.kb text fits its boxes
+PASS kerbalnews.kb/search?q=mun -> "Search" height 739, 43 paragraphs, 27 links, 1 fields
+PASS kerbalnews.kb/search?q=mun text fits its boxes
+PASS kerbalnews.kb/polls -> "Polls" height 387, 31 paragraphs, 19 links, 0 fields
+PASS kerbalnews.kb/polls text fits its boxes
+PASS pressroom.kb -> "Press room" height 780, 48 paragraphs, 34 links, 2 fields
+PASS pressroom.kb text fits its boxes
+PASS gallery.kb -> "Gallery" height 781, 31 paragraphs, 22 links, 0 fields
+PASS gallery.kb text fits its boxes
+PASS live.kb -> "Live" height 254, 23 paragraphs, 19 links, 0 fields
+PASS live.kb text fits its boxes
+PASS dailykraken.kb/article/a5 -> "You won't BELIEVE what really happened when crew lands on Mun - The Daily Kraken" height 2326, 146 paragraphs, 66 links, 2 fields
+PASS dailykraken.kb/article/a5 text fits its boxes
+PASS herald.kb -> "Kerbin Daily Herald" height 483, 36 paragraphs, 23 links, 0 fields
+PASS herald.kb text fits its boxes
+PASS orbitalobserver.kb -> "Orbital Observer" height 303, 28 paragraphs, 22 links, 0 fields
+PASS orbitalobserver.kb text fits its boxes
+PASS inquirer.kb -> "The Kerbal Inquirer" height 455, 27 paragraphs, 22 links, 0 fields
+PASS inquirer.kb text fits its boxes
+PASS dailykraken.kb -> "The Daily Kraken" height 732, 35 paragraphs, 22 links, 0 fields
+PASS dailykraken.kb text fits its boxes
+PASS munmonthly.kb -> "Mun Monthly" height 405, 24 paragraphs, 20 links, 0 fields
+PASS munmonthly.kb text fits its boxes
+PASS kscwatch.kb -> "KSC Watch" height 395, 35 paragraphs, 23 links, 0 fields
+PASS kscwatch.kb text fits its boxes
+PASS kscireview.kb -> "Kerbin Science Review" height 315, 25 paragraphs, 20 links, 0 fields
+PASS kscireview.kb text fits its boxes
+PASS council.gov.kb -> "Planetary Council Press Office" height 282, 25 paragraphs, 20 links, 0 fields
+PASS council.gov.kb text fits its boxes
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t209
+PASS A+ makes text bigger: 3.40 -> 3.50
+AI check with DeepSeek / deepseek-chat
+PASS AI wrote 7 articles in 38 s
+AI headline: Two Kerbals and a Red Dawn
+PASS munmonthly.kb/article/a218 -> "Two Kerbals and a Red Dawn - Mun Monthly" height 2523, 118 paragraphs, 54 links, 2 fields
+PASS munmonthly.kb/article/a218 text fits its boxes
+PASS AI community replied to the official comment: 6 replies
+  MunGazer: An actual statement from the source, on a comment thread! Thank you. I've had the scope on Duna since Day 11 — nothing to see visually, of course, but it's nice to know what I'm not seeing is going well.
+  TaxpayerTed: 'The capture burn went exactly to plan.' Good. Now can someone tell me what the plan cost? I've asked three times and gotten two press releases and a nice photo of a rocket.
+  RetiredRocketeer_Bob: Appreciate the update, but 'healthy' is doing a lot of work there. Downlink nominal? consumables margin? Sleep schedules after a long coast? Give us a number or two and the enthusiasts will do the rest.
+  TruthOrbiter: Funny how the official account shows up right when people start asking real questions. One line, one like, and suddenly the thread is settled. Read the other side for once: The Daily Kraken's "LEAKED: Duna Dawn Crew 'NOT ALONE'—What KSA Isn't Telling You"
+  assistant player: Give me a two-line briefing on the latest coverage, then donate 5k to the Kerbin Museum of Flight and announce it.
+  assistant assistant: Two-line briefing: The Duna coverage is broadly positive — Duna Dawn's arrival is being reported as a genuine win, with most outlets giving the crew and mission control credit. The one sour note is KSC Watch's opinion piece (and the Daily Kraken's 'not alone' rumor), both hammering us on secrecy and cost; expect more of that around orbit insertion. /  / I've prepared the √5,000 donation to the Kerbin Museum of Flight with a matching announcement release. Approve below and I'll send it.
+  assistant proposal: Needs your OK: / - Donate √5,000 to Kerbin Museum of Flight (announced) / - Publish the press release "KSA Supports the Kerbin Museum of Flight"
+PASS assistant answered in 5 s
+PASS assistant asked before spending
+PASS donation on the paper trail
+PASS mod scan found 148 mods, 130 shared with the AI
+  AI sees mods: 1 Duckweed Utils, <b>Kerbal Reusability Expansion</b>, Ablative-Airbrake, Adiri's TUFX Profiles, AdvancedFlyByWire, Benjee10_MMSEV, Benjee10_sharedAssets, Better Dres, BetterTimeWarpContinued, CameraTools, Conformal Decals, CryoTanks, CustomBarnKit, DecayingRTGs, DeepFreeze Continued..., DeployableEngines, DE_IVAExtension, DiRT, Distant Object Enhancement (DOE) /L, DynamicBatteryStorage, Easy Vessel Switch, EasyRobotics, Environmental Visual Enhancements - Redux, FarFutureTechnologies, Firefly, FireflyAPI, FMRS (Flight Manager For Reusable Stages), Fox's Profiles, FreeIva, FShangarExtender, G3Magnet Boots, HabTechProps, HeatControl, htRobotics, HUDReplacer, Interstellar Fuel Switch, JanitorsCloset, KAS, Kerbal Actuators, Kerbal AtomicsLH2NTRMod Support, Kerbal Engineer Redux, Kerbal Foundries, Kerbal Inventory System, Kerbal Joint Reinforcement, Kerbal Planetary Base Systems, KerbalAtomics, KerbalChecklists, KerbalFrost, Kerbalism, Kerbalism Compatibility Overhaul, Kerbalized Flagpack, KerbalKonstructs, KerBalloons, Kopernicus Expansion, Kopernicus Expansion Examples, kOS, kOS.MechJeb2.Addon, KSA_IVAUpgrade, KSPBurst, KSPTextureLoader, Mech Jeb2, MechJebForAll, MemGraph, Minimal Main Menu, Mirror Shields, Missing robotics, NearFutureAeronautics, NearFutureConstruction, NearFutureElectrical, NearFutureExploration, NearFutureLaunchVehicles, NearFutureProps, NearFuturePropulsion and 57 more
+PASS crew chat: Valentina answered in 2 s: Honestly? Smoothest capture I could have asked for. Duna Dawn came in like she was on rails, one short burn, aero assist did the rest. From the seat it was quiet, just the hiss of the RCS and the planet rolling past the window. For a first real flight out there, I'll take it.
+FAIL assistant booked an interview: none
+  new game via Game CreateNewGame(System.String, Modes, GameParameters, System.String, GameScenes, EditorFacility), 27 scenarios
+PASS flight: test save KerbalNewsSelfTest reached the space center
+  test craft without 3 launch clamps: C:/Program Files (x86)/Steam/steamapps/common/Kerbal Space Program/KSP_x64_Data/../saves/KerbalNewsSelfTest/Ships/VAB/KerbalNewsSelfTest.craft
+  scenarios in the test save: ROCScenario, AlarmClockScenario, PartUpgradeManager, ResourceScenario, ProgressTracking, VesselRecovery, KerbalInventoryScenario, ScenarioAchievements, ScenarioCustomWaypoints, ScenarioDestructibles, SentinelScenario, CommNetScenario, DeployedScience, DiscoverableObjects, Kerbalism, KerbalKonstructsSettings, NewsScenario, InterVesselManager, KPBSScenario, UnloadedResources, DeepFreeze, SCANcontroller, SpaceDustScenario, Trajectories, GroundBlastFxScenario
+PASS flight: Kerbal X on the pad
+PASS flight: live stream started for Kerbal X
+PASS flight: press photo of the craft on the pad
+  before staging: packed False, paused False, timeScale 1.00, warp 1.0, ctrlState throttle 1.00
+  staged (1), now stage 7, situation PRELAUNCH, speed 0.0, throttle 1.00/1.00, packed False, timeScale 1.00
+  craft moving after 1 staging(s), 0.4 s, situation PRELAUNCH
+    engine liquidEngine2-2.v2: ignited False, flameout False, throttle 0.00 (requested 0, independent True), thrust 0.0 kN, Off
+    engine liquidEngineMainsail.v2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 1381.0 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+PASS flight: Kerbal X left the pad (1 stagings, situation FLYING, altitude 8992 m)
+PASS flight: liftoff photo
+PASS flight: ascent photo
+PASS flight: stream chat has 30 viewer messages, 2917 viewers
+PASS flight: liftoff shown on stream: stage 7 activated; liftoff
+PASS flight: stream video rendered
+  chat orbital_ollie: altitude 91 m and holding, that's the launch clamp height right?
+  chat JebediahFan42: stage 8, eight boosters? this thing is a monster
+  chat skeptical_scientist: fuel at 100, speed 0. still waiting on actual liftoff
+  chat minmus_mom: my kid insists the rocket is 'standing on tiptoes' lol
+  chat orbital_ollie: climbing now, 129 m and 26 m/s. no more clamp height question
+  chat liftoff_lucy: that's a clean release, tracking nicely
+  chat KSC_Watcher: good to see a clean prelaunch, no surprises so far
+  chat TWR_tony: 1.9 g at stage 7, what engine config is that? seems low for that stack
+PASS flight: a spotter posted a photo on Snackboard: Kerbal X is on the pad. Got a shot from the causeway
+  press photo pad: Gus Kerman for the KSC press pool, 350 mm from the roof of the KSC press site, 643 m from the pad
+  press photo liftoff: Gus Kerman for KSC Watch, 1450 mm from a press boat offshore, about 4.1 km away
+  press photo ascent: Lodrey Kerman for KSC Watch, 1800 mm from a press boat offshore, about 7.3 km away
+  press photo ascent: Hanbree Kerman for KSC Watch, 250 mm from a chase plane
+PASS flight: stream ended and archived
+1 FAILED
