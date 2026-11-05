@@ -139,28 +139,11 @@ namespace KerbalNews
 
         void CrewStep(int run, CrewFame c, double ut, int failures)
         {
-            var preset = Settings.Preset;
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, CrewSystem(c), CrewUser(c, ut), Math.Min(Settings.MaxTokens, 1200), preset.JsonMode);
-            req.TimeoutSeconds = Settings.TimeoutSeconds;
-            Transport.Send(req, res =>
+            AskJson(Settings.CheapModel, CrewSystem(c), CrewUser(c, ut), 1200, 0, (root, err, text, res) =>
             {
                 if (run != crewRun) return;
-                string text, err;
-                object root = null;
-                if (Providers.TryExtractText(preset.Kind, res, out text, out err))
-                {
-                    var json = ResponseParser.ExtractJson(text) ?? "";
-                    if (!Json.TryParse(json, out root) || Json.Obj(root) == null)
-                    {
-                        var fixedJson = ResponseParser.Repair(text);
-                        if (fixedJson == null || !Json.TryParse(fixedJson, out root) || Json.Obj(root) == null)
-                        {
-                            // A plain-text answer is still an answer.
-                            root = text != null && text.Trim() != "" && !text.Contains("{") ? new Dictionary<string, object> { { "reply", text.Trim() } } : null;
-                            if (root == null) err = "Reply was not JSON";
-                        }
-                    }
-                }
+                // A plain-text answer is still an answer.
+                if (root == null && text.Trim() != "" && !text.Contains("{")) root = new Dictionary<string, object> { { "reply", text.Trim() } };
                 if (root == null)
                 {
                     LastError = err ?? "No reply";
@@ -195,16 +178,11 @@ namespace KerbalNews
                 c.Notes.RemoveRange(0, take);
                 return;
             }
-            var preset = Settings.Preset;
             string sys = "You condense a kerbal astronaut's memories of conversations with their boss. Keep promises, strong feelings, opinions and facts; drop small talk. Write in first person, at most 120 words. Reply with JSON: {\"summary\": \"...\"}.";
             string user = "Earlier summary: " + (c.MemorySummary == "" ? "(none)" : c.MemorySummary) + "\nNew notes:\n- " + string.Join("\n- ", old.ToArray());
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, sys, user, 600, preset.JsonMode);
-            req.TimeoutSeconds = Settings.TimeoutSeconds;
-            Transport.Send(req, res =>
+            AskJson(Settings.CheapModel, sys, user, 600, 0, (root, err, text, res) =>
             {
-                string text, err; object root;
-                if (!Providers.TryExtractText(preset.Kind, res, out text, out err)) return;
-                if (!Json.TryParse(ResponseParser.ExtractJson(text) ?? "", out root)) return;
+                if (root == null) return;
                 string sum = Json.Str(root, "summary", "").Trim();
                 if (sum == "") return;
                 c.MemorySummary = ResponseParser.Clip(sum, 900);

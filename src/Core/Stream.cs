@@ -177,31 +177,22 @@ namespace KerbalNews
                 return;
             }
             streamBusy = true;
-            var preset = Settings.Preset;
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), PromptBuilder.StreamUser(this, st, moments, said), 2000, preset.JsonMode);
-            req.TimeoutSeconds = 40;
-            Transport.Send(req, res =>
+            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), PromptBuilder.StreamUser(this, st, moments, said), 2000, 40, (root, err, text, res) =>
             {
                 streamBusy = false;
                 if (Stream != st) return;
-                string text, err;
                 List<ChatMessage> msgs = null;
                 int viewers = -1;
-                if (Providers.TryExtractText(preset.Kind, res, out text, out err))
+                if (root != null)
                 {
-                    object root;
-                    var json = ResponseParser.ExtractJson(text);
-                    if (json != null && Json.TryParse(json, out root))
+                    msgs = new List<ChatMessage>();
+                    foreach (var m in Json.Arr(Json.Get(root, "messages")) ?? new List<object>())
                     {
-                        msgs = new List<ChatMessage>();
-                        foreach (var m in Json.Arr(Json.Get(root, "messages")) ?? new List<object>())
-                        {
-                            string t = ResponseParser.Clean(Json.Str(m, "text", ""));
-                            if (t == "" || ResponseParser.ContainsForbidden(t)) continue;
-                            msgs.Add(new ChatMessage { Author = ResponseParser.Clip(ResponseParser.Clean(Json.Str(m, "author", "viewer")), 30).TrimStart('@'), Text = ResponseParser.Clip(t, 240) });
-                        }
-                        viewers = (int)Json.Num(root, "viewers", -1);
+                        string t = ResponseParser.Clean(Json.Str(m, "text", ""));
+                        if (t == "" || ResponseParser.ContainsForbidden(t)) continue;
+                        msgs.Add(new ChatMessage { Author = ResponseParser.Clip(ResponseParser.Clean(Json.Str(m, "author", "viewer")), 30).TrimStart('@'), Text = ResponseParser.Clip(t, 240) });
                     }
+                    viewers = (int)Json.Num(root, "viewers", -1);
                 }
                 if (msgs == null || msgs.Count == 0) { LastError = err ?? "Chat reply was empty"; msgs = OfflineWriter.StreamChat(this, st, moments, said); }
                 PlayOut(st, msgs, viewers > 0 ? (int?)viewers : null, lastRealTime);
