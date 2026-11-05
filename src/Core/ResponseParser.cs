@@ -33,13 +33,70 @@ namespace KerbalNews
             return text.Substring(start, end - start + 1);
         }
 
+        /// <summary>Best-effort fix for a truncated or slightly malformed JSON object: escapes raw control characters
+        /// inside strings, cuts back to the last complete object or array, and closes whatever is still open.</summary>
+        public static string Repair(string text)
+        {
+            if (text == null) return null;
+            int start = text.IndexOf('{');
+            if (start < 0) return null;
+            var sb = new System.Text.StringBuilder();
+            var stack = new List<char>();
+            bool inStr = false, esc = false;
+            int goodLen = -1;
+            List<char> goodStack = null;
+            for (int i = start; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (inStr)
+                {
+                    if (esc) { esc = false; sb.Append(c); continue; }
+                    if (c == '\\') { esc = true; sb.Append(c); continue; }
+                    if (c == '"') { inStr = false; sb.Append(c); continue; }
+                    if (c == '\n') { sb.Append("\\n"); continue; }
+                    if (c == '\r') continue;
+                    if (c == '\t') { sb.Append("\\t"); continue; }
+                    sb.Append(c);
+                    continue;
+                }
+                if (c == '"') { inStr = true; sb.Append(c); continue; }
+                if (c == '{' || c == '[') { stack.Add(c); sb.Append(c); continue; }
+                if (c == '}' || c == ']')
+                {
+                    if (stack.Count == 0) break;
+                    stack.RemoveAt(stack.Count - 1);
+                    // Drop a trailing comma before the closer.
+                    int k = sb.Length - 1;
+                    while (k >= 0 && char.IsWhiteSpace(sb[k])) k--;
+                    if (k >= 0 && sb[k] == ',') sb.Remove(k, 1);
+                    sb.Append(c);
+                    if (stack.Count == 0) return sb.ToString();
+                    goodLen = sb.Length;
+                    goodStack = new List<char>(stack);
+                    continue;
+                }
+                sb.Append(c);
+            }
+            if (goodStack == null) return null;
+            var outSb = new System.Text.StringBuilder(sb.ToString(0, goodLen));
+            for (int j = goodStack.Count - 1; j >= 0; j--) outSb.Append(goodStack[j] == '{' ? '}' : ']');
+            return outSb.ToString();
+        }
+
         public static bool TryParse(string text, CoveragePlan plan, out GeneratedCoverage result, out string error)
         {
             result = null;
             error = null;
             string json = ExtractJson(text);
-            object root;
-            if (json == null || !Json.TryParse(json, out root) || Json.Obj(root) == null)
+            object root = null;
+            bool ok = json != null && Json.TryParse(json, out root) && Json.Obj(root) != null;
+            if (!ok)
+            {
+                // A reply cut off at the token limit, or with raw line breaks in strings: keep every complete item.
+                string fixedJson = Repair(text);
+                ok = fixedJson != null && Json.TryParse(fixedJson, out root) && Json.Obj(root) != null;
+            }
+            if (!ok || root == null)
             {
                 error = "Response was not a JSON object";
                 return false;

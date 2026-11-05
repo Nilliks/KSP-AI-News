@@ -9,6 +9,26 @@ public static class PollTests
 {
     static void Assert(bool c, string m) { if (!c) throw new Exception("Assertion failed: " + m); }
 
+    public static void TestTruncatedJsonKeepsCompleteArticles()
+    {
+        string cut = "Here you go:\n{\"articles\": [{\"outlet\": \"herald\", \"headline\": \"One\", \"body\": \"line one\nline two\"}, {\"outlet\": \"kraken\", \"headline\": \"Tw";
+        string r = ResponseParser.Repair(cut);
+        object root;
+        Assert(r != null && Json.TryParse(r, out root), "truncated reply repaired: " + r);
+        Json.TryParse(r, out root);
+        var arts = Json.Arr(Json.Get(root, "articles"));
+        Assert(arts != null && arts.Count == 1, "only the complete article kept");
+        Assert(ResponseParser.Repair("{\"a\": [1, 2,], }") != null, "trailing commas dropped");
+    }
+
+    public static void TestCraftWithoutClamps()
+    {
+        string craft = "ship = Kerbal X\nPART\n{\n\tpart = fuelTank_1\n\tlink = launchClamp1_2\n\tlink = engine_3\n\tMODULE\n\t{\n\t\tname = X\n\t}\n}\nPART\n{\n\tpart = launchClamp1_2\n\tsrfN = srfAttach,fuelTank_1\n}\nPART\n{\n\tpart = engine_3\n\tattN = top,fuelTank_1\n}\n";
+        int n;
+        string r = CraftText.WithoutParts(craft, "launchClamp", out n);
+        Assert(n == 1 && !r.Contains("launchClamp") && r.Contains("engine_3") && r.Contains("name = X") && r.StartsWith("ship = Kerbal X"), "clamp removed: " + r);
+    }
+
     public static void TestPollsAndTownHalls()
     {
         double day = 21600;

@@ -141,6 +141,9 @@ namespace KerbalNews.KSP
         /// </summary>
         IEnumerator FlightCheck(NewsSystem sys, Browser br)
         {
+            // The browser added at the main menu lives on this persistent object; drop it so flight has only one.
+            var own = GetComponent<Browser>();
+            if (own != null) { Destroy(own); yield return null; }
             string craft = Path.Combine(KSPUtil.ApplicationRootPath, "Ships/VAB/Kerbal X.craft");
             if (!File.Exists(craft)) { Check(false, "flight: stock craft missing at " + craft); yield break; }
             bool started = false;
@@ -166,6 +169,18 @@ namespace KerbalNews.KSP
             while (HighLogic.LoadedScene != GameScenes.SPACECENTER && Time.realtimeSinceStartup - t0 < 120) yield return new WaitForSeconds(1);
             Check(HighLogic.LoadedScene == GameScenes.SPACECENTER, "flight: test save " + TestSave + " reached the space center");
             yield return new WaitForSeconds(5);
+            // Launch clamps depend on other mods (in a heavily modded install they can fail to release), so the test
+            // flies a copy of the craft without them, kept inside the throwaway save.
+            try
+            {
+                string copy = Path.Combine(KSPUtil.ApplicationRootPath, "saves/" + TestSave + "/Ships/VAB/KerbalNewsSelfTest.craft");
+                Directory.CreateDirectory(Path.GetDirectoryName(copy));
+                int removed;
+                File.WriteAllText(copy, CraftText.WithoutParts(File.ReadAllText(craft), "launchClamp", out removed));
+                Log("  test craft without " + removed + " launch clamps: " + copy);
+                craft = copy;
+            }
+            catch (Exception e) { Log("  could not strip clamps, flying the stock craft: " + e.Message); }
             try { FlightDriver.StartWithNewLaunch(craft, "Squad/Flags/default", "LaunchPad", VesselCrewManifest.FromConfigNode(ConfigNode.Load(craft))); }
             catch (Exception e) { Check(false, "flight: launch: " + e); yield break; }
             t0 = Time.realtimeSinceStartup;
@@ -315,7 +330,7 @@ namespace KerbalNews.KSP
             }
             var replies = lead.Comments.Where(c => c.ReplyTo == mine.Id || lead.Comments.Any(p => p.Id == c.ReplyTo && p.ReplyTo == mine.Id)).ToList();
             Check(replies.Count > 0, "AI community replied to the official comment: " + replies.Count + " replies");
-            foreach (var r in replies.Take(4)) Log("  " + r.Author + ": " + r.Text);
+            foreach (var r in replies.Take(4)) Log("  " + r.Author + ": " + Sites.Unlinked(state, r.Text));
             br.Open(Sites.ArticleUrl(lead));
             yield return new WaitForSeconds(0.5f);
             br.ScrollTo(1);
