@@ -28,7 +28,7 @@ namespace KerbalNews.KSP
         static readonly List<string> back = new List<string>(), forward = new List<string>();
         static readonly Dictionary<string, float> scrollMemory = new Dictionary<string, float>();
 
-        const float BarH = 40, StatusH = 24, BarW = 14, Edge = 5, Corner = 18, TopCorner = 8;
+        const float BarH = 40, StatusH = 24, BarW = 16, Edge = 5, Corner = 18, TopCorner = 8;
         const float WheelStep = 110;   // canvas units per wheel notch
         float scrollTargetY, scrollTargetX, lastResizeDrag, nextResizeRender;
         bool smoothing;
@@ -481,13 +481,13 @@ namespace KerbalNews.KSP
             var hRt = Rt(handle);
             Stretch(hRt, 0, 0, 0, 0);
             var hImg = handle.AddComponent<Image>();
-            hImg.color = Col("#9aa1ab", Color.grey);
+            hImg.color = Col("#7d8590", Color.grey);
             var bar = go.AddComponent<Scrollbar>();
             bar.handleRect = hRt;
             bar.targetGraphic = hImg;
             bar.direction = vertical ? Scrollbar.Direction.BottomToTop : Scrollbar.Direction.LeftToRight;
             var colors = bar.colors;
-            colors.highlightedColor = Col("#7d8590", Color.grey); colors.pressedColor = Col("#5f6670", Color.grey);
+            colors.highlightedColor = Col("#5f6670", Color.grey); colors.pressedColor = Col("#454b54", Color.grey);
             bar.colors = colors;
             // Dragging the bar must stop any wheel glide in progress.
             go.AddComponent<DragHandler>().OnBegin = () => smoothing = false;
