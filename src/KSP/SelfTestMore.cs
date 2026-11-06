@@ -225,9 +225,10 @@ namespace KerbalNews.KSP
             string keyFile = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/PluginData/selftest-imgkey.txt");
             string key = "";
             try { if (File.Exists(keyFile)) { key = File.ReadAllText(keyFile).Trim(); File.Delete(keyFile); } } catch (Exception e) { Check(false, "img: read the test key: " + e.Message); }
-            if (key == "") { Check(false, "img: no test key in selftest-imgkey.txt"); yield break; }
             string oldProvider = g.ImageProviderId, oldTier = g.ImageMinTier, oldKey;
             g.Keys.TryGetValue("img:gemini", out oldKey);
+            if (key == "") key = oldKey ?? "";   // or the key the player saved on the Settings page
+            if (key == "") { Check(false, "img: no Gemini key in Settings or selftest-imgkey.txt"); yield break; }
             g.ImageProviderId = "gemini"; g.Keys["img:gemini"] = key; g.ImageMinTier = "brief";
             key = "";
             try
