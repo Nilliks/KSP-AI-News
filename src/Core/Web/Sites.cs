@@ -499,6 +499,7 @@ namespace KerbalNews.Web
             m["outletOpts"] = new List<object> { opt("2", "usage-outlets/2", g.MaxOutlets == 2), opt("3", "usage-outlets/3", g.MaxOutlets == 3), opt("5", "usage-outlets/5", g.MaxOutlets == 5), opt("All", "usage-outlets/0", g.MaxOutlets == 0) };
             m["writerOpts"] = new List<object> { opt("Big stories only", "usage-writer/major", g.WriterFrom == "major"), opt("Normal stories and up", "usage-writer/story", g.WriterFrom == "story"), opt("Everything", "usage-writer/brief", g.WriterFrom == "brief") };
             m["streamOpts"] = new List<object> { opt("Every 60 s", "usage-stream/60", g.StreamSeconds == 60), opt("Every 30 s", "usage-stream/30", g.StreamSeconds == 30), opt("Every 20 s", "usage-stream/20", g.StreamSeconds == 20) };
+            m["streamChatOpts"] = new[] { 30, 60, 120, 200, 300, 500 }.Select(k => opt(k.ToString(Inv), "stream-chat/" + k, g.StreamChatPer10Min == k)).ToList();
             m["retro"] = g.Retrospectives;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;

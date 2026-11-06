@@ -37,6 +37,8 @@ namespace KerbalNews
         public string WriterFrom = "story";
         /// <summary>Seconds between livestream chat updates.</summary>
         public double StreamSeconds = 30;
+        /// <summary>Livestream chat messages in a quiet ten-minute stretch. Big moments (liftoff, explosions, landings) go well above it.</summary>
+        public int StreamChatPer10Min = 120;
         /// <summary>Anniversary retrospectives and the yearly review.</summary>
         public bool Retrospectives = true;
 
@@ -161,6 +163,7 @@ namespace KerbalNews
             settings.Add("maxOutlets", MaxOutlets);
             settings.Add("writerFrom", WriterFrom);
             settings.Add("streamSeconds", StreamSeconds);
+            settings.Add("streamChat", StreamChatPer10Min);
             settings.Add("retrospectives", Retrospectives);
             settings.Add("uiScale", (double)UiScale);
             settings.Add("sitesOff", string.Join(",", SitesOff.OrderBy(x => x).ToArray()));
@@ -214,6 +217,7 @@ namespace KerbalNews
                 g.MaxOutlets = Math.Max(0, settings.GetInt("maxOutlets", 0));
                 g.WriterFrom = settings.Get("writerFrom", "story");
                 g.StreamSeconds = Math.Max(10, settings.GetDouble("streamSeconds", 30));
+                g.StreamChatPer10Min = Math.Max(10, Math.Min(600, settings.GetInt("streamChat", 120)));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 foreach (var id in settings.Get("sitesOff", "").Split(',')) if (id.Trim() != "") g.SitesOff.Add(id.Trim());

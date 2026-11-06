@@ -50,6 +50,10 @@ namespace KerbalNews
         public readonly List<ChatMessage> PlayerSaid = new List<ChatMessage>();
         public double NextBatchReal;
         public int Batches;
+        /// <summary>How busy the chat is right now: drifts at random between lulls and busy stretches.</summary>
+        public double Heat = 1;
+        /// <summary>Excitement left over from the last big moment; it fades over the next batches.</summary>
+        public double Hype;
         public string Frame = "";      // newest frame file under PluginData/Live
         public readonly List<double> AltitudeTrace = new List<double>();
     }
@@ -171,13 +175,20 @@ namespace KerbalNews
             var said = st.PlayerSaid.ToList();
             st.NewMoments.Clear();
             st.PlayerSaid.Clear();
+            // How many messages: the player's rate for a quiet stretch, a random drift between lulls and busy spells,
+            // and a burst when something big just happened.
+            var rng = new Random(st.Batches * 7919 + (int)(realTime * 13));
+            st.Heat = Math.Max(0.35, Math.Min(1.8, st.Heat * (0.75 + rng.NextDouble() * 0.5) + (1 - st.Heat) * 0.15));
+            st.Hype = st.Hype * 0.45 + moments.Sum(m => MomentWeight(m));
+            int n = ChatCount(st, rng, said.Count);
+            double hype = st.Hype;
             if (!Settings.CanCallAi || !allowCalls)
             {
-                PlayOut(st, OfflineWriter.StreamChat(this, st, moments, said), null, realTime);
+                PlayOut(st, Fit(OfflineWriter.StreamChat(this, st, moments, said), hype >= 2 ? n : Math.Min(n, 12), rng), null, realTime, hype);
                 return;
             }
             streamBusy = true;
-            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), PromptBuilder.StreamUser(this, st, moments, said), 2000, 40, (root, err, text, res) =>
+            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), PromptBuilder.StreamUser(this, st, moments, said, n, hype), Math.Min(4000, 600 + n * 45), 40, (root, err, text, res) =>
             {
                 streamBusy = false;
                 if (Stream != st) return;
@@ -194,8 +205,8 @@ namespace KerbalNews
                     }
                     viewers = (int)Json.Num(root, "viewers", -1);
                 }
-                if (msgs == null || msgs.Count == 0) { LastError = err ?? "Chat reply was empty"; msgs = OfflineWriter.StreamChat(this, st, moments, said); }
-                PlayOut(st, msgs, viewers > 0 ? (int?)viewers : null, lastRealTime);
+                if (msgs == null || msgs.Count == 0) { LastError = err ?? "Chat reply was empty"; msgs = Fit(OfflineWriter.StreamChat(this, st, moments, said), n, rng); }
+                PlayOut(st, msgs, viewers > 0 ? (int?)viewers : null, lastRealTime, hype);
             });
         }
 
@@ -221,14 +232,90 @@ namespace KerbalNews
             }
         }
 
-        void PlayOut(StreamSession st, List<ChatMessage> msgs, int? viewers, double realTime)
+        /// <summary>How exciting a moment is for the chat: liftoff and explosions set it off, staging gets a cheer.</summary>
+        public static double MomentWeight(string m)
+        {
+            m = (m ?? "").ToLowerInvariant();
+            if (m.Contains("crew lost")) return 5;
+            if (m.Contains("destroyed") || m.Contains("exploded")) return 4.5;
+            if (m.Contains("liftoff")) return 4;
+            if (m.Contains("touchdown") || m.Contains("splashdown")) return 3.5;
+            if (m.Contains("orbit")) return 3;
+            if (m.Contains("docking") || m.Contains("milestone")) return 2.5;
+            if (m.Contains("sphere of influence")) return 2;
+            if (m.Contains("stage")) return 1.2;
+            return 1;
+        }
+
+        /// <summary>Messages for the next batch.</summary>
+        int ChatCount(StreamSession st, Random rng, int playerLines)
+        {
+            double perBatch = Settings.StreamChatPer10Min * StreamInterval / 600.0;
+            double n = perBatch * st.Heat * (0.6 + rng.NextDouble() * 0.8);
+            n *= 1 + Math.Min(6, st.Hype) * 0.9;   // liftoff roughly quadruples it
+            n += playerLines * 2;
+            return Math.Max(1, Math.Min(60, (int)Math.Round(n)));
+        }
+
+        /// <summary>Trims or repeats-with-variety a template batch to the wanted size.</summary>
+        static List<ChatMessage> Fit(List<ChatMessage> msgs, int n, Random rng)
+        {
+            if (msgs.Count == 0) return msgs;
+            if (msgs.Count > n) return msgs.OrderBy(x => rng.Next()).Take(n).ToList();
+            // A burst: people echo each other, as a real chat does when something big happens.
+            var outList = new List<ChatMessage>(msgs);
+            var handles = msgs.Select(m => m.Author).Distinct().ToList();
+            while (outList.Count < n && msgs.Count >= 3)
+            {
+                var m = msgs[rng.Next(msgs.Count)];
+                outList.Insert(rng.Next(outList.Count + 1), new ChatMessage { Author = handles[rng.Next(handles.Count)] + (rng.Next(3) == 0 ? rng.Next(10, 99).ToString() : ""), Text = rng.Next(2) == 0 ? m.Text.ToUpperInvariant() : m.Text });
+            }
+            return outList;
+        }
+
+        /// <summary>When each message appears, in seconds after the batch arrives. Quiet chat comes in uneven gaps with the odd
+        /// quick back-and-forth; after a big moment most of the batch floods in during the first seconds.</summary>
+        public static List<double> ChatTimes(int count, double span, double hype, Random rng)
+        {
+            var times = new List<double>();
+            if (count <= 0) return times;
+            if (hype >= 2)
+            {
+                double rush = Math.Min(8, span * 0.3);
+                for (int i = 0; i < count; i++)
+                {
+                    double u = rng.NextDouble();
+                    times.Add(i < count * 0.65 ? 0.2 + rush * u * u : 0.2 + rush + (span - rush) * u);
+                }
+            }
+            else
+            {
+                double t = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    double gap = -Math.Log(1 - rng.NextDouble() * 0.999);   // exponential: mostly short gaps, some long silences
+                    if (rng.NextDouble() < 0.25) gap *= 0.15;               // a quick reply right after the last one
+                    t += gap;
+                    times.Add(t);
+                }
+                double scale = (span - 0.5) / Math.Max(times[times.Count - 1], 1e-3) * (0.75 + rng.NextDouble() * 0.25);
+                for (int i = 0; i < times.Count; i++) times[i] = 0.3 + times[i] * scale;
+            }
+            times.Sort();
+            return times;
+        }
+
+        void PlayOut(StreamSession st, List<ChatMessage> msgs, int? viewers, double realTime, double hype = 0)
         {
             if (realTime <= 0) realTime = lastRealTime;
-            double span = Math.Max(5, StreamInterval - 3);
+            double span = Math.Max(5, StreamInterval - 1);
+            var rng = new Random(st.Batches * 31 + msgs.Count);
+            var times = ChatTimes(msgs.Count, span, hype, rng);
             for (int i = 0; i < msgs.Count; i++)
-                st.Queue.Add(new KeyValuePair<double, ChatMessage>(realTime + 0.5 + span * i / Math.Max(1, msgs.Count), msgs[i]));
+                st.Queue.Add(new KeyValuePair<double, ChatMessage>(realTime + times[i], msgs[i]));
             st.Queue.Sort((a, b) => a.Key.CompareTo(b.Key));
             int target = viewers.HasValue ? viewers.Value : st.Viewers;
+            if (hype >= 2) target = (int)(target * (1 + 0.12 * Math.Min(6, hype)));
             // Viewers drift toward the model's estimate, with bumps for big moments.
             st.Viewers = Math.Max(10, (int)(st.Viewers * 0.5 + target * 0.5));
             st.PeakViewers = Math.Max(st.PeakViewers, st.Viewers);

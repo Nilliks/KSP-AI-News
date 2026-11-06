@@ -615,4 +615,35 @@ public static class FeatureTests
         eng.SetState(s);
         Assert(s.Social[0].Text == "Kerbal 2 looked incredible today!" && s.Articles[0].Headline == "Kerbal 2 reaches space" && s.Stories[0].Events[0].VesselName == "Kerbal 2", "tags replaced with the craft name on load");
     }
+
+    public static void TestStreamChatIsUnevenAndGoesWildAtLiftoff()
+    {
+        var prompts = new List<string>();
+        var t = new CoreTests.FakeTransport { Responder = r => { prompts.Add(r.Body); return Reply("{\"viewers\":500,\"messages\":[{\"author\":\"a\",\"text\":\"hi\"}]}"); } };
+        var g = CoreTests.OnlineSettings();
+        g.StreamChatPer10Min = 120;
+        var eng = new NewsEngine(new NewsState(), g, t, new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        eng.StreamInterval = 30;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.StreamSample(new TelemetrySample { UT = 1, Altitude = 80 }, 1);
+        Func<string, int> asked = b => { var m = System.Text.RegularExpressions.Regex.Match(b, @"Write the next (\d+) chat"); return m.Success ? int.Parse(m.Groups[1].Value) : -1; };
+        var quiet = new List<int>();
+        double now = 5;
+        for (int i = 0; i < 6; i++) { eng.TickStream(now, true); now += 31; quiet.Add(asked(prompts.Last())); }
+        Assert(quiet.All(n => n >= 1 && n <= 14), "quiet batches stay near the rate (120 per 10 min = 6 per 30 s): " + string.Join(",", quiet.Select(x => x.ToString()).ToArray()));
+        Assert(quiet.Distinct().Count() > 1, "quiet batch sizes vary");
+        eng.StreamMoment("liftoff", now);
+        eng.StreamMoment("stage 5 activated", now);
+        eng.TickStream(now + 9, true);
+        int burst = asked(prompts.Last());
+        Assert(burst >= 3 * quiet.Average() && prompts.Last().Contains("WILD"), "liftoff sets the chat off: " + burst + " vs " + quiet.Average().ToString("0.0"));
+
+        var rng = new Random(3);
+        var calm = NewsEngine.ChatTimes(12, 30, 0, rng);
+        var gaps = calm.Zip(calm.Skip(1), (a, b) => b - a).ToList();
+        Assert(gaps.Max() > 3 * gaps.Min() + 0.5, "calm chat comes in uneven gaps");
+        var wild = NewsEngine.ChatTimes(40, 30, 6, rng);
+        Assert(wild.Count(x => x < 9) >= 24, "after a big moment most messages land in the first seconds: " + wild.Count(x => x < 9));
+    }
 }

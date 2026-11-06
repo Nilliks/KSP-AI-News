@@ -349,7 +349,7 @@ namespace KerbalNews
             return sb.ToString();
         }
 
-        public static string StreamUser(NewsEngine eng, StreamSession st, List<string> moments, List<ChatMessage> said)
+        public static string StreamUser(NewsEngine eng, StreamSession st, List<string> moments, List<ChatMessage> said, int n = 10, double hype = 0)
         {
             var sb = new StringBuilder();
             sb.AppendLine("STREAM: " + st.VesselName + ", live for " + ((st.Last != null ? st.Last.UT : st.StartUT) - st.StartUT).ToString("0", Inv) + " seconds of mission time, about " + st.Viewers.ToString(Inv) + " viewers.");
@@ -366,8 +366,10 @@ namespace KerbalNews
             foreach (var m in said)
                 sb.AppendLine(m.Agency ? "The agency's official account just wrote in chat: \"" + m.Text + "\". Viewers notice and react; some ask it questions."
                     : "A viewer called " + m.Author + " just wrote: \"" + m.Text + "\". Nobody knows it is the agency. Some reply to them by name.");
-            int n = moments.Count > 0 || said.Count > 0 ? 16 : 10;
             sb.AppendLine();
+            if (hype >= 4) sb.AppendLine("The chat is going WILD right now: caps lock, spammed reactions (LETS GOOOO, NO WAY, o7, F), people talking over each other, very short lines, a few longer awed or horrified ones. Some messages repeat what others just said.");
+            else if (hype >= 2) sb.AppendLine("The chat is excited: lots of short reactions, some caps, people tagging friends.");
+            else sb.AppendLine("Nothing big is happening: the chat drifts, with questions, small talk, jokes and a few people reading the telemetry.");
             sb.AppendLine("Write the next " + n + " chat messages, oldest first, from many different viewers (a few regulars may speak twice). Also estimate the viewer count now: it rises with drama and big moments, falls when nothing happens.");
             sb.AppendLine("JSON SCHEMA: {\"viewers\":1234,\"messages\":[{\"author\":\"handle\",\"text\":\"...\"}]}");
             return sb.ToString();

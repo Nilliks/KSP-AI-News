@@ -55,6 +55,9 @@
   <div class="providers">{{#writerOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/writerOpts}}</div>
   <label>Livestream chat updates</label>
   <div class="providers">{{#streamOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamOpts}}</div>
+  <label>Livestream chat messages per 10 minutes</label>
+  <div class="providers">{{#streamChatOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamChatOpts}}</div>
+  <p class="hint">For quiet stretches. The chat speeds up and slows down on its own, and goes wild at liftoff, explosions, landings and other big moments. More messages make each chat update a little longer, not more frequent.</p>
   <div class="row" style="margin-top: 8px"><a class="toggle{{#retro}} on{{/retro}}" href="action:toggle-retro">Anniversaries and year in review</a>
     <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a></div>
   <p class="hint">Calls you start yourself (the assistant, crew chat, your comments) are not limited.</p>

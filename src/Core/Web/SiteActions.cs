@@ -135,6 +135,12 @@ namespace KerbalNews.Web
                 case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
                 case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;
                 case "eng-share": Engine.EngShareFindings(arg, Now()); break;
+                case "stream-chat":
+                {
+                    int k;
+                    if (int.TryParse(arg, out k)) { g.StreamChatPer10Min = Math.Max(10, Math.Min(600, k)); SaveSettings(); }
+                    break;
+                }
                 case "toggle-site":
                     if (SiteCatalog.Get(arg) != null) { g.SetSite(arg, !g.SiteOn(arg)); SaveSettings(); }
                     break;
