@@ -135,6 +135,9 @@ namespace KerbalNews.Web
                 case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
                 case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;
                 case "eng-share": Engine.EngShareFindings(arg, Now()); break;
+                case "toggle-site":
+                    if (SiteCatalog.Get(arg) != null) { g.SetSite(arg, !g.SiteOn(arg)); SaveSettings(); }
+                    break;
                 case "toggle-tieins": g.ContractTieIns = !g.ContractTieIns; SaveSettings(); break;
                 case "toggle-engineering": g.EngineeringOn = !g.EngineeringOn; SaveSettings(); break;
                 case "assistant-unorder": Engine.RemoveOrder(arg); break;

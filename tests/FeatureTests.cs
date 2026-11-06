@@ -550,4 +550,54 @@ public static class FeatureTests
             { "DecayingRTGs", "Decaying RTGs" }, { "KerbalAtomicsNTRMod", "Kerbal Atomics NTR Mod" }, { "zzz_Deferred", "Deferred" } };
         foreach (var kv in want) { string got = ModCatalog.PrettyName(kv.Key); Assert(got == kv.Value, kv.Key + " -> " + got); }
     }
+
+    public static void TestTurnedOffSitesWriteNothingAndLeaveTheLists()
+    {
+        const double D = 21600;
+        var g = new GlobalSettings { OfflineMode = true };
+        foreach (var id in new[] { "kraken", "herald", "kerbnet", "snackboard" }) g.SetSite(id, false);
+        var sn = new DataNode("SETTINGS"); var kn = new DataNode("SECRETS");
+        g.Save(sn, kn);
+        var back = GlobalSettings.Load(sn, kn);
+        Assert(!back.SiteOn("kraken") && !back.SiteOn("kerbnet") && back.SiteOn("observer"), "turned-off sites survive a settings round trip");
+
+        var s = new NewsState();
+        var eng = new NewsEngine(s, g, null, new SimpleClock(D));
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", new CraftSnapshot { VesselName = "Mun Arrow", Parts = 40, MassTons = 55, HeightM = 22, Stages = 3, DeltaV = 3900, Crew = { "Jebediah Kerman" } }, 10);
+        var e = new NewsEvent { Type = EventTypes.Landing, UT = 10, VesselId = "v1", VesselName = "Mun Arrow", Body = "Mun" };
+        e.Crew.Add("Jebediah Kerman");
+        eng.Ingest(e);
+        eng.Tick(D * 3, 1, true);
+        Assert(s.Articles.Count > 0, "the news still gets written: " + s.Articles.Count);
+        Assert(!s.Articles.Any(a => a.Outlet == "kraken" || a.Outlet == "herald"), "turned-off outlets write nothing: " + string.Join(",", s.Articles.Select(a => a.Outlet).ToArray()));
+        Assert(s.Social.Count == 0, "no Kerbnet posts with Kerbnet off: " + s.Social.Count);
+        Assert(!s.Forum.Any(t => t.StoryId != ""), "no Snackboard thread with the forum off");
+
+        var sites = new Sites(eng, rel => { var p = System.IO.Path.Combine(WebSitesDir(), rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
+        sites.Now = () => D * 3;
+        var home = sites.Render("kerbalnews.kb");
+        Assert(!home.Html.Contains("dailykraken.kb") && !home.Html.Contains("kerbnet.kb") && home.Html.Contains("orbitalobserver.kb"), "turned-off sites leave the link bar and front page");
+        Assert(sites.Render("dailykraken.kb").Html.Contains("turned off"), "a turned-off site says so");
+        var set = sites.Render("settings.kb").Html;
+        Assert(set.Contains("Websites") && set.Contains("Clickbait conspiracy site") && set.Contains("toggle-site/kraken"), "Settings lists each site with a description");
+        sites.Handle("action:toggle-site/kraken", null);
+        Assert(g.SiteOn("kraken") && sites.Render("kerbalnews.kb").Html.Contains("dailykraken.kb"), "turning it back on brings it back");
+        sites.Handle("action:toggle-site/kerbnet", null);
+        Assert(sites.Render("kerbalnews.kb").Html.Contains("Trending on Kerbnet"), "Kerbnet box returns when it is on");
+        sites.Handle("action:toggle-site/engineering", null);
+        Assert(!g.EngineeringOn, "the engineering page uses its own switch");
+    }
+
+    static string WebSitesDir()
+    {
+        var dir = AppDomain.CurrentDomain.BaseDirectory;
+        for (int i = 0; i < 5 && dir != null; i++)
+        {
+            var cand = System.IO.Path.Combine(dir, "GameData/KerbalNews/Sites");
+            if (Directory.Exists(cand)) return cand;
+            dir = System.IO.Path.GetDirectoryName(dir.TrimEnd('/'));
+        }
+        return "GameData/KerbalNews/Sites";
+    }
 }

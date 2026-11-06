@@ -81,6 +81,14 @@ namespace KerbalNews
         public float UiScale = 0;
         /// <summary>The browser window: x, y, width, height in canvas units, or null for the default.</summary>
         public float[] BrowserRect;
+        /// <summary>Websites the player turned off (SiteCatalog ids). The engineering page uses EngineeringOn instead.</summary>
+        public HashSet<string> SitesOff = new HashSet<string>();
+        public bool SiteOn(string id) { return id == "engineering" ? EngineeringOn : !SitesOff.Contains(id); }
+        public void SetSite(string id, bool on)
+        {
+            if (id == "engineering") { EngineeringOn = on; return; }
+            if (on) SitesOff.Remove(id); else SitesOff.Add(id);
+        }
         /// <summary>Image generation for article photos: "" means off. Uses its own key, stored as "img:&lt;id&gt;".</summary>
         public string ImageProviderId = "";
         public Dictionary<string, string> ImageModels = new Dictionary<string, string>();
@@ -155,6 +163,7 @@ namespace KerbalNews
             settings.Add("streamSeconds", StreamSeconds);
             settings.Add("retrospectives", Retrospectives);
             settings.Add("uiScale", (double)UiScale);
+            settings.Add("sitesOff", string.Join(",", SitesOff.OrderBy(x => x).ToArray()));
             if (BrowserRect != null && BrowserRect.Length == 4) settings.Add("browserRect", string.Join(",", BrowserRect.Select(v => v.ToString("0", System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
@@ -207,6 +216,7 @@ namespace KerbalNews
                 g.StreamSeconds = Math.Max(10, settings.GetDouble("streamSeconds", 30));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
+                foreach (var id in settings.Get("sitesOff", "").Split(',')) if (id.Trim() != "") g.SitesOff.Add(id.Trim());
                 var br = settings.Get("browserRect", "").Split(',');
                 float bx, by, bw, bh;
                 if (br.Length == 4 && float.TryParse(br[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out bx)

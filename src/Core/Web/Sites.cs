@@ -87,6 +87,8 @@ namespace KerbalNews.Web
             Split(url, out host, out path, out query);
             try
             {
+                var offSite = SiteCatalog.ByDomain(host);
+                if (offSite != null && !Engine.Settings.SiteOn(offSite.Id) && (offSite.Group != "Agency" || offSite.Id == "engineering")) return SiteOff(url, offSite);
                 var outlet = Outlets.All.FirstOrDefault(o => o.Domain == host);
                 if (outlet != null)
                 {
@@ -160,6 +162,23 @@ namespace KerbalNews.Web
         // ------------------------------------------------------------------ models
 
         static Dictionary<string, object> M() { return new Dictionary<string, object>(); }
+
+        static readonly string[][] NetLinks =
+        {
+            new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "telemetry.kb", "Telemetry" },
+            new[] { "pressroom.kb", "Press room" }, new[] { "gallery.kb", "Gallery" }, new[] { "live.kb", "Live" }, new[] { "agency.kb", "Agency" },
+            new[] { "engineering.kb", "Engineering" }, new[] { "settings.kb", "Settings" },
+        };
+
+        PageResult SiteOff(string url, SiteInfo s)
+        {
+            return new PageResult
+            {
+                Url = url, Title = s.Name + " (turned off)",
+                Html = "<body><div style=\"padding: 60px 40px\"><h1>" + Html.Escape(s.Name) + " is turned off</h1><p>" + Html.Escape(s.Description) + "</p><p>Turn it back on under Websites in <a href=\"settings.kb\">Settings</a>.</p></div></body>",
+                Css = "body { background: #ffffff; color: #222222; } h1 { font-size: 30px; } p { font-size: 18px; }",
+            };
+        }
         string Date(double ut) { return Clock.FormatDate(ut); }
 
         void AddCommon(Dictionary<string, object> m, string url)
@@ -178,10 +197,19 @@ namespace KerbalNews.Web
             m["error"] = Engine.LastError;
             m["pending"] = Engine.PendingCount;
             m["mood"] = MoodModel();
-            m["outlets"] = Outlets.All.Select(o => (object)new Dictionary<string, object>
+            m["outlets"] = Outlets.Enabled.Select(o => (object)new Dictionary<string, object>
             {
                 { "id", o.Id }, { "name", o.Name }, { "domain", o.Domain }, { "color", o.Color },
             }).ToList();
+            // The bar's other links, minus the sites the player turned off.
+            var links = new List<object>();
+            foreach (var l in NetLinks)
+            {
+                var s = SiteCatalog.ByDomain(l[0]);
+                if (s == null || Engine.Settings.SiteOn(s.Id)) links.Add(new Dictionary<string, object> { { "domain", l[0] }, { "name", l[1] } });
+            }
+            m["netLinks"] = links;
+            m["siteOn"] = SiteCatalog.All.ToDictionary(x => x.Id, x => (object)Engine.Settings.SiteOn(x.Id));
         }
 
         Dictionary<string, object> MoodModel()
@@ -332,7 +360,7 @@ namespace KerbalNews.Web
             m["top"] = top != null ? ArticleModel(top, false) : null;
             m["latest"] = all.Where(a => a != top).Take(30).Select(a => (object)ArticleModel(a, false)).ToList();
             m["empty"] = all.Count == 0;
-            m["sections"] = Outlets.All.Select(o =>
+            m["sections"] = Outlets.Enabled.Select(o =>
             {
                 var items = all.Where(a => a.Outlet == o.Id).Take(3).Select(a => (object)ArticleModel(a, false)).ToList();
                 return (object)new Dictionary<string, object> { { "id", o.Id }, { "name", o.Name }, { "domain", o.Domain }, { "color", o.Color }, { "items", items }, { "hasItems", items.Count > 0 } };
@@ -451,6 +479,13 @@ namespace KerbalNews.Web
             m["crewChat"] = g.CrewChatOn;
             m["ktv"] = g.KtvOn;
             m["engineering"] = g.EngineeringOn;
+            m["siteGroups"] = SiteCatalog.All.GroupBy(s => s.Group).Select(gr => (object)new Dictionary<string, object>
+            {
+                { "group", gr.Key },
+                { "sites", gr.Select(s => (object)new Dictionary<string, object>
+                    { { "id", s.Id }, { "name", s.Name }, { "domain", s.Domain }, { "description", s.Description }, { "whenOff", s.WhenOff }, { "on", g.SiteOn(s.Id) } }).ToList() },
+            }).ToList();
+            m["sitesOffCount"] = SiteCatalog.All.Count(s => !g.SiteOn(s.Id));
             m["tieIns"] = g.ContractTieIns;
             m["modsInContext"] = g.ModsInContext;
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };

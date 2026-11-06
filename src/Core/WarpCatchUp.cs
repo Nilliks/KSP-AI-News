@@ -68,7 +68,7 @@ namespace KerbalNews
             if (lines.Count == 0) return 0;
             State.Stories.Add(new Story
             {
-                Id = State.NewId("s"), Kind = "filler", Special = "catchup", FillerOutlet = "herald",
+                Id = State.NewId("s"), Kind = "filler", Special = "catchup", FillerOutlet = FirstOutletOn("herald", "observer", "munmonthly") ?? "herald",
                 Topic = "Between " + Clock.FormatDate(fromUT) + " and " + Clock.FormatDate(ut) + ":\n- " + string.Join("\n- ", lines.Take(25).ToArray()),
                 CreatedUT = ut, PublishUT = ut, Significance = Math.Min(70, 30 + lines.Count * 3),
             });

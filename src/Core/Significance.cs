@@ -132,6 +132,8 @@ namespace KerbalNews
         public List<OutletAssignment> Outlets = new List<OutletAssignment>();
         public int SocialPosts;
         public bool FrontPage;
+        /// <summary>Whether the coverage call also writes a Snackboard thread (off when the forum is turned off).</summary>
+        public bool Forum = true;
 
         public bool IsEmpty { get { return Outlets.Count == 0; } }
 
@@ -153,6 +155,7 @@ namespace KerbalNews
             foreach (var o in KerbalNews.Outlets.All)
             {
                 if (s.Kind == "filler") continue; // filler uses ForFiller with one chosen outlet
+                if (!KerbalNews.Outlets.IsOn(o.Id)) continue;
                 double min = failure ? o.MinSignificanceFailure : o.MinSignificance;
                 if (sig < min) continue;
                 if (o.OnlyFor.Count > 0 && !s.Events.Any(e => o.OnlyFor.Contains(e.Type))) continue;

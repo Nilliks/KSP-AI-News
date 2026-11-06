@@ -35,6 +35,9 @@ namespace KerbalNews
 
     public static class Outlets
     {
+        /// <summary>Whether an outlet is turned on. The engine points this at the player's settings.</summary>
+        public static Func<string, bool> IsOn = id => true;
+        public static IEnumerable<OutletDef> Enabled { get { return All.Where(o => IsOn(o.Id)); } }
         public static readonly List<OutletDef> All = new List<OutletDef>
         {
             new OutletDef

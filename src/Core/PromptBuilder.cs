@@ -59,7 +59,7 @@ namespace KerbalNews
             if (onlyOutlet != "")
             {
                 sb.AppendLine("OUTLETS (id: name. style. bias.)");
-                foreach (var o in Outlets.All.Where(o => onlyOutlet == null || o.Id == onlyOutlet))
+                foreach (var o in Outlets.All.Where(o => (onlyOutlet == null && Outlets.IsOn(o.Id)) || o.Id == onlyOutlet))
                     sb.AppendLine("- " + o.Id + ": " + o.Name + ". " + o.Style + " Bias: " + o.Bias);
                 sb.AppendLine();
             }
@@ -227,13 +227,13 @@ namespace KerbalNews
                 if (leak != null)
                     sb.AppendLine("SECRET (true, but known only to the agency and not part of the public record): " + leak + ". By luck, the Daily Kraken's 'anonymous insider' gets this one detail right, buried among false claims. Only the Kraken may state it; other outlets cannot confirm it and treat it as rumor.");
             }
-            sb.AppendFormat(Inv, "Also write {0} Kerbnet social posts reacting to this news, from a diverse mix of people, some replying to each other.\n", plan.SocialPosts);
+            if (plan.SocialPosts > 0) sb.AppendFormat(Inv, "Also write {0} Kerbnet social posts reacting to this news, from a diverse mix of people, some replying to each other.\n", plan.SocialPosts);
             sb.AppendLine();
             sb.AppendLine("JSON SCHEMA");
             sb.AppendLine("{\"articles\":[{\"outlet\":\"<outlet id>\",\"kind\":\"<kind>\",\"headline\":\"...\",\"subhead\":\"one sentence\",\"reporter\":\"<kerbal name> Kerman\",\"body\":\"paragraphs separated by \\n\\n\",\"tags\":[\"short\",\"tags\"],\"comments\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":12}]}],\"social\":[{\"handle\":\"@name\",\"persona\":\"enthusiast|skeptic|scientist|official|local|meme|worried|budget\",\"text\":\"under 240 characters\",\"likes\":40,\"reshares\":5}]}");
             if (wantImage)
                 sb.AppendLine("Also add a top-level field \"image_prompt\": two or three sentences describing one realistic press photograph for this story, showing only what a photographer could actually see (the rocket on the pad, the launch plume, crowds, the crew waving, the recovered capsule, a press conference). No text in the picture.");
-            if (plan.Tier == "story" || plan.Tier == "major" || plan.Tier == "historic")
+            if (plan.Forum && (plan.Tier == "story" || plan.Tier == "major" || plan.Tier == "historic"))
                 sb.AppendLine("Also add a top-level field \"forum\": one thread a member of the public starts on Snackboard (the community forum) about this news: {\"board\":\"general|launches|missions|science|policy|memes\",\"title\":\"...\",\"body\":\"short post\",\"author\":\"handle\",\"score\":120,\"replies\":[{\"author\":\"handle\",\"text\":\"...\",\"likes\":30,\"reply_to\":\"\"}]} with " + (plan.Tier == "story" ? "3 to 5" : "6 to 10") + " replies. About one time in three, make the thread about another outlet's recent article instead (often a Daily Kraken rumor), citing it as [[id]] in the body, with people arguing about whether it is true. reply_to is \"\" for a top-level reply or \"r1\", \"r2\"... to answer an earlier reply in the list.");
             if (plan.Tier != "brief" && story.Kind != "tip" && wantTv)
                 sb.AppendLine("Also add a top-level field \"tv\": a KTV News television segment on this story: {\"headline\":\"on-screen banner, at most 8 words\",\"script\":\"what the KTV anchor says on air, 2 to 4 short spoken sentences, broadcast style, may hand over to a reporter at the scene\",\"ticker\":\"one line for the news ticker, at most 12 words\"}.");

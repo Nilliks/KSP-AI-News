@@ -93,7 +93,7 @@ namespace KerbalNews
             var g = AddShot(file, ut, vesselId, vesselName, body, situation);
             g.Source = "press"; g.Kind = kind ?? ""; g.Credit = credit ?? ""; g.Public = true; g.ReleasedUT = ut;
             g.Caption = PressCaption(g);
-            if ((kind == "pad" || kind == "liftoff" || kind == "explosion") && !State.Forum.Any(t => t.Image != "" && State.Gallery.Any(x => x.File == t.Image && x.VesselId == vesselId && x.Kind == kind)))
+            if ((kind == "pad" || kind == "liftoff" || kind == "explosion") && Settings.SiteOn("snackboard") && !State.Forum.Any(t => t.Image != "" && State.Gallery.Any(x => x.File == t.Image && x.VesselId == vesselId && x.Kind == kind)))
                 SpotterThread(g, ut);
             // Keep a few per vessel: the first of each kind, then the newest.
             var mine = State.Gallery.Where(x => x.IsPress && x.VesselId == vesselId).OrderBy(x => x.UT).ToList();

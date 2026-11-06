@@ -31,9 +31,15 @@
     <a class="toggle{{#assistantConfirm}} on{{/assistantConfirm}}" href="action:toggle-assistant-confirm">Assistant asks before spending money</a></div>
   <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#crewChat}} on{{/crewChat}}" href="action:toggle-crewchat">Talk to your crew</a>
     <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a>
-    <a class="toggle{{#engineering}} on{{/engineering}}" href="action:toggle-engineering">Engineering team</a>
     <a class="toggle{{#tieIns}} on{{/tieIns}}" href="action:toggle-tieins">News can spark contracts (career)</a>
     <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
+
+  <h2>Websites</h2>
+  <p class="hint">Turn off any site you don't want. A turned-off site leaves the link bar and the front page, and the AI stops writing for it, so each story costs a little less.{{#sitesOffCount}} {{sitesOffCount}} turned off.{{/sitesOffCount}}</p>
+  {{#siteGroups}}
+  <h3>{{group}}</h3>
+  {{#sites}}<div class="site row"><a class="toggle{{#on}} on{{/on}}" href="action:toggle-site/{{id}}">{{#on}}On{{/on}}{{^on}}Off{{/on}}</a><div class="sitetext"><b>{{name}}</b> <span class="domain">{{domain}}</span><br>{{description}}{{^on}} <span class="off">Off: {{whenOff}}</span>{{/on}}</div></div>{{/sites}}
+  {{/siteGroups}}
 
   <h2>API usage</h2>
   <p class="hint">Turn AI use down to save money, or up for a busier news world. A preset sets everything below; any change makes it Custom.</p>

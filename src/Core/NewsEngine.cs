@@ -57,6 +57,7 @@ namespace KerbalNews
             Settings = settings;
             Transport = transport;
             Clock = clock;
+            Outlets.IsOn = id => Settings.SiteOn(id);
         }
 
         double Day { get { return Clock.DaySeconds; } }
@@ -232,6 +233,14 @@ namespace KerbalNews
             Generate(due, plan, ut, realTime);
         }
 
+        /// <summary>The first of these outlets that is turned on, or the first turned-on outlet at all, or null.</summary>
+        public string FirstOutletOn(params string[] prefs)
+        {
+            foreach (var p in prefs) if (Settings.SiteOn(p)) return p;
+            var any = Outlets.Enabled.FirstOrDefault(o => !o.IsOfficial);
+            return any != null ? any.Id : null;
+        }
+
         CoveragePlan PlanFor(Story s)
         {
             CoveragePlan plan;
@@ -249,6 +258,10 @@ namespace KerbalNews
         CoveragePlan ApplyUsage(CoveragePlan plan)
         {
             var g = Settings;
+            // Turned-off sites write nothing.
+            plan.Outlets.RemoveAll(o => !g.SiteOn(o.OutletId));
+            if (!g.SiteOn("kerbnet")) plan.SocialPosts = 0;
+            plan.Forum = g.SiteOn("snackboard");
             if (g.MaxOutlets > 0 && plan.Outlets.Count > g.MaxOutlets)
                 plan.Outlets = plan.Outlets.OrderBy(o => { int i = Array.IndexOf(OutletPriority, o.OutletId); return i < 0 ? 99 : i; }).Take(g.MaxOutlets).ToList();
             if (Math.Abs(g.AmountScale - 1) > 0.01)
@@ -258,7 +271,7 @@ namespace KerbalNews
                     o.Words = Math.Max(60, (int)Math.Round(o.Words * g.AmountScale));
                     o.Comments = Math.Max(1, (int)Math.Round(o.Comments * g.AmountScale));
                 }
-                plan.SocialPosts = Math.Max(1, (int)Math.Round(plan.SocialPosts * g.AmountScale));
+                if (plan.SocialPosts > 0) plan.SocialPosts = Math.Max(1, (int)Math.Round(plan.SocialPosts * g.AmountScale));
             }
             return plan;
         }
@@ -358,7 +371,7 @@ namespace KerbalNews
                 p.UT = first + (i / (double)Math.Max(1, cov.Social.Count)) * Day + rng.NextDouble() * 0.05 * Day;
                 State.Social.Add(p);
             }
-            if (cov.Forum != null && story.Kind != "filler")
+            if (cov.Forum != null && story.Kind != "filler" && Settings.SiteOn("snackboard"))
             {
                 var t = cov.Forum;
                 t.Id = State.NewId("t");
@@ -439,7 +452,13 @@ namespace KerbalNews
             if (quiet < FillerQuietDays || sinceFiller < FillerMinGapDays) return;
             if (State.Stories.Any(s => s.Status == StoryStatus.Pending)) return;
             int n = State.Articles.Count(a => a.Kind == "feature" || a.Kind == "opinion");
-            string outlet = FillerOutlets[n % FillerOutlets.Length];
+            string outlet = null;
+            for (int i = 0; i < FillerOutlets.Length && outlet == null; i++)
+            {
+                string o = FillerOutlets[(n + i) % FillerOutlets.Length];
+                if (Settings.SiteOn(o)) outlet = o;
+            }
+            if (outlet == null) return;   // every feature-writing outlet is turned off
             string topic = FillerTopic(outlet, n, ut);
             State.Stories.Add(new Story
             {

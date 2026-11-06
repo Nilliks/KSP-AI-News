@@ -1,7 +1,7 @@
 <html><body>
 {{> netbar}}
 <div class="head"><h1>{{agency}} Press Room</h1><p>Official statements go out under the agency's name. Every outlet reads them.</p></div>
-{{#setback}}<div class="setback">After "{{setback}}", people want answers. A statement helps; facing their questions helps more. <a href="snackboard.kb/submit">Hold a town hall on Snackboard</a></div>{{/setback}}
+{{#setback}}<div class="setback">After "{{setback}}", people want answers. A statement helps; facing their questions helps more. {{#siteOn.snackboard}}<a href="snackboard.kb/submit">Hold a town hall on Snackboard</a>{{/siteOn.snackboard}}</div>{{/setback}}
 <div class="layout">
   <div class="compose">
     <h2>New press release</h2>

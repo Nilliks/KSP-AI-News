@@ -26,3 +26,9 @@ h2 { margin-top: 18px; font-size: 20px; color: #1f3b5a; }
 .toggle.on { background: #2e7d32; color: #ffffff; }
 .models { display: flex; gap: 6px; margin-top: 4px; margin-bottom: 6px; flex-wrap: wrap; }
 .current { color: #1f3b5a; font-family: mono; }
+h3 { margin-top: 12px; font-size: 16px; color: #3d3a33; }
+.site { margin-top: 8px; align-items: flex-start; }
+.site .toggle { width: 46px; text-align: center; }
+.domain { font-size: 12px; color: #8a8478; }
+.sitetext { font-size: 14px; color: #3d3a33; }
+.off { color: #a3201c; }

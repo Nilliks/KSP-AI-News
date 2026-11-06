@@ -82,11 +82,11 @@ namespace KerbalNews
                         return sb.ToString();
                     }
                     case "outlets":
-                        foreach (var o in Outlets.All) sb.AppendLine(o.Id + " | " + o.Name + " | " + o.Style + " " + (o.Bias ?? ""));
+                        foreach (var o in Outlets.Enabled) sb.AppendLine(o.Id + " | " + o.Name + " | " + o.Style + " " + (o.Bias ?? ""));
                         return sb.ToString();
                     case "reporters":
                     {
-                        foreach (var o in Outlets.All)
+                        foreach (var o in Outlets.Enabled)
                         {
                             List<string> reps;
                             var names = State.Reporters.TryGetValue(o.Id, out reps) ? reps : new List<string>();

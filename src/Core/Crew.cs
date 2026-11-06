@@ -350,7 +350,7 @@ namespace KerbalNews
                 + (stars.Count > 0 ? " Best-known crew: " + string.Join(", ", stars.ToArray()) + "." : "")
                 + (lost.Count > 0 ? " Lost this year: " + string.Join(", ", lost.ToArray()) + "." : "")
                 + " A special end-of-year edition: the year's arc, the highs and lows, and what to watch next year.";
-            QueueFeature("herald", topic, ut, 55, "review");
+            QueueFeature(FirstOutletOn("herald", "munmonthly", "observer") ?? "herald", topic, ut, 55, "review");
         }
 
         void QueueFeature(string outlet, string topic, double ut, double significance, string special)
