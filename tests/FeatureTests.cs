@@ -616,6 +616,55 @@ public static class FeatureTests
         Assert(s.Social[0].Text == "Kerbal 2 looked incredible today!" && s.Articles[0].Headline == "Kerbal 2 reaches space" && s.Stories[0].Events[0].VesselName == "Kerbal 2", "tags replaced with the craft name on load");
     }
 
+    public static void TestLaunchCountdownHoldRecycleScrubAndChat()
+    {
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        string dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new KerbalNews.Web.Sites(eng, rel => { var p = System.IO.Path.Combine(dir, rel); return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null; });
+        sites.Now = () => 1;
+        sites.ActiveVesselId = () => "v1";
+        sites.ActiveVesselName = () => "Kerbal X";
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.StreamSample(new TelemetrySample { UT = 1, Altitude = 70, Situation = "PRELAUNCH" }, 0);
+        eng.SetRealTime(0);
+        Assert(sites.Render("live.kb").Html.Contains("action:count-start/5"), "the countdown can be started from the page");
+        sites.Handle("action:count-start/5", null);
+        Assert(st.Countdown == "counting" && st.Moments.Last().Contains("T-05:00"), "counting from T-5:00: " + st.Moments.Last());
+        eng.SetRealTime(30); eng.TickStream(30, true);
+        Assert(sites.Render("live.kb").Html.Contains("T-04:30"), "the page shows the clock");
+        eng.SetRealTime(45);
+        sites.Handle("action:count-hold", null);
+        Assert(st.Countdown == "hold" && st.Moments.Last().StartsWith("HOLD") && st.Moments.Last().Contains("T-04:15"), "hold at T-4:15: " + st.Moments.Last());
+        eng.SetRealTime(100); eng.TickStream(100, true);
+        Assert(Math.Abs(eng.CountdownLeft(100) - 255) < 0.01, "the clock stands still in a hold");
+        Assert(sites.Render("live.kb").Html.Contains(">HOLD<"), "the page says HOLD");
+        sites.Handle("action:count-recycle/1", null);
+        Assert(st.Countdown == "hold" && st.Moments.Last().Contains("back to T-01:00"), "recycled: " + st.Moments.Last());
+        sites.Handle("action:count-resume", null);
+        Assert(st.Countdown == "counting", "resumed");
+        for (double t = 100; t <= 162; t += 1) { eng.SetRealTime(t); eng.TickStream(t, true); }
+        Assert(st.Moments.Any(m => m.Contains("final countdown")) && st.Moments.Any(m => m.StartsWith("T-0")), "final ten seconds and T-0 called: " + string.Join(" | ", st.Moments.ToArray()));
+        eng.StreamMoment("liftoff", 162);
+        Assert(st.Moments.Last() == "liftoff right on time at T-0" && st.Countdown == "launched", "liftoff on the count: " + st.Moments.Last());
+        Assert(!sites.Render("live.kb").Html.Contains("action:count-start"), "no new countdown after liftoff");
+        // The chat counts down with the clock in order, and boos a scrub.
+        var lines = StreamChatStyle.Lines(st, new List<string> { "T-10 seconds: the final countdown" }, 0, new Random(3), "Kerbal X");
+        var numbers = lines.Select(c => c.Text.TrimEnd('!')).Where(x => x.All(char.IsDigit) && x.Length > 0).Select(int.Parse).ToList();
+        Assert(numbers.Count >= 10 && numbers.First() == 10 && numbers.Last() == 1, "chat counts 10 to 1: " + string.Join(",", numbers.Select(x => x.ToString()).ToArray()));
+        var eng2 = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));
+        eng2.Tick(0, 0, true);
+        var st2 = eng2.StartStream("v1", "Kerbal X", 0, 0);
+        eng2.CountdownStart(600, 0);
+        Assert(eng2.CountdownScrub(10) && st2.Moments.Last().StartsWith("SCRUB") && st2.Countdown == "scrubbed", "scrubbed: " + st2.Moments.Last());
+        var boo = StreamChatStyle.Lines(st2, new List<string> { st2.Moments.Last() }, 0, new Random(5), "Kerbal X");
+        Assert(boo.Count >= 3, "the chat reacts to the scrub: " + string.Join(" / ", boo.Select(c => c.Text).ToArray()));
+        Assert(NewsEngine.MomentWeight(st2.Moments.Last()) >= 3, "a scrub is a big moment");
+        eng2.CountdownStart(60, 20);
+        for (double t = 20; t <= 105; t += 1) eng2.TickStream(t, true);
+        Assert(st2.Moments.Any(m => m.Contains("still sitting on the pad")), "the chat notices a rocket that did not launch at T-0");
+    }
+
     public static void TestStreamShowsTheCameraAndNoticesOnboardViews()
     {
         var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));

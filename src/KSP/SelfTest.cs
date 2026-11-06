@@ -219,6 +219,19 @@ namespace KerbalNews.KSP
             Check(eng.HasPressShot(id, "pad"), "flight: press photo of the craft on the pad");
             yield return Shot("flight-live-pad");
 
+            // Launch countdown from the stream page: start, hold, recycle, resume, then launch at T-0.
+            br.Act("action:count-start/1", null);
+            yield return new WaitForSeconds(4);
+            br.Act("action:count-hold", null);
+            yield return new WaitForSeconds(1.5f);
+            yield return Shot("flight-live-countdown-hold");
+            Check(eng.Stream != null && eng.Stream.Countdown == "hold", "flight: countdown started and held: " + (eng.Stream != null ? eng.Stream.Moments.LastOrDefault() : ""));
+            eng.CountdownRecycle(14, eng.RealTime);
+            br.Act("action:count-resume", null);
+            float cdStart = Time.realtimeSinceStartup;
+            while (eng.Stream != null && eng.Stream.Countdown == "counting" && Time.realtimeSinceStartup - cdStart < 25) yield return new WaitForSeconds(0.25f);
+            Check(eng.Stream != null && eng.Stream.Moments.Any(m => m.Contains("final countdown")) && eng.Stream.Countdown == "zero", "flight: countdown reached T-0 after the final ten seconds");
+
             // Full throttle, then stage until the craft actually moves (the first stage may be only clamps or
             // decouplers, and another mod can eat a single activation). Throttle is held every frame in case
             // something else resets it.
@@ -267,7 +280,7 @@ namespace KerbalNews.KSP
             Check(eng.HasPressShot(id, "ascent"), "flight: ascent photo");
             var st = eng.Stream;
             Check(st != null && st.Chat.Count(c => !c.System) >= 5, "flight: stream chat has " + (st != null ? st.Chat.Count(c => !c.System) : 0) + " viewer messages, " + (st != null ? st.Viewers : 0) + " viewers");
-            Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
+            Check(st != null && st.Moments.Any(m => m.StartsWith("liftoff")), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
             Check(StreamDriver.Frame != null, "flight: stream video rendered");
             foreach (var c in StreamDriver.CutLog) Log("  camera cut " + c);
             var groundUsed = StreamDriver.CutLog.Where(c => !c.Contains("Hull camera") && !c.Contains(" skipped ")).Select(c => c.Substring(c.IndexOf(' ') + 1, c.IndexOf(" (") - c.IndexOf(' ') - 1)).Distinct().ToList();

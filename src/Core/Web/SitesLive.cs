@@ -42,6 +42,17 @@ namespace KerbalNews.Web
             m["camera"] = st.Camera;
             double met = t != null ? t.UT - st.StartUT : 0;
             m["met"] = "T+" + TimeSpan.FromSeconds(Math.Max(0, met)).ToString(@"hh\:mm\:ss");
+            // Launch countdown: the clock replaces the mission time until liftoff, with the controls for the player.
+            double left = Engine.CountdownLeft(Engine.RealTime);
+            string cd = st.Countdown;
+            bool launched = cd == "launched" || st.Moments.Any(x => x.StartsWith("liftoff"));
+            if (!double.IsNaN(left)) m["met"] = NewsEngine.CountClock(left);
+            m["countHold"] = cd == "hold";
+            m["countScrub"] = cd == "scrubbed";
+            m["countZero"] = cd == "zero";
+            m["countIdle"] = !launched && (cd == "" || cd == "scrubbed");
+            m["countRunning"] = cd == "counting" || cd == "zero";
+            m["countHolding"] = cd == "hold";
             if (t != null)
             {
                 m["tele"] = new List<object>
@@ -105,6 +116,21 @@ namespace KerbalNews.Web
                     LiveResult = "";
                     return r;
                 }
+                case "count-start":
+                {
+                    int mins;
+                    Engine.CountdownStart(int.TryParse(arg, out mins) ? mins * 60 : 600, Engine.RealTime);
+                    return r;
+                }
+                case "count-hold": Engine.CountdownHold(Engine.RealTime); return r;
+                case "count-resume": Engine.CountdownResume(Engine.RealTime); return r;
+                case "count-recycle":
+                {
+                    int mins;
+                    Engine.CountdownRecycle(int.TryParse(arg, out mins) ? mins * 60 : 600, Engine.RealTime);
+                    return r;
+                }
+                case "count-scrub": Engine.CountdownScrub(Engine.RealTime); return r;
                 case "stream-end":
                 {
                     var a = Engine.EndStream(Now());

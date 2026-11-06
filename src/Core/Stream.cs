@@ -58,6 +58,14 @@ namespace KerbalNews
         /// <summary>The camera the broadcast is on now, such as "Pad camera" or "Hull camera: looking aft".</summary>
         public string Camera = "";
         public bool WentOnboard;
+        /// <summary>Launch countdown: "" (none), "counting", "hold", "zero" (T-0 reached), "scrubbed" or "launched".</summary>
+        public string Countdown = "";
+        public double CountLeft;        // seconds left at CountMark
+        public double CountMark;        // real time CountLeft was measured
+        public int NextCall;            // index into the countdown calls not yet announced
+        public bool ZeroLate;           // the "still on the pad after T-0" moment was sent
+        public int CountShown = int.MinValue;
+        public int Holds, Recycles;
         public readonly List<double> AltitudeTrace = new List<double>();
     }
 
@@ -118,6 +126,126 @@ namespace KerbalNews
 
         void Changed() { if (StreamChanged != null) StreamChanged(); }
 
+        // ------------------------------------------------------------------ launch countdown
+
+        static readonly int[] CountCalls = { 600, 300, 120, 60, 30, 10 };
+
+        /// <summary>Seconds left on the countdown right now (negative after T-0), or NaN with no countdown.</summary>
+        public double CountdownLeft(double realTime)
+        {
+            var st = Stream;
+            if (st == null || st.Countdown == "" || st.Countdown == "scrubbed" || st.Countdown == "launched") return double.NaN;
+            return st.Countdown == "hold" ? st.CountLeft : st.CountLeft - (realTime - st.CountMark);
+        }
+
+        static string ClockText(double secs)
+        {
+            var t = TimeSpan.FromSeconds(Math.Abs(Math.Round(secs)));
+            return (t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"mm\:ss"));
+        }
+
+        public static string CountClock(double secs) { return (secs >= 0 ? "T-" : "T+") + ClockText(secs); }
+
+        bool CanCount(StreamSession st) { return st != null && st.Countdown != "launched" && !st.Moments.Any(m => m.StartsWith("liftoff")); }
+
+        public bool CountdownStart(double seconds, double realTime)
+        {
+            var st = Stream;
+            if (!CanCount(st) || (st.Countdown == "counting")) return false;
+            st.Countdown = "counting"; st.CountLeft = Math.Max(10, seconds); st.CountMark = realTime;
+            st.NextCall = CountCalls.Count(c => c >= st.CountLeft); st.ZeroLate = false;
+            StreamMoment("the launch countdown started at " + CountClock(st.CountLeft), realTime);
+            Changed();
+            return true;
+        }
+
+        public bool CountdownHold(double realTime)
+        {
+            var st = Stream;
+            if (st == null || st.Countdown != "counting") return false;
+            st.CountLeft = CountdownLeft(realTime); st.CountMark = realTime; st.Countdown = "hold"; st.Holds++;
+            StreamMoment("HOLD: the countdown was stopped at " + CountClock(st.CountLeft) + (st.CountLeft < 60 ? ", in the final minute" : "") + (st.Holds > 1 ? " (hold number " + st.Holds + " today)" : ""), realTime);
+            Changed();
+            return true;
+        }
+
+        public bool CountdownResume(double realTime)
+        {
+            var st = Stream;
+            if (st == null || st.Countdown != "hold") return false;
+            st.Countdown = "counting"; st.CountMark = realTime;
+            st.NextCall = CountCalls.Count(c => c >= st.CountLeft);
+            StreamMoment("the countdown resumed from " + CountClock(st.CountLeft), realTime);
+            Changed();
+            return true;
+        }
+
+        /// <summary>Turns the clock back to an earlier point and holds there, as a real count does after a problem.</summary>
+        public bool CountdownRecycle(double seconds, double realTime)
+        {
+            var st = Stream;
+            if (st == null || (st.Countdown != "hold" && st.Countdown != "counting" && st.Countdown != "zero")) return false;
+            double from = CountdownLeft(realTime);
+            st.Countdown = "hold"; st.CountLeft = Math.Max(10, seconds); st.CountMark = realTime; st.Recycles++; st.ZeroLate = false;
+            StreamMoment("the countdown was recycled from " + CountClock(from) + " back to " + CountClock(st.CountLeft) + " and is holding" + (st.Recycles > 1 ? " (recycle number " + st.Recycles + ")" : ""), realTime);
+            Changed();
+            return true;
+        }
+
+        public bool CountdownScrub(double realTime)
+        {
+            var st = Stream;
+            if (st == null || st.Countdown == "" || st.Countdown == "scrubbed" || st.Countdown == "launched") return false;
+            double left = CountdownLeft(realTime);
+            st.Countdown = "scrubbed";
+            StreamMoment("SCRUB: the launch was called off for today at " + CountClock(left), realTime);
+            Changed();
+            return true;
+        }
+
+        /// <summary>Announces the calls (T-1 minute, final ten seconds...), T-0, and a rocket still sitting on the pad after T-0.</summary>
+        void TickCountdown(StreamSession st, double realTime)
+        {
+            if (st.Countdown != "counting" && st.Countdown != "zero") { ShowClock(st, realTime); return; }
+            double left = CountdownLeft(realTime);
+            while (st.Countdown == "counting" && st.NextCall < CountCalls.Length && left <= CountCalls[st.NextCall])
+            {
+                int c = CountCalls[st.NextCall++];
+                StreamMoment(c == 10 ? "T-10 seconds: the final countdown" : c >= 60 ? "T-" + (c / 60) + " minute" + (c >= 120 ? "s" : "") + " on the countdown" : "T-" + c + " seconds", realTime);
+            }
+            if (st.Countdown == "counting" && left <= 0)
+            {
+                st.Countdown = "zero";
+                StreamMoment("T-0: the countdown reached zero", realTime);
+            }
+            if (st.Countdown == "zero" && !st.ZeroLate && left < -20)
+            {
+                st.ZeroLate = true;
+                StreamMoment("T-0 was " + Math.Round(-left) + " seconds ago and the rocket is still sitting on the pad", realTime);
+            }
+            ShowClock(st, realTime);
+        }
+
+        void ShowClock(StreamSession st, double realTime)
+        {
+            double left = CountdownLeft(realTime);
+            int shown = double.IsNaN(left) ? int.MinValue : (int)Math.Round(left);
+            if (shown != st.CountShown) { st.CountShown = shown; Changed(); }
+        }
+
+        /// <summary>Liftoff with a countdown running: says whether it went on time, early or late.</summary>
+        string LiftoffWithCount(StreamSession st, double realTime)
+        {
+            double left = CountdownLeft(realTime);
+            string state = st.Countdown;
+            st.Countdown = "launched";
+            if (double.IsNaN(left)) return state == "scrubbed" ? "liftoff, even though the launch had been scrubbed" : "liftoff";
+            if (state == "hold") return "liftoff during a countdown hold at " + CountClock(left) + " (nobody expected it)";
+            if (Math.Abs(left) <= 3) return "liftoff right on time at T-0";
+            if (left > 0) return "liftoff " + Math.Round(left) + " seconds early, with the countdown still at " + CountClock(left);
+            return "liftoff " + Math.Round(-left) + " seconds after T-0";
+        }
+
         /// <summary>The broadcast cut to another camera. The first cut to the rocket's own cameras is a moment the chat notices.</summary>
         public void StreamCamera(string name, bool onboard, double realTime)
         {
@@ -150,6 +278,7 @@ namespace KerbalNews
         {
             var st = Stream;
             if (st == null || string.IsNullOrEmpty(what)) return;
+            if (what == "liftoff" && st.Countdown != "" && st.Countdown != "launched") what = LiftoffWithCount(st, realTime);
             st.Moments.Add(what);
             st.NewMoments.Add(what);
             st.NextBatchReal = Math.Min(st.NextBatchReal, Math.Max(realTime + 1, LastBatchReal + StreamMinGap));
@@ -184,6 +313,7 @@ namespace KerbalNews
             }
             if (st.Chat.Count > 300) st.Chat.RemoveRange(0, st.Chat.Count - 300);
             if (changed) Changed();
+            TickCountdown(st, realTime);
             if (streamBusy || realTime < st.NextBatchReal || st.Last == null) return;
             LastBatchReal = realTime;
             st.NextBatchReal = realTime + StreamInterval;
@@ -254,6 +384,13 @@ namespace KerbalNews
         {
             m = (m ?? "").ToLowerInvariant();
             if (m.Contains("crew lost")) return 5;
+            if (m.StartsWith("scrub")) return 3.5;
+            if (m.Contains("final countdown")) return 3.5;
+            if (m.StartsWith("t-0")) return 3;
+            if (m.StartsWith("hold")) return 2.5;
+            if (m.Contains("recycled")) return 2;
+            if (m.Contains("countdown resumed") || m.Contains("countdown started")) return 1.5;
+            if (m.StartsWith("t-")) return 1;
             if (m.Contains("destroyed") || m.Contains("exploded")) return 4.5;
             if (m.Contains("liftoff")) return 4;
             if (m.Contains("touchdown") || m.Contains("splashdown")) return 3.5;
@@ -278,7 +415,7 @@ namespace KerbalNews
         static List<ChatMessage> Fit(List<ChatMessage> msgs, int n, Random rng)
         {
             if (msgs.Count == 0) return msgs;
-            if (msgs.Count > n) return msgs.OrderBy(x => rng.Next()).Take(n).ToList();
+            if (msgs.Count > n) return msgs.Select((m, i) => new { m, i }).OrderBy(x => rng.Next()).Take(n).OrderBy(x => x.i).Select(x => x.m).ToList();   // a random few, still in order
             // A burst: people echo each other, as a real chat does when something big happens.
             var outList = new List<ChatMessage>(msgs);
             var handles = msgs.Select(m => m.Author).Distinct().ToList();

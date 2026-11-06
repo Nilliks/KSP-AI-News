@@ -47,3 +47,11 @@ a { color: #8ab4ff; }
 .official { background: #2f6fed; color: #ffffff; }
 h3 { color: #ffffff; margin-top: 18px; }
 .arch { display: block; background: #16191f; padding: 8px 12px; margin-bottom: 6px; color: #e6e8eb; }
+.hold { margin-left: 10px; font-size: 12px; font-weight: bold; color: #1b1e23; background-color: #f2cc60; padding: 2px 6px; }
+.scrub { margin-left: 10px; font-size: 12px; font-weight: bold; color: #ffffff; background-color: #d73a49; padding: 2px 6px; }
+.count { margin-top: 8px; padding: 8px 10px; background-color: #161b22; color: #c9d1d9; font-size: 13px; }
+.cbtn { margin-left: 8px; padding: 3px 8px; background-color: #30363d; color: #e6edf3; font-size: 12px; text-decoration: none; }
+.cbtn:hover { background-color: #484f58; }
+.cbtn.warn { background-color: #9e6a03; }
+.cbtn.bad { background-color: #8e1519; }
+.cbtn.go { background-color: #1f6f2b; }

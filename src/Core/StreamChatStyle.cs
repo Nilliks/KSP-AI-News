@@ -148,6 +148,16 @@ namespace KerbalNews
             "lofi rocket to study to", "i could watch this for hours", "it's just floating lol", "waiting for the next burn",
         };
 
+        static readonly string[] CountStartLines = { "CLOCK IS RUNNING", "here we gooo", "countdown started!!", "ok it's real now", "setting a timer", "anyone else's heart racing already", "grabbing snacks before it goes", "T-minus vibes", "they're actually doing it today" };
+        static readonly string[] HoldLines = { "HOLD HOLD HOLD", "why are they holding", "nooooo a hold", "probably a sensor", "classic", "of course", "what happened??", "hold?? why", "it's always something", "they're being careful, that's good", "my snack is getting cold", "can we get an update on the hold?", "😭😭", "not again", "it's fine, holds are normal", "bruh" };
+        static readonly string[] ResumeLines = { "WE'RE BACK", "count resumed!!", "LETS GOOO", "clock is moving again", "phew", "here we go again", "back on baby", "W" };
+        static readonly string[] RecycleLines = { "recycling?? noooo", "back to square one", "here we go again lol", "groundhog day", "at this rate we launch next year", "they turned the clock BACK?", "my eyes hurt from waiting", "ok gonna make coffee", "patience chat", "every time" };
+        static readonly string[] ScrubLines = { "SCRUBBED", "noooooo", "see you tomorrow", "boooo", "I skipped school for this", "better safe than sorry", "L", "F", "unbelievable", "well that's my evening ruined", "good call honestly", "is it rescheduled?", "classic KSC", "I'll be back tomorrow", "SCRUB SCRUB SCRUB", "😭", "at least it didn't blow up", "go home everyone" };
+        static readonly string[] FinalTenLines = { "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "TEN", "NINE", "here it comes", "IT'S HAPPENING", "omg omg omg", "GO GO GO", "🚀🚀🚀", "hands shaking", "3", "2", "1" };
+        static readonly string[] ZeroLines = { "NOW!!", "IGNITION?", "0!!", "GO", "is it going??", "come onnnn", "what's happening", "LIFTOFF??", "why isn't it moving" };
+        static readonly string[] LateLines = { "uhh it's still there", "did they forget to press the button", "T-0 was ages ago lol", "is something wrong?", "anyone home?", "jeb fell asleep", "it's not moving", "awkward", "someone call mission control", "space bar broken?" };
+        static readonly string[] SurpriseLines = { "WAIT IT'S GOING", "I THOUGHT THEY WERE HOLDING", "the countdown said otherwise lol", "um was that planned", "surprise launch!!", "the clock was wrong??", "WHAT", "ok then!!" };
+
         /// <summary>The part of the flight the stream is in, from the latest telemetry.</summary>
         public static string Phase(TelemetrySample t)
         {
@@ -169,11 +179,28 @@ namespace KerbalNews
             foreach (var m in moments)
             {
                 string ml = (m ?? "").ToLowerInvariant();
-                string[] pool = ml.Contains("crew lost") || ml.Contains("destroyed") || ml.Contains("explo") ? Sad
+                string[] pool = ml.StartsWith("scrub") ? ScrubLines
+                    : ml.StartsWith("hold") ? HoldLines
+                    : ml.Contains("countdown resumed") ? ResumeLines
+                    : ml.Contains("recycled") ? RecycleLines
+                    : ml.Contains("countdown started") ? CountStartLines
+                    : ml.Contains("final countdown") ? null
+                    : ml.StartsWith("t-0 was") ? LateLines
+                    : ml.StartsWith("t-0") ? ZeroLines
+                    : ml.StartsWith("liftoff") && (ml.Contains("early") || ml.Contains("hold") || ml.Contains("scrubbed")) ? SurpriseLines
+                    : ml.StartsWith("t-") ? new[] { "getting close", "almost!!", "ok ok ok", "nervous", "here we go", "chat is going to explode soon", "hype" }
+                    : ml.Contains("crew lost") || ml.Contains("destroyed") || ml.Contains("explo") ? Sad
                     : ml.Contains("liftoff") ? LiftoffLines
                     : ml.Contains("stage") || ml.Contains("separat") ? StageLines
                     : ml.Contains("onboard") ? OnboardLines
                     : ml.Contains("orbit") ? OrbitLines : null;
+                if (ml.Contains("final countdown"))
+                {
+                    // The chat counts down with the clock, out of step, as people type at different speeds.
+                    for (int i = 10; i >= 1; i--) { outList.Add(Msg(rng, rng.Next(4) == 0 ? i + "!!" : i.ToString())); if (rng.Next(3) == 0) outList.Add(Msg(rng, i.ToString())); }
+                    foreach (var line in FinalTenLines.Where(x => !char.IsDigit(x[0])).OrderBy(x => rng.Next()).Take(4)) outList.Insert(rng.Next(outList.Count + 1), Msg(rng, line));
+                    continue;
+                }
                 if (pool == null) { outList.Add(Msg(rng, Pick(rng, "did everyone see that??", "wait what just happened", "what was that", "uhh"))); continue; }
                 int k = Math.Min(pool.Length, 3 + (int)NewsEngine.MomentWeight(m));
                 foreach (var line in pool.OrderBy(x => rng.Next()).Take(k)) outList.Add(Msg(rng, Rough(line, rng, true)));
