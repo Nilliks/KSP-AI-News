@@ -42,7 +42,7 @@ public static class StreamTests
         eng.TickStream(105, true);
         Assert(st.Batches == 1 && st.Queue.Count > 0, "offline chat batch queued");
         eng.TickStream(200, true);
-        Assert(st.Chat.Count > 5 && st.Chat.Any(c => c.Text == "LIFTOFF" || c.Text == "go go go" || c.Text == "here we go!" || c.Text == "goosebumps" || c.Text == "look at that plume"), "chat plays out and reacts to liftoff");
+        Assert(st.Chat.Count > 5 && st.Chat.Any(c => { var x = c.Text.ToLowerInvariant(); return x.Contains("liftoff") || x.Contains("go go") || x.Contains("goosebumps") || x.Contains("plume") || x.Contains("lets go") || x.Contains("look at it go") || x.Contains("tower") || x.Contains("godspeed") || x.Contains("send it") || x.Contains("shaking") || x.Contains("fire") || x.Contains("wow") || x.Contains("cheering") || x.Contains("crying") || x.Contains("believe") || x.Contains("going") || x.Contains("sound"); }), "chat plays out and reacts to liftoff");
         eng.StreamSay("Crew reports all good", true, "", 201);
         Assert(st.Chat.Last().Agency && st.Chat.Last().Player, "player message shows as official");
         eng.StreamSample(Sample(60, 9000), 230);

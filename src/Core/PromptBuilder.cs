@@ -343,7 +343,9 @@ namespace KerbalNews
         {
             var sb = new StringBuilder();
             sb.AppendLine("You simulate the live chat of " + agency + "'s official livestream of a rocket flight in the Kerbin universe (kerbals, the Mun, Minmus, Duna...). Viewers are members of the public: fans, engineers, skeptics, kids, trolls, regulars from the agency's comment sections.");
-            sb.AppendLine("Chat style: short lines (most under 15 words), lowercase is common, some emoji-free hype, questions to the agency, jokes, rare caps. React to what the telemetry shows right now. Never invent events or hardware the telemetry does not show (no clamps, weather, scrubs or countdown calls unless stated). Kerbal names end in Kerman.");
+            sb.AppendLine("Make it read like a real public launch-stream chat, which is messy and random: mostly very short lines (many are 1-5 words), lowercase, missing punctuation, typos, stretched letters (goooo), caps when excited, emotes (o7, F, W, gg, 🚀). Most people are not reacting to the flight at all: they say hi and where they watch from, mention the time or that they're at work or school, ask off-topic questions, complain about lag, make running jokes (MOAR BOOSTERS, struts, the kraken, snacks), troll, argue, reply to each other by @name, repeat what someone just said, or are confidently wrong. A few read the telemetry like engineers. Every viewer has their own voice; never make them sound alike or polite.");
+            sb.AppendLine("Handles look like real usernames: mixed styles such as jebfan_42, xX_strut_Xx, Munwatcher93, its_kraken, grandma_kerman, debriscounter. Do not reuse a line already in the recent chat.");
+            sb.AppendLine("React to what the telemetry shows right now. Never invent events or hardware the telemetry does not show (no clamps, weather, scrubs or countdown calls unless stated). Kerbal names end in Kerman.");
             sb.AppendLine(SillinessText(state.Silliness));
             sb.AppendLine("Reply with JSON only.");
             return sb.ToString();
@@ -370,6 +372,7 @@ namespace KerbalNews
             if (hype >= 4) sb.AppendLine("The chat is going WILD right now: caps lock, spammed reactions (LETS GOOOO, NO WAY, o7, F), people talking over each other, very short lines, a few longer awed or horrified ones. Some messages repeat what others just said.");
             else if (hype >= 2) sb.AppendLine("The chat is excited: lots of short reactions, some caps, people tagging friends.");
             else sb.AppendLine("Nothing big is happening: the chat drifts, with questions, small talk, jokes and a few people reading the telemetry.");
+            sb.AppendLine(StreamChatStyle.Hints(new Random(st.Batches * 7919 + st.Chat.Count), st));
             sb.AppendLine("Write the next " + n + " chat messages, oldest first, from many different viewers (a few regulars may speak twice). Also estimate the viewer count now: it rises with drama and big moments, falls when nothing happens.");
             sb.AppendLine("JSON SCHEMA: {\"viewers\":1234,\"messages\":[{\"author\":\"handle\",\"text\":\"...\"}]}");
             return sb.ToString();

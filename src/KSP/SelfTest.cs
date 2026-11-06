@@ -283,7 +283,7 @@ namespace KerbalNews.KSP
             foreach (var c in StreamDriver.CutLog.Skip(before)) Log("  camera cut " + c);
             Check(hullUsed.Count > 0, "flight: hull cameras used: " + hullUsed.Count);
             Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");
-            if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(8)) Log("  chat " + c.Author + ": " + c.Text);
+            if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(40)) Log("  chat " + c.Author + ": " + c.Text);
             if (modeEng) yield return EngFlightCheck(sys, v);
             yield return Go("live.kb");
             yield return Shot("flight-live-ascent");

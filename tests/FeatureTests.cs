@@ -635,6 +635,34 @@ public static class FeatureTests
         Assert(html.Contains("Hull camera: horizon"), "camera name on the page");
     }
 
+    public static void TestOfflineStreamChatIsVariedLikeARealChat()
+    {
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        st.Last = new TelemetrySample { Altitude = 9000, Speed = 400, Situation = "FLYING" };
+        var all = new List<ChatMessage>();
+        for (int i = 0; i < 12; i++)
+        {
+            st.Batches = i;
+            var batch = OfflineWriter.StreamChat(eng, st, new List<string>(), new List<ChatMessage>());
+            all.AddRange(batch);
+            st.Chat.AddRange(batch);
+        }
+        int texts = all.Select(c => c.Text.ToLowerInvariant()).Distinct().Count();
+        int authors = all.Select(c => c.Author).Distinct().Count();
+        Assert(all.Count >= 100, "plenty of chat: " + all.Count);
+        Assert(texts > all.Count * 0.6, "lines rarely repeat: " + texts + " of " + all.Count);
+        Assert(authors > all.Count * 0.5, "many different viewers: " + authors);
+        Assert(all.Any(c => c.Text.Length <= 6), "some one-word reactions");
+        Assert(all.Any(c => c.Text == c.Text.ToLowerInvariant() && c.Text.Any(char.IsLetter)), "some all-lowercase lines");
+        Assert(all.Any(c => c.Text.ToLowerInvariant().Contains("music") || c.Text.ToLowerInvariant().Contains("gift shop") || c.Text.ToLowerInvariant().Contains("cat") || c.Text.ToLowerInvariant().Contains("lag") || c.Text.ToLowerInvariant().Contains("job")), "some off-topic chatter");
+        var p1 = PromptBuilder.StreamUser(eng, st, new List<string>(), new List<ChatMessage>(), 10);
+        st.Batches++;
+        var p2 = PromptBuilder.StreamUser(eng, st, new List<string>(), new List<ChatMessage>(), 10);
+        Assert(p1.Contains("Mix in, this batch") && p1 != p2, "each AI batch gets a fresh mix of voices");
+    }
+
     public static void TestStreamChatIsUnevenAndGoesWildAtLiftoff()
     {
         var prompts = new List<string>();

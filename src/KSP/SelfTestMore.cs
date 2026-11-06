@@ -298,6 +298,15 @@ namespace KerbalNews.KSP
             yield return Shot("ui-resized-smallest");
             br.SetWindowForTest(pos0, size0);
             yield return new WaitForSeconds(0.5f);
+            br.DragTitleForTest(new Vector2(120, -80));   // right and down
+            yield return new WaitForSeconds(0.4f);
+            Check(br.WindowPos.x > pos0.x + 50 && br.WindowPos.y > pos0.y + 30 && Math.Abs(br.WindowSize.x - size0.x) < 1, "ui: dragging the title bar moves the window without resizing it (" + pos0 + " -> " + br.WindowPos + ")");
+            yield return Shot("ui-title-bar-moved");
+            br.DragTitleForTest(new Vector2(0, 99999));   // far off the top of the screen
+            yield return new WaitForSeconds(0.3f);
+            Check(br.WindowPos.y >= 0, "ui: the title bar cannot leave the top of the screen (" + br.WindowPos.y.ToString("0") + ")");
+            br.SetWindowForTest(pos0, size0);
+            yield return new WaitForSeconds(0.5f);
         }
 
         IEnumerator ContractCheck(NewsSystem sys)

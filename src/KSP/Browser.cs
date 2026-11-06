@@ -28,7 +28,7 @@ namespace KerbalNews.KSP
         static readonly List<string> back = new List<string>(), forward = new List<string>();
         static readonly Dictionary<string, float> scrollMemory = new Dictionary<string, float>();
 
-        const float BarH = 40, StatusH = 24, BarW = 16, Edge = 5, Corner = 18, TopCorner = 8;
+        const float TitleH = 26, BarH = 40, StatusH = 24, BarW = 16, Edge = 5, Corner = 18, TopCorner = 8;
         const float WheelStep = 110;   // canvas units per wheel notch
         float scrollTargetY, scrollTargetX, lastResizeDrag, nextResizeRender;
         bool smoothing;
@@ -43,7 +43,8 @@ namespace KerbalNews.KSP
         ScrollRect scroll;
         Image pageBg;
         TMP_InputField address;
-        TextMeshProUGUI titleText, statusText, measurer;
+        TextMeshProUGUI titleText, statusText, measurer, windowTitle;
+        DragHandler titleDrag;
         TMP_InputField[] chromeFields = new TMP_InputField[0];
 
         PageResult page;
@@ -90,6 +91,8 @@ namespace KerbalNews.KSP
         public Vector2 WindowSize { get { return winSize; } }
         public Vector2 WindowPos { get { return winPos; } }
         public void ResizeForTest(Vector2 d, int dx, int dy) { ResizeBy(d, dx, dy); }
+        /// <summary>Self-test: drags the title bar by this many screen pixels, through its real drag handler.</summary>
+        public void DragTitleForTest(Vector2 d) { if (titleDrag != null && titleDrag.OnDragged != null) { titleDrag.OnDragged(d); SaveWindow(); } }
         public void SetWindowForTest(Vector2 pos, Vector2 size) { winPos = pos; winSize = size; ClampWindow(); }
 
         /// <summary>Hides the window for a screenshot. Returns true if it was showing.</summary>
@@ -269,6 +272,7 @@ namespace KerbalNews.KSP
             statusText.text = s;
             int unread = e.UnreadCount(Sites.Now());
             titleText.text = (unread > 0 ? "(" + unread + ") " : "") + TextItem.Escape(page != null ? page.Title : "Kerbal News Network");
+            if (windowTitle != null) windowTitle.text = "Kerbal News Network" + (page != null && page.Title != "" ? "  -  " + TextItem.Escape(page.Title) : "");
         }
 
         // ------------------------------------------------------------------ chrome
@@ -328,11 +332,41 @@ namespace KerbalNews.KSP
             var frame = win.AddComponent<Image>();
             frame.color = Col("#23272e", Color.black);
 
-            // Toolbar: back, forward, reload, home, address, text size, close. Dragging it moves the window.
+            // Title bar: grab it anywhere to move the window, like a desktop window. The close button lives here.
+            var tb = New("TitleBar", win.transform);
+            var tbRt = Rt(tb);
+            tbRt.anchorMin = new Vector2(0, 1); tbRt.anchorMax = new Vector2(1, 1); tbRt.pivot = new Vector2(0.5f, 1);
+            tbRt.anchoredPosition = Vector2.zero; tbRt.sizeDelta = new Vector2(0, TitleH);
+            var tbImg = tb.AddComponent<Image>();
+            tbImg.color = Col("#181b20", Color.black);
+            var tbHover = tb.AddComponent<ClickHandler>();
+            tbHover.Target = tbImg; tbHover.Normal = tbImg.color; tbHover.Hover = Col("#20242b", Color.black);
+            titleDrag = tb.AddComponent<DragHandler>();
+            titleDrag.OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
+            titleDrag.OnEnded = SaveWindow;
+            var grip = New("Grip", tb.transform);
+            var gripText = Label(grip, 13, "#6b7480", true);
+            gripText.text = "::::";
+            gripText.raycastTarget = false;
+            Stretch(Rt(grip), 10, 0, 0, 0);
+            Rt(grip).anchorMax = new Vector2(0, 1); Rt(grip).sizeDelta = new Vector2(30, 0);
+            var wt = New("WindowTitle", tb.transform);
+            windowTitle = Label(wt, 12, "#c9d1d9", true);
+            windowTitle.text = "Kerbal News Network";
+            windowTitle.raycastTarget = false;
+            windowTitle.overflowMode = TextOverflowModes.Ellipsis;
+            windowTitle.enableWordWrapping = false;
+            Stretch(Rt(wt), 40, 0, 44, 0);
+            var closeGo = MakeButton(tb.transform, "close", Close);
+            var cRt = Rt(closeGo);
+            cRt.anchorMin = new Vector2(1, 0.5f); cRt.anchorMax = new Vector2(1, 0.5f); cRt.pivot = new Vector2(1, 0.5f);
+            cRt.anchoredPosition = new Vector2(-4, 0); cRt.sizeDelta = new Vector2(34, 20);
+
+            // Toolbar: back, forward, reload, home, address, text size. Dragging its empty parts moves the window too.
             var bar = New("Toolbar", win.transform);
             var barRt = Rt(bar);
             barRt.anchorMin = new Vector2(0, 1); barRt.anchorMax = new Vector2(1, 1); barRt.pivot = new Vector2(0.5f, 1);
-            barRt.anchoredPosition = Vector2.zero; barRt.sizeDelta = new Vector2(0, BarH);
+            barRt.anchoredPosition = new Vector2(0, -TitleH); barRt.sizeDelta = new Vector2(0, BarH);
             var barImg = bar.AddComponent<Image>();
             barImg.color = Col("#2f343c", Color.black);
             var barDrag = bar.AddComponent<DragHandler>();
@@ -347,21 +381,20 @@ namespace KerbalNews.KSP
             address = MakeField(bar.transform, false, false, 15, "#e8eaed", "");
             var aRt = Rt(address.gameObject);
             aRt.anchorMin = new Vector2(0, 0.5f); aRt.anchorMax = new Vector2(1, 0.5f); aRt.pivot = new Vector2(0, 0.5f);
-            aRt.offsetMin = new Vector2(x + 4, -14); aRt.offsetMax = new Vector2(-136, 14);
+            aRt.offsetMin = new Vector2(x + 4, -14); aRt.offsetMax = new Vector2(-95, 14);
             var aBg = address.gameObject.GetComponent<Image>();
             aBg.color = Col("#1b1e23", Color.black);
             address.onSubmit.AddListener(v => Navigate(v));
             chromeFields = new[] { address };
-            float rx = -128;
+            float rx = -87;
             RightButton(bar.transform, ref rx, "A−", () => Sites.Handle("action:zoom/-", null));
             RightButton(bar.transform, ref rx, "A+", () => Sites.Handle("action:zoom/+", null));
-            RightButton(bar.transform, ref rx, "close", Close);
 
             // Title strip above the status bar would waste space; the title shows in the status bar instead.
             // Scroll area: the ScrollRect owns a viewport child and two scrollbars. The vertical bar is always there (so showing it
             // never changes the page width and re-flows the page); the horizontal one appears only when a page is wider than the window.
             var area = New("ScrollArea", win.transform);
-            Stretch(Rt(area), Edge, BarH, Edge, StatusH);   // a thin frame on the sides holds the resize edges
+            Stretch(Rt(area), Edge, TitleH + BarH, Edge, StatusH);   // a thin frame on the sides holds the resize edges
             scroll = area.AddComponent<ScrollRect>();
             var vp = New("Viewport", area.transform);
             viewportRt = Rt(vp);
@@ -404,7 +437,7 @@ namespace KerbalNews.KSP
             Rt(statusGo).anchorMin = new Vector2(0.35f, 0);
             statusText.alignment = TextAlignmentOptions.MidlineRight;
 
-            // Resizing: drag any edge or corner (the top edge is the toolbar, which moves the window; its corners still resize).
+            // Resizing: drag any edge or corner (the top edge is the title bar, which moves the window; its corners still resize).
             ResizeHandle(win.transform, "ResizeL", 0, 0, 0, 1, 0, Corner, Edge, -Corner - TopCorner, -1, 0, false);
             ResizeHandle(win.transform, "ResizeR", 1, 0, 1, 1, -Edge, Corner, Edge, -Corner - TopCorner, 1, 0, false);
             ResizeHandle(win.transform, "ResizeB", 0, 0, 1, 0, Corner, 0, -2 * Corner, Edge, 0, -1, false);
@@ -501,7 +534,7 @@ namespace KerbalNews.KSP
             winSize.x = Mathf.Clamp(winSize.x, MinW, Mathf.Max(MinW, sw));
             winSize.y = Mathf.Clamp(winSize.y, MinH, Mathf.Max(MinH, sh));
             winPos.x = Mathf.Clamp(winPos.x, -winSize.x + 120, sw - 120);
-            winPos.y = Mathf.Clamp(winPos.y, 0, sh - BarH);
+            winPos.y = Mathf.Clamp(winPos.y, 0, sh - TitleH);   // the title bar always stays on screen, so the window can be grabbed back
             if (windowRt != null) TopLeft(windowRt, winPos.x, winPos.y, winSize.x, winSize.y);
         }
 
