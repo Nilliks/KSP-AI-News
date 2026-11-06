@@ -264,6 +264,42 @@ namespace KerbalNews.KSP
             }
         }
 
+        /// <summary>Wheel scrolling, the scrollbar and resizing from the edges and corners.</summary>
+        IEnumerator UiCheck(Browser br, string url)
+        {
+            br.Open(url);
+            yield return new WaitForSeconds(0.5f);
+            br.ScrollTo(0);
+            yield return null;
+            float bar0 = br.ScrollbarValue;
+            br.Wheel(-3);   // three notches down
+            yield return new WaitForSeconds(0.5f);
+            float y1 = br.ScrollY;
+            Check(y1 > 250 && y1 < 400, "ui: three wheel notches scroll " + y1.ToString("0") + " units down");
+            Check(bar0 > 0.95f && br.ScrollbarValue < bar0, "ui: scrollbar follows (" + bar0.ToString("0.00") + " -> " + br.ScrollbarValue.ToString("0.00") + ")");
+            br.Wheel(-1); br.Wheel(-1);   // quick notches in a row keep adding up while the glide runs
+            yield return new WaitForSeconds(0.5f);
+            Check(br.ScrollY > y1 + 150, "ui: notches in a row add up (" + br.ScrollY.ToString("0") + ")");
+            br.Wheel(500);
+            yield return new WaitForSeconds(0.6f);
+            Check(br.ScrollY < 1, "ui: scrolling up stops at the top (" + br.ScrollY.ToString("0") + ")");
+            yield return Shot("ui-scrollbar");
+
+            Vector2 pos0 = br.WindowPos, size0 = br.WindowSize;
+            float w0 = br.PageWidth;
+            br.ResizeForTest(new Vector2(-100, 60), -1, 1);   // drag the top-left corner up and left
+            yield return new WaitForSeconds(0.6f);
+            Check(br.WindowSize.x > size0.x + 80 && br.WindowPos.x < pos0.x, "ui: top-left corner resizes and moves the window (" + size0.x.ToString("0") + " -> " + br.WindowSize.x.ToString("0") + " wide)");
+            Check(br.PageWidth > w0 + 80, "ui: the page re-flows to the new width (" + w0.ToString("0") + " -> " + br.PageWidth.ToString("0") + ")");
+            yield return Shot("ui-resized-bigger");
+            br.ResizeForTest(new Vector2(-5000, 5000), 1, -1);   // bottom-right corner far up and left
+            yield return new WaitForSeconds(0.6f);
+            Check(br.WindowSize.x >= 519 && br.WindowSize.y >= 359, "ui: the window stops at its smallest size (" + br.WindowSize.x.ToString("0") + " x " + br.WindowSize.y.ToString("0") + ")");
+            yield return Shot("ui-resized-smallest");
+            br.SetWindowForTest(pos0, size0);
+            yield return new WaitForSeconds(0.5f);
+        }
+
         IEnumerator ContractCheck(NewsSystem sys)
         {
             yield return new WaitForSeconds(5);

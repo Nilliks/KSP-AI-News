@@ -23,6 +23,7 @@ namespace UnityEngine.EventSystems
     public interface IPointerExitHandler : IEventSystemHandler { void OnPointerExit(PointerEventData e); }
     public interface IBeginDragHandler : IEventSystemHandler { void OnBeginDrag(PointerEventData e); }
     public interface IDragHandler : IEventSystemHandler { void OnDrag(PointerEventData e); }
+    public interface IEndDragHandler : IEventSystemHandler { void OnEndDrag(PointerEventData e); }
     public class UIBehaviour : MonoBehaviour { }
 }
 
@@ -38,9 +39,13 @@ namespace UnityEngine.UI
     public class ScrollRect : EventSystems.UIBehaviour
     {
         public enum MovementType { Unrestricted, Elastic, Clamped }
+        public enum ScrollbarVisibility { Permanent, AutoHide, AutoHideAndExpandViewport }
         public bool horizontal, vertical, inertia; public MovementType movementType; public float scrollSensitivity; public RectTransform viewport, content;
+        public Scrollbar verticalScrollbar, horizontalScrollbar; public ScrollbarVisibility verticalScrollbarVisibility, horizontalScrollbarVisibility; public float verticalScrollbarSpacing, horizontalScrollbarSpacing;
     }
-    public class Selectable : EventSystems.UIBehaviour { }
+    public struct ColorBlock { public Color normalColor, highlightedColor, pressedColor; }
+    public class Selectable : EventSystems.UIBehaviour { public Graphic targetGraphic; public ColorBlock colors; }
+    public class Scrollbar : Selectable { public enum Direction { LeftToRight, RightToLeft, BottomToTop, TopToBottom } public RectTransform handleRect; public Direction direction; public float value, size; }
 }
 
 namespace TMPro

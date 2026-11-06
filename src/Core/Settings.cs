@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace KerbalNews
 {
@@ -78,6 +79,8 @@ namespace KerbalNews
         public bool GenerateDuringWarp = false;
         /// <summary>News window scale; 0 means automatic from screen size.</summary>
         public float UiScale = 0;
+        /// <summary>The browser window: x, y, width, height in canvas units, or null for the default.</summary>
+        public float[] BrowserRect;
         /// <summary>Image generation for article photos: "" means off. Uses its own key, stored as "img:&lt;id&gt;".</summary>
         public string ImageProviderId = "";
         public Dictionary<string, string> ImageModels = new Dictionary<string, string>();
@@ -152,6 +155,7 @@ namespace KerbalNews
             settings.Add("streamSeconds", StreamSeconds);
             settings.Add("retrospectives", Retrospectives);
             settings.Add("uiScale", (double)UiScale);
+            if (BrowserRect != null && BrowserRect.Length == 4) settings.Add("browserRect", string.Join(",", BrowserRect.Select(v => v.ToString("0", System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
             settings.Add("imageProvider", ImageProviderId);
             settings.Add("imageMinTier", ImageMinTier);
             settings.Add("modsScanned", ModsScanned);
@@ -203,6 +207,13 @@ namespace KerbalNews
                 g.StreamSeconds = Math.Max(10, settings.GetDouble("streamSeconds", 30));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
+                var br = settings.Get("browserRect", "").Split(',');
+                float bx, by, bw, bh;
+                if (br.Length == 4 && float.TryParse(br[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out bx)
+                    && float.TryParse(br[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out by)
+                    && float.TryParse(br[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out bw)
+                    && float.TryParse(br[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out bh))
+                    g.BrowserRect = new[] { bx, by, bw, bh };
                 g.ImageProviderId = settings.Get("imageProvider", "");
                 g.ImageMinTier = settings.Get("imageMinTier", "major");
                 g.ModsScanned = settings.GetBool("modsScanned");

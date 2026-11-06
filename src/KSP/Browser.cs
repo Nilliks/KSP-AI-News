@@ -28,7 +28,11 @@ namespace KerbalNews.KSP
         static readonly List<string> back = new List<string>(), forward = new List<string>();
         static readonly Dictionary<string, float> scrollMemory = new Dictionary<string, float>();
 
-        const float BarH = 40, StatusH = 24;
+        const float BarH = 40, StatusH = 24, BarW = 14, Edge = 5, Corner = 18, TopCorner = 8;
+        const float WheelStep = 110;   // canvas units per wheel notch
+        float scrollTargetY, scrollTargetX, lastResizeDrag, nextResizeRender;
+        bool smoothing;
+        Scrollbar vBar, hBar;
         const string HoverLock = "KerbalNewsBrowserHover", TypeLock = "KerbalNewsBrowserTyping";
 
         ApplicationLauncherButton button;
@@ -73,8 +77,20 @@ namespace KerbalNews.KSP
         public void ScrollTo(float f)
         {
             if (layout == null) return;
+            smoothing = false;
             contentRt.anchoredPosition = new Vector2(0, Mathf.Max(0, layout.Height - viewportRt.rect.height) * Mathf.Clamp(f, 0, 1));
         }
+
+        // Self-test hooks: the same paths the mouse takes.
+        float pendingWheel;
+        public void Wheel(float notches) { pendingWheel += notches; }
+        public float ScrollY { get { return contentRt != null ? contentRt.anchoredPosition.y : 0; } }
+        public float ScrollbarValue { get { return vBar != null ? vBar.value : -1; } }
+        public float PageWidth { get { return lastWidth; } }
+        public Vector2 WindowSize { get { return winSize; } }
+        public Vector2 WindowPos { get { return winPos; } }
+        public void ResizeForTest(Vector2 d, int dx, int dy) { ResizeBy(d, dx, dy); }
+        public void SetWindowForTest(Vector2 pos, Vector2 size) { winPos = pos; winSize = size; ClampWindow(); }
 
         /// <summary>Hides the window for a screenshot. Returns true if it was showing.</summary>
         public bool HideForCapture(bool hide)
@@ -198,7 +214,12 @@ namespace KerbalNews.KSP
             if (Math.Abs(scaler.scaleFactor - Scale) > 0.001f) { scaler.scaleFactor = Scale; ClampWindow(); wantRender = true; }
 
             float width = viewportRt.rect.width;
-            if (Math.Abs(width - lastWidth) > 1f) wantRender = true;
+            if (Math.Abs(width - lastWidth) > 1f)
+            {
+                // While a resize drag is going on, re-flow a few times a second instead of every frame.
+                bool dragging = Time.realtimeSinceStartup - lastResizeDrag < 0.3f;
+                if (!dragging || Time.realtimeSinceStartup > nextResizeRender) { wantRender = true; nextResizeRender = Time.realtimeSinceStartup + 0.12f; }
+            }
             bool typing = fields.Values.Any(f => f != null && f.isFocused) || chromeFields.Any(f => f != null && f.isFocused);
             if (streamDirty && Time.realtimeSinceStartup > nextStreamRender) { streamDirty = false; dirty = true; nextStreamRender = Time.realtimeSinceStartup + 1f; }
             // Live pages refresh when news arrives; never while the player is typing into the page.
@@ -212,6 +233,7 @@ namespace KerbalNews.KSP
             if (Time.realtimeSinceStartup > nextStatus) { nextStatus = Time.realtimeSinceStartup + 0.5f; UpdateStatus(); }
 
             bool over = RectTransformUtility.RectangleContainsScreenPoint(windowRt, Input.mousePosition, null);
+            ScrollInput(over && RectTransformUtility.RectangleContainsScreenPoint(viewportRt, Input.mousePosition, null), over && !typing);
             if (over) InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.KSC_ALL | ControlTypes.EDITOR_SOFT_LOCK | ControlTypes.TRACKINGSTATION_ALL, HoverLock);
             else InputLockManager.RemoveControlLock(HoverLock);
             // Typing must not stage the rocket or warp time.
@@ -297,6 +319,8 @@ namespace KerbalNews.KSP
             scaler.scaleFactor = Scale;
             canvasGo.AddComponent<GraphicRaycaster>();
 
+            var saved = NewsSystem.Settings != null ? NewsSystem.Settings.BrowserRect : null;
+            if (saved != null && saved.Length == 4) { winPos = new Vector2(saved[0], saved[1]); winSize = new Vector2(saved[2], saved[3]); }
             var win = New("Window", canvasGo.transform);
             windowRt = Rt(win);
             TopLeft(windowRt, winPos.x, winPos.y, winSize.x, winSize.y);
@@ -310,7 +334,9 @@ namespace KerbalNews.KSP
             barRt.anchoredPosition = Vector2.zero; barRt.sizeDelta = new Vector2(0, BarH);
             var barImg = bar.AddComponent<Image>();
             barImg.color = Col("#2f343c", Color.black);
-            bar.AddComponent<DragHandler>().OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
+            var barDrag = bar.AddComponent<DragHandler>();
+            barDrag.OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
+            barDrag.OnEnded = SaveWindow;
 
             float x = 6;
             ChromeButton(bar.transform, ref x, "back", GoBack);
@@ -331,24 +357,37 @@ namespace KerbalNews.KSP
             RightButton(bar.transform, ref rx, "close", Close);
 
             // Title strip above the status bar would waste space; the title shows in the status bar instead.
-            var vp = New("Viewport", win.transform);
+            // Scroll area: the ScrollRect owns a viewport child and two scrollbars. The vertical bar is always there (so showing it
+            // never changes the page width and re-flows the page); the horizontal one appears only when a page is wider than the window.
+            var area = New("ScrollArea", win.transform);
+            Stretch(Rt(area), Edge, BarH, Edge, StatusH);   // a thin frame on the sides holds the resize edges
+            scroll = area.AddComponent<ScrollRect>();
+            var vp = New("Viewport", area.transform);
             viewportRt = Rt(vp);
-            Stretch(viewportRt, 0, BarH, 0, StatusH);
+            Stretch(viewportRt, 0, 0, 0, 0);
             pageBg = vp.AddComponent<Image>();
             pageBg.color = Color.white;
             vp.AddComponent<RectMask2D>();
-            scroll = vp.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
+            scroll.horizontal = true;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40;
+            scroll.scrollSensitivity = 0;   // the wheel is handled in Update, so input boxes under the mouse cannot swallow it
             scroll.inertia = false;
             scroll.viewport = viewportRt;
             var content = New("Content", vp.transform);
             contentRt = Rt(content);
-            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0, 1);
-            contentRt.anchoredPosition = Vector2.zero; contentRt.sizeDelta = new Vector2(0, 100);
+            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(0, 1); contentRt.pivot = new Vector2(0, 1);
+            contentRt.anchoredPosition = Vector2.zero; contentRt.sizeDelta = new Vector2(100, 100);
             scroll.content = contentRt;
+            vBar = MakeScrollbar(area.transform, true);
+            hBar = MakeScrollbar(area.transform, false);
+            scroll.verticalScrollbar = vBar;
+            scroll.horizontalScrollbar = hBar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            scroll.horizontalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            scroll.verticalScrollbarSpacing = 0;
+            scroll.horizontalScrollbarSpacing = 0;
+            Stretch(viewportRt, 0, 0, BarW, 0);
 
             var status = New("Status", win.transform);
             var sRt = Rt(status);
@@ -364,17 +403,15 @@ namespace KerbalNews.KSP
             Rt(statusGo).anchorMin = new Vector2(0.35f, 0);
             statusText.alignment = TextAlignmentOptions.MidlineRight;
 
-            var grip = New("Resize", win.transform);
-            var gRt = Rt(grip);
-            gRt.anchorMin = new Vector2(1, 0); gRt.anchorMax = new Vector2(1, 0); gRt.pivot = new Vector2(1, 0);
-            gRt.anchoredPosition = Vector2.zero; gRt.sizeDelta = new Vector2(22, 22);
-            var gImg = grip.AddComponent<Image>();
-            gImg.color = Col("#4a515c", Color.grey);
-            grip.AddComponent<DragHandler>().OnDragged = d =>
-            {
-                winSize += new Vector2(d.x, -d.y) / Scale;
-                ClampWindow();
-            };
+            // Resizing: drag any edge or corner (the top edge is the toolbar, which moves the window; its corners still resize).
+            ResizeHandle(win.transform, "ResizeL", 0, 0, 0, 1, 0, Corner, Edge, -Corner - TopCorner, -1, 0, false);
+            ResizeHandle(win.transform, "ResizeR", 1, 0, 1, 1, -Edge, Corner, Edge, -Corner - TopCorner, 1, 0, false);
+            ResizeHandle(win.transform, "ResizeB", 0, 0, 1, 0, Corner, 0, -2 * Corner, Edge, 0, -1, false);
+            ResizeHandle(win.transform, "ResizeT", 0, 1, 1, 1, TopCorner, -4, -2 * TopCorner, 4, 0, 1, false);
+            ResizeHandle(win.transform, "ResizeTL", 0, 1, 0, 1, 0, -TopCorner, TopCorner, TopCorner, -1, 1, false);
+            ResizeHandle(win.transform, "ResizeTR", 1, 1, 1, 1, -TopCorner, -TopCorner, TopCorner, TopCorner, 1, 1, false);
+            ResizeHandle(win.transform, "ResizeBL", 0, 0, 0, 0, 0, 0, Corner, Corner, -1, -1, true);
+            ResizeHandle(win.transform, "ResizeBR", 1, 0, 1, 0, -Corner, 0, Corner, Corner, 1, -1, true);
 
             var m = New("Measure", canvasGo.transform);
             measurer = m.AddComponent<TextMeshProUGUI>();
@@ -384,15 +421,84 @@ namespace KerbalNews.KSP
             measurer.raycastTarget = false;
             TopLeft(Rt(m), -10000, -10000, 100, 100);
 
+            ClampWindow();
             LogFontsOnce();
             SetupSymbols();
+        }
+
+        /// <summary>A drag area on the window's frame. dx/dy say which sides move: -1 left/bottom, 1 right/top. Anchored at
+        /// (ax0,ay0)-(ax1,ay1) with offset (x,y) and size (w,h); w or h below zero stretch along that side.</summary>
+        void ResizeHandle(Transform parent, string name, float ax0, float ay0, float ax1, float ay1, float x, float y, float w, float h, int dx, int dy, bool visible)
+        {
+            var go = New(name, parent);
+            var rt = Rt(go);
+            rt.anchorMin = new Vector2(ax0, ay0); rt.anchorMax = new Vector2(ax1, ay1); rt.pivot = new Vector2(0, 0);
+            rt.anchoredPosition = new Vector2(x, y);
+            rt.sizeDelta = new Vector2(w, h);
+            var img = go.AddComponent<Image>();
+            var normal = visible ? Col("#4a515c80", Color.grey) : new Color(0, 0, 0, 0);
+            img.color = normal;
+            var hover = go.AddComponent<ClickHandler>();
+            hover.Target = img; hover.Normal = normal; hover.Hover = Col("#ffd27f99", Color.white);
+            var drag = go.AddComponent<DragHandler>();
+            drag.OnDragged = d => ResizeBy(d / Scale, dx, dy);
+            drag.OnEnded = () => { wantRender = true; SaveWindow(); };
+        }
+
+        const float MinW = 520, MinH = 360;
+
+        void ResizeBy(Vector2 d, int dx, int dy)
+        {
+            lastResizeDrag = Time.realtimeSinceStartup;
+            float sw = Screen.width / Scale, sh = Screen.height / Scale;
+            if (dx > 0) winSize.x = Mathf.Clamp(winSize.x + d.x, MinW, sw - winPos.x);
+            if (dx < 0) { float w = Mathf.Clamp(winSize.x - d.x, MinW, winPos.x + winSize.x); winPos.x += winSize.x - w; winSize.x = w; }
+            if (dy < 0) winSize.y = Mathf.Clamp(winSize.y - d.y, MinH, sh - winPos.y);
+            if (dy > 0) { float hh = Mathf.Clamp(winSize.y + d.y, MinH, winPos.y + winSize.y); winPos.y += winSize.y - hh; winSize.y = hh; }
+            ClampWindow();
+        }
+
+        void SaveWindow()
+        {
+            var g = NewsSystem.Settings;
+            if (g == null || Sys == null) return;
+            g.BrowserRect = new[] { winPos.x, winPos.y, winSize.x, winSize.y };
+            Sys.SaveSettings();
+        }
+
+        Scrollbar MakeScrollbar(Transform parent, bool vertical)
+        {
+            var go = New(vertical ? "VScroll" : "HScroll", parent);
+            var rt = Rt(go);
+            if (vertical) { rt.anchorMin = new Vector2(1, 0); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(1, 1); rt.sizeDelta = new Vector2(BarW, 0); }
+            else { rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0, 0); rt.sizeDelta = new Vector2(-BarW, BarW); }
+            rt.anchoredPosition = Vector2.zero;
+            var track = go.AddComponent<Image>();
+            track.color = Col("#e6e8eb", Color.grey);
+            var area = New("Sliding", go.transform);
+            Stretch(Rt(area), 2, 2, 2, 2);
+            var handle = New("Handle", area.transform);
+            var hRt = Rt(handle);
+            Stretch(hRt, 0, 0, 0, 0);
+            var hImg = handle.AddComponent<Image>();
+            hImg.color = Col("#9aa1ab", Color.grey);
+            var bar = go.AddComponent<Scrollbar>();
+            bar.handleRect = hRt;
+            bar.targetGraphic = hImg;
+            bar.direction = vertical ? Scrollbar.Direction.BottomToTop : Scrollbar.Direction.LeftToRight;
+            var colors = bar.colors;
+            colors.highlightedColor = Col("#7d8590", Color.grey); colors.pressedColor = Col("#5f6670", Color.grey);
+            bar.colors = colors;
+            // Dragging the bar must stop any wheel glide in progress.
+            go.AddComponent<DragHandler>().OnBegin = () => smoothing = false;
+            return bar;
         }
 
         void ClampWindow()
         {
             float sw = Screen.width / Scale, sh = Screen.height / Scale;
-            winSize.x = Mathf.Clamp(winSize.x, 520, Mathf.Max(520, sw));
-            winSize.y = Mathf.Clamp(winSize.y, 360, Mathf.Max(360, sh));
+            winSize.x = Mathf.Clamp(winSize.x, MinW, Mathf.Max(MinW, sw));
+            winSize.y = Mathf.Clamp(winSize.y, MinH, Mathf.Max(MinH, sh));
             winPos.x = Mathf.Clamp(winPos.x, -winSize.x + 120, sw - 120);
             winPos.y = Mathf.Clamp(winPos.y, 0, sh - BarH);
             if (windowRt != null) TopLeft(windowRt, winPos.x, winPos.y, winSize.x, winSize.y);
@@ -731,12 +837,55 @@ namespace KerbalNews.KSP
 
         // ------------------------------------------------------------------ rendering
 
+        float MaxY { get { return Mathf.Max(0, contentRt.sizeDelta.y - viewportRt.rect.height); } }
+        float MaxX { get { return Mathf.Max(0, contentRt.sizeDelta.x - viewportRt.rect.width); } }
+
+        /// <summary>Mouse wheel (shift for sideways) and Page Up/Down, Home, End, arrow keys. The wheel glides to its target
+        /// over a few frames rather than jumping.</summary>
+        void ScrollInput(bool overPage, bool keys)
+        {
+            if (contentRt == null || layout == null) return;
+            Vector2 pos = contentRt.anchoredPosition;
+            float dy = 0, dx = 0;
+            float wheel = Input.mouseScrollDelta.y;
+            if (pendingWheel != 0) { wheel = pendingWheel; pendingWheel = 0; overPage = true; }
+            if (overPage && Math.Abs(wheel) > 0.01f)
+            {
+                bool sideways = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                if (sideways) dx = -wheel * WheelStep; else dy = -wheel * WheelStep;
+            }
+            if (keys)
+            {
+                float page = Mathf.Max(60, viewportRt.rect.height - 60);
+                if (Input.GetKeyDown(KeyCode.PageDown)) dy += page;
+                if (Input.GetKeyDown(KeyCode.PageUp)) dy -= page;
+                if (Input.GetKeyDown(KeyCode.DownArrow)) dy += 60;
+                if (Input.GetKeyDown(KeyCode.UpArrow)) dy -= 60;
+                if (Input.GetKeyDown(KeyCode.Home)) dy -= 1e7f;
+                if (Input.GetKeyDown(KeyCode.End)) dy += 1e7f;
+            }
+            if (dx != 0 || dy != 0)
+            {
+                if (!smoothing) { scrollTargetX = -pos.x; scrollTargetY = pos.y; }
+                scrollTargetY = Mathf.Clamp(scrollTargetY + dy, 0, MaxY);
+                scrollTargetX = Mathf.Clamp(scrollTargetX + dx, 0, MaxX);
+                smoothing = true;
+            }
+            if (Input.GetMouseButtonDown(0)) smoothing = false;   // grabbing a scrollbar or dragging the page takes over
+            if (!smoothing) return;
+            float k = 1 - Mathf.Exp(-Time.unscaledDeltaTime * 22f);
+            float ny = Mathf.Lerp(pos.y, Mathf.Clamp(scrollTargetY, 0, MaxY), k);
+            float nx = Mathf.Lerp(-pos.x, Mathf.Clamp(scrollTargetX, 0, MaxX), k);
+            if (Math.Abs(ny - scrollTargetY) < 0.5f && Math.Abs(nx - scrollTargetX) < 0.5f) { ny = scrollTargetY; nx = scrollTargetX; smoothing = false; }
+            contentRt.anchoredPosition = new Vector2(-nx, ny);
+        }
+
         /// <summary>Renders the current URL. keepScroll keeps the reader's place (live refresh, actions);
         /// restoreScroll returns to where they were on that page (back/forward). keepForm keeps typed text.</summary>
         void Render(bool keepScroll, bool restoreScroll = false, bool keepForm = true)
         {
             if (Sites == null || contentRt == null) return;
-            float y = contentRt.anchoredPosition.y;
+            float y = smoothing ? scrollTargetY : contentRt.anchoredPosition.y, x0 = smoothing ? scrollTargetX : -contentRt.anchoredPosition.x;
             var typed = keepForm && renderedUrl == url ? fields.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value.text) : null;
             try
             {
@@ -763,7 +912,9 @@ namespace KerbalNews.KSP
             if (!address.isFocused) { address.text = url; address.MoveTextStart(false); }
             float target = keepScroll ? y : restoreScroll && scrollMemory.ContainsKey(url) ? scrollMemory[url] : 0;
             float max = Mathf.Max(0, layout.Height - viewportRt.rect.height);
-            contentRt.anchoredPosition = new Vector2(0, Mathf.Clamp(target, 0, max));
+            float tx = keepScroll ? Mathf.Clamp(x0, 0, MaxX) : 0;
+            smoothing = false;
+            contentRt.anchoredPosition = new Vector2(-tx, Mathf.Clamp(target, 0, max));
             renderedUrl = url;
             UpdateStatus();
         }
@@ -866,7 +1017,12 @@ namespace KerbalNews.KSP
         {
             Clear();
             pageBg.color = Col(layout.Background, Color.white);
-            contentRt.sizeDelta = new Vector2(0, Mathf.Max(layout.Height, viewportRt.rect.height));
+            float right = layout.Width;
+            foreach (var r in layout.Rects) right = Mathf.Max(right, r.X + r.W);
+            foreach (var t in layout.Texts) right = Mathf.Max(right, t.X + t.W);
+            foreach (var im in layout.Images) right = Mathf.Max(right, im.X + im.W);
+            float vw = viewportRt.rect.width;
+            contentRt.sizeDelta = new Vector2(right > vw + 2 ? right : vw, Mathf.Max(layout.Height, viewportRt.rect.height));
 
             foreach (var r in layout.Rects)
             {
@@ -1096,10 +1252,12 @@ namespace KerbalNews.KSP
     }
 
     /// <summary>Moving and resizing the window.</summary>
-    public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
+    public class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         public Action<Vector2> OnDragged;
-        public void OnBeginDrag(PointerEventData e) { }
+        public Action OnBegin, OnEnded;
+        public void OnBeginDrag(PointerEventData e) { if (OnBegin != null) OnBegin(); }
         public void OnDrag(PointerEventData e) { if (OnDragged != null) OnDragged(e.delta); }
+        public void OnEndDrag(PointerEventData e) { if (OnEnded != null) OnEnded(); }
     }
 }
