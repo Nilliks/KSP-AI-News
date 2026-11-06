@@ -93,6 +93,8 @@ namespace KerbalNews.KSP
             yield return Shot("article-bottom");
             yield return UiCheck(br, Sites.ArticleUrl(top));
             yield return ScienceCheck(sys, br, now);
+            // Act() fills the form fields of the page on screen, so go back to the article first.
+            yield return Go(Sites.ArticleUrl(top));
 
             // Actions: reply anonymously, vote, see the community answer (offline templates, no AI).
             g.OfflineMode = true;

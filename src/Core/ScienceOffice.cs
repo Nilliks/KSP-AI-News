@@ -219,7 +219,7 @@ namespace KerbalNews
                 Id = State.NewId("a"), Outlet = Outlets.Get("science") != null ? "science" : Outlets.All[0].Id, Kind = "paper", Headline = f.Title,
                 Subhead = f.Finding.Length > 240 ? ResponseParser.Clip(f.Finding, 237) + "..." : f.Finding,
                 Body = PaperBody(f), Reporter = f.Scientist.Replace("Dr. ", "") + ", " + AgencyName + " Science Office", PublishedUT = when,
-                Significance = 15 + f.Importance * 10, Offline = f.Offline,
+                Significance = 15 + f.Importance * 10, Offline = f.Offline, Model = f.Offline ? "" : Settings.WriterModel,
             };
             a.Tags.Add("science"); a.Tags.Add("research paper");
             if (f.Body != "") a.Tags.Add(f.Body);
