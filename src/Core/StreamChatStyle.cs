@@ -78,6 +78,35 @@ namespace KerbalNews
             "im 9 and this is the coolest thing ever", "my son is jumping on the couch", "my daughter wants to be an astronaut now", "WHEN IS IT GOING TO THE MUN",
             "my teacher put this on in class!!", "is there a kerbal inside???", "can i go next", "kiddo says hi to the crew",
         };
+        static readonly string[] Memes =
+        {
+            "this is fine 🔥", "stonks", "rocket go up", "press F to pay respects", "big if true", "skill issue", "we're so back", "it's so over",
+            "average tuesday at KSC", "no thoughts just rocket", "sheeeesh", "I am once again asking for more boosters", "main character energy",
+            "certified kerbin moment", "they did the thing", "NPC behavior", "to the mun 🚀", "built different", "that's crazy bro", "real", "based",
+            "jeb's mom watching rn", "not the kraken again 💀", "💀💀💀", "this rocket pays rent in my head", "average struts enjoyer", "ok boomer (booster)",
+            "chat is this real", "W rocket", "L camera angle", "rocket said 👋", "bro is going to space", "lowkey peak", "it's giving orbit",
+        };
+        static readonly string[] Rude =
+        {
+            "this stream is boring", "who cares", "boring until it explodes", "mods are asleep post rockets", "shut up chat", "nobody asked",
+            "you're all nerds", "cringe", "touch grass", "L stream", "cope", "imagine paying taxes for this lol", "worst camera work ever",
+            "can the chat stop spamming", "this guy again 🙄", "stop asking about the music", "go back to school kid", "nerd", "ratio",
+            "ok and?", "yawn", "my grandma builds better rockets", "skip to the explosion",
+        };
+        static readonly string[] RandomWords = { "pickles", "banana", "soup", "hello?", "potato", "toast", "yes", "no", "bruh", "wait", "huh", "ok", "lmao", "cheese", "goose", "aaaaa", "spoon", "?", "hm", "lol", "first", "moon", "snacks", "help", "wow" };
+        static readonly string[] Yelling =
+        {
+            "WHY IS NOBODY TALKING ABOUT THE FUEL", "I LOVE THIS AGENCY", "SAY HI TO MY MOM", "GO FASTER", "THIS IS THE BEST DAY OF MY LIFE",
+            "MODS BAN THIS GUY", "CAMERA MAN DO YOUR JOB", "I'M NOT CRYING YOU'RE CRYING", "EVERYBODY SHUT UP IT'S HAPPENING", "WHERE IS JEB",
+            "HELLO FROM THE NIGHT SIDE", "MORE BOOSTERS", "WHO ELSE IS HERE AT 4AM", "STOP SPAMMING", "I CAN'T SEE ANYTHING", "TURN THE VOLUME UP",
+        };
+        /// <summary>A few viewers from abroad, as on any big public stream. Only used when the game's fonts can draw them.</summary>
+        static readonly string[] Chinese = { "加油！", "牛逼", "太酷了", "哇哇哇", "冲冲冲", "火箭好帅", "大家好", "666", "哈哈哈哈", "厉害了", "起飞！", "好美", "第一次看直播", "成功了！", "太强了吧" };
+        /// <summary>Set by the game once it knows whether its fonts can show Chinese characters.</summary>
+        public static bool CjkOk;
+        /// <summary>Every Chinese character the offline lines use, so the game can load them into its font up front.</summary>
+        public static string ChineseChars { get { return new string(string.Concat(Chinese).Where(c => c > 0x2E80).Distinct().ToArray()); } }
+
         static readonly string[] Spam = { "o7", "o7 o7 o7", "LETS GOOOO", "GO GO GO", "🚀🚀🚀", "W", "WWWWW", "HYPE", "!!!!!!", "gg", "POG", "Kerbin #1", "GODSPEED", "send it" };
         static readonly string[] Sad = { "F", "F in the chat", "o7", "no no no no", "oh no", "please be ok", "this is awful", "i can't watch", "is everyone ok??", "that's so sad", "pray for the crew", "my heart just dropped" };
 
@@ -152,7 +181,8 @@ namespace KerbalNews
             }
             // The crowd: what people talk about depends on the phase, with a long random tail of everything else.
             var phaseLines = phase == "pad" ? PadLines : phase == "orbit" ? OrbitLines.Concat(QuietLines).ToArray() : phase == "ascent" ? AscentLines.Concat(Nerds).ToArray() : QuietLines;
-            var mix = new List<string[]> { phaseLines, phaseLines, Hello, OffTopic, Jokes, Doubters, Nerds, Kids, phaseLines };
+            var mix = new List<string[]> { phaseLines, phaseLines, Hello, OffTopic, Jokes, Doubters, Nerds, Kids, phaseLines, Memes, Memes, Rude, RandomWords, Yelling, phaseLines, Hello };
+            if (CjkOk) mix.Add(Chinese);
             if (st.WentOnboard && phase != "pad") mix.Add(OnboardLines);
             var used = new HashSet<string>(st.Chat.Skip(Math.Max(0, st.Chat.Count - 60)).Select(c => c.Text.ToLowerInvariant()));
             int guard = 0;
@@ -176,7 +206,8 @@ namespace KerbalNews
         /// <summary>Types it like a person in a fast chat: lowercase, stretched letters when excited, the odd typo or extra "lol".</summary>
         public static string Rough(string line, Random rng, bool excited)
         {
-            if (string.IsNullOrEmpty(line) || line.Any(c => c > 0x2000)) return line;   // leave emoji lines alone
+            if (string.IsNullOrEmpty(line) || line.Any(c => c > 0x2000)) return line;   // leave emoji and Chinese lines alone
+            if (line == line.ToUpperInvariant() && line.Any(char.IsLetter) && line.Length > 12) return line;   // yelling stays yelling
             int roll = rng.Next(100);
             if (excited && roll < 25) line = line.ToUpperInvariant();
             else if (roll < 45) line = line.ToLowerInvariant();
@@ -222,14 +253,19 @@ namespace KerbalNews
             "a message with a typo or all in lowercase with no punctuation",
             "someone asking where the crew is going or if anyone is inside",
             "a sarcastic or dry joke",
+            "an internet meme phrase (stonks, skill issue, we're so back, 💀, this is fine, chat is this real)",
+            "someone mildly rude or dismissive (who cares, boring, touch grass, nerd, ratio), no slurs and nothing hateful",
+            "a single random word that means nothing (soup, pickles, bruh, ?)",
+            "someone YELLING IN ALL CAPS",
         };
 
         /// <summary>A fresh, random set of voices and a few sample lines for this batch, so the AI does not settle into one tone.</summary>
         public static string Hints(Random rng, StreamSession st)
         {
-            var voices = Voices.OrderBy(x => rng.Next()).Take(5).ToList();
+            var voices = Voices.OrderBy(x => rng.Next()).Take(6).ToList();
+            if (CjkOk && rng.Next(3) == 0) voices.Add("a viewer or two writing in Chinese (short, like 加油 or 太酷了)");
             string phase = Phase(st.Last);
-            var pools = new List<string[]> { Hello, OffTopic, Jokes, Doubters, Nerds, Kids, phase == "pad" ? PadLines : phase == "orbit" ? OrbitLines : AscentLines };
+            var pools = new List<string[]> { Hello, OffTopic, Jokes, Doubters, Nerds, Kids, Memes, Rude, Yelling, phase == "pad" ? PadLines : phase == "orbit" ? OrbitLines : AscentLines };
             var samples = pools.OrderBy(x => rng.Next()).Take(4).Select(p => p[rng.Next(p.Length)]).ToList();
             return "Mix in, this batch: " + string.Join("; ", voices.ToArray()) + ".\nThe tone of real chat, for style only (do not reuse these lines): \"" + string.Join("\", \"", samples.ToArray()) + "\".";
         }

@@ -11,6 +11,7 @@ namespace UnityEngine
     public struct RaycastHit { public Vector3 point; public float distance; public Collider collider; }
     public class Collider : Component { }
     public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } public static T Instantiate<T>(T o) where T : Object { return o; } }
+    public class Font : Object { public static Font CreateDynamicFontFromOSFont(string[] names, int size) { return null; } }
     public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } public T GetComponentInParent<T>() { return default(T); } }
     public sealed class GameObject : Object
     {

@@ -656,7 +656,15 @@ public static class FeatureTests
         Assert(authors > all.Count * 0.5, "many different viewers: " + authors);
         Assert(all.Any(c => c.Text.Length <= 6), "some one-word reactions");
         Assert(all.Any(c => c.Text == c.Text.ToLowerInvariant() && c.Text.Any(char.IsLetter)), "some all-lowercase lines");
-        Assert(all.Any(c => c.Text.ToLowerInvariant().Contains("music") || c.Text.ToLowerInvariant().Contains("gift shop") || c.Text.ToLowerInvariant().Contains("cat") || c.Text.ToLowerInvariant().Contains("lag") || c.Text.ToLowerInvariant().Contains("job")), "some off-topic chatter");
+        var offTopic = new[] { "music", "gift shop", "cat ", "lag", "job", "telescope", "dog", "replay", "snack", "sound", "720p", "cost", "time is it" };
+        Assert(all.Any(c => offTopic.Any(w => c.Text.ToLowerInvariant().Contains(w))), "some off-topic chatter");
+        Assert(all.Any(c => c.Text.Length > 12 && c.Text == c.Text.ToUpperInvariant() && c.Text.Any(char.IsLetter)), "someone yelling");
+        Assert(!all.Any(c => c.Text.Any(ch => ch >= 0x4E00 && ch <= 0x9FFF)), "no Chinese when the fonts cannot draw it");
+        StreamChatStyle.CjkOk = true;
+        var withCjk = new List<ChatMessage>();
+        for (int i = 20; i < 40; i++) { st.Batches = i; withCjk.AddRange(OfflineWriter.StreamChat(eng, st, new List<string>(), new List<ChatMessage>())); }
+        StreamChatStyle.CjkOk = false;
+        Assert(withCjk.Any(c => c.Text.Any(ch => ch >= 0x4E00 && ch <= 0x9FFF)), "some Chinese when the fonts can");
         var p1 = PromptBuilder.StreamUser(eng, st, new List<string>(), new List<ChatMessage>(), 10);
         st.Batches++;
         var p2 = PromptBuilder.StreamUser(eng, st, new List<string>(), new List<ChatMessage>(), 10);

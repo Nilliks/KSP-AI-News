@@ -725,6 +725,9 @@ namespace KerbalNews.KSP
                     if (other == null) { missing.Add(c); continue; }
                     if (!extra.Contains(other)) extra.Add(other);
                 }
+                // Chinese for the odd viewer from abroad in the stream chat: a loaded game font if one has it, else a system font.
+                var cjk = f.HasCharacter('\u4E2D') ? null : CjkFont();
+                if (cjk != null && !extra.Contains(cjk)) extra.Add(cjk);
                 foreach (var e in extra) symbolSources.Add(e);
                 symbolSources.Add(f);
                 if (extra.Count > 0)
@@ -744,6 +747,34 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>The fallback list, whose name differs between TextMeshPro versions. A fresh list, so the original's isn't shared.</summary>
+        static TMP_FontAsset cjkFont;
+        static bool cjkTried;
+
+        static TMP_FontAsset CjkFont()
+        {
+            if (cjkTried) return cjkFont;
+            cjkTried = true;
+            cjkFont = fonts.FirstOrDefault(x => x != null && x.HasCharacter('\u4E2D') && x.HasCharacter('\u706B'));
+            if (cjkFont != null) { Debug.Log("[KerbalNews] Chinese text uses the game font " + cjkFont.name); return cjkFont; }
+            try
+            {
+                // TextMeshPro 2 can make a dynamic font from a Windows font; older versions lack the method and get no Chinese.
+                var os = UnityEngine.Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "Microsoft YaHei UI", "DengXian", "SimHei", "SimSun", "Microsoft JhengHei", "Noto Sans CJK SC", "PingFang SC" }, 36);
+                var make = typeof(TMP_FontAsset).GetMethod("CreateFontAsset", new[] { typeof(UnityEngine.Font) });
+                if (os != null && make != null) cjkFont = make.Invoke(null, new object[] { os }) as TMP_FontAsset;
+                if (cjkFont != null)
+                {
+                    cjkFont.name = "Kerbal News CJK (" + os.name + ")";
+                    var add = typeof(TMP_FontAsset).GetMethod("TryAddCharacters", new[] { typeof(string) });
+                    if (add != null) add.Invoke(cjkFont, new object[] { StreamChatStyle.ChineseChars });
+                    if (!cjkFont.HasCharacter('\u4E2D')) { Debug.Log("[KerbalNews] System font " + os.name + " made a font without Chinese glyphs"); cjkFont = null; }
+                }
+                Debug.Log("[KerbalNews] Chinese text: " + (cjkFont != null ? "system font " + cjkFont.name : "no font available (" + (make == null ? "TextMeshPro cannot make fonts" : "no Chinese system font") + ")"));
+            }
+            catch (Exception e) { Debug.Log("[KerbalNews] Chinese text: no font (" + e.Message + ")"); cjkFont = null; }
+            return cjkFont;
+        }
+
         static List<TMP_FontAsset> FallbackList(TMP_FontAsset f)
         {
             foreach (var name in new[] { "fallbackFontAssetTable", "fallbackFontAssets", "m_FallbackFontAssetTable" })
@@ -797,6 +828,7 @@ namespace KerbalNews.KSP
                 return sb.ToString();
             };
             TextItem.MonoSpacing = Font("mono") != Font("sans");
+            StreamChatStyle.CjkOk = CanDraw("\u4E2D\u706B");
             if (map.Count > 0) Debug.Log("[KerbalNews] Symbol stand-ins: " + string.Join(" ", map.Select(kv => kv.Key + "=" + kv.Value).ToArray()));
         }
 
