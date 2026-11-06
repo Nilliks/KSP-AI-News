@@ -97,6 +97,9 @@ namespace KerbalNews
     {
         const int GzipThreshold = 400;
 
+        // KSP's ConfigNode reader treats "//" in a value as the start of a comment and drops the rest of the line, and
+        // standard base64 can contain "//". So text is stored with the URL-safe alphabet ('-' and '_' for '+' and '/'),
+        // under its own prefixes; the old "b64:"/"gz:" values still load.
         public static string Encode(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
@@ -107,36 +110,77 @@ namespace KerbalNews
                 {
                     using (var gz = new GZipStream(ms, CompressionMode.Compress, true))
                         gz.Write(raw, 0, raw.Length);
-                    return "gz:" + Convert.ToBase64String(ms.ToArray());
+                    return "uz:" + Safe(Convert.ToBase64String(ms.ToArray()));
                 }
             }
-            return "b64:" + Convert.ToBase64String(raw);
+            return "u64:" + Safe(Convert.ToBase64String(raw));
         }
+
+        static string Safe(string b64) { return b64.Replace('+', '-').Replace('/', '_').TrimEnd('='); }
+
+        static byte[] FromSafe(string s, bool lenient)
+        {
+            s = s.Replace('-', '+').Replace('_', '/');
+            int extra = s.Length % 4;
+            if (extra == 1 && lenient) { s = s.Substring(0, s.Length - 1); extra = 0; }
+            if (extra > 0) s += new string('=', 4 - extra);
+            return Convert.FromBase64String(s);
+        }
+
+        static string Gunzip(byte[] data, out bool complete)
+        {
+            complete = false;
+            var outMs = new MemoryStream();
+            try
+            {
+                using (var ms = new MemoryStream(data))
+                using (var gz = new GZipStream(ms, CompressionMode.Decompress))
+                {
+                    var buf = new byte[4096];
+                    int n;
+                    while ((n = gz.Read(buf, 0, buf.Length)) > 0) outMs.Write(buf, 0, n);
+                    complete = true;
+                }
+            }
+            catch (Exception) { complete = false; }   // a value cut short in an older save: keep what came out
+            // The gzip trailer ends with the uncompressed length; a value cut short has no real trailer.
+            if (complete && data.Length >= 4 && BitConverter.ToUInt32(data, data.Length - 4) != (uint)outMs.Length) complete = false;
+            return Encoding.UTF8.GetString(outMs.ToArray());
+        }
+
+        /// <summary>Text that could not be read back, in place of encoded gibberish.</summary>
+        public const string Damaged = "(This text was damaged in an older save and can't be shown.)";
 
         public static string Decode(string stored)
         {
             if (string.IsNullOrEmpty(stored)) return "";
             try
             {
+                if (stored.StartsWith("u64:", StringComparison.Ordinal)) return Encoding.UTF8.GetString(FromSafe(stored.Substring(4), false));
+                if (stored.StartsWith("uz:", StringComparison.Ordinal)) { bool ok; return Gunzip(FromSafe(stored.Substring(3), false), out ok); }
                 if (stored.StartsWith("b64:", StringComparison.Ordinal))
-                    return Encoding.UTF8.GetString(Convert.FromBase64String(stored.Substring(4)));
+                {
+                    try { return Encoding.UTF8.GetString(Convert.FromBase64String(stored.Substring(4))); }
+                    catch (FormatException) { return Encoding.UTF8.GetString(FromSafe(stored.Substring(4), true)); }
+                }
                 if (stored.StartsWith("gz:", StringComparison.Ordinal))
                 {
-                    byte[] data = Convert.FromBase64String(stored.Substring(3));
-                    using (var ms = new MemoryStream(data))
-                    using (var gz = new GZipStream(ms, CompressionMode.Decompress))
-                    using (var outMs = new MemoryStream())
-                    {
-                        var buf = new byte[4096];
-                        int n;
-                        while ((n = gz.Read(buf, 0, buf.Length)) > 0) outMs.Write(buf, 0, n);
-                        return Encoding.UTF8.GetString(outMs.ToArray());
-                    }
+                    // Older saves: a body that held "//" was cut there by KSP. Recover the part before the cut.
+                    string body = stored.Substring(3);
+                    byte[] data;
+                    try { data = Convert.FromBase64String(body); }
+                    catch (FormatException) { data = FromSafe(body.Substring(0, body.Length - body.Length % 4), true); }
+                    bool complete;
+                    string text = Gunzip(data, out complete);
+                    if (complete) return text;
+                    int cut = Math.Max(text.LastIndexOf(". ", StringComparison.Ordinal), text.LastIndexOf("\n", StringComparison.Ordinal));
+                    if (cut > 40) text = text.Substring(0, cut + 1);
+                    return text.Trim().Length > 40 ? text.TrimEnd() + " [...]" : Damaged;
                 }
             }
             catch (Exception)
             {
-                // Corrupt or hand-edited value: fall through and show it raw rather than lose it.
+                if (stored.StartsWith("u64:") || stored.StartsWith("uz:") || stored.StartsWith("b64:") || stored.StartsWith("gz:")) return Damaged;
             }
             return stored;
         }

@@ -22,6 +22,7 @@ namespace KerbalNews
         {
             State = s ?? new NewsState();
             lastVisibleUT = -1;
+            try { HealNames(); } catch (Exception) { }
         }
 
         Story FindLive(Story s)
@@ -652,6 +653,45 @@ namespace KerbalNews
         public int UnreadCount(double ut)
         {
             return State.Articles.Count(a => !a.Read && a.PublishedUT <= ut);
+        }
+    }
+}
+
+namespace KerbalNews
+{
+    public partial class NewsEngine
+    {
+        /// <summary>Set by the KSP layer: turns a stock localization tag ("#autoLOC_501232") into its name ("Kerbal X").</summary>
+        public Func<string, string> LocalizeTag = t => t;
+        static readonly System.Text.RegularExpressions.Regex LocTag = new System.Text.RegularExpressions.Regex(@"#autoLOC_\d+");
+
+        string Heal(string text) { return string.IsNullOrEmpty(text) || text.IndexOf("#autoLOC_", StringComparison.Ordinal) < 0 ? text : LocTag.Replace(text, m => LocalizeTag(m.Value)); }
+        void HealAll(List<Comment> cs) { if (cs != null) foreach (var c in cs) c.Text = Heal(c.Text); }
+
+        /// <summary>Older saves stored stock craft names as raw localization tags, which then showed up in posts and headlines.
+        /// Replaces them everywhere with the real name. Returns how many texts changed.</summary>
+        public int HealNames()
+        {
+            int before = Count();
+            foreach (var a in State.Articles.Concat(State.Archive)) { a.Headline = Heal(a.Headline); a.Subhead = Heal(a.Subhead); a.Body = Heal(a.Body); HealAll(a.Comments); }
+            foreach (var p in State.Social) p.Text = Heal(p.Text);
+            foreach (var t in State.Forum) { t.Title = Heal(t.Title); t.Body = Heal(t.Body); HealAll(t.Comments); }
+            foreach (var g in State.Gallery) { g.VesselName = Heal(g.VesselName); g.Caption = Heal(g.Caption); HealAll(g.Comments); }
+            foreach (var s in State.Stories) { s.Topic = Heal(s.Topic); foreach (var e in s.Events) { e.VesselName = Heal(e.VesselName); e.Detail = Heal(e.Detail); } }
+            foreach (var tv in State.Tracked.Values) { if (tv.Craft != null) tv.Craft.VesselName = Heal(tv.Craft.VesselName); for (int i = 0; i < tv.History.Count; i++) tv.History[i] = Heal(tv.History[i]); }
+            foreach (var inc in State.Incidents) inc.VesselName = Heal(inc.VesselName);
+            return before - Count();
+        }
+
+        int Count()
+        {
+            int n = 0;
+            Func<string, int> c = x => x != null && x.IndexOf("#autoLOC_", StringComparison.Ordinal) >= 0 ? 1 : 0;
+            foreach (var a in State.Articles.Concat(State.Archive)) n += c(a.Headline) + c(a.Body) + a.Comments.Sum(x => c(x.Text));
+            foreach (var p in State.Social) n += c(p.Text);
+            foreach (var t in State.Forum) n += c(t.Title) + c(t.Body) + t.Comments.Sum(x => c(x.Text));
+            foreach (var s in State.Stories) n += s.Events.Sum(e => c(e.VesselName));
+            return n;
         }
     }
 }

@@ -31,6 +31,7 @@ namespace KerbalNews.KSP
             DontDestroyOnLoad(this);
             Settings = SettingsStore.Load();
             Engine = new NewsEngine(new NewsState(), Settings, transport, clock);
+            Engine.LocalizeTag = Names.Of;
             Engine.Digest = () => Snapshots.Digest(Engine.State);
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;

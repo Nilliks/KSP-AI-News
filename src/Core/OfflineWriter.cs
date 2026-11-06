@@ -42,13 +42,16 @@ namespace KerbalNews
                 }
                 cov.Articles.Add(art);
             }
-            for (int i = 0; i < plan.SocialPosts; i++)
+            // Templates repeat quickly, so offline Kerbnet gets a few distinct posts rather than many copies.
+            var socialLines = CannedSocial(vessel, agency, killed, failed).OrderBy(x => rng.Next()).Take(Math.Min(plan.SocialPosts, 5)).ToList();
+            var socialHandles = Outlets.Commenters.Select(c => c.Handle).OrderBy(x => rng.Next()).ToList();
+            for (int i = 0; i < socialLines.Count; i++)
             {
                 cov.Social.Add(new SocialPost
                 {
-                    Handle = "@" + Outlets.Commenters[rng.Next(Outlets.Commenters.Count)].Handle,
+                    Handle = "@" + socialHandles[i % socialHandles.Count],
                     Persona = "public",
-                    Text = CannedSocial(vessel, agency, killed, failed, rng),
+                    Text = socialLines[i],
                     Likes = rng.Next(1, 10 + (int)(story.Significance * story.Significance / 4)),
                     Reshares = rng.Next(0, 3 + (int)story.Significance),
                 });
@@ -327,11 +330,27 @@ namespace KerbalNews
             return Pick(r, "Great to see!", "What a time to be alive.", "Was that worth the money? Genuinely asking.", "Saw it from my back garden!", "Another one for the history books.", "Jeb would be proud.");
         }
 
-        static string CannedSocial(string vessel, string agency, bool killed, bool failed, Random r)
+        static string[] CannedSocial(string vessel, string agency, bool killed, bool failed)
         {
-            if (killed) return Pick(r, "Can't stop thinking about the " + vessel + " crew. #FlySafe", "Somebody at " + agency + " needs to answer for this.");
-            if (failed) return Pick(r, "Watched " + vessel + " come apart from the beach. Still processing.", "rapid unplanned disassembly is a funny way to say 'it blew up'");
-            return Pick(r, vessel + " looked incredible today!", "Proud of " + agency + " today.", "ok but who's paying for all these rockets", "Took the kids to watch " + vessel + ". They won't stop talking about it.");
+            if (killed) return new[]
+            {
+                "Can't stop thinking about the " + vessel + " crew. #FlySafe", "Somebody at " + agency + " needs to answer for this.",
+                "Flags at half mast in my town tonight.", "They knew the risks. Doesn't make it easier.", "Hold the families close today.",
+                "We owe them answers, not a press release.", "Turned the news off. Couldn't watch any more.",
+            };
+            if (failed) return new[]
+            {
+                "Watched " + vessel + " come apart from the beach. Still processing.", "rapid unplanned disassembly is a funny way to say 'it blew up'",
+                "Saw the fireball from the causeway. Wow.", "That's going to cost someone their weekend.", "So... was that supposed to happen?",
+                "My dog is still hiding under the bed after that bang.", "Rockets are hard. They'll fix it.", "How much did that one cost us?",
+            };
+            return new[]
+            {
+                vessel + " looked incredible today!", "Proud of " + agency + " today.", "ok but who's paying for all these rockets",
+                "Took the kids to watch " + vessel + ". They won't stop talking about it.", "Clear skies, loud engines, best morning in weeks.",
+                "Every launch still gives me goosebumps.", "Anyone else get a good photo of " + vessel + "?", "Space is cool and I will not be taking questions.",
+                "The traffic on the causeway was worse than the countdown.", "Can't wait to see where " + vessel + " goes next.",
+            };
         }
 
         public static int StableHash(string s)

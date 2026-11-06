@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using KerbalNews;
@@ -113,7 +114,31 @@ public static class CoreTests
             Assert(!enc.Contains("\n") && !enc.Contains("{") && !enc.Contains("//"), "encoded is ConfigNode-safe");
             Eq(s, TextCodec.Decode(enc), "codec round trip");
         }
-        Assert(TextCodec.Encode(new string('y', 5000)).StartsWith("gz:"), "long text is gzipped");
+        Assert(TextCodec.Encode(new string('y', 5000)).StartsWith("uz:"), "long text is gzipped");
+        // KSP's ConfigNode drops everything after "//" in a value, so stored text must never contain a slash.
+        var rnd = new Random(7);
+        for (int i = 0; i < 300; i++)
+        {
+            var b = new byte[rnd.Next(1, 900)];
+            rnd.NextBytes(b);
+            string text = Convert.ToBase64String(b) + " ?>?>?> \u00ff\u00fe";
+            string enc = TextCodec.Encode(text);
+            Assert(!enc.Contains("/"), "no slash in stored text");
+            Eq(text, TextCodec.Decode(enc), "round trip " + i);
+        }
+        // Old saves: values cut at "//" by KSP still show what they can, never base64.
+        string longText = string.Join(" ", Enumerable.Range(0, 200).Select(i => "Sentence number " + i + " about the Mun landing.").ToArray());
+        string oldGz;
+        using (var ms = new MemoryStream())
+        {
+            using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionMode.Compress, true)) { var raw = System.Text.Encoding.UTF8.GetBytes(longText); gz.Write(raw, 0, raw.Length); }
+            oldGz = "gz:" + Convert.ToBase64String(ms.ToArray());
+        }
+        Eq(longText, TextCodec.Decode(oldGz), "old gz values still load");
+        string cut = TextCodec.Decode(oldGz.Substring(0, oldGz.Length * 2 / 3 + 1));
+        Assert(cut.StartsWith("Sentence number 0") && cut.EndsWith("[...]") && !cut.Contains("H4sI"), "a cut value keeps its readable start: " + cut.Substring(Math.Max(0, cut.Length - 60)));
+        Eq(TextCodec.Damaged, TextCodec.Decode("gz:H4sIAAAAAAAAC21W"), "an unreadable value says so instead of showing base64");
+        Eq("hi", TextCodec.Decode("b64:aGk="), "old b64 values still load");
         Assert(TextCodec.Encode(new string('y', 5000)).Length < 500, "gzip shrinks repetitive text");
     }
 

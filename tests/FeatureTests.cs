@@ -603,4 +603,16 @@ public static class FeatureTests
         }
         return "GameData/KerbalNews/Sites";
     }
+
+    public static void TestOldSavesLoseRawLocalizationTags()
+    {
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, null, new SimpleClock(21600));
+        eng.LocalizeTag = t => t == "#autoLOC_501230" ? "Kerbal 2" : t;
+        var s = new NewsState();
+        s.Social.Add(new SocialPost { Text = "#autoLOC_501230 looked incredible today!" });
+        s.Articles.Add(new Article { Id = "a1", Headline = "#autoLOC_501230 reaches space", Body = "The #autoLOC_501230 flew." });
+        var st = new Story { Id = "s1" }; st.Events.Add(new NewsEvent { Type = EventTypes.Launch, VesselName = "#autoLOC_501230" }); s.Stories.Add(st);
+        eng.SetState(s);
+        Assert(s.Social[0].Text == "Kerbal 2 looked incredible today!" && s.Articles[0].Headline == "Kerbal 2 reaches space" && s.Stories[0].Events[0].VesselName == "Kerbal 2", "tags replaced with the craft name on load");
+    }
 }

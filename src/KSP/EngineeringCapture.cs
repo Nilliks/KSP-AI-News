@@ -75,7 +75,10 @@ namespace KerbalNews.KSP
             s.Mass = v.GetTotalMass();
             s.Crew = v.GetCrewCount(); s.CrewCapacity = v.GetCrewCapacity();
             s.CurrentStage = v.currentStage;
-            s.Altitude = v.altitude; s.Speed = v.obt_speed;
+            s.Altitude = v.altitude;
+            // Surface speed near the ground and in the air (orbital speed on the pad is just Kerbin's spin); orbital speed in space.
+            bool atmo = v.mainBody != null && v.mainBody.atmosphere && v.altitude < v.mainBody.atmosphereDepth;
+            s.Speed = atmo || v.situation == Vessel.Situations.LANDED || v.situation == Vessel.Situations.SPLASHED || v.situation == Vessel.Situations.PRELAUNCH ? v.srfSpeed : v.obt_speed;
             if (v.mainBody != null) { Body(s, v.mainBody); s.Situation = Situation(v); }
             var o = v.orbit;
             if (o != null && v.situation != Vessel.Situations.LANDED && v.situation != Vessel.Situations.SPLASHED && v.situation != Vessel.Situations.PRELAUNCH)
