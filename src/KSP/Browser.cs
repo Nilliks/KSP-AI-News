@@ -78,7 +78,7 @@ namespace KerbalNews.KSP
         {
             if (layout == null) return;
             smoothing = false;
-            contentRt.anchoredPosition = new Vector2(0, Mathf.Max(0, layout.Height - viewportRt.rect.height) * Mathf.Clamp(f, 0, 1));
+            contentRt.anchoredPosition = new Vector2(0, MaxY * Mathf.Clamp(f, 0, 1));
         }
 
         // Self-test hooks: the same paths the mouse takes.
@@ -214,6 +214,7 @@ namespace KerbalNews.KSP
             if (Math.Abs(scaler.scaleFactor - Scale) > 0.001f) { scaler.scaleFactor = Scale; ClampWindow(); wantRender = true; }
 
             float width = viewportRt.rect.width;
+            if (Math.Abs(Zoom - zoom) > 0.001f) wantRender = true;
             if (Math.Abs(width - lastWidth) > 1f)
             {
                 // While a resize drag is going on, re-flow a few times a second instead of every frame.
@@ -352,8 +353,8 @@ namespace KerbalNews.KSP
             address.onSubmit.AddListener(v => Navigate(v));
             chromeFields = new[] { address };
             float rx = -128;
-            RightButton(bar.transform, ref rx, "A−", () => Sites.Handle("action:scale/-", null));
-            RightButton(bar.transform, ref rx, "A+", () => Sites.Handle("action:scale/+", null));
+            RightButton(bar.transform, ref rx, "A−", () => Sites.Handle("action:zoom/-", null));
+            RightButton(bar.transform, ref rx, "A+", () => Sites.Handle("action:zoom/+", null));
             RightButton(bar.transform, ref rx, "close", Close);
 
             // Title strip above the status bar would waste space; the title shows in the status bar instead.
@@ -837,8 +838,10 @@ namespace KerbalNews.KSP
 
         // ------------------------------------------------------------------ rendering
 
-        float MaxY { get { return Mathf.Max(0, contentRt.sizeDelta.y - viewportRt.rect.height); } }
-        float MaxX { get { return Mathf.Max(0, contentRt.sizeDelta.x - viewportRt.rect.width); } }
+        float MaxY { get { return Mathf.Max(0, contentRt.sizeDelta.y * zoom - viewportRt.rect.height); } }
+        float MaxX { get { return Mathf.Max(0, contentRt.sizeDelta.x * zoom - viewportRt.rect.width); } }
+        float zoom = 1;
+        static float Zoom { get { var g = NewsSystem.Settings; return g != null && g.PageZoom > 0.4f ? g.PageZoom : 1f; } }
 
         /// <summary>Mouse wheel (shift for sideways) and Page Up/Down, Home, End, arrow keys. The wheel glides to its target
         /// over a few frames rather than jumping.</summary>
@@ -893,7 +896,8 @@ namespace KerbalNews.KSP
                 var root = Html.Parse(page.Html);
                 Css.Apply(root, Css.Parse(page.Css));
                 lastWidth = viewportRt.rect.width;
-                layout = Layout.Run(root, lastWidth, Measure);
+                zoom = Zoom;
+                layout = Layout.Run(root, lastWidth / zoom, Measure);
             }
             catch (Exception e)
             {
@@ -911,7 +915,7 @@ namespace KerbalNews.KSP
                 }
             if (!address.isFocused) { address.text = url; address.MoveTextStart(false); }
             float target = keepScroll ? y : restoreScroll && scrollMemory.ContainsKey(url) ? scrollMemory[url] : 0;
-            float max = Mathf.Max(0, layout.Height - viewportRt.rect.height);
+            float max = Mathf.Max(0, layout.Height * zoom - viewportRt.rect.height);
             float tx = keepScroll ? Mathf.Clamp(x0, 0, MaxX) : 0;
             smoothing = false;
             contentRt.anchoredPosition = new Vector2(-tx, Mathf.Clamp(target, 0, max));
@@ -1022,7 +1026,9 @@ namespace KerbalNews.KSP
             foreach (var t in layout.Texts) right = Mathf.Max(right, t.X + t.W);
             foreach (var im in layout.Images) right = Mathf.Max(right, im.X + im.W);
             float vw = viewportRt.rect.width;
-            contentRt.sizeDelta = new Vector2(right > vw + 2 ? right : vw, Mathf.Max(layout.Height, viewportRt.rect.height));
+            float vwz = vw / zoom;
+            contentRt.sizeDelta = new Vector2(right > vwz + 2 ? right : vwz, Mathf.Max(layout.Height, viewportRt.rect.height / zoom));
+            contentRt.localScale = new Vector3(zoom, zoom, 1);
 
             foreach (var r in layout.Rects)
             {

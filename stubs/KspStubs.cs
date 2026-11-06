@@ -41,13 +41,13 @@ namespace UnityEngine
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
-    public class Transform : Component { public Vector3 position; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public class Transform : Component { public Vector3 position, localScale; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
     public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } }
     public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
     {
-        public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero;
+        public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; public float sqrMagnitude { get { return 0; } }
         public static Vector2 operator +(Vector2 a, Vector2 b) { return a; } public static Vector2 operator -(Vector2 a, Vector2 b) { return a; }
         public static Vector2 operator /(Vector2 a, float d) { return a; } public static Vector2 operator *(Vector2 a, float d) { return a; }
         public static implicit operator Vector3(Vector2 v) { return new Vector3(v.x, v.y, 0); }

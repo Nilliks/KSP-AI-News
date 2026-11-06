@@ -81,6 +81,8 @@ namespace KerbalNews
         public bool GenerateDuringWarp = false;
         /// <summary>News window scale; 0 means automatic from screen size.</summary>
         public float UiScale = 0;
+        /// <summary>Page zoom from the toolbar's A− and A+: the page's text and pictures grow, the window and toolbar don't.</summary>
+        public float PageZoom = 1;
         /// <summary>The browser window: x, y, width, height in canvas units, or null for the default.</summary>
         public float[] BrowserRect;
         /// <summary>Websites the player turned off (SiteCatalog ids). The engineering page uses EngineeringOn instead.</summary>
@@ -166,6 +168,7 @@ namespace KerbalNews
             settings.Add("streamChat", StreamChatPer10Min);
             settings.Add("retrospectives", Retrospectives);
             settings.Add("uiScale", (double)UiScale);
+            settings.Add("pageZoom", (double)PageZoom);
             settings.Add("sitesOff", string.Join(",", SitesOff.OrderBy(x => x).ToArray()));
             if (BrowserRect != null && BrowserRect.Length == 4) settings.Add("browserRect", string.Join(",", BrowserRect.Select(v => v.ToString("0", System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
             settings.Add("imageProvider", ImageProviderId);
@@ -220,6 +223,7 @@ namespace KerbalNews
                 g.StreamChatPer10Min = Math.Max(10, Math.Min(600, settings.GetInt("streamChat", 120)));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
+                g.PageZoom = (float)Math.Max(0.6, Math.Min(2.5, settings.GetDouble("pageZoom", 1)));
                 foreach (var id in settings.Get("sitesOff", "").Split(',')) if (id.Trim() != "") g.SitesOff.Add(id.Trim());
                 var br = settings.Get("browserRect", "").Split(',');
                 float bx, by, bw, bh;

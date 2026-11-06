@@ -151,6 +151,10 @@ namespace KerbalNews.Web
                     string order = Get(form, "order").Trim();
                     if (order != "") State.Orders.Add(new LoreEntry { UT = Now(), Text = ResponseParser.Clip(order, 300) });
                     break;
+                case "zoom":
+                    g.PageZoom = arg == "reset" ? 1f : (float)Math.Round(Math.Max(0.6f, Math.Min(2.5f, g.PageZoom + (arg == "+" ? 0.1f : -0.1f))), 1);
+                    SaveSettings();
+                    break;
                 case "scale":
                     float cur = g.UiScale > 0.4f ? g.UiScale : UiScale();
                     if (arg == "auto") g.UiScale = 0;

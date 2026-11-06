@@ -118,12 +118,13 @@ namespace KerbalNews.KSP
 
             br.Open("settings.kb");
             yield return new WaitForSeconds(0.3f);
-            float scaleBefore = Browser.Scale;
-            br.Act("action:scale/+", null);
+            float scaleBefore = Browser.Scale, zoomBefore = g.PageZoom;
+            var winBefore = br.WindowSize;
+            br.Act("action:zoom/+", null);
             yield return new WaitForSeconds(0.6f);
-            Check(Browser.Scale > scaleBefore, "A+ makes text bigger: " + scaleBefore.ToString("0.00") + " -> " + Browser.Scale.ToString("0.00"));
+            Check(g.PageZoom > zoomBefore && Math.Abs(Browser.Scale - scaleBefore) < 0.001f && (br.WindowSize - winBefore).sqrMagnitude < 0.01f, "A+ makes the page bigger, not the window: zoom " + zoomBefore.ToString("0.0") + " -> " + g.PageZoom.ToString("0.0"));
             yield return Shot("settings-bigger-text");
-            br.Act("action:scale/auto", null);
+            br.Act("action:zoom/reset", null);
             g.OfflineMode = wasOffline;
             sys.SaveSettings(); // the scale buttons saved settings while offline mode was forced on
 
