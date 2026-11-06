@@ -371,7 +371,7 @@ public static class HighLogic
 public class Funding { public static Funding Instance; public double Funds; public void AddFunds(double v, TransactionReasons r) { } }
 public enum TransactionReasons { None, Any }
 public class Reputation { public static Reputation Instance; public float reputation; }
-public class ResearchAndDevelopment { public static ResearchAndDevelopment Instance; public float Science; }
+public class ResearchAndDevelopment { public static ResearchAndDevelopment Instance; public float Science; public static string GetResults(string subjectId) { return ""; } }
 
 public enum ScreenMessageStyle { UPPER_LEFT, UPPER_CENTER, UPPER_RIGHT, LOWER_CENTER }
 public static class ScreenMessages { public static object PostScreenMessage(string m, float d, ScreenMessageStyle s) { return null; } }

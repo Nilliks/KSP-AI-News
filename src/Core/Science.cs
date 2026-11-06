@@ -22,6 +22,8 @@ namespace KerbalNews
         public string VesselId = "";
         public string VesselName = "";
         public List<string> Crew = new List<string>();
+        /// <summary>The game's own result text for this subject ("This sample is mostly regolith..."), the one hard fact the scientists interpret.</summary>
+        public string ResultText = "";
         /// <summary>The journal paper that wrote it up ("" while waiting).</summary>
         public string PaperStoryId = "";
 
@@ -40,6 +42,7 @@ namespace KerbalNews
             n.Add("vesselId", VesselId);
             n.AddText("vesselName", VesselName);
             foreach (var c in Crew) n.AddText("crew", c);
+            if (ResultText != "") n.AddText("resultText", ResultText);
             if (PaperStoryId != "") n.Add("paper", PaperStoryId);
         }
 
@@ -50,13 +53,15 @@ namespace KerbalNews
                 UT = n.GetDouble("ut"), SubjectId = n.GetText("subject"), Title = n.GetText("title"), Experiment = n.Get("experiment", ""),
                 Body = n.Get("body", ""), Situation = n.Get("situation", ""), Biome = n.GetText("biome"), Amount = n.GetDouble("amount"),
                 Completion = n.GetDouble("completion"), Transmitted = n.GetBool("transmitted"), VesselId = n.Get("vesselId", ""),
-                VesselName = n.GetText("vesselName"), PaperStoryId = n.Get("paper", ""),
+                VesselName = n.GetText("vesselName"), PaperStoryId = n.Get("paper", ""), ResultText = n.GetText("resultText"),
             };
             foreach (var c in n.GetAll("crew")) r.Crew.Add(TextCodec.Decode(c));
             return r;
         }
 
-        static readonly string[] Situations = { "SrfLanded", "SrfSplashed", "FlyingLow", "FlyingHigh", "InSpaceLow", "InSpaceHigh" };
+        // Stock situations, then the extra ones Kerbalism uses in its subject ids (longest first where one starts another).
+        static readonly string[] Situations = { "SrfLanded", "SrfSplashed", "FlyingLow", "FlyingHigh", "InSpaceLow", "InSpaceHigh",
+            "Surface", "Atmosphere", "Space", "BodyGlobal", "Reentry", "Magnetosphere", "InnerBelt", "OuterBelt", "Interstellar", "Storm" };
 
         /// <summary>Splits a stock subject id ("surfaceSample@MunSrfLandedMidlands") into experiment, body, situation and biome.</summary>
         public static void ParseSubject(string id, IEnumerable<string> bodies, out string experiment, out string body, out string situation, out string biome)
@@ -85,7 +90,12 @@ namespace KerbalNews
             if (r == null || r.Amount <= 0) return null;
             // A recovery delivers many subjects at once; merge exact repeats from the same vessel on the same day.
             var same = State.Science.LastOrDefault(x => x.SubjectId == r.SubjectId && x.VesselId == r.VesselId && Math.Abs(x.UT - r.UT) < Day);
-            if (same != null) { same.Amount += r.Amount; same.Completion = Math.Max(same.Completion, r.Completion); return same; }
+            if (same != null)
+            {
+                same.Amount += r.Amount; same.Completion = Math.Max(same.Completion, r.Completion);
+                if (same.ResultText == "") same.ResultText = r.ResultText;
+                return same;
+            }
             State.Science.Add(r);
             if (State.Science.Count > MaxScienceResults) State.Science.RemoveRange(0, State.Science.Count - MaxScienceResults);
             return r;

@@ -252,6 +252,8 @@ namespace KerbalNews.KSP
                     UT = UT, SubjectId = subject.id ?? "", Title = subject.title ?? "", Experiment = exp, Body = body, Situation = sit, Biome = biome,
                     Amount = amount, Completion = subject.scienceCap > 0 ? Math.Min(1, subject.science / subject.scienceCap) : 0,
                 };
+                // The game's flavour text for this result (stock ScienceDefs and Kerbalism's both feed this table).
+                try { r.ResultText = Names.Of(ResearchAndDevelopment.GetResults(subject.id) ?? ""); } catch (Exception) { }
                 if (pv != null)
                 {
                     r.VesselId = pv.persistentId.ToString();
