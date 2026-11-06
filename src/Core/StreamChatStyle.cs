@@ -102,6 +102,34 @@ namespace KerbalNews
         };
         /// <summary>A few viewers from abroad, as on any big public stream. Only used when the game's fonts can draw them.</summary>
         static readonly string[] Chinese = { "加油！", "牛逼", "太酷了", "哇哇哇", "冲冲冲", "火箭好帅", "大家好", "666", "哈哈哈哈", "厉害了", "起飞！", "好美", "第一次看直播", "成功了！", "太强了吧" };
+        /// <summary>Set by the game when its fonts can draw emoji. KSP's cannot, so emoji become chat emote codes as on many stream sites.</summary>
+        public static bool EmojiOk;
+
+        static readonly Dictionary<string, string> EmojiCodes = new Dictionary<string, string>
+        {
+            { "\U0001F680", ":rocket:" }, { "\U0001F480", ":skull:" }, { "\U0001F525", ":fire:" }, { "\U0001F62D", ":sob:" }, { "\U0001F644", ":eyeroll:" },
+            { "\U0001F44B", ":wave:" }, { "\U0001F602", ":joy:" }, { "\U0001F64F", ":pray:" }, { "\U0001F44F", ":clap:" }, { "\U0001F31D", ":moon:" },
+            { "\U0001F315", ":moon:" }, { "\U0001F30D", ":planet:" }, { "\U0001F92F", ":mindblown:" }, { "\U0001F633", ":flushed:" }, { "\U0001F622", ":cry:" },
+            { "\U0001F60D", ":heart_eyes:" }, { "\u2764\uFE0F", "<3" }, { "\u2764", "<3" }, { "\U0001F44D", ":thumbsup:" }, { "\U0001F4AF", ":100:" }, { "\U0001F389", ":tada:" },
+        };
+
+        /// <summary>Turns emoji into emote codes (:rocket:) when the game cannot draw them, and drops any other emoji.</summary>
+        public static string Emotes(string text)
+        {
+            if (EmojiOk || string.IsNullOrEmpty(text) || !text.Any(c => char.IsSurrogate(c) || c == '\u2764')) return text;
+            foreach (var kv in EmojiCodes) text = text.Replace(kv.Key, kv.Value);
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (char.IsHighSurrogate(c)) { i++; continue; }
+                if (char.IsSurrogate(c) || c == '\uFE0F' || c == '\u200D') continue;
+                sb.Append(c);
+            }
+            string outText = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), " {2,}", " ").Trim();
+            return outText == "" ? "o7" : outText;
+        }
+
         /// <summary>Set by the game once it knows whether its fonts can show Chinese characters.</summary>
         public static bool CjkOk;
         /// <summary>Every Chinese character the offline lines use, so the game can load them into its font up front.</summary>

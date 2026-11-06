@@ -718,6 +718,9 @@ public static class FeatureTests
         st.Batches++;
         var p2 = PromptBuilder.StreamUser(eng, st, new List<string>(), new List<ChatMessage>(), 10);
         Assert(p1.Contains("Mix in, this batch") && p1 != p2, "each AI batch gets a fresh mix of voices");
+        Assert(StreamChatStyle.Emotes("LETS GOOO \U0001F680\U0001F680") == "LETS GOOO :rocket::rocket:" && StreamChatStyle.Emotes("this is fine \U0001F480") == "this is fine :skull:", "emoji become emote codes the game can draw");
+        Assert(StreamChatStyle.Emotes("\U0001F9FF") == "o7" && StreamChatStyle.Emotes("plain") == "plain", "unknown emoji are dropped");
+        Assert(p1.Contains("UNCREWED"), "the chat is told an uncrewed flight has nobody aboard");
     }
 
     public static void TestStreamChatIsUnevenAndGoesWildAtLiftoff()

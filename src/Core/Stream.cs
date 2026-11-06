@@ -25,7 +25,7 @@ namespace KerbalNews
             sb.Append(", stage " + Stage);
             if (FuelPct >= 0) sb.Append(", fuel " + FuelPct.ToString("0", Inv) + "%");
             if (G > 0.05) sb.Append(", " + G.ToString("0.0", Inv) + " g");
-            if (Crew.Count > 0) sb.Append(", crew " + string.Join(", ", Crew.ToArray()));
+            sb.Append(Crew.Count > 0 ? ", crew aboard: " + string.Join(", ", Crew.ToArray()) : ", UNCREWED (no kerbals aboard)");
             return sb.ToString();
         }
     }
@@ -466,7 +466,10 @@ namespace KerbalNews
             var rng = new Random(st.Batches * 31 + msgs.Count);
             var times = ChatTimes(msgs.Count, span, hype, rng);
             for (int i = 0; i < msgs.Count; i++)
+            {
+                msgs[i].Text = StreamChatStyle.Emotes(msgs[i].Text);
                 st.Queue.Add(new KeyValuePair<double, ChatMessage>(realTime + times[i], msgs[i]));
+            }
             st.Queue.Sort((a, b) => a.Key.CompareTo(b.Key));
             int target = viewers.HasValue ? viewers.Value : st.Viewers;
             if (hype >= 2) target = (int)(target * (1 + 0.12 * Math.Min(6, hype)));

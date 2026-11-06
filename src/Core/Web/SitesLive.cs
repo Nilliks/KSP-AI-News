@@ -58,8 +58,8 @@ namespace KerbalNews.Web
                 m["tele"] = new List<object>
                 {
                     Stat("Altitude", TelemetrySample.Km(t.Altitude)), Stat("Speed", t.Speed.ToString("N0", LiveInv) + " m/s"),
-                    Stat("Apoapsis", t.Altitude > 15000 || t.Situation == "ORBITING" ? TelemetrySample.Km(t.Apoapsis) : "-"),
-                    Stat("Periapsis", t.Altitude > 15000 || t.Situation == "ORBITING" ? TelemetrySample.Km(t.Periapsis) : "-"),
+                    Stat("Apoapsis", t.Situation != "PRELAUNCH" && t.Situation != "LANDED" && t.Situation != "SPLASHED" && t.Apoapsis > 0 ? TelemetrySample.Km(t.Apoapsis) : "-"),
+                    Stat("Periapsis", t.Situation == "PRELAUNCH" || t.Situation == "LANDED" || t.Situation == "SPLASHED" ? "-" : t.Periapsis < 0 ? "suborbital" : TelemetrySample.Km(t.Periapsis)),
                     Stat("Stage", t.Stage.ToString(LiveInv)), Stat("Fuel", t.FuelPct >= 0 ? t.FuelPct.ToString("0", LiveInv) + "%" : "-"),
                     Stat("G-force", t.G.ToString("0.0", LiveInv) + " g"), Stat("Status", t.Situation.ToLowerInvariant().Replace("_", " ") + " · " + t.Body),
                 };

@@ -28,7 +28,7 @@ namespace KerbalNews.KSP
         static readonly List<string> back = new List<string>(), forward = new List<string>();
         static readonly Dictionary<string, float> scrollMemory = new Dictionary<string, float>();
 
-        const float TitleH = 26, BarH = 40, StatusH = 24, BarW = 16, Edge = 5, Corner = 18, TopCorner = 8;
+        const float TitleH = 30, BarH = 40, StatusH = 24, BarW = 16, Edge = 5, Corner = 18, TopCorner = 8;
         const float WheelStep = 110;   // canvas units per wheel notch
         float scrollTargetY, scrollTargetX, lastResizeDrag, nextResizeRender;
         bool smoothing;
@@ -345,13 +345,13 @@ namespace KerbalNews.KSP
             titleDrag.OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
             titleDrag.OnEnded = SaveWindow;
             var grip = New("Grip", tb.transform);
-            var gripText = Label(grip, 13, "#6b7480", true);
+            var gripText = Label(grip, 15, "#6b7480", true);
             gripText.text = "::::";
             gripText.raycastTarget = false;
             Stretch(Rt(grip), 10, 0, 0, 0);
             Rt(grip).anchorMax = new Vector2(0, 1); Rt(grip).sizeDelta = new Vector2(30, 0);
             var wt = New("WindowTitle", tb.transform);
-            windowTitle = Label(wt, 12, "#c9d1d9", true);
+            windowTitle = Label(wt, 15, "#c9d1d9", true);
             windowTitle.text = "Kerbal News Network";
             windowTitle.raycastTarget = false;
             windowTitle.overflowMode = TextOverflowModes.Ellipsis;
@@ -360,7 +360,7 @@ namespace KerbalNews.KSP
             var closeGo = MakeButton(tb.transform, "close", Close);
             var cRt = Rt(closeGo);
             cRt.anchorMin = new Vector2(1, 0.5f); cRt.anchorMax = new Vector2(1, 0.5f); cRt.pivot = new Vector2(1, 0.5f);
-            cRt.anchoredPosition = new Vector2(-4, 0); cRt.sizeDelta = new Vector2(34, 20);
+            cRt.anchoredPosition = new Vector2(-4, 0); cRt.sizeDelta = new Vector2(36, 24);
 
             // Toolbar: back, forward, reload, home, address, text size. Dragging its empty parts moves the window too.
             var bar = New("Toolbar", win.transform);
