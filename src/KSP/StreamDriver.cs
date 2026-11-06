@@ -154,7 +154,7 @@ namespace KerbalNews.KSP
                 checkedShot = shot;
                 nextCheck = now + 1f;
                 float mean = Brightness();
-                if (mean > 222 || mean < 10)
+                if (mean > (shot.Ground ? 232 : 225) || mean < 10)
                 {
                     CutLog.Add(now.ToString("0.0") + "s skipped " + shot.Name + " (brightness " + mean.ToString("0") + ")");
                     shot.BadUntil = now + (shot.Ground ? 60 : 15);
