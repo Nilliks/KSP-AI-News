@@ -48,6 +48,10 @@ namespace KerbalNews
         public List<string> Crew = new List<string>();
         /// <summary>The last flight data before it happened, oldest first.</summary>
         public List<string> Telemetry = new List<string>();
+        /// <summary>The flight recorder: twice-a-second samples of attitude, control inputs and SAS for the last seconds, oldest first.</summary>
+        public List<string> Samples = new List<string>();
+        /// <summary>What the game reported happening to the craft: parts hitting the ground, overheating, joints breaking, staging.</summary>
+        public List<string> Events = new List<string>();
         public string Craft = "";
         /// <summary>open, working, done.</summary>
         public string Status = "open";
@@ -59,6 +63,8 @@ namespace KerbalNews
             n.Add("id", Id); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("kind", Kind); n.AddText("detail", Detail); n.Add("ut", UT);
             foreach (var c in Crew) n.AddText("crew", c);
             foreach (var t in Telemetry) n.AddText("tel", t);
+            foreach (var t in Samples) n.AddText("box", t);
+            foreach (var t in Events) n.AddText("evt", t);
             n.AddText("craft", Craft); n.Add("status", Status == "working" ? "open" : Status);
             n.AddText("cause", Cause); n.AddText("findings", Findings); n.AddText("fixes", Fixes); n.AddText("public", PublicSummary); n.Add("release", ReleaseId);
         }
@@ -73,6 +79,8 @@ namespace KerbalNews
             };
             foreach (var c in n.GetAll("crew")) i.Crew.Add(TextCodec.Decode(c));
             foreach (var t in n.GetAll("tel")) i.Telemetry.Add(TextCodec.Decode(t));
+            foreach (var t in n.GetAll("box")) i.Samples.Add(TextCodec.Decode(t));
+            foreach (var t in n.GetAll("evt")) i.Events.Add(TextCodec.Decode(t));
             return i;
         }
     }
@@ -341,6 +349,33 @@ namespace KerbalNews
 
         readonly Dictionary<string, List<string>> engTrack = new Dictionary<string, List<string>>();
         readonly Dictionary<string, string> engCraft = new Dictionary<string, string>();
+        readonly Dictionary<string, List<string>> boxSamples = new Dictionary<string, List<string>>();
+        readonly Dictionary<string, List<KeyValuePair<double, string>>> boxEvents = new Dictionary<string, List<KeyValuePair<double, string>>>();
+        public const int BoxSamples = 24, BoxEvents = 30;
+
+        static void Ring<T>(Dictionary<string, List<T>> d, string id, T item, int max)
+        {
+            List<T> l;
+            if (!d.TryGetValue(id, out l)) { l = new List<T>(); d[id] = l; if (d.Count > 20) d.Remove(d.Keys.First(k => k != id)); }
+            l.Add(item);
+            while (l.Count > max) l.RemoveAt(0);
+        }
+
+        /// <summary>One flight-recorder sample (attitude, control inputs, SAS), recorded twice a second in flight.</summary>
+        public void BlackBoxSample(string vesselId, string line)
+        {
+            if (string.IsNullOrEmpty(vesselId) || string.IsNullOrEmpty(line)) return;
+            Ring(boxSamples, vesselId, line, BoxSamples);
+        }
+
+        /// <summary>Something the game reported happening to the craft. If an incident is already open for it, the event joins that incident.</summary>
+        public void BlackBoxEvent(string vesselId, string line, double ut)
+        {
+            if (string.IsNullOrEmpty(vesselId) || string.IsNullOrEmpty(line)) return;
+            Ring(boxEvents, vesselId, new KeyValuePair<double, string>(ut, line), BoxEvents);
+            var inc = State.Incidents.LastOrDefault(i => i.VesselId == vesselId && Math.Abs(i.UT - ut) < 30);
+            if (inc != null && !inc.Events.Contains(line) && inc.Events.Count < 40) inc.Events.Add(line);
+        }
 
         /// <summary>The KSP layer reports the active vessel every few seconds in flight, so an investigation has the last data before a crash.</summary>
         public void EngRecord(EngSnapshot s, double ut)
@@ -367,6 +402,10 @@ namespace KerbalNews
                 inc = new Incident { Id = State.NewId("inc"), VesselId = e.VesselId ?? "", VesselName = e.VesselName ?? "", UT = e.UT, Kind = e.Type };
                 List<string> tel;
                 if (e.VesselId != null && engTrack.TryGetValue(e.VesselId, out tel)) inc.Telemetry.AddRange(tel);
+                List<string> box;
+                if (e.VesselId != null && boxSamples.TryGetValue(e.VesselId, out box)) inc.Samples.AddRange(box);
+                List<KeyValuePair<double, string>> evs;
+                if (e.VesselId != null && boxEvents.TryGetValue(e.VesselId, out evs)) inc.Events.AddRange(evs.Where(x => e.UT - x.Key < 120).Select(x => x.Value));
                 string craft;
                 if (e.VesselId != null && engCraft.TryGetValue(e.VesselId, out craft)) inc.Craft = craft;
                 TrackedVessel tv;
@@ -390,27 +429,39 @@ namespace KerbalNews
             {
                 inc.Status = "done";
                 inc.Cause = "Unknown (offline)";
-                inc.Findings = inc.Telemetry.Count > 0 ? "Last data before the incident: " + inc.Telemetry.Last() : "No flight data was recorded before the incident.";
+                inc.Findings = (inc.Samples.Count > 0 ? "Last recorder sample: " + inc.Samples.Last() + ". " : inc.Telemetry.Count > 0 ? "Last data before the incident: " + inc.Telemetry.Last() + ". " : "No flight data was recorded before the incident. ")
+                    + (inc.Events.Count > 0 ? "Reported: " + string.Join("; ", inc.Events.Skip(Math.Max(0, inc.Events.Count - 4)).ToArray()) + "." : "");
                 return true;
             }
             inc.Status = "working";
             EngInvestigating = inc.Id;
             var sb = new StringBuilder();
-            sb.AppendLine("You are the engineering team of " + AgencyName + " in Kerbal Space Program (KSP1), running a failure investigation for the director. Work like a real accident board: use only the data given, say what is certain and what is likely, and name the most probable cause (for example: aerodynamic flip from fins too far forward, structural failure from wobble or high g, ran out of fuel, too little TWR, hit terrain too fast, overheating on reentry, parachutes opened too fast or too late, staging error, collision). Give concrete fixes for the next flight.");
+            sb.AppendLine("You are the engineering team of " + AgencyName + " in Kerbal Space Program (KSP1), writing a failure investigation for the director. Work like a real accident board reading a flight recorder.");
+            sb.AppendLine("RULES:");
+            sb.AppendLine("- Use ONLY the recorded data below. Never invent a mechanical failure, a part, a reading or a cause the data does not show. If the data cannot explain something, say it is unknown.");
+            sb.AppendLine("- Control inputs are recorded. If the controls were deflected hard (pitch, yaw or roll near +1 or -1) shortly before the crash, report that plainly as the first finding, in the data's own terms: for example \"we recorded a full right yaw input for the last six seconds, with SAS off, and the craft turned into the ground; we can't tell from the data why the input was made\". The pilot or autopilot may be the cause; say so without blaming named crew.");
+            sb.AppendLine("- Separate what the data shows (certain) from what probably happened (likely). Mention a structural, aerodynamic, fuel or heat cause only if the samples or events show it (joints breaking, overheating, thrust gone, flipping with the controls neutral, and so on).");
+            sb.AppendLine("- Speak like engineers in a briefing: short, plain sentences with the actual numbers.");
             var mods = EngModHints(Settings.Mods);
             if (mods.Count > 0) sb.AppendLine("Mods that matter: " + string.Join(" ", mods.ToArray()));
-            sb.AppendLine("Reply with one JSON object only: {\"cause\": \"most probable cause, one short sentence\", \"findings\": \"what the data shows, 3-6 sentences\", \"fixes\": \"what to change next time, 2-4 short points in one string\", \"public_summary\": \"a 2-3 sentence statement the agency could give the press, factual and calm, no blame on named crew\"}.");
+            sb.AppendLine("Reply with one JSON object only: {\"cause\": \"most probable cause, one short sentence, or 'Unknown' with what is missing\", \"certainty\": \"confirmed|likely|unknown\", \"findings\": \"what the recorder shows, 3-6 sentences, citing the numbers\", \"fixes\": \"what to change next time, 2-4 short points in one string\", \"public_summary\": \"a 2-3 sentence statement the agency could give the press, factual and calm, no blame on named crew\"}.");
             var u = new StringBuilder();
             u.AppendLine("Incident: " + (inc.Kind == EventTypes.CrewKilled ? "loss of crew" : "vehicle failure") + " of " + (inc.VesselName != "" ? inc.VesselName : "an agency craft") + " on " + Clock.FormatDate(inc.UT) + ".");
             if (inc.Detail != "") u.AppendLine("What was seen: " + inc.Detail);
             if (inc.Crew.Count > 0) u.AppendLine("Crew aboard: " + string.Join(", ", inc.Crew.ToArray()) + ".");
             if (inc.Craft != "") u.AppendLine("Craft: " + inc.Craft);
-            u.AppendLine(inc.Telemetry.Count > 0 ? "Flight data before the incident (oldest first, every few seconds):\n- " + string.Join("\n- ", inc.Telemetry.ToArray()) : "No flight data was recorded before the incident (the engineering team was not watching this vessel).");
-            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), 1400, 0, (root, err, text, res) =>
+            if (inc.Samples.Count > 0)
+                u.AppendLine("Flight recorder, twice a second, oldest first (pitch is the nose angle above the horizon; ctrl is the control output from -1 to +1, from the pilot or autopilot; input is what the pilot pressed):\n- " + string.Join("\n- ", inc.Samples.ToArray()));
+            u.AppendLine(inc.Telemetry.Count > 0 ? "Slower flight data (every few seconds, oldest first):\n- " + string.Join("\n- ", inc.Telemetry.ToArray()) : "No slower flight data was recorded.");
+            u.AppendLine(inc.Events.Count > 0 ? "What the game reported happening to the craft, in order:\n- " + string.Join("\n- ", inc.Events.ToArray()) : "No part events were reported.");
+            if (inc.Samples.Count == 0 && inc.Telemetry.Count == 0) u.AppendLine("The recorder was not running for this vessel, so say the cause cannot be determined from data.");
+            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), 1600, 0, (root, err, text, res) =>
             {
                 EngInvestigating = "";
                 if (root == null) { inc.Status = "open"; LastError = err ?? "No reply"; RaiseCommunity(); return; }
                 inc.Cause = ResponseParser.Clip(Json.Str(root, "cause", "").Trim(), 300);
+                string certainty = Json.Str(root, "certainty", "").Trim().ToLowerInvariant();
+                if (certainty == "unknown" || certainty == "likely") inc.Cause = "(" + certainty + ") " + inc.Cause;
                 inc.Findings = ResponseParser.Clip(Json.Str(root, "findings", "").Trim(), 2000);
                 inc.Fixes = ResponseParser.Clip(Json.Str(root, "fixes", "").Trim(), 1200);
                 inc.PublicSummary = ResponseParser.Clip(Json.Str(root, "public_summary", "").Trim(), 800);

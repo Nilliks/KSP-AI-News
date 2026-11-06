@@ -22,6 +22,7 @@ namespace KerbalNews.KSP
         readonly UnityHttpTransport transport = new UnityHttpTransport();
         readonly KspClock clock = new KspClock();
         EventCollector collector;
+        BlackBox blackBox;
 
         void Awake()
         {
@@ -67,6 +68,8 @@ namespace KerbalNews.KSP
             Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? Names.Of(FlightGlobals.ActiveVessel) : null;
             collector = new EventCollector(() => HasGame ? Engine : null);
             collector.Register();
+            blackBox = new BlackBox(() => HasGame ? Engine : null);
+            blackBox.Register();
             GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);
             ScanMods(true);
             Debug.Log("[KerbalNews] Kerbal News Network loaded");
@@ -76,6 +79,7 @@ namespace KerbalNews.KSP
         {
             if (Instance != this) return;
             collector.Unregister();
+            if (blackBox != null) blackBox.Unregister();
             GameEvents.onGameSceneLoadRequested.Remove(OnSceneRequested);
             Instance = null;
         }
@@ -134,6 +138,7 @@ namespace KerbalNews.KSP
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
+            if (HighLogic.LoadedSceneIsFlight && blackBox != null) blackBox.Update();
             try
             {
                 // Four times a second is plenty for news; checking every frame only costs frame time.

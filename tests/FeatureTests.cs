@@ -452,18 +452,21 @@ public static class FeatureTests
         snap.Node = null; snap.VesselId = "v9"; snap.Vessel = "Lark I"; snap.Situation = "flying in Kerbin's atmosphere"; snap.Altitude = 9000; snap.Speed = 480;
         eng.EngRecord(snap, Day + 10);
         eng.EngRecord(snap, Day + 14);
+        eng.BlackBoxSample("v9", "T14.5: flying, alt 8900 m, speed 470 m/s, pitch -40°, ctrl pitch +0.00 yaw +1.00 roll +0.00, input pitch +0.00 yaw +1.00 roll +0.00, SAS off");
         var e = CoreTests.Ev(EventTypes.Failure, Day + 15, "v9", "Kerbin"); e.VesselName = "Lark I"; e.Detail = "The vessel was destroyed in flight at about 9 km.";
         eng.Ingest(e);
+        eng.BlackBoxEvent("v9", "T15.0: Mk1 Command Pod hit the ground at 470 m/s", Day + 15);
+        Assert(s.Incidents[0].Samples.Count == 1 && s.Incidents[0].Events.Count == 1, "the flight recorder and part events join the incident");
         Assert(s.Incidents.Count == 1 && s.Incidents[0].Telemetry.Count == 2 && s.Incidents[0].Status == "open" && inv == 0, "incident opened without an AI call");
         Assert(sites.Render("engineering.kb").Html.Contains("Investigate"), "incident listed");
         sites.Handle("action:eng-investigate/" + s.Incidents[0].Id, null);
-        Assert(inv == 1 && body.Contains("480 m/s") && s.Incidents[0].Cause.Contains("fins"), "investigation used the flight data");
+        Assert(inv == 1 && body.Contains("480 m/s") && body.Contains("yaw +1.00") && body.Contains("hit the ground") && body.Contains("Never invent") && s.Incidents[0].Cause.Contains("fins"), "investigation used the flight data");
         Assert(eng.IncidentText().Contains("internal"), "assistant sees internal findings");
         sites.Handle("action:eng-share/" + s.Incidents[0].Id, null);
         Assert(s.Releases.Count == 1 && s.Releases[0].Type == "incident" && s.Releases[0].Body.Contains("aerodynamic upset") && s.Incidents[0].ReleaseId != "", "findings shared as a press release");
         var n = new DataNode("K"); s.Save(n);
         var back = NewsState.Load(n);
-        Assert(back.Incidents.Count == 1 && back.Incidents[0].Cause == s.Incidents[0].Cause && back.Incidents[0].Telemetry.Count == 2 && back.EngMission == "land on Minmus and come back", "incidents and mission are saved");
+        Assert(back.Incidents.Count == 1 && back.Incidents[0].Cause == s.Incidents[0].Cause && back.Incidents[0].Telemetry.Count == 2 && back.Incidents[0].Samples.Count == 1 && back.Incidents[0].Events.Count == 1 && back.EngMission == "land on Minmus and come back", "incidents and mission are saved");
     }
 
     public static void TestTimeWarpHoldsCallsAndCatchesUpInOneRoundup()

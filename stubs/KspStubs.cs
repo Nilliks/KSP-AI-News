@@ -44,7 +44,7 @@ namespace UnityEngine
     public class Transform : Component { public Vector3 position; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
     public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } }
     public struct Bounds { public Vector3 size, max, min, center; }
-    public struct Vector3 { public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
+    public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
     {
         public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero;
@@ -194,7 +194,7 @@ public class ConfigNode
 public interface IDateTimeFormatter { int Day { get; } int Year { get; } }
 public static class KSPUtil { public static IDateTimeFormatter dateTimeFormatter; public static string ApplicationRootPath; }
 
-public class EventReport { public string sender; public Part origin; public string msg; }
+public class EventReport { public string sender, other; public Part origin; public string msg; }
 
 public class EventVoid { public void Add(Callback c) { } public void Remove(Callback c) { } }
 public class EventData<T> { public delegate void OnEvent(T data); public void Add(OnEvent e) { } public void Remove(OnEvent e) { } public void Fire(T d) { } }
@@ -214,6 +214,8 @@ public static class GameEvents
     public static EventData<Vessel> onVesselWillDestroy;
     public static EventData<Part> onPartDie;
     public static EventData<int> onStageActivate;
+    public static EventData<EventReport> onCrash, onCrashSplashdown, onOverheat;
+    public static EventData<PartJoint, float> onPartJointBreak;
     public static EventData<ProtoVessel, bool> onVesselRecovered;
     public static EventData<ProtoVessel, KSP.UI.Screens.MissionRecoveryDialog, float> onVesselRecoveryProcessing;
     public static EventData<ProtoVessel> onVesselTerminated;
@@ -261,6 +263,7 @@ public struct Vector3d
     public static double Angle(Vector3d a, Vector3d b) { return 0; }
     public Vector3d normalized { get { return this; } }
     public double magnitude { get { return 0; } }
+    public static Vector3d Exclude(Vector3d a, Vector3d b) { return b; }
     public static Vector3d operator +(Vector3d a, Vector3d b) { return a; } public static Vector3d operator -(Vector3d a, Vector3d b) { return a; }
     public static Vector3d operator *(Vector3d a, double d) { return a; } public static Vector3d operator /(Vector3d a, double d) { return a; }
     public static Vector3d Cross(Vector3d a, Vector3d b) { return a; } public static double Dot(Vector3d a, Vector3d b) { return 0; }
@@ -312,7 +315,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public Orbit orbit;
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
-    public PatchedConicSolver patchedConicSolver; public double verticalSpeed;
+    public PatchedConicSolver patchedConicSolver; public double verticalSpeed, radarAltitude, dynamicPressurekPa; public Vector3d upAxis, srf_velocity; public UnityEngine.Vector3 angularVelocity; public UnityEngine.Transform ReferenceTransform; public ActionGroupList ActionGroups; public VesselAutopilot Autopilot;
     public float GetTotalMass() { return 0; }
     public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }
@@ -324,6 +327,7 @@ public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
 public class AvailablePart { public string title, name; }
+public class PartJoint { public Part Host, Child, Parent; }
 public class ManeuverNode { public Vector3d DeltaV; public double UT; public Orbit nextPatch; public void RemoveSelf() { } }
 public class PatchedConicSolver { public List<ManeuverNode> maneuverNodes; public ManeuverNode AddManeuverNode(double ut) { return null; } public void UpdateFlightPlan() { } }
 public class PartModuleList : IEnumerable<PartModule> { public IEnumerator<PartModule> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); } }
@@ -354,7 +358,7 @@ public class GameParameters { }
 public enum SaveMode { OVERWRITE, APPEND, ABORT }
 public static class GamePersistence { public static string SaveGame(Game g, string file, string folder, SaveMode m) { return ""; } }
 public class VesselCrewManifest { public static VesselCrewManifest FromConfigNode(ConfigNode n) { return null; } }
-public class FlightCtrlState { public float mainThrottle; }
+public class FlightCtrlState { public float mainThrottle, pitch, yaw, roll; }
 public delegate void FlightInputCallback(FlightCtrlState st);
 public static class FlightInputHandler { public static FlightCtrlState state; }
 public static class HighLogic
@@ -395,3 +399,7 @@ namespace KSP.Localization
 {
     public static class Localizer { public static string Format(string s, params object[] args) { return s; } }
 }
+
+public enum KSPActionGroup { None, SAS, RCS }
+public class ActionGroupList { public bool this[KSPActionGroup g] { get { return false; } } }
+public class VesselAutopilot { public enum AutopilotMode { StabilityAssist, Prograde } public AutopilotMode Mode; }
