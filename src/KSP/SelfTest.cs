@@ -92,6 +92,7 @@ namespace KerbalNews.KSP
             br.ScrollTo(1);
             yield return Shot("article-bottom");
             yield return UiCheck(br, Sites.ArticleUrl(top));
+            yield return ScienceCheck(sys, br, now);
 
             // Actions: reply anonymously, vote, see the community answer (offline templates, no AI).
             g.OfflineMode = true;

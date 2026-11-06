@@ -1,0 +1,60 @@
+<html><body>
+{{> netbar}}
+<div class="head"><h1>Science Office</h1><p>Your scientists read what your experiments bring home. You decide what the world hears.</p></div>
+{{> _tabs}}
+<div class="wrap sci">
+{{#result}}<p class="note">{{result}}</p>{{/result}}
+{{#offline}}<p class="warn">Offline mode: the team writes short template notes. Turn on the AI connection in <a href="settings.kb">Settings</a> for real interpretations.</p>{{/offline}}
+<div class="cols">
+<div class="main">
+  <div class="filters">
+    <a class="f{{#is_waiting}} on{{/is_waiting}}" href="agency.kb/science">Waiting ({{countWaiting}})</a>
+    <a class="f{{#is_interpreted}} on{{/is_interpreted}}" href="agency.kb/science/interpreted">Interpreted ({{countInterpreted}})</a>
+    <a class="f{{#is_published}} on{{/is_published}}" href="agency.kb/science/published">Published ({{countPublished}})</a>
+    <a class="f{{#is_all}} on{{/is_all}}" href="agency.kb/science/all">All</a>
+  </div>
+  {{#bodies.0}}<p class="small bodies">Body: <a href="action:sci-body/" class="{{#allBodies}}b{{/allBodies}}">All</a>{{#bodies}} &middot; <a href="{{url}}" class="{{#on}}b{{/on}}">{{name}}</a>{{/bodies}}</p>{{/bodies.0}}
+  {{#noScience}}<p class="hint">No science yet. Results appear here when experiment data is transmitted or a craft carrying data is recovered.</p>{{/noScience}}
+  {{^noScience}}{{#empty}}<p class="hint">Nothing in this list.</p>{{/empty}}{{/noScience}}
+  {{#results}}
+  <div class="res{{#interpreted}} done{{/interpreted}}{{#internal}} done{{/internal}}{{#published}} pub{{/published}}">
+    <p class="rt"><b>{{title}}</b>
+      {{#waiting}}<span class="pill wait">WAITING</span>{{/waiting}}{{#interpreted}}<span class="pill ok">INTERPRETED</span>{{/interpreted}}{{#internal}}<span class="pill grey">INTERNAL</span>{{/internal}}{{#published}}<span class="pill grey">PUBLISHED</span>{{/published}}
+      {{#first}}<span class="pill navy">{{firstLabel}}</span>{{/first}}{{#partial}}<span class="pill sand">{{partialLabel}}</span>{{/partial}}</p>
+    <p class="line">{{line}}</p>
+    {{#resultText}}<p class="log">Game log: "{{resultText}}"</p>{{/resultText}}
+    {{#waiting}}<p class="acts"><a class="tick" href="{{pickUrl}}">{{#picked}}[x]{{/picked}}{{^picked}}[ ]{{/picked}} include in the next review</a><span class="spacer"></span><a class="btn" href="{{askUrl}}">Ask the science team</a></p>{{/waiting}}
+    {{#finding}}
+    <div class="find">
+      <p class="who"><b>{{scientist}}</b>, {{field}} &middot; confidence: {{confidence}} &middot; importance: {{importance}} of 5{{#offline}} &middot; template note{{/offline}}</p>
+      <p class="ft">{{title}}</p>
+      {{#question}}<p class="small">You asked: {{question}}</p>{{/question}}
+      <p><b>Finding.</b> {{text}}</p>
+      {{#unknowns}}<p><b>What we can't say yet.</b> {{unknowns}}</p>{{/unknowns}}
+      {{#next}}<p><b>Suggested next step.</b> {{next}}</p>{{/next}}
+    </div>
+    {{#canPublish}}<p class="acts"><a class="btn" href="{{journalUrl}}">Publish in the journal</a><a class="btn2" href="{{pressUrl}}">Give it to the press</a><a class="btn2" href="{{internalUrl}}">Keep internal</a></p>
+    <p class="small">Journal: a few days of peer review, trusted, and notable papers make the news. Press: out tomorrow, wider reach, simplified and sometimes overhyped.</p>{{/canPublish}}
+    {{/finding}}
+    {{#pubLine}}<p class="small">{{#pubUrl}}<a href="{{pubUrl}}">{{pubLine}}</a>{{/pubUrl}}{{^pubUrl}}{{pubLine}}{{/pubUrl}}</p>{{/pubLine}}
+  </div>
+  {{/results}}
+</div>
+<div class="side">
+  <div class="box">
+    <h3>Review the ticked results</h3>
+    <p class="small">{{picked}} ticked. The team reads them together and writes one interpretation each, in one AI call.</p>
+    <label>Anything you want them to look for? (optional)</label>
+    <textarea name="sciq" placeholder="e.g. Is there anything that could be water ice?"></textarea>
+    <p class="acts">{{#busy}}<span class="status">The team is working on it...</span>{{/busy}}{{^busy}}<button class="btn" data-action="sci-ask">Ask the science team</button>{{/busy}}</p>
+  </div>
+  <div class="box">
+    <h3>The science team</h3>
+    {{#team}}<p class="small"><b>{{name}}</b> &middot; {{field}}</p>{{/team}}
+    <p class="small hint">They remember earlier findings, so later results build on earlier ones.</p>
+  </div>
+  {{#kerbalism}}<div class="box sand"><p class="small"><b>Kerbalism detected.</b> Experiments run over time and send data in parts; the team can give a first read before it is all in.</p></div>{{/kerbalism}}
+</div>
+</div>
+</div>
+</body></html>

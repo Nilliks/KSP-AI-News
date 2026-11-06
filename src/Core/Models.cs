@@ -731,6 +731,7 @@ namespace KerbalNews
         public Dictionary<string, CrewFame> Crew = new Dictionary<string, CrewFame>();
         /// <summary>Science results that reached Kerbin, for the journal.</summary>
         public List<ScienceResult> Science = new List<ScienceResult>();
+        public List<ScienceFinding> Findings = new List<ScienceFinding>();
         /// <summary>Kerbals booked for interviews and briefings.</summary>
         public List<CrewAppearance> Appearances = new List<CrewAppearance>();
         /// <summary>The engineering team's group chat and what they remember about the director's plans.</summary>
@@ -887,6 +888,7 @@ namespace KerbalNews
             foreach (var ap in Appearances.Skip(Math.Max(0, Appearances.Count - 60))) ap.Save(aps.AddNode("APPEARANCE"));
             var sci = n.AddNode("SCIENCE");
             foreach (var r in Science) r.Save(sci.AddNode("RESULT"));
+            foreach (var f in Findings.Skip(Math.Max(0, Findings.Count - 300))) f.Save(sci.AddNode("FINDING"));
             var crew = n.AddNode("CREW");
             foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
             foreach (var a in Anniversaries) n.Add("anniversary", a);
@@ -992,6 +994,7 @@ namespace KerbalNews
             if (apNode != null) foreach (var an2 in apNode.GetNodes("APPEARANCE")) s.Appearances.Add(CrewAppearance.Load(an2));
             var sciNode = n.GetNode("SCIENCE");
             if (sciNode != null) foreach (var rn in sciNode.GetNodes("RESULT")) s.Science.Add(ScienceResult.Load(rn));
+            if (sciNode != null) foreach (var fn in sciNode.GetNodes("FINDING")) s.Findings.Add(ScienceFinding.Load(fn));
             var crewNode = n.GetNode("CREW");
             if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
             foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);

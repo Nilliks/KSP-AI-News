@@ -43,3 +43,34 @@ h2 { margin-top: 18px; font-size: 20px; color: #1f3b5a; }
 .tag.red { background: #a3201c; }
 .amt { font-weight: bold; color: #a3201c; }
 .amt.plus { color: #2f7d32; }
+.sci .cols { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.sci .main { flex: 3; min-width: 420px; }
+.sci .side { flex: 1; min-width: 240px; }
+.sci .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sci .f { background: #ffffff; color: #1f3b5a; padding: 6px 12px; border: 1px solid #c9c2b2; }
+.sci .f.on { background: #1f3b5a; color: #ffffff; }
+.sci .bodies .b { font-weight: bold; }
+.sci .res { background: #ffffff; padding: 10px 14px; margin-bottom: 10px; }
+.sci .res.done { border-top: 4px solid #2f6f4f; }
+.sci .res.pub { border-top: 4px solid #6b665c; }
+.sci .rt { font-size: 17px; margin-bottom: 4px; }
+.sci .pill { font-size: 11px; font-weight: bold; padding: 2px 7px; margin-left: 8px; }
+.sci .wait { background: #fff3cd; color: #6b4e00; }
+.sci .ok { background: #2f6f4f; color: #ffffff; }
+.sci .grey { background: #6b665c; color: #ffffff; }
+.sci .navy { background: #1f3b5a; color: #ffffff; }
+.sci .sand { background: #e6e0d2; color: #3d3a34; }
+.sci .line { font-size: 14px; color: #3d3a34; margin-bottom: 4px; }
+.sci .log { font-size: 14px; font-style: italic; color: #6b665c; margin-bottom: 4px; }
+.sci .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; margin-bottom: 4px; }
+.sci .btn { background: #1f3b5a; color: #ffffff; padding: 6px 12px; }
+.sci .btn2 { background: #ffffff; color: #1f3b5a; padding: 6px 12px; border: 1px solid #c9c2b2; }
+.sci .tick { font-size: 14px; }
+.sci .find { background: #f4f1ea; padding: 8px 12px; margin-top: 6px; }
+.sci .find p { margin-bottom: 4px; }
+.sci .who { font-size: 13px; color: #6b665c; }
+.sci .ft { font-weight: bold; font-size: 15px; }
+.sci .box { background: #ffffff; padding: 10px 14px; margin-bottom: 12px; }
+.sci .box.sand { background: #e6e0d2; }
+.sci .box h3 { font-size: 16px; color: #1f3b5a; margin-bottom: 6px; }
+.sci .note { background: #e8f1ea; color: #1f4d33; padding: 8px 12px; }

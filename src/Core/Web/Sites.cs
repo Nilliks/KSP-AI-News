@@ -114,6 +114,7 @@ namespace KerbalNews.Web
                             if (path == "assistant") return Page(url, "agency", "assistant.html", AssistantModel(), "Assistant", false);
                             if (path == "ledger") return Page(url, "agency", "ledger.html", LedgerModel(), "Paper trail", false);
                             if (path == "mods") return Page(url, "agency", "mods.html", ModsModel(), "Mods", false);
+                            if (path == "science" || path.StartsWith("science/")) return Page(url, "agency", "science.html", ScienceModel(path.Length > 8 ? path.Substring(8) : ""), "Science Office", false);
                             return Page(url, "agency", "index.html", AgencyModel(), "Agency profile", false);
                         case "settings": return Page(url, "settings", "index.html", SettingsModel(), "Settings", false);
                         case "telemetry": return Page(url, "telemetry", "index.html", TelemetryModel(), "Telemetry sharing", false);

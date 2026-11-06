@@ -616,6 +616,58 @@ public static class FeatureTests
         Assert(s.Social[0].Text == "Kerbal 2 looked incredible today!" && s.Articles[0].Headline == "Kerbal 2 reaches space" && s.Stories[0].Events[0].VesselName == "Kerbal 2", "tags replaced with the craft name on load");
     }
 
+    public static void TestScienceOfficeInterpretsAndPublishes()
+    {
+        // Offline: template notes, then a journal paper with news pickup for a first from the Mun.
+        var s = new NewsState();
+        var eng = new NewsEngine(s, new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        string dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new KerbalNews.Web.Sites(eng, rel => { var p = System.IO.Path.Combine(dir, rel); return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null; });
+        double now = 100;
+        sites.Now = () => now;
+        Assert(sites.Render("agency.kb/science").Html.Contains("No science yet"), "empty office explains itself");
+        var mun = eng.RecordScience(new ScienceResult { UT = 50, SubjectId = "surfaceSample@MunSrfLandedMidlands", Title = "Surface Sample from Mun Midlands", Experiment = "surfaceSample", Body = "Mun", Situation = "SrfLanded", Biome = "Midlands",
+            Amount = 61.2, Completion = 1, VesselId = "v1", VesselName = "Mun Lander I", ResultText = "This sample is mostly regolith, a fine grey dust with a few glassy beads." });
+        mun.Crew.Add("Jebediah Kerman");
+        eng.RecordScience(new ScienceResult { UT = 60, SubjectId = "temperatureScan@KerbinSrfLandedLaunchPad", Title = "Temperature Scan from LaunchPad", Experiment = "temperatureScan", Body = "Kerbin", Situation = "SrfLanded", Biome = "LaunchPad", Amount = 0.3, Completion = 1, VesselId = "v2" });
+        var page = sites.Render("agency.kb/science").Html;
+        Assert(page.Contains("Surface Sample from Mun Midlands") && page.Contains("FIRST FROM MUN") && page.Contains("fine grey dust") && page.Contains("Waiting (2)"), "results waiting with the game's text");
+        string key = NewsEngine.ResultKey(mun);
+        sites.Handle("action:sci-pick/" + Uri.EscapeDataString(key), null);
+        Assert(sites.Render("agency.kb/science").Html.Contains("[x] include"), "ticked");
+        sites.Handle("action:sci-ask", new Dictionary<string, string> { { "sciq", "Any ice?" } });
+        var f = s.Findings.Single();
+        Assert(f.Scientist == "Dr. Linmy Kerman" && f.Importance >= 4 && f.Finding.Contains("fine grey dust") && f.Question == "Any ice?", "offline note by the geologist: " + f.Scientist + " " + f.Importance);
+        Assert(sites.Render("agency.kb/science/interpreted").Html.Contains("Publish in the journal"), "interpreted list offers publishing");
+        sites.Handle("action:sci-publish/" + f.Id + "|journal", null);
+        var paper = s.Articles.Single(a => a.Kind == "paper");
+        Assert(paper.Outlet == "science" && paper.PublishedUT > now + 2 * 21600 && paper.Body.Contains("Limits."), "paper in peer review for a few days");
+        Assert(s.Stories.Any(st => st.Kind == "tip" && st.FillerOutlet.Contains("herald") && st.PublishUT > paper.PublishedUT), "a first from the Mun makes the news after the paper");
+        Assert(!eng.SciPublish(f.Id, "press", now), "a finding is published once");
+        Assert(sites.Render("agency.kb/science/published").Html.Contains("In peer review"), "published list shows peer review");
+        now = paper.PublishedUT + 1;
+        Assert(sites.Render("agency.kb/science/published").Html.Contains("Published in the Kerbin Science Review"), "then it is out");
+        var art = sites.Render(KerbalNews.Web.Sites.ArticleUrl(paper));
+        Assert(art.Html.Contains(paper.Headline.Substring(0, 10)) && art.Html.Contains("Abstract."), "the paper's page renders: " + art.Title);
+        var n = new DataNode("KERBALNEWS"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.Findings.Count == 1 && back.Findings[0].Status == "journal" && back.Science.Any(r => r.ResultText.Contains("glassy")), "findings and result text survive a save");
+
+        // Online: one call for several results, findings parsed in order; press path makes a release.
+        string sent = null;
+        var t = new CoreTests.FakeTransport { Responder = r => { sent = r.Body; return Reply("{\"findings\":[{\"result\":1,\"scientist\":\"Bobak Kerman\",\"title\":\"Pad heat check\",\"finding\":\"Normal pad temperature.\",\"unknowns\":\"None.\",\"next_step\":\"Nothing.\",\"confidence\":\"high\",\"importance\":1}]}"); } };
+        var s2 = new NewsState();
+        var eng2 = new NewsEngine(s2, CoreTests.OnlineSettings(), t, new SimpleClock(21600));
+        eng2.Tick(0, 0, true);
+        var pad = eng2.RecordScience(new ScienceResult { UT = 60, SubjectId = "temperatureScan@KerbinSrfLandedLaunchPad", Title = "Temperature Scan from LaunchPad", Experiment = "temperatureScan", Body = "Kerbin", Situation = "SrfLanded", Amount = 0.3, Completion = 1, VesselId = "v2", ResultText = "Warm." });
+        Assert(eng2.SciAnalyse(new[] { NewsEngine.ResultKey(pad) }, "", 100), "asked");
+        Assert(sent != null && sent.Contains("Warm.") && sent.Contains("result text"), "the prompt carries the game's result text");
+        var f2 = s2.Findings.Single();
+        Assert(f2.Scientist == "Dr. Bobak Kerman" && f2.Title == "Pad heat check" && f2.Confidence == "high" && f2.Importance == 1, "AI finding parsed");
+        Assert(eng2.SciPublish(f2.Id, "press", 100) && s2.Releases.Any(r => r.Title.Contains("Pad heat check")), "press path issues a release");
+    }
+
     public static void TestLaunchCountdownHoldRecycleScrubAndChat()
     {
         var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));

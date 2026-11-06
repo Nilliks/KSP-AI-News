@@ -265,6 +265,45 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>Wheel scrolling, the scrollbar and resizing from the edges and corners.</summary>
+        /// <summary>Science Office: a demo result from the Mun, the team's reading (AI when a key is set), then a journal paper.</summary>
+        IEnumerator ScienceCheck(NewsSystem sys, Browser br, double now)
+        {
+            var eng = sys.Engine;
+            var r = eng.RecordScience(new ScienceResult { UT = now - 600, SubjectId = "surfaceSample@MunSrfLandedMidlands", Title = "Surface Sample from Mun Midlands", Experiment = "surfaceSample", Body = "Mun", Situation = "SrfLanded", Biome = "Midlands",
+                Amount = 61.2, Completion = 1, VesselId = "demo1", VesselName = "Mun Lander I", ResultText = "This sample is mostly regolith, a fine grey dust with a few glassy beads mixed in." });
+            if (r != null && r.Crew.Count == 0) r.Crew.Add("Jebediah Kerman");
+            Log("  science: Kerbalism detected = " + eng.KerbalismScience + ", AI = " + eng.Settings.CanCallAi);
+            yield return Go("agency.kb/science");
+            yield return Shot("science-waiting");
+            string key = NewsEngine.ResultKey(r);
+            br.Act("action:sci-pick/" + Uri.EscapeDataString(key), null);
+            br.Act("action:sci-ask", new System.Collections.Generic.Dictionary<string, string> { { "sciq", "Could any of this be water ice?" } });
+            float t0 = Time.realtimeSinceStartup;
+            while (eng.FindingFor(r) == null && Time.realtimeSinceStartup - t0 < 90) yield return new WaitForSeconds(0.5f);
+            var f = eng.FindingFor(r);
+            Check(f != null, "science: the team interpreted the Mun sample" + (f != null ? " (" + f.Scientist + ", importance " + f.Importance + ", " + (f.Offline ? "template" : "AI") + "): " + f.Title : ", last error: " + eng.LastError));
+            if (f == null) yield break;
+            Log("  science finding: " + f.Finding);
+            Log("  science unknowns: " + f.Unknowns + " | next: " + f.NextStep);
+            yield return Go("agency.kb/science/interpreted");
+            yield return Shot("science-interpreted");
+            br.Act("action:sci-publish/" + f.Id + "|journal", null);
+            Check(f.Status == "journal" && eng.State.Articles.Any(a => a.Id == f.ArticleId), "science: finding sent to the Kerbin Science Review");
+            var paper = eng.State.Articles.FirstOrDefault(a => a.Id == f.ArticleId);
+            if (paper != null)
+            {
+                var oldNow = sys.Sites.Now;
+                double later = paper.PublishedUT + 60;
+                sys.Sites.Now = () => later;
+                yield return Go(Sites.ArticleUrl(paper));
+                yield return Shot("science-paper");
+                Check(br.CurrentPage != null && br.CurrentPage.Title.Contains(paper.Headline.Substring(0, Math.Min(12, paper.Headline.Length))), "science: the paper's page opens: " + (br.CurrentPage != null ? br.CurrentPage.Title : ""));
+                sys.Sites.Now = oldNow;
+            }
+            yield return Go("agency.kb/science/published");
+            yield return Shot("science-published");
+        }
+
         IEnumerator UiCheck(Browser br, string url)
         {
             br.Open(url);
