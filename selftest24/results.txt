@@ -1,0 +1,119 @@
+PASS demo news built: 19 articles, 4 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 2300, 129 paragraphs, 67 links, 1 fields
+PASS kerbalnews.kb text fits its boxes
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2771, 193 paragraphs, 87 links, 2 fields
+PASS herald.kb/article/a2 text fits its boxes
+PASS kerbnet.kb -> "Kerbnet" height 2709, 149 paragraphs, 42 links, 0 fields
+PASS kerbnet.kb text fits its boxes
+PASS snackboard.kb -> "Snackboard" height 717, 70 paragraphs, 49 links, 0 fields
+PASS snackboard.kb text fits its boxes
+PASS snackboard.kb/t/t198 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 841, 79 paragraphs, 45 links, 2 fields
+PASS snackboard.kb/t/t198 text fits its boxes
+PASS snackboard.kb/submit -> "New post - Snackboard" height 764, 60 paragraphs, 39 links, 4 fields
+PASS snackboard.kb/submit text fits its boxes
+PASS tracker.kb -> "Universe tracker" height 577, 40 paragraphs, 19 links, 0 fields
+PASS tracker.kb text fits its boxes
+PASS agency.kb -> "Agency profile" height 1517, 54 paragraphs, 37 links, 10 fields
+PASS agency.kb text fits its boxes
+PASS agency.kb/assistant -> "Assistant" height 736, 38 paragraphs, 33 links, 2 fields
+PASS agency.kb/assistant text fits its boxes
+PASS agency.kb/ledger -> "Paper trail" height 224, 26 paragraphs, 24 links, 0 fields
+PASS agency.kb/ledger text fits its boxes
+PASS agency.kb/mods -> "Mods" height 13243, 476 paragraphs, 174 links, 148 fields
+PASS agency.kb/mods text fits its boxes
+PASS engineering.kb -> "KSC Engineering" height 322, 41 paragraphs, 27 links, 2 fields
+PASS engineering.kb text fits its boxes
+PASS settings.kb -> "Settings" height 3407, 167 paragraphs, 109 links, 8 fields
+PASS settings.kb text fits its boxes
+PASS telemetry.kb -> "Telemetry sharing" height 366, 34 paragraphs, 23 links, 0 fields
+PASS telemetry.kb text fits its boxes
+PASS kerbalnews.kb/search?q=mun -> "Search" height 717, 43 paragraphs, 27 links, 1 fields
+PASS kerbalnews.kb/search?q=mun text fits its boxes
+PASS kerbalnews.kb/polls -> "Polls" height 366, 31 paragraphs, 19 links, 0 fields
+PASS kerbalnews.kb/polls text fits its boxes
+PASS pressroom.kb -> "Press room" height 759, 48 paragraphs, 34 links, 2 fields
+PASS pressroom.kb text fits its boxes
+PASS gallery.kb -> "Gallery" height 759, 31 paragraphs, 22 links, 0 fields
+PASS gallery.kb text fits its boxes
+PASS live.kb -> "Live" height 233, 23 paragraphs, 19 links, 0 fields
+PASS live.kb text fits its boxes
+PASS dailykraken.kb/article/a5 -> "You won't BELIEVE what really happened when crew lands on Mun - The Daily Kraken" height 2304, 146 paragraphs, 66 links, 2 fields
+PASS dailykraken.kb/article/a5 text fits its boxes
+PASS herald.kb -> "Kerbin Daily Herald" height 394, 36 paragraphs, 23 links, 0 fields
+PASS herald.kb text fits its boxes
+PASS orbitalobserver.kb -> "Orbital Observer" height 238, 28 paragraphs, 22 links, 0 fields
+PASS orbitalobserver.kb text fits its boxes
+PASS inquirer.kb -> "The Kerbal Inquirer" height 382, 27 paragraphs, 22 links, 0 fields
+PASS inquirer.kb text fits its boxes
+PASS dailykraken.kb -> "The Daily Kraken" height 624, 35 paragraphs, 22 links, 0 fields
+PASS dailykraken.kb text fits its boxes
+PASS munmonthly.kb -> "Mun Monthly" height 357, 24 paragraphs, 20 links, 0 fields
+PASS munmonthly.kb text fits its boxes
+PASS kscwatch.kb -> "KSC Watch" height 374, 35 paragraphs, 23 links, 0 fields
+PASS kscwatch.kb text fits its boxes
+PASS kscireview.kb -> "Kerbin Science Review" height 271, 25 paragraphs, 20 links, 0 fields
+PASS kscireview.kb text fits its boxes
+PASS council.gov.kb -> "Planetary Council Press Office" height 261, 25 paragraphs, 20 links, 0 fields
+PASS council.gov.kb text fits its boxes
+PASS ui: three wheel notches scroll 330 units down
+PASS ui: scrollbar follows (1.00 -> 0.80)
+PASS ui: notches in a row add up (550)
+PASS ui: scrolling up stops at the top (0)
+PASS ui: top-left corner resizes and moves the window (2011 -> 2111 wide)
+PASS ui: the page re-flows to the new width (1985 -> 2085)
+PASS ui: the window stops at its smallest size (520 x 360)
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t209
+PASS A+ makes the page bigger, not the window: zoom 1.0 -> 1.1
+  new game via Game CreateNewGame(System.String, Modes, GameParameters, System.String, GameScenes, EditorFacility), 27 scenarios
+PASS flight: test save KerbalNewsSelfTest reached the space center
+  test craft without 3 launch clamps: C:/Program Files (x86)/Steam/steamapps/common/Kerbal Space Program/KSP_x64_Data/../saves/KerbalNewsSelfTest/Ships/VAB/KerbalNewsSelfTest.craft
+  scenarios in the test save: ROCScenario, AlarmClockScenario, PartUpgradeManager, ResourceScenario, ProgressTracking, VesselRecovery, KerbalInventoryScenario, ScenarioAchievements, ScenarioCustomWaypoints, ScenarioDestructibles, SentinelScenario, CommNetScenario, DeployedScience, DiscoverableObjects, Kerbalism, KerbalKonstructsSettings, NewsScenario, InterVesselManager, KPBSScenario, UnloadedResources, DeepFreeze, SCANcontroller, SpaceDustScenario, Trajectories, GroundBlastFxScenario
+PASS flight: Kerbal X on the pad
+PASS flight: live stream started for Kerbal X
+PASS flight: press photo of the craft on the pad
+  before staging: packed False, paused False, timeScale 1.00, warp 1.0, ctrlState throttle 1.00
+  staged (1), now stage 7, situation PRELAUNCH, speed 0.0, throttle 1.00/1.00, packed False, timeScale 1.00
+  craft moving after 1 staging(s), 0.4 s, situation PRELAUNCH
+    engine liquidEngine2-2.v2: ignited False, flameout False, throttle 0.00 (requested 0, independent True), thrust 0.0 kN, Off
+    engine liquidEngineMainsail.v2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 1381.0 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+PASS flight: Kerbal X left the pad (1 stagings, situation FLYING, altitude 8663 m)
+PASS flight: liftoff photo
+PASS flight: ascent photo
+PASS flight: stream chat has 58 viewer messages, 5980 viewers
+PASS flight: liftoff shown on stream: stage 7 activated; liftoff; the broadcast cut to the onboard hull cameras
+PASS flight: stream video rendered
+  camera cut 342.1s Hull camera: looking aft (alt 121 m, nearest ground camera 4.9 km)
+  camera cut 355.4s Hull camera: horizon (alt 1105 m, nearest ground camera 5.0 km)
+  camera cut 366.7s Hull camera: looking up (alt 2942 m, nearest ground camera 5.6 km)
+  camera cut 376.2s Hull camera: horizon (alt 5263 m, nearest ground camera 6.9 km)
+  camera cut 385.8s Hull camera: looking aft (alt 8063 m, nearest ground camera 9.0 km)
+PASS flight: the stream cut between cameras 5 times
+FAIL flight: at least two ground cameras used: 
+PASS flight: camera name on the stream page: Hull camera: looking aft
+  camera cut 393.4s Hull camera: looking up (alt 10746 m, nearest ground camera 11.3 km)
+PASS flight: hull cameras used: 6
+PASS flight: the chat heard about the onboard cameras
+  chat orbital_ollie: altitude 91 m and holding, we are officially taller than the VAB door
+  chat JebsLeftBoot: wait stage 8 already? how many stages does this thing have
+  chat orbital_ollie: LETS GOOOO
+  chat JebsLeftBoot: 125 m and climbing, it's actually off the pad
+  chat mun_or_bust: hull cam is gorgeous, you can see the pad falling away
+  chat Tylo_Tina: 25 m/s now, accelerating cleanly
+  chat grid_fin_gary: 1.9 g on ascent, that's a gentle push, very by the book
+  chat SkepticalSid: wake me when it clears the tower
+PASS flight: a spotter posted a photo on Snackboard: Kerbal X is on the pad. Got a shot from the causeway
+  press photo pad: Hanbree Kerman for the KSC press pool, 350 mm from the roof of the KSC press site, 680 m from the pad
+  press photo liftoff: Hanbree Kerman for the KSC press pool, 300 mm from the roof of the KSC press site, 864 m from the pad
+  press photo ascent: Hanbree Kerman for Kerbin Daily Herald, 1450 mm from a field near the space center, about 6 km away
+  press photo ascent: Sigrid Kerman for The Daily Kraken, 1800 mm from a field near the space center, about 11 km away
+  press photo ascent: Gus Kerman for The Daily Kraken, 150 mm from a chase plane
+PASS flight: stream ended and archived
+1 FAILED
