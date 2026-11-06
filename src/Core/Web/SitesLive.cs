@@ -63,7 +63,7 @@ namespace KerbalNews.Web
                     Stat("Stage", t.Stage.ToString(LiveInv)), Stat("Fuel", t.FuelPct >= 0 ? t.FuelPct.ToString("0", LiveInv) + "%" : "-"),
                     Stat("G-force", t.G.ToString("0.0", LiveInv) + " g"), Stat("Status", t.Situation.ToLowerInvariant().Replace("_", " ") + " · " + t.Body),
                 };
-                double max = Math.Max(1, st.AltitudeTrace.DefaultIfEmpty(0).Max());
+                double max = Math.Max(2000, st.AltitudeTrace.DefaultIfEmpty(0).Max());   // a rocket sitting on the pad stays a flat line near the bottom
                 m["trace"] = st.AltitudeTrace.Skip(Math.Max(0, st.AltitudeTrace.Count - 60)).Select(a => (object)new Dictionary<string, object> { { "h", (2 + Math.Round(a / max * 70)).ToString(LiveInv) + "px" } }).ToList();
             }
             m["moments"] = st.Moments.AsEnumerable().Reverse().Take(6).Select(x => (object)x).ToList();

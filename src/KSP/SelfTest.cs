@@ -298,7 +298,7 @@ namespace KerbalNews.KSP
             Check(frameHashes.Distinct().Count() >= Math.Max(2, frameHashes.Count * 2 / 3), "flight: the stream video keeps changing (" + frameHashes.Distinct().Count() + " different of " + frameHashes.Count + " saved frames)");
             Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");
             Log("  chat can show Chinese: " + StreamChatStyle.CjkOk);
-            if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(40)) Log("  chat " + c.Author + ": " + c.Text);
+            if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Skip(Math.Max(0, st.Chat.Count(x => !x.System) - 60))) Log("  chat " + c.Author + ": " + c.Text);
             if (modeEng) yield return EngFlightCheck(sys, v);
             yield return Go("live.kb");
             yield return Shot("flight-live-ascent");
