@@ -282,6 +282,7 @@ namespace KerbalNews.KSP
             var hullUsed = StreamDriver.CutLog.Where(c => c.Contains("Hull camera") && !c.Contains(" skipped ")).ToList();
             foreach (var c in StreamDriver.CutLog.Skip(before)) Log("  camera cut " + c);
             Check(hullUsed.Count > 0, "flight: hull cameras used: " + hullUsed.Count);
+            Check(frameHashes.Distinct().Count() >= Math.Max(2, frameHashes.Count * 2 / 3), "flight: the stream video keeps changing (" + frameHashes.Distinct().Count() + " different of " + frameHashes.Count + " saved frames)");
             Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");
             Log("  chat can show Chinese: " + StreamChatStyle.CjkOk);
             if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(40)) Log("  chat " + c.Author + ": " + c.Text);
@@ -396,6 +397,8 @@ namespace KerbalNews.KSP
             yield return Shot(url.Replace("/", "_").Replace("?", "_").Replace("=", "_"));
         }
 
+        readonly System.Collections.Generic.List<long> frameHashes = new System.Collections.Generic.List<long>();
+
         /// <summary>Saves what the livestream video shows right now, as a JPG next to the screenshots.</summary>
         void SaveFrame(string name)
         {
@@ -408,6 +411,10 @@ namespace KerbalNews.KSP
                 var tex = new Texture2D(640, 360, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, 640, 360), 0, 0);
                 tex.Apply();
+                var px = tex.GetPixels32();
+                long h = 17;
+                for (int i = 0; i < px.Length; i += 211) h = h * 31 + px[i].r + px[i].g * 7 + px[i].b * 13;
+                frameHashes.Add(h);
                 File.WriteAllBytes(Path.Combine(outDir, (++shot).ToString("00") + "-" + name + ".jpg"), ImageConversion.EncodeToJPG(tex, 85));
                 Destroy(tex);
             }

@@ -126,6 +126,7 @@ namespace KerbalNews.KSP
         Shot shot;
         float shotUntil, lostSince = -1, liftoffAt = -1;
         int hullParts;
+        double trackStart;
 
         void DrawFrame(NewsEngine eng)
         {
@@ -134,7 +135,7 @@ namespace KerbalNews.KSP
             if (v == null) { PlayerView(); return; }
             float now = Time.realtimeSinceStartup;
             string id = v.persistentId.ToString();
-            if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; }
+            if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; trackStart = 0; }
             if (liftoffAt < 0 && liftedFor == id) liftoffAt = now;
             if (v.parts != null && v.parts.Count != hullParts) { hullParts = v.parts.Count; hullCams.Clear(); }   // staged or broke up
             if (hullCams.Count == 0) SetUpHull(v);
@@ -144,6 +145,7 @@ namespace KerbalNews.KSP
             if (!ok && shot != null && lostSince < 0) lostSince = now;
             if (ok) lostSince = -1;
             if (shot == null || now > shotUntil || (!ok && now - lostSince > 1.2f)) Cut(eng, v, now);
+            if (shot == null || !Render(shot, v, now)) { PlayerView(); return; }
             // A long lens through thick, low air can render almost pure white, and haze grows as the rocket climbs away,
             // so the picture is checked at the start of each shot and every second after. A shot nobody could watch is dropped.
             if (shot != checkedShot || now > nextCheck)
@@ -202,9 +204,12 @@ namespace KerbalNews.KSP
             var trackers = groundCams.Where(c => !c.Fixed).ToList();
             double far = trackers.Count == 0 ? 1e9 : trackers.Min(c => (Center(v) - CamPos(c, v)).magnitude);
             bool justLifted = liftoffAt >= 0 && now - liftoffAt < 20;
-            // Hull cameras take over between about 4 km and 8 km from the nearest tracker; past that the broadcast stays onboard.
-            double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.08
-                : Math.Max(0.15, Math.Min(1, (far - 4000) / 4000));
+            // Hull cameras take over as the rocket gets 1.5 to 6.5 km further from the trackers than it was on the pad;
+            // past that the broadcast stays onboard.
+            if (trackStart <= 0 && far < 1e8) trackStart = far;
+            double away = far - trackStart;
+            double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.05
+                : Math.Max(0.1, Math.Min(1, (away - 1500) / 5000));
             if (ground.Count == 0) hullOdds = 1;
             if (hull.Count == 0) hullOdds = 0;
             Shot next = null;
