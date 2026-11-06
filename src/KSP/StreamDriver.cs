@@ -139,6 +139,7 @@ namespace KerbalNews.KSP
             if (liftoffAt < 0 && liftedFor == id) liftoffAt = now;
             if (v.parts != null && v.parts.Count != hullParts) { hullParts = v.parts.Count; hullCams.Clear(); }   // staged or broke up
             if (hullCams.Count == 0) SetUpHull(v);
+            RetryTrackers(v, now);
 
             // Keep a shot the rocket has left for a moment, so it visibly flies out of frame before the cut.
             bool ok = shot != null && Usable(shot, v);
@@ -321,17 +322,20 @@ namespace KerbalNews.KSP
             AddGround(v, "Long range tracker", baseAt, east, north, 9000, 16000, 3, false, center, size, 0.15f);
         }
 
-        void AddGround(Vessel v, string name, Vector3d baseAt, Vector3d east, Vector3d north, double minD, double maxD, double height, bool fix, Vector3d aim, float size, float minFov)
+        bool AddGround(Vessel v, string name, Vector3d baseAt, Vector3d east, Vector3d north, double minD, double maxD, double height, bool fix, Vector3d aim, float size, float minFov)
         {
             var body = v.mainBody;
-            for (int i = 0; i < 12; i++)
+            // First look for a spot with nothing in the way at all; failing that, accept one where only buildings or the
+            // tower may hide the pad itself (the rocket climbs out above them within seconds).
+            for (int i = 0; i < 36; i++)
             {
                 double az = rng.NextDouble() * Math.PI * 2, dist = minD + rng.NextDouble() * (maxD - minD);
                 Vector3d spot = baseAt + (east * Math.Cos(az) + north * Math.Sin(az)) * dist;
                 double lat = body.GetLatitude(spot), lon = body.GetLongitude(spot);
                 double alt = Math.Max(0, body.TerrainAltitude(lat, lon, true)) + height;
                 Vector3d camAt = body.GetWorldSurfacePosition(lat, lon, alt);
-                if (!PressCamera.ClearView(body, camAt, aim, Math.Min(60, dist * 0.3))) continue;
+                bool strict = i < 24;
+                if (!PressCamera.ClearView(body, camAt, strict ? aim : aim + (aim - body.position).normalized * (size * 2), strict ? Math.Min(60, dist * 0.3) : dist)) continue;
                 var s = new Shot { Name = name, Ground = true, Fixed = fix, Tracking = !fix, Lat = lat, Lon = lon, Alt = alt, AimAt = aim - body.position, Fov = minFov };
                 if (fix)
                 {
@@ -340,8 +344,29 @@ namespace KerbalNews.KSP
                     s.Fov = Mathf.Clamp((float)(2 * Math.Atan(size * 1.6 / d) * 180 / Math.PI), 20f, 75f);
                 }
                 groundCams.Add(s);
-                return;
+                return true;
             }
+            Debug.Log("[KerbalNews] Stream: no clear spot for the " + name + " (" + minD.ToString("0") + "-" + maxD.ToString("0") + " m out)");
+            return false;
+        }
+
+        float nextTrackerTry;
+
+        /// <summary>Tracking cameras that could not be placed yet get another try every few seconds, while the craft is low.</summary>
+        void RetryTrackers(Vessel v, float now)
+        {
+            if (now < nextTrackerTry || groundCams.Count(c => !c.Fixed) >= 2 || v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody() || v.altitude > 20000) return;
+            nextTrackerTry = now + 5;
+            Vector3d center; float size;
+            PressCamera.Measure(v, out center, out size);
+            Vector3d up = (center - v.mainBody.position).normalized;
+            Vector3d east = Vector3d.Cross(up, new Vector3d(0, 1, 0));
+            if (east.magnitude < 0.1) east = Vector3d.Cross(up, new Vector3d(1, 0, 0));
+            east = east.normalized;
+            Vector3d north = Vector3d.Cross(east, up).normalized;
+            Vector3d baseAt = center - up * (size * 0.5);
+            if (!groundCams.Any(c => c.Name == "Tracking camera")) AddGround(v, "Tracking camera", baseAt, east, north, 3500, 7000, 3, false, center, size, 0.25f);
+            if (!groundCams.Any(c => c.Name == "Long range tracker")) AddGround(v, "Long range tracker", baseAt, east, north, 9000, 16000, 3, false, center, size, 0.15f);
         }
 
         /// <summary>

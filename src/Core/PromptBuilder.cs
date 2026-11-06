@@ -356,6 +356,10 @@ namespace KerbalNews
             var sb = new StringBuilder();
             sb.AppendLine("STREAM: " + st.VesselName + ", live for " + ((st.Last != null ? st.Last.UT : st.StartUT) - st.StartUT).ToString("0", Inv) + " seconds of mission time, about " + st.Viewers.ToString(Inv) + " viewers.");
             sb.AppendLine("PUBLIC MOOD: " + eng.State.Mood.Describe());
+            var tv = eng.Tracked(st.VesselId);
+            if (tv != null && tv.Craft != null)
+                sb.AppendLine("THE CRAFT (only these facts; viewers who guess other hardware are wrong and get corrected): " + tv.Craft.Parts + " parts, " + tv.Craft.Stages + " stages, " + tv.Craft.MassTons.ToString("0", Inv) + " t, engines: " + (tv.Craft.Engines != "" ? tv.Craft.Engines : "unknown") + (tv.Craft.Crew.Count > 0 ? ", crew: " + string.Join(", ", tv.Craft.Crew.ToArray()) : ", uncrewed") + ".");
+            sb.AppendLine("Chat lines appear over the next half minute, so most viewers do not quote exact telemetry numbers; when they do, use the numbers below.");
             if (st.Previous != null) sb.AppendLine("Telemetry " + (st.Last.UT - st.Previous.UT).ToString("0", Inv) + " s ago: " + st.Previous.Describe());
             if (st.Last != null) sb.AppendLine("Telemetry now: " + st.Last.Describe());
             if (moments.Count > 0) sb.AppendLine("Just happened on stream: " + string.Join("; ", moments.ToArray()) + ".");
