@@ -62,7 +62,7 @@ namespace KerbalNews
                 var t = new ForumThread
                 {
                     Board = failed || killed ? "general" : "launches",
-                    Title = (killed ? "Thread for " + vessel + ": thinking of the crew" : failed ? "What went wrong with " + vessel + "?" : vessel + " discussion thread"),
+                    Title = vessel == "" ? (killed ? "Thinking of the crew today" : failed ? "What went wrong today?" : "Today's launch discussion thread") : (killed ? "Thread for " + vessel + ": thinking of the crew" : failed ? "What went wrong with " + vessel + "?" : vessel + " discussion thread"),
                     Body = cov.Articles.Count > 0 ? cov.Articles[0].Subhead : "",
                     Author = who.Handle, Score = rng.Next(5, 20 + (int)story.Significance * 4),
                 };
@@ -330,7 +330,14 @@ namespace KerbalNews
             return Pick(r, "Great to see!", "What a time to be alive.", "Was that worth the money? Genuinely asking.", "Saw it from my back garden!", "Another one for the history books.", "Jeb would be proud.");
         }
 
+        // With no craft name, lines that name the craft are dropped instead of reading "a photo of ?".
         static string[] CannedSocial(string vessel, string agency, bool killed, bool failed)
+        {
+            if (vessel == "") return CannedSocialLines("\u0001", agency, killed, failed).Where(l => l.IndexOf('\u0001') < 0).ToArray();
+            return CannedSocialLines(vessel, agency, killed, failed);
+        }
+
+        static string[] CannedSocialLines(string vessel, string agency, bool killed, bool failed)
         {
             if (killed) return new[]
             {

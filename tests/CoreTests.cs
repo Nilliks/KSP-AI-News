@@ -386,6 +386,26 @@ public static class CoreTests
         Assert(s.Mood.Trust < 50, "trust fell");
     }
 
+    public static void TestOfflinePostsNeverLeaveABlankCraftName()
+    {
+        var s = new NewsState();
+        var eng = Engine(s, new FakeTransport { Responder = AnthropicReply }, new GlobalSettings { OfflineMode = true });
+        eng.Tick(0, 0, true);
+        var c = Craft(); c.VesselName = "";
+        eng.TrackLaunch("v1", c, 10);
+        foreach (var t in new[] { EventTypes.Launch, EventTypes.Failure, EventTypes.CrewKilled })
+        {
+            var e = Ev(t, 10, "v1", "Kerbin", "Jebediah Kerman"); e.VesselName = "";
+            eng.Ingest(e);
+        }
+        eng.Tick(Day * 3, 1, true);
+        Assert(s.Social.Count > 0, "still posts something");
+        foreach (var p in s.Social)
+            Assert(!p.Text.Contains(" ?") && !p.Text.StartsWith(" ") && !p.Text.Contains("  ") && !p.Text.Contains("the  "), "no blank name: '" + p.Text + "'");
+        foreach (var f in s.Forum)
+            Assert(!f.Title.StartsWith(" ") && !f.Title.Contains(" ?") && !f.Title.Contains(": "), "forum title reads: '" + f.Title + "'");
+    }
+
     public static void TestSmallEventsStayQuiet()
     {
         var s = new NewsState();

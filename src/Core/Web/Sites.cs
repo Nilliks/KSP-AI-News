@@ -402,12 +402,10 @@ namespace KerbalNews.Web
             var art = storyId != null ? State.Articles.FirstOrDefault(a => a.StoryId == storyId) : null;
             m["filterHeadline"] = art != null ? art.Headline : "";
             // Trending topics: the stories with the most chatter.
-            m["topics"] = State.Social.Where(p => p.UT <= Now()).GroupBy(p => p.StoryId).OrderByDescending(g => g.Sum(p => p.Likes)).Take(6)
-                .Select(g =>
-                {
-                    var a = State.Articles.FirstOrDefault(x => x.StoryId == g.Key);
-                    return (object)new Dictionary<string, object> { { "headline", a != null ? a.Headline : "Untitled" }, { "url", "kerbnet.kb/story/" + g.Key }, { "posts", g.Count() } };
-                }).ToList();
+            m["topics"] = State.Social.Where(p => p.UT <= Now()).GroupBy(p => p.StoryId).OrderByDescending(g => g.Sum(p => p.Likes))
+                .Select(g => new { g, a = State.Articles.FirstOrDefault(x => x.StoryId == g.Key) })
+                .Where(x => x.a != null && !string.IsNullOrEmpty(x.a.Headline)).Take(6)
+                .Select(x => (object)new Dictionary<string, object> { { "headline", x.a.Headline }, { "url", "kerbnet.kb/story/" + x.g.Key }, { "posts", x.g.Count() } }).ToList();
             return m;
         }
 
