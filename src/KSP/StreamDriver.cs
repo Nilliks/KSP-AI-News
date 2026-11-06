@@ -110,6 +110,7 @@ namespace KerbalNews.KSP
         {
             public string Name;
             public bool Ground, Fixed, Tracking;
+            public float BadUntil;          // washed out or black: skipped for a while
             // Ground cameras: a spot on the surface (and, when fixed, an aim point that never moves).
             public double Lat, Lon, Alt;
             public Vector3d AimAt;          // body-relative, so it stays put while the floating origin moves
@@ -143,7 +144,44 @@ namespace KerbalNews.KSP
             if (!ok && shot != null && lostSince < 0) lostSince = now;
             if (ok) lostSince = -1;
             if (shot == null || now > shotUntil || (!ok && now - lostSince > 1.2f)) Cut(eng, v, now);
-            if (shot == null || !Render(shot, v, now)) PlayerView();
+            bool fresh = shot != null && shot != checkedShot;
+            if (shot == null || !Render(shot, v, now)) { PlayerView(); return; }
+            // A long lens through thick, low air can render almost pure white; a camera facing the sun almost black.
+            // Check the first frame of each shot and move on from one nobody could watch.
+            if (fresh)
+            {
+                checkedShot = shot;
+                float mean = Brightness();
+                if (mean > 232 || mean < 10)
+                {
+                    CutLog.Add(now.ToString("0.0") + "s skipped " + shot.Name + " (brightness " + mean.ToString("0") + ")");
+                    shot.BadUntil = now + 20;
+                    Cut(eng, v, now);
+                    if (shot != null) Render(shot, v, now);
+                }
+            }
+        }
+
+        Shot checkedShot;
+        Texture2D probe;
+
+        /// <summary>Average brightness (0-255) of the current video frame, from a coarse grid of pixels.</summary>
+        float Brightness()
+        {
+            var prev = RenderTexture.active;
+            try
+            {
+                if (probe == null) probe = new Texture2D(FW, FH, TextureFormat.RGB24, false);
+                RenderTexture.active = Frame;
+                probe.ReadPixels(new Rect(0, 0, FW, FH), 0, 0);
+                var px = probe.GetPixels32();
+                if (px.Length == 0) return 128;
+                double sum = 0; int n = 0;
+                for (int i = 0; i < px.Length; i += 97) { sum += (px[i].r + px[i].g + px[i].b) / 3.0; n++; }
+                return (float)(sum / n);
+            }
+            catch (Exception) { return 128; }
+            finally { RenderTexture.active = prev; }
         }
 
         void PlayerView()
@@ -159,7 +197,9 @@ namespace KerbalNews.KSP
         {
             var ground = NearHome(v) ? groundCams.Where(c => c != shot && Usable(c, v)).ToList() : new System.Collections.Generic.List<Shot>();
             var hull = hullCams.Where(c => c != shot && Usable(c, v)).ToList();
-            double far = groundCams.Count == 0 ? 1e9 : groundCams.Min(c => (Center(v) - CamPos(c, v)).magnitude);
+            // Distance to the nearest tracker: the pad cameras sit right under the climb, so they would say "close" forever.
+            var trackers = groundCams.Where(c => !c.Fixed).ToList();
+            double far = trackers.Count == 0 ? 1e9 : trackers.Min(c => (Center(v) - CamPos(c, v)).magnitude);
             bool justLifted = liftoffAt >= 0 && now - liftoffAt < 20;
             // Hull cameras take over between about 6 km and 35 km from the nearest ground camera.
             double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.08
@@ -193,6 +233,7 @@ namespace KerbalNews.KSP
         /// <summary>True while this camera can actually see the rocket.</summary>
         bool Usable(Shot s, Vessel v)
         {
+            if (s.BadUntil > Time.realtimeSinceStartup) return false;
             if (!s.Ground) return s.Part != null && s.Part.vessel == v && v.parts != null && v.parts.Contains(s.Part);
             if (!NearHome(v)) return false;
             Vector3d center; float size;
@@ -323,17 +364,23 @@ namespace KerbalNews.KSP
             // Any side of the rocket will do; the control point's forward axis is a stable choice.
             Vector3d side = v.ReferenceTransform != null ? ((Vector3d)v.ReferenceTransform.forward).normalized : Vector3d.Cross(axis, new Vector3d(1, 0, 0)).normalized;
             double radius = Math.Min(4, Math.Max(0.9, spread * 0.5 + 0.9));
-            // Mount the high camera a little below the very top, so it is on the stage body and not on the nose.
-            Part high = top;
-            if (v.parts.Count > 2)
-            {
-                var below = v.parts.Where(p => p != null && p != top).OrderByDescending(p => Vector3d.Dot((Vector3d)p.transform.position - center, axis)).FirstOrDefault();
-                if (below != null) high = below;
-            }
+            // Mount the aft-looking camera on the highest fuel tank, below the capsule, so it looks down the stages to the
+            // engines and plume instead of at the capsule roof. Without tanks, the part just below the top.
+            System.Func<Part, double> height = p => Vector3d.Dot((Vector3d)p.transform.position - center, axis);
+            Part high = v.parts.Where(p => p != null && p != top && HoldsFuel(p)).OrderByDescending(height).FirstOrDefault();
+            if (high == null) high = v.parts.Where(p => p != null && p != top).OrderByDescending(height).FirstOrDefault() ?? top;
             AddHull("Hull camera: looking aft", high, OnSkin(v, high, side, radius), axis * -1 + side * 0.1, side, 62);
             if (bottom != high)
-                AddHull("Hull camera: looking up", bottom, OnSkin(v, bottom, side, radius) + axis * 0.5, axis + side * 0.08, side, 62);
+                AddHull("Hull camera: looking up", bottom, OnSkin(v, bottom, side, radius) + axis * 0.5, axis + side * 0.22, side, 62);
             AddHull("Hull camera: horizon", top, OnSkin(v, top, side, radius), side - axis * 0.45, axis, 70);
+        }
+
+        static bool HoldsFuel(Part p)
+        {
+            if (p.Resources == null) return false;
+            foreach (PartResource r in p.Resources)
+                if (r.maxAmount > 1 && (r.resourceName == "LiquidFuel" || r.resourceName == "Oxidizer" || r.resourceName == "SolidFuel")) return true;
+            return false;
         }
 
         /// <summary>

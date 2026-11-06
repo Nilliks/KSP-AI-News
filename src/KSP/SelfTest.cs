@@ -270,8 +270,8 @@ namespace KerbalNews.KSP
             Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
             Check(StreamDriver.Frame != null, "flight: stream video rendered");
             foreach (var c in StreamDriver.CutLog) Log("  camera cut " + c);
-            var groundUsed = StreamDriver.CutLog.Where(c => !c.Contains("Hull camera")).Select(c => c.Substring(c.IndexOf(' ') + 1, c.IndexOf(" (") - c.IndexOf(' ') - 1)).Distinct().ToList();
-            Check(StreamDriver.CutLog.Count >= 4, "flight: the stream cut between cameras " + StreamDriver.CutLog.Count + " times");
+            var groundUsed = StreamDriver.CutLog.Where(c => !c.Contains("Hull camera") && !c.Contains(" skipped ")).Select(c => c.Substring(c.IndexOf(' ') + 1, c.IndexOf(" (") - c.IndexOf(' ') - 1)).Distinct().ToList();
+            Check(StreamDriver.CutLog.Count(c => !c.Contains(" skipped ")) >= 4, "flight: the stream cut between cameras " + StreamDriver.CutLog.Count(c => !c.Contains(" skipped ")) + " times");
             Check(groundUsed.Count >= 2, "flight: at least two ground cameras used: " + string.Join(", ", groundUsed.ToArray()));
             Check(st != null && st.Camera != "", "flight: camera name on the stream page: " + (st != null ? st.Camera : ""));
             // Hull cameras: forced on for a few seconds, whatever the distance, so they are seen even on a short flight.
@@ -279,7 +279,7 @@ namespace KerbalNews.KSP
             int before = StreamDriver.CutLog.Count;
             for (int i = 0; i < 4; i++) { yield return new WaitForSeconds(4f); SaveFrame("stream-hull-" + i); }
             StreamDriver.ForceHull = false;
-            var hullUsed = StreamDriver.CutLog.Skip(before).Where(c => c.Contains("Hull camera")).ToList();
+            var hullUsed = StreamDriver.CutLog.Skip(before).Where(c => c.Contains("Hull camera") && !c.Contains(" skipped ")).ToList();
             foreach (var c in StreamDriver.CutLog.Skip(before)) Log("  camera cut " + c);
             Check(hullUsed.Count > 0, "flight: hull cameras used: " + hullUsed.Count);
             Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");
