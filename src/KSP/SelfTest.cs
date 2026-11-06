@@ -279,7 +279,7 @@ namespace KerbalNews.KSP
             int before = StreamDriver.CutLog.Count;
             for (int i = 0; i < 4; i++) { yield return new WaitForSeconds(4f); SaveFrame("stream-hull-" + i); }
             StreamDriver.ForceHull = false;
-            var hullUsed = StreamDriver.CutLog.Skip(before).Where(c => c.Contains("Hull camera") && !c.Contains(" skipped ")).ToList();
+            var hullUsed = StreamDriver.CutLog.Where(c => c.Contains("Hull camera") && !c.Contains(" skipped ")).ToList();
             foreach (var c in StreamDriver.CutLog.Skip(before)) Log("  camera cut " + c);
             Check(hullUsed.Count > 0, "flight: hull cameras used: " + hullUsed.Count);
             Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");

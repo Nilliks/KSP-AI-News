@@ -144,24 +144,25 @@ namespace KerbalNews.KSP
             if (!ok && shot != null && lostSince < 0) lostSince = now;
             if (ok) lostSince = -1;
             if (shot == null || now > shotUntil || (!ok && now - lostSince > 1.2f)) Cut(eng, v, now);
-            bool fresh = shot != null && shot != checkedShot;
-            if (shot == null || !Render(shot, v, now)) { PlayerView(); return; }
-            // A long lens through thick, low air can render almost pure white; a camera facing the sun almost black.
-            // Check the first frame of each shot and move on from one nobody could watch.
-            if (fresh)
+            // A long lens through thick, low air can render almost pure white, and haze grows as the rocket climbs away,
+            // so the picture is checked at the start of each shot and every second after. A shot nobody could watch is dropped.
+            if (shot != checkedShot || now > nextCheck)
             {
                 checkedShot = shot;
+                nextCheck = now + 1f;
                 float mean = Brightness();
-                if (mean > 232 || mean < 10)
+                if (mean > 222 || mean < 10)
                 {
                     CutLog.Add(now.ToString("0.0") + "s skipped " + shot.Name + " (brightness " + mean.ToString("0") + ")");
-                    shot.BadUntil = now + 20;
+                    shot.BadUntil = now + (shot.Ground ? 60 : 15);
                     Cut(eng, v, now);
-                    if (shot != null) Render(shot, v, now);
+                    checkedShot = shot;
+                    if (shot == null || !Render(shot, v, now)) PlayerView();
                 }
             }
         }
 
+        float nextCheck;
         Shot checkedShot;
         Texture2D probe;
 
@@ -201,9 +202,9 @@ namespace KerbalNews.KSP
             var trackers = groundCams.Where(c => !c.Fixed).ToList();
             double far = trackers.Count == 0 ? 1e9 : trackers.Min(c => (Center(v) - CamPos(c, v)).magnitude);
             bool justLifted = liftoffAt >= 0 && now - liftoffAt < 20;
-            // Hull cameras take over between about 6 km and 35 km from the nearest ground camera.
+            // Hull cameras take over between about 4 km and 8 km from the nearest tracker; past that the broadcast stays onboard.
             double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.08
-                : Math.Max(0.15, Math.Min(1, (far - 6000) / 29000));
+                : Math.Max(0.15, Math.Min(1, (far - 4000) / 4000));
             if (ground.Count == 0) hullOdds = 1;
             if (hull.Count == 0) hullOdds = 0;
             Shot next = null;
@@ -369,7 +370,7 @@ namespace KerbalNews.KSP
             System.Func<Part, double> height = p => Vector3d.Dot((Vector3d)p.transform.position - center, axis);
             Part high = v.parts.Where(p => p != null && p != top && HoldsFuel(p)).OrderByDescending(height).FirstOrDefault();
             if (high == null) high = v.parts.Where(p => p != null && p != top).OrderByDescending(height).FirstOrDefault() ?? top;
-            AddHull("Hull camera: looking aft", high, OnSkin(v, high, side, radius), axis * -1 + side * 0.1, side, 62);
+            AddHull("Hull camera: looking aft", high, OnSkin(v, high, side, radius, 0.8), axis * -1 + side * 0.06, side, 75);
             if (bottom != high)
                 AddHull("Hull camera: looking up", bottom, OnSkin(v, bottom, side, radius) + axis * 0.5, axis + side * 0.22, side, 62);
             AddHull("Hull camera: horizon", top, OnSkin(v, top, side, radius), side - axis * 0.45, axis, 70);
@@ -387,7 +388,7 @@ namespace KerbalNews.KSP
         /// A spot just outside the part's skin on the given side: a ray from outside finds the hull, so the camera never
         /// ends up inside a wide tank. Without a hit it falls back to a guessed radius.
         /// </summary>
-        static Vector3d OnSkin(Vessel v, Part p, Vector3d side, double guess)
+        static Vector3d OnSkin(Vessel v, Part p, Vector3d side, double guess, double standOff = 0.3)
         {
             Vector3d c = p.transform.position;
             try
@@ -403,10 +404,10 @@ namespace KerbalNews.KSP
                     if (hp == null || hp.vessel != v || h.distance >= best) continue;
                     best = h.distance; at = h.point;
                 }
-                if (best < reach) return at + side * 0.3;
+                if (best < reach) return at + side * standOff;
             }
             catch (Exception) { }
-            return c + side * guess;
+            return c + side * (guess + standOff - 0.3);
         }
 
         void AddHull(string name, Part p, Vector3d at, Vector3d look, Vector3d up, float fov)
