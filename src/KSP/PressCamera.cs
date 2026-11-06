@@ -321,29 +321,43 @@ namespace KerbalNews.KSP
             return tex;
         }
 
-        /// <summary>Draws the scene from another spot into a render texture, then puts every game camera back. False if no camera was found.</summary>
+        /// <summary>
+        /// Draws the scene from another spot into a render texture. It uses private copies of the game's cameras, never the
+        /// game's own: moving those, even for one render, upsets effects that remember the last frame (anti-aliasing,
+        /// motion blur, sky mods) and makes the player's view flicker between the two shots. False if no camera was found.
+        /// </summary>
         public static bool RenderInto(RenderTexture rt, Vector3d pos, Quaternion rot, float vfov)
         {
             var cams = Camera.allCameras.Where(c => c != null && CameraNames.Contains(c.name)).OrderBy(c => c.depth).ToList();
             if (cams.Count == 0) return false;
-            var saved = cams.Select(c => new { c, p = c.transform.position, r = c.transform.rotation, f = c.fieldOfView, t = c.targetTexture }).ToList();
-            try
+            foreach (var src in cams)
             {
-                foreach (var c in cams)
-                {
-                    if (c.name == "Camera ScaledSpace") c.transform.position = (Vector3)ScaledSpace.LocalToScaledSpace(pos);
-                    else if (c.name != "GalaxyCamera") c.transform.position = (Vector3)pos;
-                    c.transform.rotation = rot;
-                    c.fieldOfView = vfov;
-                    c.targetTexture = rt;
-                    c.Render();
-                }
-            }
-            finally
-            {
-                foreach (var s in saved) { s.c.transform.position = s.p; s.c.transform.rotation = s.r; s.c.fieldOfView = s.f; s.c.targetTexture = s.t; }
+                var c = Twin(src);
+                if (c == null) continue;
+                c.CopyFrom(src);   // culling layers, clear flags, clip planes; this also copies the transform, so set ours after
+                if (src.name == "Camera ScaledSpace") c.transform.position = (Vector3)ScaledSpace.LocalToScaledSpace(pos);
+                else if (src.name != "GalaxyCamera") c.transform.position = (Vector3)pos;
+                c.transform.rotation = rot;
+                c.fieldOfView = vfov;
+                c.targetTexture = rt;
+                c.Render();
+                c.targetTexture = null;
             }
             return true;
+        }
+
+        static readonly Dictionary<string, Camera> twins = new Dictionary<string, Camera>();
+
+        /// <summary>A disabled camera of our own for one of the game's cameras. Disabled cameras never draw to the screen.</summary>
+        static Camera Twin(Camera src)
+        {
+            Camera c;
+            if (twins.TryGetValue(src.name, out c) && c != null) return c;
+            var go = new GameObject("KerbalNews twin of " + src.name);
+            c = go.AddComponent<Camera>();
+            c.enabled = false;
+            twins[src.name] = c;
+            return c;
         }
 
         /// <summary>
