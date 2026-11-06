@@ -39,6 +39,7 @@ namespace KerbalNews.Web
             m["vessel"] = st.VesselName;
             m["viewers"] = st.Viewers.ToString("N0", LiveInv);
             m["peak"] = st.PeakViewers.ToString("N0", LiveInv);
+            m["camera"] = st.Camera;
             double met = t != null ? t.UT - st.StartUT : 0;
             m["met"] = "T+" + TimeSpan.FromSeconds(Math.Max(0, met)).ToString(@"hh\:mm\:ss");
             if (t != null)

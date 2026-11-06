@@ -16,7 +16,7 @@
   <div class="stage">
     <div class="main">
       <img class="video" src="kblive:frame" style="width: 100%; aspect-ratio: 16/9">
-      <div class="bar"><span class="met">{{met}}</span><span class="spacer"></span><span class="muted">peak {{peak}}</span><a class="end" href="action:stream-end">End stream</a></div>
+      <div class="bar"><span class="met">{{met}}</span>{{#camera}}<span class="cam">{{camera}}</span>{{/camera}}<span class="spacer"></span><span class="muted">peak {{peak}}</span><a class="end" href="action:stream-end">End stream</a></div>
       <div class="tele">{{#tele}}<div class="stat"><div class="l">{{label}}</div><div class="v">{{value}}</div></div>{{/tele}}</div>
       {{#trace.0}}<div class="graph"><div class="gl">Altitude</div><div class="bars">{{#trace}}<div class="b" style="height: {{h}}"></div>{{/trace}}</div></div>{{/trace.0}}
       {{#moments.0}}<div class="moments"><h4>On stream</h4>{{#moments}}<p>{{.}}</p>{{/moments}}</div>{{/moments.0}}

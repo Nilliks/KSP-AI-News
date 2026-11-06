@@ -616,6 +616,25 @@ public static class FeatureTests
         Assert(s.Social[0].Text == "Kerbal 2 looked incredible today!" && s.Articles[0].Headline == "Kerbal 2 reaches space" && s.Stories[0].Events[0].VesselName == "Kerbal 2", "tags replaced with the craft name on load");
     }
 
+    public static void TestStreamShowsTheCameraAndNoticesOnboardViews()
+    {
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.StreamCamera("Pad camera", false, 1);
+        Assert(st.Moments.Count == 0, "a ground camera is not a moment");
+        eng.StreamCamera("Hull camera: looking aft", true, 2);
+        eng.StreamCamera("Hull camera: looking up", true, 3);
+        eng.StreamCamera("Tracking camera", false, 4);
+        eng.StreamCamera("Hull camera: horizon", true, 5);
+        Assert(st.Moments.Count(m => m.Contains("onboard")) == 1, "the first onboard view is noticed once");
+        string dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new KerbalNews.Web.Sites(eng, rel => { var p = System.IO.Path.Combine(dir, rel); return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null; });
+        sites.Now = () => 6;
+        var html = sites.Render("live.kb").Html;
+        Assert(html.Contains("Hull camera: horizon"), "camera name on the page");
+    }
+
     public static void TestStreamChatIsUnevenAndGoesWildAtLiftoff()
     {
         var prompts = new List<string>();

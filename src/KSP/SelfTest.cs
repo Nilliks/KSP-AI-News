@@ -232,7 +232,9 @@ namespace KerbalNews.KSP
             while (v.packed && Time.realtimeSinceStartup - unpack < 20) yield return new WaitForSeconds(0.5f);
             if (FlightDriver.Pause) { Log("  game was paused; unpausing"); FlightDriver.SetPause(false); yield return new WaitForSeconds(0.5f); }
             Log("  before staging: packed " + v.packed + ", paused " + FlightDriver.Pause + ", timeScale " + Time.timeScale.ToString("0.00") + ", warp " + TimeWarp.CurrentRate.ToString("0.0") + ", ctrlState throttle " + (v.ctrlState != null ? v.ctrlState.mainThrottle.ToString("0.00") : "?"));
-            float lift = Time.realtimeSinceStartup, nextStage = 0;
+            StreamDriver.CutLog.Clear();
+            float lift = Time.realtimeSinceStartup, nextStage = 0, nextFrameShot = 0;
+            int frames = 0;
             int staged = 0;
             double startAlt = v.altitude;
             bool moving = false;
@@ -248,6 +250,7 @@ namespace KerbalNews.KSP
                     moving = true;
                     Log("  craft moving after " + staged + " staging(s), " + (Time.realtimeSinceStartup - lift).ToString("0.0") + " s, situation " + v.situation);
                 }
+                if (Time.realtimeSinceStartup > nextFrameShot) { nextFrameShot = Time.realtimeSinceStartup + 5; SaveFrame("stream-" + (++frames).ToString("00")); }
                 if (!moving && staged < 4 && Time.realtimeSinceStartup > nextStage)
                 {
                     global::KSP.UI.Screens.StageManager.ActivateNextStage();
@@ -266,6 +269,20 @@ namespace KerbalNews.KSP
             Check(st != null && st.Chat.Count(c => !c.System) >= 5, "flight: stream chat has " + (st != null ? st.Chat.Count(c => !c.System) : 0) + " viewer messages, " + (st != null ? st.Viewers : 0) + " viewers");
             Check(st != null && st.Moments.Contains("liftoff"), "flight: liftoff shown on stream: " + (st != null ? string.Join("; ", st.Moments.ToArray()) : ""));
             Check(StreamDriver.Frame != null, "flight: stream video rendered");
+            foreach (var c in StreamDriver.CutLog) Log("  camera cut " + c);
+            var groundUsed = StreamDriver.CutLog.Where(c => !c.Contains("Hull camera")).Select(c => c.Substring(c.IndexOf(' ') + 1, c.IndexOf(" (") - c.IndexOf(' ') - 1)).Distinct().ToList();
+            Check(StreamDriver.CutLog.Count >= 4, "flight: the stream cut between cameras " + StreamDriver.CutLog.Count + " times");
+            Check(groundUsed.Count >= 2, "flight: at least two ground cameras used: " + string.Join(", ", groundUsed.ToArray()));
+            Check(st != null && st.Camera != "", "flight: camera name on the stream page: " + (st != null ? st.Camera : ""));
+            // Hull cameras: forced on for a few seconds, whatever the distance, so they are seen even on a short flight.
+            StreamDriver.ForceHull = true;
+            int before = StreamDriver.CutLog.Count;
+            for (int i = 0; i < 4; i++) { yield return new WaitForSeconds(4f); SaveFrame("stream-hull-" + i); }
+            StreamDriver.ForceHull = false;
+            var hullUsed = StreamDriver.CutLog.Skip(before).Where(c => c.Contains("Hull camera")).ToList();
+            foreach (var c in StreamDriver.CutLog.Skip(before)) Log("  camera cut " + c);
+            Check(hullUsed.Count > 0, "flight: hull cameras used: " + hullUsed.Count);
+            Check(st != null && st.Moments.Any(m => m.Contains("onboard")), "flight: the chat heard about the onboard cameras");
             if (st != null) foreach (var c in st.Chat.Where(c => !c.System).Take(8)) Log("  chat " + c.Author + ": " + c.Text);
             if (modeEng) yield return EngFlightCheck(sys, v);
             yield return Go("live.kb");
@@ -376,6 +393,25 @@ namespace KerbalNews.KSP
             int over = br.CountOverflows(ex);
             Check(over == 0, url + " text fits its boxes" + (over > 0 ? ": " + over + " overflow, e.g. " + string.Join(" | ", ex.ToArray()) : ""));
             yield return Shot(url.Replace("/", "_").Replace("?", "_").Replace("=", "_"));
+        }
+
+        /// <summary>Saves what the livestream video shows right now, as a JPG next to the screenshots.</summary>
+        void SaveFrame(string name)
+        {
+            var rt = StreamDriver.Frame;
+            if (rt == null) return;
+            var prev = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = rt;
+                var tex = new Texture2D(640, 360, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, 640, 360), 0, 0);
+                tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, (++shot).ToString("00") + "-" + name + ".jpg"), ImageConversion.EncodeToJPG(tex, 85));
+                Destroy(tex);
+            }
+            catch (Exception e) { Log("  could not save stream frame: " + e.Message); }
+            finally { RenderTexture.active = prev; }
         }
 
         IEnumerator Shot(string name)

@@ -6,20 +6,21 @@ namespace KerbalNews.KSP
 {
     /// <summary>
     /// Feeds the livestream in flight: telemetry every few seconds, staging and explosions as moments, and a small
-    /// video feed. Near the home world the feed is a long-lens tracking camera on the ground, like a real launch
-    /// broadcast; higher up it is the player's own view. Leaving flight ends the stream.
+    /// video feed cut like a real launch broadcast: cameras on the ground first, then cameras on the rocket's hull.
+    /// Leaving flight ends the stream.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class StreamDriver : MonoBehaviour
     {
         const int FW = 640, FH = 360;
         public static RenderTexture Frame { get; private set; }
+        /// <summary>Every cut the director made this flight, for the self-test: "12.3s Pad camera".</summary>
+        public static readonly System.Collections.Generic.List<string> CutLog = new System.Collections.Generic.List<string>();
+        /// <summary>Self-test only: use the hull cameras whatever the distance.</summary>
+        public static bool ForceHull;
 
         float nextSample, nextFrame, lastBoom;
         string liftedFor = "";
-        string trackerFor = "";
-        double trackLat, trackLon, trackAlt;
-        bool haveTracker;
         readonly System.Random rng = new System.Random();
 
         static NewsEngine Eng { get { var s = NewsSystem.Instance; return s != null && s.HasGame ? s.Engine : null; } }
@@ -100,35 +101,158 @@ namespace KerbalNews.KSP
             catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream video: " + e.Message); nextFrame = Time.realtimeSinceStartup + 5; }
         }
 
+        // ------------------------------------------------------------------ the camera director
+        // A real broadcast has no camera that flies along with the rocket. Before and just after liftoff it cuts between
+        // fixed cameras on the ground; long-lens trackers follow the climb; as the rocket gets far away the broadcast
+        // moves to small cameras bolted to the hull. The player's own view is never used while a camera can be made.
+
+        class Shot
+        {
+            public string Name;
+            public bool Ground, Fixed, Tracking;
+            // Ground cameras: a spot on the surface (and, when fixed, an aim point that never moves).
+            public double Lat, Lon, Alt;
+            public Vector3d AimAt;          // body-relative, so it stays put while the floating origin moves
+            public float Fov;
+            // Hull cameras: a part, an offset and a look direction in that part's own axes.
+            public Part Part;
+            public Vector3d Offset, Look, Up;
+        }
+
+        readonly System.Collections.Generic.List<Shot> groundCams = new System.Collections.Generic.List<Shot>();
+        readonly System.Collections.Generic.List<Shot> hullCams = new System.Collections.Generic.List<Shot>();
+        string camsFor = "";
+        Shot shot;
+        float shotUntil, lostSince = -1, liftoffAt = -1;
+        int hullParts;
+
         void DrawFrame(NewsEngine eng)
         {
             if (Frame == null) { Frame = new RenderTexture(FW, FH, 24); Frame.Create(); }
             var v = Streamed();
-            if (v != null && v.mainBody != null && v.mainBody == FlightGlobals.GetHomeBody() && v.altitude < 60000 && Tracker(v))
-            {
-                var body = v.mainBody;
-                Vector3d cam = body.GetWorldSurfacePosition(trackLat, trackLon, trackAlt);
-                Vector3d center; float size;
-                PressCamera.Measure(v, out center, out size);
-                double d = (center - cam).magnitude;
-                float frame = Math.Max(size * 3f, 70f) + (float)v.altitude * 0.03f;
-                float fov = Mathf.Clamp((float)(2 * Math.Atan(frame * 0.5 / d) * 180 / Math.PI), 0.2f, 40f);
-                Vector3 up = (Vector3)(cam - body.position).normalized;
-                PressCamera.RenderInto(Frame, cam, Quaternion.LookRotation((Vector3)(center - cam), up), fov);
-                return;
-            }
-            // Onboard or chase view: the player's own camera.
+            if (v == null) { PlayerView(); return; }
+            float now = Time.realtimeSinceStartup;
+            string id = v.persistentId.ToString();
+            if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; }
+            if (liftoffAt < 0 && liftedFor == id) liftoffAt = now;
+            if (v.parts != null && v.parts.Count != hullParts) { hullParts = v.parts.Count; hullCams.Clear(); }   // staged or broke up
+            if (hullCams.Count == 0) SetUpHull(v);
+
+            // Keep a shot the rocket has left for a moment, so it visibly flies out of frame before the cut.
+            bool ok = shot != null && Usable(shot, v);
+            if (!ok && shot != null && lostSince < 0) lostSince = now;
+            if (ok) lostSince = -1;
+            if (shot == null || now > shotUntil || (!ok && now - lostSince > 1.2f)) Cut(eng, v, now);
+            if (shot == null || !Render(shot, v, now)) PlayerView();
+        }
+
+        void PlayerView()
+        {
             var main = Camera.allCameras.FirstOrDefault(c => c != null && c.name == "Camera 00");
             if (main != null) PressCamera.RenderInto(Frame, main.transform.position, main.transform.rotation, main.fieldOfView);
         }
 
-        /// <summary>Places a tracking camera a few kilometres from the craft, once per streamed vessel, with a clear view.</summary>
-        bool Tracker(Vessel v)
+        bool NearHome(Vessel v) { return v.mainBody != null && v.mainBody == FlightGlobals.GetHomeBody() && v.altitude < 70000; }
+
+        /// <summary>Chooses the next camera: ground cameras first, hull cameras more and more as the rocket gets far away.</summary>
+        void Cut(NewsEngine eng, Vessel v, float now)
         {
-            string id = v.persistentId.ToString();
-            if (trackerFor == id) return haveTracker;
-            trackerFor = id;
-            haveTracker = false;
+            var ground = NearHome(v) ? groundCams.Where(c => c != shot && Usable(c, v)).ToList() : new System.Collections.Generic.List<Shot>();
+            var hull = hullCams.Where(c => c != shot && Usable(c, v)).ToList();
+            double far = groundCams.Count == 0 ? 1e9 : groundCams.Min(c => (Center(v) - CamPos(c, v)).magnitude);
+            bool justLifted = liftoffAt >= 0 && now - liftoffAt < 20;
+            // Hull cameras take over between about 6 km and 35 km from the nearest ground camera.
+            double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.08
+                : Math.Max(0.15, Math.Min(1, (far - 6000) / 29000));
+            if (ground.Count == 0) hullOdds = 1;
+            if (hull.Count == 0) hullOdds = 0;
+            Shot next = null;
+            if (ForceHull && hull.Count > 0) hullOdds = 1;
+            if (rng.NextDouble() < hullOdds) next = hull[rng.Next(hull.Count)];
+            else if (ground.Count > 0)
+            {
+                // Right at liftoff the close cameras on the pad get most of the airtime.
+                var close = ground.Where(c => c.Fixed).ToList();
+                next = justLifted && close.Count > 0 && rng.NextDouble() < 0.6 ? close[rng.Next(close.Count)] : ground[rng.Next(ground.Count)];
+            }
+            if (next == null && shot != null && Usable(shot, v)) next = shot;
+            shot = next;
+            lostSince = -1;
+            shotUntil = now + (shot != null && shot.Ground ? 4f + (float)rng.NextDouble() * 6f : 6f + (float)rng.NextDouble() * 9f);
+            if (shot != null)
+            {
+                eng.StreamCamera(shot.Name, !shot.Ground, now);
+                CutLog.Add(now.ToString("0.0") + "s " + shot.Name + " (alt " + v.altitude.ToString("0") + " m, nearest ground camera " + (far > 1e8 ? "none" : (far / 1000).ToString("0.0") + " km") + ")");
+            }
+        }
+
+        Vector3d Center(Vessel v) { Vector3d c; float size; PressCamera.Measure(v, out c, out size); return c; }
+
+        Vector3d CamPos(Shot s, Vessel v) { return v.mainBody.GetWorldSurfacePosition(s.Lat, s.Lon, s.Alt); }
+
+        /// <summary>True while this camera can actually see the rocket.</summary>
+        bool Usable(Shot s, Vessel v)
+        {
+            if (!s.Ground) return s.Part != null && s.Part.vessel == v && v.parts != null && v.parts.Contains(s.Part);
+            if (!NearHome(v)) return false;
+            Vector3d center; float size;
+            PressCamera.Measure(v, out center, out size);
+            Vector3d cam = CamPos(s, v);
+            Vector3d to = center - cam;
+            double d = to.magnitude;
+            if (s.Fixed)
+            {
+                // A fixed camera only sees what passes through its frame.
+                Vector3d aim = v.mainBody.position + s.AimAt - cam;
+                double off = Vector3d.Angle(aim, to);
+                if (off > s.Fov * 0.5 * 0.9 || d > 4000) return false;
+            }
+            else if (d > 90000) return false;
+            return PressCamera.ClearView(v.mainBody, cam, center, Math.Min(60, d * 0.3));
+        }
+
+        bool Render(Shot s, Vessel v, float now)
+        {
+            if (s.Ground)
+            {
+                var body = v.mainBody;
+                Vector3d cam = CamPos(s, v);
+                Vector3 up = (Vector3)(cam - body.position).normalized;
+                Vector3d center; float size;
+                PressCamera.Measure(v, out center, out size);
+                if (s.Fixed)
+                {
+                    // Close cameras shake a little when the engines light.
+                    float shake = liftoffAt >= 0 && now - liftoffAt < 8 ? 0.35f : 0f;
+                    var rot = Quaternion.LookRotation((Vector3)(body.position + s.AimAt - cam), up);
+                    if (shake > 0) rot = rot * Quaternion.Euler(Jit(shake), Jit(shake), 0);
+                    return PressCamera.RenderInto(Frame, cam, rot, s.Fov);
+                }
+                // A tracking camera pans with the rocket and zooms as far as its lens goes.
+                double d = (center - cam).magnitude;
+                float frame = Math.Max(size * 3f, 70f) + (float)v.altitude * 0.03f;
+                float fov = Mathf.Clamp((float)(2 * Math.Atan(frame * 0.5 / d) * 180 / Math.PI), s.Fov, 40f);
+                return PressCamera.RenderInto(Frame, cam, Quaternion.LookRotation((Vector3)(center - cam), up), fov);
+            }
+            var t = s.Part.transform;
+            Vector3d px = t.right, py = t.up, pz = t.forward;
+            Vector3d pos = (Vector3d)t.position + px * s.Offset.x + py * s.Offset.y + pz * s.Offset.z;
+            Vector3d look = px * s.Look.x + py * s.Look.y + pz * s.Look.z;
+            Vector3d upv = px * s.Up.x + py * s.Up.y + pz * s.Up.z;
+            var r = Quaternion.LookRotation((Vector3)look, (Vector3)upv);
+            // Buffeting: the hull shakes with air pressure and thrust.
+            float buffet = Mathf.Clamp((float)(v.dynamicPressurekPa / 40.0 + Math.Max(0, v.geeForce - 1) * 0.08), 0f, 1.2f);
+            if (buffet > 0.02f) r = r * Quaternion.Euler(Jit(buffet), Jit(buffet), 0);
+            return PressCamera.RenderInto(Frame, pos, r, s.Fov);
+        }
+
+        float Jit(float a) { return (float)(rng.NextDouble() * 2 - 1) * a; }
+
+        /// <summary>Puts cameras around the launch site: two fixed ones at the pad and two long-lens trackers further out.</summary>
+        void SetUpGround(Vessel v)
+        {
+            groundCams.Clear();
+            if (v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody() || v.altitude > 30000) return;
             var body = v.mainBody;
             Vector3d center; float size;
             PressCamera.Measure(v, out center, out size);
@@ -137,20 +261,121 @@ namespace KerbalNews.KSP
             if (east.magnitude < 0.1) east = Vector3d.Cross(up, new Vector3d(1, 0, 0));
             east = east.normalized;
             Vector3d north = Vector3d.Cross(east, up).normalized;
-            for (int i = 0; i < 10 && !haveTracker; i++)
+            bool onGround = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || v.situation == Vessel.Situations.SPLASHED;
+            Vector3d baseAt = center - up * (size * 0.5);
+            if (onGround)
             {
-                double az = rng.NextDouble() * Math.PI * 2, dist = 3500 + rng.Next(3500);
-                Vector3d spot = center + (east * Math.Cos(az) + north * Math.Sin(az)) * dist;
-                double lat = body.GetLatitude(spot), lon = body.GetLongitude(spot);
-                double alt = Math.Max(0, body.TerrainAltitude(lat, lon, true)) + 3;
-                Vector3d camAt = body.GetWorldSurfacePosition(lat, lon, alt);
-                if (!PressCamera.ClearView(body, camAt, center)) continue;
-                if (v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED)
-                    if (!PressCamera.ClearView(body, camAt, center - up * 15, 20)) continue;
-                trackLat = lat; trackLon = lon; trackAlt = alt;
-                haveTracker = true;
+                // A camera a couple of hundred metres out that frames the whole rocket on the pad.
+                AddGround(v, "Pad camera", baseAt, east, north, 180 + size * 4, 300 + size * 6, 2, true, center, size, 0);
+                // One close to the base, looking up the side of the rocket.
+                AddGround(v, "Pad camera 2: base", baseAt, east, north, 35 + size, 60 + size * 2, 1, true, center + up * (size * 0.6), size, 0);
             }
-            return haveTracker;
+            AddGround(v, "Tracking camera", baseAt, east, north, 3500, 7000, 3, false, center, size, 0.25f);
+            AddGround(v, "Long range tracker", baseAt, east, north, 9000, 16000, 3, false, center, size, 0.15f);
+        }
+
+        void AddGround(Vessel v, string name, Vector3d baseAt, Vector3d east, Vector3d north, double minD, double maxD, double height, bool fix, Vector3d aim, float size, float minFov)
+        {
+            var body = v.mainBody;
+            for (int i = 0; i < 12; i++)
+            {
+                double az = rng.NextDouble() * Math.PI * 2, dist = minD + rng.NextDouble() * (maxD - minD);
+                Vector3d spot = baseAt + (east * Math.Cos(az) + north * Math.Sin(az)) * dist;
+                double lat = body.GetLatitude(spot), lon = body.GetLongitude(spot);
+                double alt = Math.Max(0, body.TerrainAltitude(lat, lon, true)) + height;
+                Vector3d camAt = body.GetWorldSurfacePosition(lat, lon, alt);
+                if (!PressCamera.ClearView(body, camAt, aim, Math.Min(60, dist * 0.3))) continue;
+                var s = new Shot { Name = name, Ground = true, Fixed = fix, Tracking = !fix, Lat = lat, Lon = lon, Alt = alt, AimAt = aim - body.position, Fov = minFov };
+                if (fix)
+                {
+                    // Frame the rocket with room above it, so it climbs through the shot before leaving.
+                    double d = (aim - camAt).magnitude;
+                    s.Fov = Mathf.Clamp((float)(2 * Math.Atan(size * 1.6 / d) * 180 / Math.PI), 20f, 75f);
+                }
+                groundCams.Add(s);
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Bolts small cameras to the outside of the craft: one high up looking back down the body, one low down looking
+        /// up it, and one looking out at the horizon. They are fixed to their parts, so they move and shake with the rocket.
+        /// </summary>
+        void SetUpHull(Vessel v)
+        {
+            hullCams.Clear();
+            if (v.parts == null || v.parts.Count == 0) return;
+            Vector3d center; float size;
+            PressCamera.Measure(v, out center, out size);
+            Vector3d axis = v.ReferenceTransform != null ? ((Vector3d)v.ReferenceTransform.up).normalized : ((Vector3d)v.transform.up).normalized;
+            Part top = null, bottom = null;
+            double hi = double.MinValue, lo = double.MaxValue, spread = 0;
+            foreach (var p in v.parts)
+            {
+                if (p == null) continue;
+                Vector3d rel = (Vector3d)p.transform.position - center;
+                double h = Vector3d.Dot(rel, axis);
+                if (h > hi) { hi = h; top = p; }
+                if (h < lo) { lo = h; bottom = p; }
+                spread = Math.Max(spread, (rel - axis * h).magnitude);
+            }
+            if (top == null) return;
+            // Any side of the rocket will do; the control point's forward axis is a stable choice.
+            Vector3d side = v.ReferenceTransform != null ? ((Vector3d)v.ReferenceTransform.forward).normalized : Vector3d.Cross(axis, new Vector3d(1, 0, 0)).normalized;
+            double radius = Math.Min(4, Math.Max(0.9, spread * 0.5 + 0.9));
+            // Mount the high camera a little below the very top, so it is on the stage body and not on the nose.
+            Part high = top;
+            if (v.parts.Count > 2)
+            {
+                var below = v.parts.Where(p => p != null && p != top).OrderByDescending(p => Vector3d.Dot((Vector3d)p.transform.position - center, axis)).FirstOrDefault();
+                if (below != null) high = below;
+            }
+            AddHull("Hull camera: looking aft", high, OnSkin(v, high, side, radius), axis * -1 + side * 0.1, side, 62);
+            if (bottom != high)
+                AddHull("Hull camera: looking up", bottom, OnSkin(v, bottom, side, radius) + axis * 0.5, axis + side * 0.08, side, 62);
+            AddHull("Hull camera: horizon", top, OnSkin(v, top, side, radius), side - axis * 0.45, axis, 70);
+        }
+
+        /// <summary>
+        /// A spot just outside the part's skin on the given side: a ray from outside finds the hull, so the camera never
+        /// ends up inside a wide tank. Without a hit it falls back to a guessed radius.
+        /// </summary>
+        static Vector3d OnSkin(Vessel v, Part p, Vector3d side, double guess)
+        {
+            Vector3d c = p.transform.position;
+            try
+            {
+                const float reach = 25f;
+                var hits = Physics.RaycastAll((Vector3)(c + side * reach), (Vector3)(side * -1), reach, 1);   // parts sit on layer 0
+                double best = double.MaxValue;
+                Vector3d at = c;
+                foreach (var h in hits)
+                {
+                    if (h.collider == null) continue;
+                    var hp = h.collider.GetComponentInParent<Part>();
+                    if (hp == null || hp.vessel != v || h.distance >= best) continue;
+                    best = h.distance; at = h.point;
+                }
+                if (best < reach) return at + side * 0.3;
+            }
+            catch (Exception) { }
+            return c + side * guess;
+        }
+
+        void AddHull(string name, Part p, Vector3d at, Vector3d look, Vector3d up, float fov)
+        {
+            if (p == null) return;
+            var t = p.transform;
+            Vector3d px = t.right, py = t.up, pz = t.forward;
+            Vector3d rel = at - (Vector3d)t.position;
+            look = look.normalized; up = up.normalized;
+            hullCams.Add(new Shot
+            {
+                Name = name, Part = p, Fov = fov,
+                Offset = new Vector3d(Vector3d.Dot(rel, px), Vector3d.Dot(rel, py), Vector3d.Dot(rel, pz)),
+                Look = new Vector3d(Vector3d.Dot(look, px), Vector3d.Dot(look, py), Vector3d.Dot(look, pz)),
+                Up = new Vector3d(Vector3d.Dot(up, px), Vector3d.Dot(up, py), Vector3d.Dot(up, pz)),
+            });
         }
 
         static TelemetrySample Sample(Vessel v)

@@ -7,9 +7,11 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
-    public static class Physics { public static bool Linecast(Vector3 a, Vector3 b, int mask) { return false; } }
+    public static class Physics { public static bool Linecast(Vector3 a, Vector3 b, int mask) { return false; } public static RaycastHit[] RaycastAll(Vector3 o, Vector3 d, float len, int mask) { return new RaycastHit[0]; } }
+    public struct RaycastHit { public Vector3 point; public float distance; public Collider collider; }
+    public class Collider : Component { }
     public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } public static T Instantiate<T>(T o) where T : Object { return o; } }
-    public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } }
+    public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } public T GetComponentInParent<T>() { return default(T); } }
     public sealed class GameObject : Object
     {
         public GameObject(string name, params Type[] components) { }
@@ -41,8 +43,8 @@ namespace UnityEngine
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
-    public class Transform : Component { public Vector3 position, localScale; public Vector3 up; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
-    public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } }
+    public class Transform : Component { public Vector3 position, localScale; public Vector3 up, right, forward; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); } public static Quaternion operator *(Quaternion a, Quaternion b) { return a; } }
     public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2

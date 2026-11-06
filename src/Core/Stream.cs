@@ -55,6 +55,9 @@ namespace KerbalNews
         /// <summary>Excitement left over from the last big moment; it fades over the next batches.</summary>
         public double Hype;
         public string Frame = "";      // newest frame file under PluginData/Live
+        /// <summary>The camera the broadcast is on now, such as "Pad camera" or "Hull camera: looking aft".</summary>
+        public string Camera = "";
+        public bool WentOnboard;
         public readonly List<double> AltitudeTrace = new List<double>();
     }
 
@@ -114,6 +117,20 @@ namespace KerbalNews
         }
 
         void Changed() { if (StreamChanged != null) StreamChanged(); }
+
+        /// <summary>The broadcast cut to another camera. The first cut to the rocket's own cameras is a moment the chat notices.</summary>
+        public void StreamCamera(string name, bool onboard, double realTime)
+        {
+            var st = Stream;
+            if (st == null || name == null || st.Camera == name) return;
+            st.Camera = name;
+            if (onboard && !st.WentOnboard)
+            {
+                st.WentOnboard = true;
+                StreamMoment("the broadcast cut to the onboard hull cameras", realTime);
+            }
+            Changed();
+        }
 
         /// <summary>Feeds the latest telemetry. A moment (staging, explosion...) asks for chat right away.</summary>
         public void StreamSample(TelemetrySample s, double realTime, string moment = null)
