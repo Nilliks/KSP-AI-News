@@ -58,7 +58,7 @@ public static class MailTests
         Assert(press.ToAddr == "director@kerbinspaceagency.kb", "addressed to the director: " + press.ToAddr);
         int popups = 0;
         eng.MailArrived += m => popups++;
-        double now = Day * 3.6;
+        double now = Day * 3.8;
         eng.Tick(now, 3, true);
         Assert(popups == 0 || popups <= s.Mail.Count, "pop-ups only for new mail");
         Assert(eng.UnreadMail(now) == s.Mail.Count(m => m.UT <= now), "all unread");
