@@ -1,0 +1,21 @@
+<html><body>
+{{> top}}
+<div class="main">
+{{> side}}
+<div class="content">
+  <div class="welcome"><div class="wt">Welcome to Kerbopedia</div><div class="ws">{{wikiCount}} articles on {{agency}}, its craft, its crew and the places it has reached</div></div>
+  {{#empty}}<div class="box"><div class="boxhead blue">No articles yet</div><div class="boxbody"><p>Pages appear here after the press covers your first mission. Each craft, kerbal and place you reach gets one.</p></div></div>{{/empty}}
+  {{^empty}}
+  <div class="cols">
+    <div class="col">
+      {{#featured}}<div class="box"><div class="boxhead green">Featured article</div><div class="boxbody feat">{{#image}}<img src="{{image}}" style="width: 150px; aspect-ratio: 4/3">{{/image}}<p><a href="{{url}}"><b>{{title}}</b></a>: {{text}} <a href="{{url}}">(Full article...)</a></p></div></div>{{/featured}}
+      {{#hasFirsts}}<div class="box"><div class="boxhead purple">Agency firsts</div><div class="boxbody">{{#firsts}}<p class="li">{{.}}</p>{{/firsts}}</div></div>{{/hasFirsts}}
+    </div>
+    <div class="col">
+      <div class="box"><div class="boxhead blue">Recently updated</div><div class="boxbody">{{#recent}}<p class="li"><a href="{{url}}">{{title}}</a>: {{text}} <span class="muted">({{date}})</span></p>{{/recent}}</div></div>
+      <div class="box"><div class="boxhead sand">Browse</div><div class="boxbody browse">{{#counts}}<a href="{{url}}">{{name}} ({{count}})</a>{{/counts}}<a href="kerbopedia.kb/timeline">Timeline</a></div></div>
+    </div>
+  </div>
+  {{/empty}}
+</div></div>
+</body></html>

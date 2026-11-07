@@ -124,6 +124,7 @@ namespace KerbalNews.Web
                 if (host == PressHost) return PressRoom(url);
                 if (host == GalleryHost) return GalleryPage(url, path);
                 if (host == LiveHost) return LivePage(url, path);
+                if (host == WikiHost) return WikiSite(url, path, query);
                 if (host == EngineeringHost) return Page(url, "engineering", "index.html", EngineeringModel(), "KSC Engineering", false);
                 if (host == Home)
                 {
@@ -166,7 +167,7 @@ namespace KerbalNews.Web
 
         static readonly string[][] NetLinks =
         {
-            new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "telemetry.kb", "Telemetry" },
+            new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "kerbopedia.kb", "Kerbopedia" }, new[] { "telemetry.kb", "Telemetry" },
             new[] { "pressroom.kb", "Press room" }, new[] { "gallery.kb", "Gallery" }, new[] { "live.kb", "Live" }, new[] { "agency.kb", "Agency" },
             new[] { "engineering.kb", "Engineering" }, new[] { "settings.kb", "Settings" },
         };

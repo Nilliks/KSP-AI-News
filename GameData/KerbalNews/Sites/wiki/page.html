@@ -1,0 +1,31 @@
+<html><body>
+{{> top}}
+<div class="main">
+{{> side}}
+<div class="content">
+  <div class="tabs"><span class="tab on">Article</span><div class="grow"></div><span class="tab on">Read</span><a class="tab" href="{{historyUrl}}">View history</a></div>
+  <h1>{{title}}</h1>
+  <div class="from">From Kerbopedia, the free encyclopedia</div>
+  {{#template}}<div class="stub">This article is a stub, written from the agency's records. {{^aiOff}}Kerbopedia's writers expand it once the news about it settles.{{/aiOff}}{{#aiOff}}With AI turned on, Kerbopedia's writers expand it.{{/aiOff}}</div>{{/template}}
+  <div class="art">
+    <div class="text">
+      {{{leadHtml}}}
+      {{#toc}}<div class="toc"><div class="toch">Contents</div>{{#sections}}<p>{{n}} {{heading}}</p>{{/sections}}{{#hasFlights}}<p>Flights</p>{{/hasFlights}}{{#hasRefs}}<p>References</p>{{/hasRefs}}</div>{{/toc}}
+      {{#sections}}<h2>{{heading}}</h2>{{{html}}}{{/sections}}
+      {{#hasFlights}}<h2>Flights</h2>
+      <div class="tbl"><div class="tr th"><div class="c1">#</div><div class="c2">Date</div><div class="c3">Crew</div><div class="c4">Outcome</div></div>
+      {{#flights}}<div class="tr"><div class="c1">{{n}}</div><div class="c2">{{date}}</div><div class="c3">{{crew}}</div>{{#bad}}<div class="c4 bad">{{outcome}}</div>{{/bad}}{{#good}}<div class="c4 good">{{outcome}}</div>{{/good}}{{^bad}}{{^good}}<div class="c4">{{outcome}}</div>{{/good}}{{/bad}}</div>{{/flights}}</div>{{/hasFlights}}
+      {{#related.0}}<h2>See also</h2><p>{{#related}}<a href="{{url}}">{{title}}</a> &middot; {{/related}}</p>{{/related.0}}
+      {{#hasRefs}}<h2>References</h2>{{#refs}}<p class="ref">{{n}}. <a href="{{url}}">"{{headline}}"</a>. <i>{{outlet}}</i>. {{date}}.</p>{{/refs}}{{/hasRefs}}
+      <div class="foot">This page was last updated on {{updated}}. Want something changed? <a href="{{assistantUrl}}">Ask your assistant</a> to edit it.</div>
+    </div>
+    <div class="info">
+      <div class="ih">{{title}}</div>
+      {{#image}}<img src="{{image}}" style="width: 100%; aspect-ratio: 4/3"><div class="icap">{{caption}}</div>{{/image}}
+      <div class="isec">{{infoTitle}}</div>
+      {{#info}}<div class="ir"><div class="il">{{label}}</div><div class="iv">{{#url}}<a href="{{url}}">{{value}}</a>{{/url}}{{^url}}{{value}}{{/url}}</div></div>{{/info}}
+      {{#hasSpecs}}<div class="isec">Specifications</div>{{#specs}}<div class="ir"><div class="il">{{label}}</div><div class="iv">{{value}}</div></div>{{/specs}}{{/hasSpecs}}
+    </div>
+  </div>
+</div></div>
+</body></html>

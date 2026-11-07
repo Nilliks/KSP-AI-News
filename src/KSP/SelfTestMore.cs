@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -305,6 +306,31 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>Background world news: read the real game world, then write one roundup (one AI call) and open a story.</summary>
+        IEnumerator WikiCheck(NewsSystem sys, Browser br, double now)
+        {
+            var eng = sys.Engine;
+            var pages = eng.State.Wiki.Values.ToList();
+            Log("  wiki: " + pages.Count + " pages: " + string.Join(", ", pages.Select(p => p.Kind + ":" + p.Title).ToArray()));
+            var craft = pages.FirstOrDefault(p => p.Kind == "craft");
+            Check(craft != null, "wiki: the covered mission made a craft page");
+            yield return Visit(br, "kerbopedia.kb");
+            if (craft == null) yield break;
+            yield return Visit(br, Sites.WikiUrl(craft));
+            if (eng.Settings.CanCallAi)
+            {
+                Check(eng.WikiRewrite(craft.Slug, "", now), "wiki: the AI rewrite started");
+                float t0 = Time.realtimeSinceStartup;
+                while (eng.WikiBusy && Time.realtimeSinceStartup - t0 < 120) yield return new WaitForSeconds(0.5f);
+                Check(craft.WrittenUT >= 0 && craft.Sections.Count > 0, "wiki: the AI wrote the page (" + craft.Sections.Count + " sections): " + ResponseParser.Clip(craft.Lead, 200));
+                foreach (var sct in craft.Sections) Log("  wiki section " + sct.Heading + ": " + ResponseParser.Clip(sct.Text.Replace("\n", " "), 300));
+                yield return Visit(br, Sites.WikiUrl(craft));
+            }
+            string res = eng.Execute("edit_wiki", new Dictionary<string, object> { { "page", craft.Title }, { "sections", new List<object> { new Dictionary<string, object> { { "heading", "Self-test" }, { "text", "This section was added by the self-test." } } } }, { "note", "Self-test edit" } }, now);
+            Check(craft.Sections.Any(x => x.Heading == "Self-test"), "wiki: the assistant's edit landed: " + res);
+            yield return Go(Sites.WikiUrl(craft) + "/history");
+            yield return Shot("wiki-history");
+        }
+
         IEnumerator WorldCheck(NewsSystem sys, Browser br, double now)
         {
             var eng = sys.Engine;

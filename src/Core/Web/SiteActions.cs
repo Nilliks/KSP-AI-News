@@ -39,6 +39,9 @@ namespace KerbalNews.Web
 
             switch (verb)
             {
+                case "wiki-search":
+                    r.Navigate = WikiHost + "/search?q=" + Uri.EscapeDataString(Get(form, "wq").Trim());
+                    break;
                 case "search":
                     r.Navigate = Home + "/search?q=" + Uri.EscapeDataString(Get(form, "q").Trim());
                     break;

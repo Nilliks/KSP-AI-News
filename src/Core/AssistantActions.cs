@@ -25,6 +25,7 @@ namespace KerbalNews
                     var la = FindArticle(Arg(a, "article"), double.MaxValue);
                     return "Send a legal letter demanding a " + (Arg(a, "demand") == "correction" ? "correction" : "retraction") + " of " + (la != null ? "\"" + la.Headline + "\" (" + Outlets.NameOf(la.Outlet) + ")" : "the article") + ", legal fees about √12,000";
                 case "ad_campaign": return "Ad campaign \"" + ResponseParser.Clip(Arg(a, "message"), 80) + "\" for √" + Money(ArgMoney(a, "budget")) + " in " + string.Join(", ", ArgList(a, "outlets").Select(x => { var oo = FindOutlet(x); return oo != null ? oo.Name : x; }).ToArray());
+                case "edit_wiki": return "Edit the Kerbopedia page \"" + Arg(a, "page") + "\"";
                 case "press_release": return "Publish the press release \"" + ResponseParser.Clip(Arg(a, "title"), 80) + "\"";
                 case "leak": return "Leak to " + (o != null ? o.Name : Arg(a, "outlet")) + ": " + ResponseParser.Clip(Arg(a, "info"), 80);
                 case "public_apology": return "Publish a public apology about " + Arg(a, "about", "recent events");
@@ -146,6 +147,7 @@ namespace KerbalNews
                         int i = RemoveOrder(Arg(a, "order"));
                         return i < 0 ? "I couldn't find that standing order." : "Dropped the standing order.";
                     }
+                    case "edit_wiki": return WikiEdit(a, ut);
                     case "delete_post": return EditPost(a, ut, true);
                     case "edit_post": return EditPost(a, ut, false);
                     case "add_lore":

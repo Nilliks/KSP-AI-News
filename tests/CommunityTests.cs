@@ -225,13 +225,90 @@ public static class CommunityTests
         Assert(!sites.Handle("nonsense", null).Refresh, "unknown action ignored");
     }
 
+    public static void TestKerbopediaPagesFromTheGame()
+    {
+        var g = new GlobalSettings { OfflineMode = true };
+        var eng = Published(g, null);
+        var w = eng.State.Wiki;
+        var craft = eng.WikiGet("Test Rocket v1");
+        Assert(craft != null && craft.Kind == "craft" && craft.Flights.Count == 1 && craft.Craft != null, "craft page with its flight and specs");
+        Eq("Landed on Mun", craft.Flights[0].Outcome, "flight outcome");
+        Assert(craft.Flights[0].Crew.Contains("Jebediah Kerman"), "flight crew");
+        Assert(eng.WikiGet("Jebediah Kerman") != null && eng.WikiGet("Mun") != null && w.Values.Any(p => p.Kind == "agency"), "crew, place and agency pages");
+        Assert(craft.Refs.Count > 0, "press coverage cited");
+
+        var sites = MakeSites(eng);
+        var home = sites.Render("kerbopedia.kb");
+        Assert(home.Html.Contains("Welcome to Kerbopedia") && home.Html.Contains("Test Rocket v1") && !home.Html.Contains("{{"), "main page");
+        var page = sites.Render(Sites.WikiUrl(craft));
+        Assert(page.Html.Contains("Specifications") && page.Html.Contains(">42<") && page.Html.Contains("Landed on Mun") && !page.Html.Contains("{{"), "craft page infobox and flights");
+        Assert(page.Html.Contains("href=\"kerbopedia.kb/wiki/jebediah_kerman\""), "crew name links to their page");
+        Assert(page.Html.Contains("/article/"), "references link to the articles");
+        Assert(page.Html.Contains("stub"), "template text is marked as a stub");
+        foreach (var u in new[] { "kerbopedia.kb/wiki/mun", "kerbopedia.kb/wiki/jebediah_kerman", "kerbopedia.kb/list/craft", "kerbopedia.kb/timeline", "kerbopedia.kb/search?q=mun", Sites.WikiUrl(craft) + "/history", "kerbopedia.kb/wiki/nothing_here", "kerbopedia.kb/random" })
+        {
+            var r = sites.Render(u);
+            Assert(!r.Html.Contains("{{") && !r.Title.StartsWith("Error") && r.Html.Contains("KERBOPEDIA"), "renders " + u);
+        }
+        Assert(sites.Render("kerbopedia.kb/search?q=mun").Html.Contains("Test Rocket v1"), "search finds the craft by what it did");
+        Eq("kerbopedia.kb/search?q=jeb", sites.Handle("wiki-search", new Dictionary<string, string> { { "wq", " jeb " } }).Navigate, "search box");
+
+        // The director edits a page through the assistant.
+        string res = eng.Execute("edit_wiki", new Dictionary<string, object>
+        {
+            { "page", "test rocket v1" }, { "lead", "Test Rocket v1 is the agency's first Mun lander." },
+            { "sections", new List<object> { new Dictionary<string, object> { { "heading", "Legacy" }, { "text", "It proved the agency could reach the Mun." } } } },
+            { "remember", "Always call it the agency's workhorse." }, { "note", "Better opening" },
+        }, Day * 3);
+        Assert(res.Contains("Edited") && craft.Lead.StartsWith("Test Rocket v1 is the agency's first") && craft.Sections.Any(x => x.Heading == "Legacy") && craft.Notes.Count == 1, "edit_wiki: " + res);
+        Assert(craft.History.Last().By.StartsWith("An account at"), "history shows the agency made the edit");
+        Assert(sites.Render(Sites.WikiUrl(craft) + "/history").Html.Contains("Better opening"), "history page");
+        Assert(eng.WikiLookup("Test Rocket v1").Contains("Legacy") && eng.WikiLookup("").Contains("test_rocket_v1"), "wiki lookup");
+        Assert(eng.Execute("edit_wiki", new Dictionary<string, object> { { "page", "Kerbin Space Program history" }, { "lead", "A short history." } }, Day * 3).Contains("Edited") && eng.WikiGet("Kerbin Space Program history").Kind == "topic", "a new topic page");
+
+        // A save from before Kerbopedia fills it in from the news it already has.
+        var old = NewsState.Load(CoreSnapshot(eng.State));
+        old.Wiki.Clear(); old.WikiSeeded = false;
+        var eng2 = new NewsEngine(old, g, null, new SimpleClock(Day));
+        eng2.Tick(Day * 3, 1, true);
+        Assert(eng2.WikiGet("Test Rocket v1") != null && eng2.WikiGet("Test Rocket v1").Flights.Count == 1 && eng2.WikiGet("Mun") != null, "old saves get their pages");
+
+        var back = NewsState.Load(CoreSnapshot(eng.State));
+        var c2 = back.Wiki["test_rocket_v1"];
+        Assert(c2.Lead == craft.Lead && c2.Flights.Count == 1 && c2.Flights[0].Outcome == "Landed on Mun" && c2.Craft.Parts == 42 && c2.Notes.Count == 1 && c2.History.Count == craft.History.Count && c2.Refs.Count == craft.Refs.Count, "saved and loaded");
+    }
+
+    public static void TestKerbopediaAiWritesAfterTheNewsSettles()
+    {
+        var t = new CoreTests.FakeTransport();
+        var eng = Published(CoreTests.OnlineSettings(), t);
+        var craft = eng.WikiGet("Test Rocket v1");
+        int before = t.Sent.Count;
+        eng.Tick(Day * 3.2, 5, true);
+        Assert(!t.Sent.Skip(before).Any(r => UserPrompt(r).Contains("PAGE test_rocket_v1")), "no wiki call while the news is fresh");
+        eng.Tick(Day * 4.5, 10, true);
+        var req = t.Sent.Skip(before).FirstOrDefault(r => UserPrompt(r).Contains("PAGE test_rocket_v1"));
+        Assert(req != null, "the wiki writes once the news settles");
+        string up = UserPrompt(req);
+        Assert(up.Contains("42 parts") && up.Contains("landed on Mun") && up.Contains("[1]"), "facts, specs and cites in the prompt");
+        int idx = t.Sent.IndexOf(req);
+        t.Pending[t.Pending.Count - (t.Sent.Count - idx)](Anthropic("{\"pages\":[{\"page\":\"test_rocket_v1\",\"lead\":\"Test Rocket v1 is a crewed Mun lander flown by Jebediah Kerman [1].\",\"sections\":[{\"heading\":\"Flight history\",\"text\":\"It landed on the Mun.\"}],\"change\":\"First full article\"}]}"));
+        Assert(craft.WrittenUT > 0 && craft.Sections.Count == 1 && craft.Pending == 0, "the AI text is stored");
+        var html = MakeSites(eng).Render(Sites.WikiUrl(craft)).Html;
+        Assert(html.Contains("class=\"cite\"") && !html.Contains("stub"), "cite linked, no stub note");
+        Assert(craft.History.Any(h => h.Note == "First full article"), "revision noted");
+        int n = t.Sent.Count;
+        eng.Tick(Day * 6, 20, true);
+        Assert(!t.Sent.Skip(n).Any(r => UserPrompt(r).Contains("PAGE test_rocket_v1")), "no rewrite without new events");
+    }
+
     /// <summary>A+ shrinks the layout width; a squeezed box once handed TextMeshPro a zero-width text, which froze the game.</summary>
     public static void TestBigZoomNeverZeroWidthText()
     {
         var g = new GlobalSettings { OfflineMode = true };
         var eng = Published(g, null);
         var sites = MakeSites(eng);
-        var urls = new List<string> { "kerbalnews.kb", "agency.kb", "engineering.kb", "snackboard.kb", "settings.kb", "live.kb", "tracker.kb", Sites.ArticleUrl(eng.State.Articles.First()) };
+        var urls = new List<string> { "kerbalnews.kb", "agency.kb", "engineering.kb", "snackboard.kb", "settings.kb", "live.kb", "tracker.kb", "kerbopedia.kb", "kerbopedia.kb/wiki/test_rocket_v1", Sites.ArticleUrl(eng.State.Articles.First()) };
         float narrowest = float.MaxValue; string where = "";
         foreach (var u in urls)
         {

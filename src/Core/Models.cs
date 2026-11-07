@@ -729,6 +729,10 @@ namespace KerbalNews
         public List<LoreEntry> Orders = new List<LoreEntry>();
         /// <summary>Fame of every kerbal who has flown, by name.</summary>
         public Dictionary<string, CrewFame> Crew = new Dictionary<string, CrewFame>();
+        /// <summary>Kerbopedia pages by slug.</summary>
+        public Dictionary<string, WikiPage> Wiki = new Dictionary<string, WikiPage>();
+        /// <summary>Kerbopedia was filled in from the news already in the save (once, for saves from before it existed).</summary>
+        public bool WikiSeeded;
         /// <summary>Science results that reached Kerbin, for the journal.</summary>
         public List<ScienceResult> Science = new List<ScienceResult>();
         public List<ScienceFinding> Findings = new List<ScienceFinding>();
@@ -900,6 +904,9 @@ namespace KerbalNews
             foreach (var kv in WorldSeen) { var sn = world.AddNode("SEEN"); sn.AddText("key", kv.Key); sn.Add("ut", kv.Value); }
             foreach (var kv in WorldMemo) { var mn = world.AddNode("MEMO"); mn.AddText("key", kv.Key); mn.AddText("value", kv.Value); }
             foreach (var f in WorldPending) f.Save(world.AddNode("FACT"));
+            var wiki = n.AddNode("WIKI");
+            wiki.Add("seeded", WikiSeeded);
+            foreach (var wp in Wiki.Values) wp.Save(wiki.AddNode("PAGE"));
             var crew = n.AddNode("CREW");
             foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
             foreach (var a in Anniversaries) n.Add("anniversary", a);
@@ -1014,6 +1021,9 @@ namespace KerbalNews
                 foreach (var mn in worldNode.GetNodes("MEMO")) { string k = mn.GetText("key"); if (k != "") s.WorldMemo[k] = mn.GetText("value"); }
                 foreach (var fn in worldNode.GetNodes("FACT")) s.WorldPending.Add(WorldFact.Load(fn));
             }
+            var wikiNode = n.GetNode("WIKI");
+            if (wikiNode != null) s.WikiSeeded = wikiNode.GetBool("seeded");
+            if (wikiNode != null) foreach (var wn in wikiNode.GetNodes("PAGE")) { var wp = WikiPage.Load(wn); if (wp.Slug != "") s.Wiki[wp.Slug] = wp; }
             var crewNode = n.GetNode("CREW");
             if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
             foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);

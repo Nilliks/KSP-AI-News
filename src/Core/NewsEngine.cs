@@ -206,6 +206,7 @@ namespace KerbalNews
             TickAssistant(ut);
             TickAnniversaries(ut);
             TickWorld(ut, allowCalls);
+            TickWiki(ut, allowCalls);
             TickAppearances(ut);
             if (State.TieIns.Count > 0 && State.TieIns.Any(t => t.Open)) TickTieIns(ut);
             MaybePoll(ut);
@@ -420,6 +421,7 @@ namespace KerbalNews
             if (tv != null && tv.History.Count > 12) tv.History.RemoveRange(0, tv.History.Count - 12);
             if (Status.StartsWith("Writing")) Status = "Idle";
             if (!rewritten) ConsiderTieIn(story, cov.Articles, ut);
+            if (!rewritten) WikiOnStory(story, cov.Articles, ut);
             State.Prune();
         }
 

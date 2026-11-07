@@ -1,0 +1,11 @@
+<html><body>
+{{> top}}
+<div class="main">
+{{> side}}
+<div class="content">
+  <div class="tabs"><a class="tab" href="{{pageUrl}}">Article</a><div class="grow"></div><a class="tab" href="{{pageUrl}}">Read</a><span class="tab on">View history</span></div>
+  <h1>{{title}}: revision history</h1>
+  <div class="from">Newest first</div>
+  {{#revs}}<p class="rev"><b>{{date}}</b> &middot; {{#agency}}<span class="agency">{{by}}</span>{{/agency}}{{^agency}}{{by}}{{/agency}} &middot; {{note}}</p>{{/revs}}
+</div></div>
+</body></html>

@@ -1,0 +1,69 @@
+body { background: #ffffff; color: #202122; font-size: 15px; line-height: 1.5; }
+a { color: #2a5db0; }
+a:hover { color: #1b3f7a; }
+.top { display: flex; align-items: center; gap: 20px; padding: 12px 26px; background: #f8f9fa; border-bottom: 1px solid #c8ccd1; }
+.brand .logo { font-family: serif; font-size: 22px; color: #202122; letter-spacing: 1px; }
+.motto { font-size: 12px; color: #54595d; }
+.grow { flex: 1; }
+.search { display: flex; gap: 6px; }
+.search input { width: 280px; padding: 6px 8px; border: 1px solid #a2a9b1; background: #ffffff; font-size: 14px; }
+.search button { padding: 6px 12px; border: 1px solid #a2a9b1; background: #ffffff; color: #202122; font-size: 14px; }
+.main { display: flex; }
+.side { width: 150px; padding: 20px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; border-right: 1px solid #eaecf0; }
+.sidehead { margin-top: 12px; font-size: 12px; color: #54595d; }
+.content { flex: 1; padding: 18px 30px 40px; }
+.tabs { display: flex; gap: 16px; font-size: 13px; border-bottom: 1px solid #a2a9b1; margin-bottom: 12px; }
+.tab { padding: 4px 2px; }
+.tab.on { font-weight: bold; }
+h1 { font-family: serif; font-weight: normal; font-size: 28px; margin-bottom: 2px; }
+.from { font-size: 13px; color: #54595d; padding-bottom: 6px; border-bottom: 1px solid #a2a9b1; margin-bottom: 14px; }
+.stub { background: #eaf3ff; border: 1px solid #a3c0e8; padding: 6px 10px; font-size: 13px; margin-bottom: 12px; color: #202122; }
+.art { display: flex; gap: 24px; align-items: flex-start; }
+.text { flex: 1; }
+.text p { margin-bottom: 10px; }
+h2 { font-family: serif; font-weight: normal; font-size: 21px; border-bottom: 1px solid #a2a9b1; padding-bottom: 2px; margin-top: 14px; margin-bottom: 8px; }
+.cite { font-size: 12px; }
+.toc { background: #f8f9fa; border: 1px solid #a2a9b1; padding: 8px 16px 8px 12px; margin-bottom: 14px; width: 220px; font-size: 14px; }
+.toc p { margin-bottom: 2px; color: #2a5db0; }
+.toch { font-weight: bold; text-align: center; margin-bottom: 4px; }
+.tbl { border: 1px solid #a2a9b1; margin-bottom: 14px; font-size: 14px; }
+.tr { display: flex; border-bottom: 1px solid #c8ccd1; }
+.th { background: #eaecf0; font-weight: bold; }
+.c1 { width: 40px; padding: 4px 8px; }
+.c2 { width: 130px; padding: 4px 8px; }
+.c3 { flex: 1; padding: 4px 8px; }
+.c4 { width: 220px; padding: 4px 8px; }
+.good { background: #d5f0dc; }
+.bad { background: #fbe3c9; }
+.ref { font-size: 13px; margin-bottom: 4px; }
+.foot { margin-top: 20px; padding-top: 8px; border-top: 1px solid #eaecf0; font-size: 12px; color: #54595d; }
+.info { width: 280px; border: 1px solid #a2a9b1; background: #f8f9fa; padding: 6px; font-size: 13px; }
+.ih { text-align: center; font-weight: bold; font-size: 16px; background: #cee0f2; padding: 4px; margin-bottom: 4px; }
+.icap { text-align: center; font-size: 12px; color: #54595d; margin-bottom: 4px; }
+.isec { text-align: center; font-weight: bold; background: #cee0f2; padding: 3px; margin-top: 4px; margin-bottom: 4px; }
+.ir { display: flex; gap: 8px; padding: 2px 4px; }
+.il { width: 95px; font-weight: bold; }
+.iv { flex: 1; }
+.welcome { border: 1px solid #a2a9b1; background: #f8f9fa; padding: 14px 20px; text-align: center; margin-bottom: 16px; }
+.wt { font-family: serif; font-size: 24px; }
+.ws { font-size: 14px; color: #54595d; }
+.cols { display: flex; gap: 18px; align-items: flex-start; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+.box { border: 1px solid #a2a9b1; }
+.boxhead { padding: 4px 10px; font-weight: bold; font-size: 16px; }
+.green { background: #cef2ce; }
+.blue { background: #cee0f2; }
+.purple { background: #e8dcf2; }
+.sand { background: #f2ecce; }
+.boxbody { padding: 10px 12px; font-size: 14px; }
+.boxbody .li { margin-bottom: 4px; }
+.feat { display: flex; gap: 12px; align-items: flex-start; }
+.feat p { flex: 1; }
+.browse { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.muted { color: #54595d; }
+.entry { margin-bottom: 8px; }
+.rev { margin-bottom: 6px; font-size: 14px; }
+.agency { color: #8a4b00; font-weight: bold; }
+.tl { display: flex; gap: 14px; padding: 4px 0; border-bottom: 1px solid #eaecf0; font-size: 14px; }
+.tld { width: 130px; color: #54595d; }
+.tlt { flex: 1; }

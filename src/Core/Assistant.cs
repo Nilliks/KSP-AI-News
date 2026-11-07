@@ -164,6 +164,7 @@ namespace KerbalNews
 - lore {}: the agency profile and lore journal.
 - reporters {}: named reporters at each outlet and how they feel about the agency (goodwill or grudges, and why).
 - orders {}: your standing orders.
+- wiki {page?}: Kerbopedia, the public encyclopedia of the agency's craft, crew and places: the page list, or one page's current text.
 - crew {}: the roster: each kerbal's trait, level, where they are, fame, and any scheduled interviews or briefings.
 ACTIONS:
 - press_release {type: announcement|update|incident|teaser, title, body, vessel?, photos?: [gallery ids]}: official release on the press room. Write the text yourself if not given.
@@ -196,6 +197,7 @@ ACTIONS:
 - set_silent {vessel, silent: true|false}: keep a craft's telemetry from the press, or share it again.
 - delete_post {target}: delete one of the agency's own comments or threads (id or words from it). Someone may have screenshotted it.
 - edit_post {target, text}: change the text of one of the agency's own comments or threads.
+- edit_wiki {page, lead?, sections?: [{heading, text}], rewrite?, remember?, note?}: change a Kerbopedia page (title or slug; a new title makes a new page). lead replaces the opening; each section replaces the one with that heading, adds it if new, or removes it when text is """"; rewrite asks Kerbopedia's writers to redo the page following an instruction; remember is a lasting wish the page keeps in later updates; note is the edit summary. Look the page up first when changing existing text. Free, but the page history shows the edit came from the agency.
 - add_order {text}: remember a standing order from the director (""from now on..."", ""always..."", ""never...""). Follow it in every later request.
 - remove_order {order}: drop a standing order (its number or words from it).";
 
