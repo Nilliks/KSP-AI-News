@@ -203,6 +203,7 @@ namespace KerbalNews
             TickTownHalls(ut);
             TickAssistant(ut);
             TickAnniversaries(ut);
+            TickWorld(ut, allowCalls);
             TickAppearances(ut);
             if (State.TieIns.Count > 0 && State.TieIns.Any(t => t.Open)) TickTieIns(ut);
             MaybePoll(ut);

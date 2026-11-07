@@ -805,4 +805,86 @@ public static class FeatureTests
         var wild = NewsEngine.ChatTimes(40, 30, 6, rng);
         Assert(wild.Count(x => x < 9) >= 24, "after a big moment most messages land in the first seconds: " + wild.Count(x => x < 9));
     }
+
+    public static void TestBackgroundWorldNews()
+    {
+        // Window math: a target at the ideal lead angle is a window now; the lead shrinks/grows at the relative rate.
+        double mu = 1.17e18, a1 = 1.36e10, a2 = 2.07e10;
+        double tH = Math.PI * Math.Sqrt(Math.Pow(a1 + a2, 3) / (8 * mu)), n2 = Math.Sqrt(mu / (a2 * a2 * a2));
+        double lead = Math.PI - n2 * tH;
+        var home = new[] { a1, 0, 0 }; var up = new[] { 0.0, 0, 1 };
+        var tgt = new[] { a2 * Math.Cos(lead), a2 * Math.Sin(lead), 0 };
+        double syn = SkyMath.Synodic(a1, a2, mu);
+        double t0 = SkyMath.SecondsToWindow(home, tgt, up, a1, a2, mu);
+        Assert(t0 < 60 || syn - t0 < 60, "window now at the ideal angle: " + t0);
+        var tgt2 = new[] { a2 * Math.Cos(lead + 0.1), a2 * Math.Sin(lead + 0.1), 0 };
+        double t1 = SkyMath.SecondsToWindow(home, tgt2, up, a1, a2, mu);
+        Assert(t1 > 0 && t1 < syn, "an outer planet a bit too far ahead comes round later: " + t1 / 21600 + " days of " + syn / 21600);
+        Assert(SkyMath.Eclipse(new[] { 1.36e10, 0, 0 }, 2.6e8, new[] { 1.2e7, 0, 0 }, 2e5, 6e5) == "solar", "moon in front of the sun");
+        Assert(SkyMath.Eclipse(new[] { 1.36e10, 0, 0 }, 2.6e8, new[] { -1.2e7, 0, 0 }, 2e5, 6e5) == "lunar", "moon in the shadow");
+        Assert(SkyMath.Eclipse(new[] { 1.36e10, 0, 0 }, 2.6e8, new[] { 0, 1.2e7, 0 }, 2e5, 6e5) == "", "no eclipse at quarter moon");
+
+        // Engine: the first scan only learns the world; later facts are batched into a roundup on the right sites.
+        double day = 21600;
+        var s = new NewsState();
+        var g = new GlobalSettings { OfflineMode = true };
+        var eng = new NewsEngine(s, g, new CoreTests.FakeTransport(), new SimpleClock(day));
+        var world = new List<WorldFact> { new WorldFact { Key = "roid:old", Kind = "sky", Sig = 2, Headline = "Old rock", Text = "An old asteroid." } };
+        eng.WorldScan = ut => world.ToList();
+        eng.Tick(0, 0, true);
+        Assert(s.WorldBaselined && s.WorldPending.Count == 0 && s.WorldSeen.ContainsKey("roid:old"), "first scan is a baseline");
+        world.Add(new WorldFact { Key = "window:Duna:1", Kind = "sky", Sig = 3, Headline = "Launch window to Duna opens", Text = "The launch window from Kerbin to Duna opens in about 3 days." });
+        world.Add(new WorldFact { Key = "reentry:debris:1", Kind = "safety", Sig = 1, Headline = "Space junk coming down", Text = "3 pieces of debris will burn up." });
+        world.Add(new WorldFact { Key = "crewdays:Jeb:100", Kind = "crew", Sig = 2, Headline = "Jebediah Kerman passes 100 days in space", Text = "Jebediah Kerman has now spent 100 days in space in total." });
+        eng.Tick(0.3 * day, 1, true);
+        Assert(s.WorldPending.Count == 3 && !s.WorldPending.Any(f => f.Key == "roid:old"), "new facts wait for the roundup");
+        Assert(!s.Articles.Any(a => a.Tags.Contains("world")), "nothing before the interval");
+        eng.Tick(3.5 * day, 2, true);
+        var arts = s.Articles.Where(a => a.Tags.Contains("world")).ToList();
+        Assert(arts.Count >= 3 && arts.Count <= 4, "a roundup of 3 game facts (plus maybe flavor): " + arts.Count);
+        Assert(arts.Any(a => a.Outlet == "observer" && a.Headline.Contains("Duna")), "the window goes to the trade journal");
+        Assert(arts.Any(a => a.Outlet == "munmonthly" && a.Headline.Contains("100 days")), "the crew milestone goes to the magazine");
+        Assert(s.WorldPending.Count == 0, "pending cleared");
+
+        // Something big gets its own story with full coverage; rivals stay small and never leave Kerbin orbit.
+        world.Add(new WorldFact { Key = "roid:big:impact", Kind = "sky", Sig = 5, Headline = "Space rock on course to hit Kerbin", Text = "A class E asteroid will hit the atmosphere." });
+        eng.Tick(3.8 * day, 3, true);
+        Assert(s.Stories.Any(st => st.Kind == "tip" && st.TipHeadline.Contains("Space rock") && st.FillerOutlet.Contains("herald")), "an impact threat is a full story");
+        for (int i = 0; i < 40; i++)
+        {
+            var fl = eng.Flavor(i * day * 7, new Random(i));
+            if (fl == null || fl.Kind != "rival") continue;
+            Assert(!fl.Text.Contains("Mun") && !fl.Text.Contains("Duna") && !fl.Text.Contains("Minmus"), "rivals stay around Kerbin: " + fl.Text);
+            Assert(!fl.Text.Contains("put a small weather satellite"), "before the agency reaches orbit, rivals have not either: " + fl.Text);
+        }
+        g.WorldRivals = false;
+        for (int i = 0; i < 40; i++) { var fl = eng.Flavor(1000 * day + i * day, new Random(i)); Assert(fl == null || fl.Kind != "rival", "rivals can be turned off"); }
+
+        // Saved and loaded.
+        s.WorldMemo["space:Jeb"] = "100.5";
+        s.WorldPending.Add(new WorldFact { Key = "x", Kind = "tech", Text = "T" });
+        var n = new DataNode("KERBALNEWS"); s.Save(n);
+        var back = NewsState.Load(n);
+        Assert(back.WorldBaselined && back.WorldSeen.ContainsKey("window:Duna:1") && back.WorldMemo["space:Jeb"] == "100.5" && back.WorldPending.Any(f => f.Key == "x"), "world notes survive a save");
+
+        // Online: one call writes the whole roundup; turning it off stops everything.
+        string sent = null; int calls = 0;
+        var t = new CoreTests.FakeTransport { Responder = r => { calls++; sent = r.Body; return Reply("{\"stories\":[{\"item\":1,\"headline\":\"Duna beckons\",\"subhead\":\"The window is near.\",\"body\":\"Planners are busy.\\n\\nMore soon.\"},{\"item\":2,\"headline\":\"Junk falls\",\"subhead\":\"x\",\"body\":\"It burns.\"}]}"); } };
+        var s2 = new NewsState();
+        var g2 = CoreTests.OnlineSettings(); g2.WorldFlavor = false;
+        var eng2 = new NewsEngine(s2, g2, t, new SimpleClock(day));
+        var w2 = new List<WorldFact>();
+        eng2.WorldScan = ut => w2.ToList();
+        eng2.Tick(0, 0, true);
+        w2.Add(world[1]); w2.Add(world[2]);
+        eng2.Tick(0.3 * day, 1, true);
+        int before = calls;
+        eng2.Tick(3.5 * day, 2, true);
+        Assert(calls - before == 1 && sent != null && sent.Contains("Duna") && sent.Contains("only ever work in orbit around Kerbin"), "one call for the roundup, with the rival rule");
+        Assert(s2.Articles.Any(a => a.Headline == "Duna beckons" && a.Tags.Contains("world")) && s2.Articles.Any(a => a.Headline == "Junk falls"), "AI stories parsed");
+        g2.WorldNews = 0;
+        w2.Add(new WorldFact { Key = "late", Kind = "tech", Sig = 2, Text = "New tech." });
+        eng2.Tick(10 * day, 3, true);
+        Assert(!s2.WorldSeen.ContainsKey("late"), "off means no scanning");
+    }
 }

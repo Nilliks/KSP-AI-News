@@ -102,6 +102,16 @@ namespace KerbalNews.Web
                     SaveSettings();
                     break;
                 }
+                case "usage-world":
+                {
+                    int w;
+                    if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out w)) g.WorldNews = Math.Max(0, Math.Min(3, w));
+                    g.Usage = g.UsageMatch;
+                    SaveSettings();
+                    break;
+                }
+                case "toggle-world-flavor": g.WorldFlavor = !g.WorldFlavor; SaveSettings(); break;
+                case "toggle-world-rivals": g.WorldRivals = !g.WorldRivals; SaveSettings(); break;
                 case "toggle-crewchat": g.CrewChatOn = !g.CrewChatOn; SaveSettings(); break;
                 case "toggle-ktv": g.KtvOn = !g.KtvOn; g.Usage = g.UsageMatch; SaveSettings(); break;
                 case "toggle-mods-context": g.ModsInContext = !g.ModsInContext; SaveSettings(); break;

@@ -235,7 +235,7 @@ namespace Contracts
     {
         public enum ContractPrestige { Trivial, Significant, Exceptional }
         public enum State { Generated, Offered, OfferExpired, Declined, Cancelled, Active, Completed, DeadlineExpired, Failed, Withdrawn }
-        public string Title; public Guid ContractGuid; public State ContractState; public double FundsAdvance, FundsCompletion; public float ReputationCompletion; public int ParameterCount; public double DateExpire; public void Decline() { } public void Offer() { }
+        public string Title; public Guid ContractGuid; public Agents.Agent Agent; public ContractPrestige Prestige; public State ContractState; public double FundsAdvance, FundsCompletion; public float ReputationCompletion; public int ParameterCount; public double DateExpire; public void Decline() { } public void Offer() { }
         public static Contract Generate(Type t, ContractPrestige p, int seed, State s) { return null; }
         protected virtual bool Generate() { return false; }
         public virtual bool CanBeCancelled() { return true; } public virtual bool CanBeDeclined() { return true; } public virtual bool MeetRequirements() { return true; }
@@ -254,6 +254,7 @@ namespace Contracts
         protected void SetComplete() { } protected void SetFailed() { }
     }
     public class ContractSystem { public static ContractSystem Instance; public List<Contract> Contracts; }
+    namespace Agents { public class Agent { public string Name; } }
 }
 public static class AssemblyLoader { public class LoadedAssembly { public System.Reflection.Assembly assembly; } public static List<LoadedAssembly> loadedAssemblies; }
 
@@ -315,7 +316,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public double latitude, longitude, altitude, horizontalSrfSpeed, srfSpeed, obt_speed, geeForce;
     public int currentStage;
     public bool loaded;
-    public Orbit orbit;
+    public Orbit orbit; public double launchTime, missionTime; public ProtoVessel protoVessel; public DiscoveryInfo DiscoveryInfo;
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
     public PatchedConicSolver patchedConicSolver; public double verticalSpeed, radarAltitude, dynamicPressurekPa; public Vector3d upAxis, srf_velocity; public UnityEngine.Vector3 angularVelocity; public UnityEngine.Transform ReferenceTransform; public ActionGroupList ActionGroups; public VesselAutopilot Autopilot;
@@ -329,7 +330,13 @@ public class PartModule : UnityEngine.MonoBehaviour { public Part part; public s
 public class ModuleCommand : PartModule { }
 public class ModuleEngines : PartModule { public bool EngineIgnited, flameout; public float currentThrottle, finalThrust; public string status; }
 public class ModuleLiftingSurface : PartModule { }
-public class AvailablePart { public string title, name; }
+public class AvailablePart { public string title, name, manufacturer, TechRequired; }
+public static class PartLoader { public static List<AvailablePart> LoadedPartsList; }
+public class RDTech { public enum State { Unavailable, Available } }
+public enum DiscoveryLevels { None = 0, Presence = 1, Name = 4, StateVectors = 8, Appearance = 16, Owned = 29 }
+public enum UntrackedObjectClass { A, B, C, D, E, I }
+public class DiscoveryInfo { public UntrackedObjectClass objectSize; public bool HaveKnowledgeAbout(DiscoveryLevels l) { return false; } }
+public class ProtoPartSnapshot { public string partName; public AvailablePart partInfo; }
 public class PartJoint { public Part Host, Child, Parent; }
 public class ManeuverNode { public Vector3d DeltaV; public double UT; public Orbit nextPatch; public void RemoveSelf() { } }
 public class PatchedConicSolver { public List<ManeuverNode> maneuverNodes; public ManeuverNode AddManeuverNode(double ut) { return null; } public void UpdateFlightPlan() { } }
@@ -350,7 +357,7 @@ public class ProtoVessel
 {
     public VesselType vesselType; public Vessel.Situations situation; public OrbitSnapshot orbitSnapShot;
     public Guid vesselID; public uint persistentId; public string vesselName;
-    public List<ProtoCrewMember> GetVesselCrew() { return null; }
+    public List<ProtoCrewMember> GetVesselCrew() { return null; } public List<ProtoPartSnapshot> protoPartSnapshots;
 }
 
 public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public void SetVesselTarget(ITargetable t, bool o = false) { } public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
@@ -371,7 +378,7 @@ public static class HighLogic
 public class Funding { public static Funding Instance; public double Funds; public void AddFunds(double v, TransactionReasons r) { } }
 public enum TransactionReasons { None, Any }
 public class Reputation { public static Reputation Instance; public float reputation; }
-public class ResearchAndDevelopment { public static ResearchAndDevelopment Instance; public float Science; public static string GetResults(string subjectId) { return ""; } }
+public class ResearchAndDevelopment { public static ResearchAndDevelopment Instance; public float Science; public static string GetResults(string subjectId) { return ""; } public static RDTech.State GetTechnologyState(string id) { return RDTech.State.Unavailable; } }
 
 public enum ScreenMessageStyle { UPPER_LEFT, UPPER_CENTER, UPPER_RIGHT, LOWER_CENTER }
 public static class ScreenMessages { public static object PostScreenMessage(string m, float d, ScreenMessageStyle s) { return null; } }

@@ -500,6 +500,10 @@ namespace KerbalNews.Web
             m["streamOpts"] = new List<object> { opt("Every 60 s", "usage-stream/60", g.StreamSeconds == 60), opt("Every 30 s", "usage-stream/30", g.StreamSeconds == 30), opt("Every 20 s", "usage-stream/20", g.StreamSeconds == 20) };
             m["streamChatOpts"] = new[] { 30, 60, 120, 200, 300, 500 }.Select(k => opt(k.ToString(Inv), "stream-chat/" + k, g.StreamChatPer10Min == k)).ToList();
             m["retro"] = g.Retrospectives;
+            m["worldOpts"] = new List<object> { opt("Off", "usage-world/0", g.WorldNews == 0), opt("A little", "usage-world/1", g.WorldNews == 1), opt("Normal", "usage-world/2", g.WorldNews == 2), opt("Lots", "usage-world/3", g.WorldNews == 3) };
+            m["worldOn"] = g.WorldNews > 0;
+            m["worldFlavor"] = g.WorldFlavor;
+            m["worldRivals"] = g.WorldRivals;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;

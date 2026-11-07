@@ -41,6 +41,11 @@ namespace KerbalNews
         public int StreamChatPer10Min = 120;
         /// <summary>Anniversary retrospectives and the yearly review.</summary>
         public bool Retrospectives = true;
+        /// <summary>Background world news (asteroids, windows, crew milestones...): 0 off, 1 a little, 2 normal, 3 lots.</summary>
+        public int WorldNews = 2;
+        /// <summary>Invented color around the game facts (weather, politics, culture), and rival programs (Kerbin orbit only).</summary>
+        public bool WorldFlavor = true;
+        public bool WorldRivals = true;
 
         public static readonly string[] UsagePresets = { "saver", "balanced", "full" };
 
@@ -49,9 +54,9 @@ namespace KerbalNews
             Usage = preset;
             switch (preset)
             {
-                case "saver": QuietDays = 0; AmountScale = 0.6; MaxOutlets = 3; WriterFrom = "major"; StreamSeconds = 60; Retrospectives = false; KtvOn = false; break;
-                case "full": QuietDays = 2; AmountScale = 1.3; MaxOutlets = 0; WriterFrom = "brief"; StreamSeconds = 20; Retrospectives = true; KtvOn = true; break;
-                default: Usage = "balanced"; QuietDays = 3; AmountScale = 1; MaxOutlets = 0; WriterFrom = "story"; StreamSeconds = 30; Retrospectives = true; KtvOn = true; break;
+                case "saver": QuietDays = 0; AmountScale = 0.6; MaxOutlets = 3; WriterFrom = "major"; StreamSeconds = 60; Retrospectives = false; KtvOn = false; WorldNews = 1; break;
+                case "full": QuietDays = 2; AmountScale = 1.3; MaxOutlets = 0; WriterFrom = "brief"; StreamSeconds = 20; Retrospectives = true; KtvOn = true; WorldNews = 3; break;
+                default: Usage = "balanced"; QuietDays = 3; AmountScale = 1; MaxOutlets = 0; WriterFrom = "story"; StreamSeconds = 30; Retrospectives = true; KtvOn = true; WorldNews = 2; break;
             }
         }
 
@@ -64,7 +69,7 @@ namespace KerbalNews
                 {
                     var t = new GlobalSettings(); t.ApplyUsage(p);
                     if (t.QuietDays == QuietDays && Math.Abs(t.AmountScale - AmountScale) < 0.01 && t.MaxOutlets == MaxOutlets && t.WriterFrom == WriterFrom
-                        && t.StreamSeconds == StreamSeconds && t.Retrospectives == Retrospectives && t.KtvOn == KtvOn) return p;
+                        && t.StreamSeconds == StreamSeconds && t.Retrospectives == Retrospectives && t.KtvOn == KtvOn && t.WorldNews == WorldNews) return p;
                 }
                 return "custom";
             }
@@ -167,6 +172,9 @@ namespace KerbalNews
             settings.Add("streamSeconds", StreamSeconds);
             settings.Add("streamChat", StreamChatPer10Min);
             settings.Add("retrospectives", Retrospectives);
+            settings.Add("worldNews", WorldNews);
+            settings.Add("worldFlavor", WorldFlavor);
+            settings.Add("worldRivals", WorldRivals);
             settings.Add("uiScale", (double)UiScale);
             settings.Add("pageZoom", (double)PageZoom);
             settings.Add("sitesOff", string.Join(",", SitesOff.OrderBy(x => x).ToArray()));
@@ -222,6 +230,9 @@ namespace KerbalNews
                 g.StreamSeconds = Math.Max(10, settings.GetDouble("streamSeconds", 30));
                 g.StreamChatPer10Min = Math.Max(10, Math.Min(600, settings.GetInt("streamChat", 120)));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
+                g.WorldNews = Math.Max(0, Math.Min(3, settings.GetInt("worldNews", 2)));
+                g.WorldFlavor = settings.GetBool("worldFlavor", true);
+                g.WorldRivals = settings.GetBool("worldRivals", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);
                 g.PageZoom = (float)Math.Max(0.6, Math.Min(2.5, settings.GetDouble("pageZoom", 1)));
                 foreach (var id in settings.Get("sitesOff", "").Split(',')) if (id.Trim() != "") g.SitesOff.Add(id.Trim());

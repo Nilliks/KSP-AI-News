@@ -304,6 +304,41 @@ namespace KerbalNews.KSP
             yield return Shot("science-published");
         }
 
+        /// <summary>Background world news: read the real game world, then write one roundup (one AI call) and open a story.</summary>
+        IEnumerator WorldCheck(NewsSystem sys, Browser br, double now)
+        {
+            var eng = sys.Engine;
+            var facts = WorldScanner.Scan(eng.State, now, 21600);
+            Log("  world: scan found " + facts.Count + " facts" + (WorldScanner.LastLog.Count > 0 ? " (" + string.Join("; ", WorldScanner.LastLog.ToArray()) + ")" : ""));
+            foreach (var f in facts.Take(25)) Log("  world fact [" + f.Kind + " " + f.Sig + "] " + f.Key + ": " + f.Headline + " | " + f.Text);
+            Check(!WorldScanner.LastLog.Any(l => l.Contains("failed")), "world: every reader ran without errors");
+            int before = eng.State.Articles.Count;
+            foreach (var f in facts.Where(f => f.Sig < 4).Take(3)) eng.State.WorldPending.Add(f);
+            if (eng.State.WorldPending.Count == 0)
+                eng.State.WorldPending.Add(new WorldFact { Key = "selftest:window", Kind = "sky", Sig = 3, UT = now, Body = "Duna", Headline = "Launch window to Duna approaches", Text = "The launch window from Kerbin to Duna opens in about 4 days. The planets line up like this only about every 228 days." });
+            eng.State.WorldPending.Add(new WorldFact { Key = "selftest:crew", Kind = "crew", Sig = 2, UT = now, Headline = "Valentina Kerman passes 30 days in space", Text = "Valentina Kerman has now spent 30 days in space in total." });
+            Check(eng.WorldRoundupNow(now), "world: a roundup was started");
+            float t0 = Time.realtimeSinceStartup;
+            while (eng.WorldBusy && Time.realtimeSinceStartup - t0 < 90) yield return new WaitForSeconds(0.5f);
+            var made = eng.State.Articles.Skip(before).Where(a => a.Tags.Contains("world")).ToList();
+            Check(made.Count >= 2, "world: roundup wrote " + made.Count + " stories (" + (made.Count > 0 && made[0].Offline ? "templates" : "AI") + "): " + string.Join(" / ", made.Select(a => a.Outlet + ": " + a.Headline).ToArray()));
+            foreach (var a in made) Log("  world story " + a.Outlet + ": " + a.Headline + " | " + ResponseParser.Clip(a.Body.Replace("\n", " "), 300));
+            if (made.Count > 0)
+            {
+                var oldNow = sys.Sites.Now;
+                double later = made.Max(a => a.PublishedUT) + 60;
+                sys.Sites.Now = () => later;
+                yield return Go(Sites.ArticleUrl(made[0]));
+                yield return Shot("world-story");
+                Check(br.CurrentPage != null && br.CurrentPage.Title.Contains(made[0].Headline.Substring(0, Math.Min(10, made[0].Headline.Length))), "world: the story's page opens");
+                yield return Go("settings.kb");
+                br.ScrollTo(0.45f);
+                yield return new WaitForSeconds(0.3f);
+                yield return Shot("world-settings");
+                sys.Sites.Now = oldNow;
+            }
+        }
+
         IEnumerator UiCheck(Browser br, string url)
         {
             br.Open(url);

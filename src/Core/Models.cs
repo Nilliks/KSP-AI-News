@@ -732,6 +732,12 @@ namespace KerbalNews
         /// <summary>Science results that reached Kerbin, for the journal.</summary>
         public List<ScienceResult> Science = new List<ScienceResult>();
         public List<ScienceFinding> Findings = new List<ScienceFinding>();
+        /// <summary>Background world news: what was already reported, what waits for the next roundup, and the scanner's own notes.</summary>
+        public Dictionary<string, double> WorldSeen = new Dictionary<string, double>();
+        public List<WorldFact> WorldPending = new List<WorldFact>();
+        public Dictionary<string, string> WorldMemo = new Dictionary<string, string>();
+        public bool WorldBaselined;
+        public double LastWorldUT = -1, LastWorldTipUT = -1;
         /// <summary>Kerbals booked for interviews and briefings.</summary>
         public List<CrewAppearance> Appearances = new List<CrewAppearance>();
         /// <summary>The engineering team's group chat and what they remember about the director's plans.</summary>
@@ -889,6 +895,11 @@ namespace KerbalNews
             var sci = n.AddNode("SCIENCE");
             foreach (var r in Science) r.Save(sci.AddNode("RESULT"));
             foreach (var f in Findings.Skip(Math.Max(0, Findings.Count - 300))) f.Save(sci.AddNode("FINDING"));
+            var world = n.AddNode("WORLD");
+            world.Add("baselined", WorldBaselined); world.Add("last", LastWorldUT); world.Add("lastTip", LastWorldTipUT);
+            foreach (var kv in WorldSeen) { var sn = world.AddNode("SEEN"); sn.AddText("key", kv.Key); sn.Add("ut", kv.Value); }
+            foreach (var kv in WorldMemo) { var mn = world.AddNode("MEMO"); mn.AddText("key", kv.Key); mn.AddText("value", kv.Value); }
+            foreach (var f in WorldPending) f.Save(world.AddNode("FACT"));
             var crew = n.AddNode("CREW");
             foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
             foreach (var a in Anniversaries) n.Add("anniversary", a);
@@ -995,6 +1006,14 @@ namespace KerbalNews
             var sciNode = n.GetNode("SCIENCE");
             if (sciNode != null) foreach (var rn in sciNode.GetNodes("RESULT")) s.Science.Add(ScienceResult.Load(rn));
             if (sciNode != null) foreach (var fn in sciNode.GetNodes("FINDING")) s.Findings.Add(ScienceFinding.Load(fn));
+            var worldNode = n.GetNode("WORLD");
+            if (worldNode != null)
+            {
+                s.WorldBaselined = worldNode.GetBool("baselined"); s.LastWorldUT = worldNode.GetDouble("last", -1); s.LastWorldTipUT = worldNode.GetDouble("lastTip", -1);
+                foreach (var sn in worldNode.GetNodes("SEEN")) { string k = sn.GetText("key"); if (k != "") s.WorldSeen[k] = sn.GetDouble("ut"); }
+                foreach (var mn in worldNode.GetNodes("MEMO")) { string k = mn.GetText("key"); if (k != "") s.WorldMemo[k] = mn.GetText("value"); }
+                foreach (var fn in worldNode.GetNodes("FACT")) s.WorldPending.Add(WorldFact.Load(fn));
+            }
             var crewNode = n.GetNode("CREW");
             if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
             foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);
