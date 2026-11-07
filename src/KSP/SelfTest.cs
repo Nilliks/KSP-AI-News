@@ -128,6 +128,24 @@ namespace KerbalNews.KSP
             yield return new WaitForSeconds(0.6f);
             Check(g.PageZoom > zoomBefore && Math.Abs(Browser.Scale - scaleBefore) < 0.001f && (br.WindowSize - winBefore).sqrMagnitude < 0.01f, "A+ makes the page bigger, not the window: zoom " + zoomBefore.ToString("0.0") + " -> " + g.PageZoom.ToString("0.0"));
             yield return Shot("settings-bigger-text");
+            // Pressing A+ again and again on busy pages once froze the game (text squeezed into zero-width boxes).
+            float worst = 0; string worstPage = "";
+            foreach (var u in new[] { "kerbalnews.kb", "engineering.kb", "snackboard.kb", "settings.kb" })
+            {
+                br.Open(u);
+                yield return null;
+                for (int i = 0; i < 16; i++)
+                {
+                    float t0 = Time.realtimeSinceStartup;
+                    br.Act("action:zoom/+", null);
+                    yield return null;
+                    float took = Time.realtimeSinceStartup - t0;
+                    if (took > worst) { worst = took; worstPage = u; }
+                }
+                br.Act("action:zoom/reset", null);
+                yield return null;
+            }
+            Check(worst < 3f, "A+ pressed to the top on four pages without freezing: slowest step " + worst.ToString("0.00") + " s on " + worstPage);
             br.Act("action:zoom/reset", null);
             g.OfflineMode = wasOffline;
             sys.SaveSettings(); // the scale buttons saved settings while offline mode was forced on

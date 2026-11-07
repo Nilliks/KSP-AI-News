@@ -364,12 +364,17 @@ namespace KerbalNews.Web
             }
             t.Runs.RemoveAll(r => r.Text == "");
             if (t.Runs.Count == 0 || t.Plain.Trim() == "" && prefix == null) return null;
+            // A squeezed box (narrow window, big page zoom) can leave no room at all. Text is never laid out narrower than
+            // two letters: TextMeshPro wrapping into a zero-width box can lock up the game.
+            w = Math.Max(w, MinTextWidth(st));
             float mw, mh;
             measure(t, w, out mw, out mh);
             t.X = x; t.Y = y; t.W = w; t.H = mh;
             page.Texts.Add(t);
             return t;
         }
+
+        public static float MinTextWidth(Style st) { return Math.Max(8f, st.FontSize * 2f); }
 
         static TextItem NewText(Style st)
         {

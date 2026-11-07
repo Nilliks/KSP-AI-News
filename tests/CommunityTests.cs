@@ -225,6 +225,31 @@ public static class CommunityTests
         Assert(!sites.Handle("nonsense", null).Refresh, "unknown action ignored");
     }
 
+    /// <summary>A+ shrinks the layout width; a squeezed box once handed TextMeshPro a zero-width text, which froze the game.</summary>
+    public static void TestBigZoomNeverZeroWidthText()
+    {
+        var g = new GlobalSettings { OfflineMode = true };
+        var eng = Published(g, null);
+        var sites = MakeSites(eng);
+        var urls = new List<string> { "kerbalnews.kb", "agency.kb", "engineering.kb", "snackboard.kb", "settings.kb", "live.kb", "tracker.kb", Sites.ArticleUrl(eng.State.Articles.First()) };
+        float narrowest = float.MaxValue; string where = "";
+        foreach (var u in urls)
+        {
+            var p = sites.Render(u);
+            foreach (float vw in new[] { 320f, 640f, 900f })
+                foreach (float z in new[] { 1f, 1.5f, 2f, 2.5f })
+                {
+                    var root = Html.Parse(p.Html);
+                    Css.Apply(root, Css.Parse(p.Css));
+                    float least = float.MaxValue;
+                    var l = Layout.Run(root, vw / z, (TextItem t, float mw, out float w, out float h) => { least = Math.Min(least, mw); FakeMeasure(t, mw, out w, out h); });
+                    foreach (var t in l.Texts) if (t.W / t.FontSize < narrowest) { narrowest = t.W / t.FontSize; where = u + " at " + vw + "/" + z; }
+                    if (least < 8) { narrowest = 0; where = u + " measured at " + least; }
+                }
+        }
+        Assert(narrowest >= 1.99f, "no text box narrower than two letters at any zoom (narrowest " + narrowest.ToString("0.00") + "em, " + where + ")");
+    }
+
     /// <summary>Rough text metrics: 0.5em per character, greedy word wrap.</summary>
     static void FakeMeasure(TextItem t, float maxW, out float w, out float h)
     {

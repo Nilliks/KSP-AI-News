@@ -961,8 +961,12 @@ namespace KerbalNews.KSP
                 var root = Html.Parse(page.Html);
                 Css.Apply(root, Css.Parse(page.Css));
                 lastWidth = viewportRt.rect.width;
+                if (Math.Abs(Zoom - zoom) > 0.001f) Debug.Log("[KerbalNews] Page zoom " + zoom.ToString("0.0") + " -> " + Zoom.ToString("0.0") + " on " + url + ", width " + lastWidth.ToString("0"));
                 zoom = Zoom;
+                float t0 = Time.realtimeSinceStartup;
                 layout = Layout.Run(root, lastWidth / zoom, Measure);
+                float took = Time.realtimeSinceStartup - t0;
+                if (took > 0.5f) Debug.LogWarning("[KerbalNews] Slow page layout: " + url + " took " + took.ToString("0.0") + " s (" + layout.Texts.Count + " texts, zoom " + zoom.ToString("0.0") + ")");
             }
             catch (Exception e)
             {
@@ -1013,7 +1017,7 @@ namespace KerbalNews.KSP
         Vector2 MeasureNow(TextItem t, string rich, float maxWidth)
         {
             ApplyStyle(measurer, t);
-            measurer.rectTransform.sizeDelta = new Vector2(Mathf.Min(maxWidth, 20000f), 20000f);
+            measurer.rectTransform.sizeDelta = new Vector2(Mathf.Clamp(maxWidth, t.FontSize * 2f, 20000f), 20000f);   // never narrower than two letters (see Layout.MinTextWidth)
             measurer.text = rich;
             measurer.ForceMeshUpdate();
             var info = measurer.textInfo;
@@ -1122,7 +1126,7 @@ namespace KerbalNews.KSP
             }
             foreach (var t in layout.Texts)
             {
-                var go = Item("text", t.X, t.Y, t.W + 2, t.H + 2);
+                var go = Item("text", t.X, t.Y, Mathf.Max(t.W, t.FontSize * 2f) + 2, t.H + 2);
                 var tmp = go.AddComponent<TextMeshProUGUI>();
                 TopLeft(Rt(go), t.X, t.Y, t.W + 2, t.H + 2); // adding TextMeshPro can reset the rect to its default size
                 ApplyStyle(tmp, t);
@@ -1156,7 +1160,7 @@ namespace KerbalNews.KSP
                 var f = MakeField(contentRt, inp.Multiline, inp.Password, inp.FontSize, inp.Color, inp.Placeholder);
                 var go = f.gameObject;
                 pageObjects.Add(go);
-                TopLeft(Rt(go), inp.X, inp.Y, inp.W, inp.H);
+                TopLeft(Rt(go), inp.X, inp.Y, Mathf.Max(inp.W, inp.FontSize * 2 + inp.PadX * 2), inp.H);   // never a zero-width text box: TextMeshPro can hang wrapping into one
                 go.GetComponent<Image>().color = new Color(0, 0, 0, 0);
                 f.textComponent.font = Font(inp.Family);
                 f.text = inp.Value ?? "";
