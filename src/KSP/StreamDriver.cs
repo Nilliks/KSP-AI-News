@@ -40,6 +40,44 @@ namespace KerbalNews.KSP
             if (Frame != null) { Frame.Release(); Destroy(Frame); Frame = null; }
         }
 
+        static readonly OverlayMemory overlayMemory = new OverlayMemory();
+
+        /// <summary>The stats overlay's numbers for this instant, or null when nothing is streaming.</summary>
+        public static OverlayModel Overlay()
+        {
+            var eng = Eng;
+            if (eng == null || eng.Stream == null) return null;
+            string id = eng.Stream.VesselId;
+            var v = FlightGlobals.ActiveVessel;
+            if (v == null || v.persistentId.ToString() != id)
+                v = FlightGlobals.Vessels == null ? null : FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.loaded && x.persistentId.ToString() == id);
+            var n = new LiveNumbers();
+            if (v != null)
+            {
+                n.UT = Planetarium.GetUniversalTime();
+                n.Altitude = v.altitude;
+                n.Speed = v.situation == Vessel.Situations.ORBITING || v.situation == Vessel.Situations.ESCAPING ? v.obt_speed : v.srfSpeed;
+                if (v.orbit != null) { n.Apoapsis = v.orbit.ApA; n.Periapsis = v.orbit.PeA; }
+                n.Throttle = v.ctrlState != null ? v.ctrlState.mainThrottle : 0;
+                n.Q = v.dynamicPressurekPa;
+                n.Stage = v.currentStage;
+                n.Situation = v.situation.ToString();
+                n.AtmosphereTop = v.mainBody != null && v.mainBody.atmosphere ? v.mainBody.atmosphereDepth : 0;
+                double amount = 0, max = 0;
+                if (v.parts != null)
+                    foreach (var p in v.parts)
+                        foreach (PartResource r in p.Resources)
+                            if (r.resourceName == "LiquidFuel" || r.resourceName == "Oxidizer" || r.resourceName == "SolidFuel") { amount += r.amount; max += r.maxAmount; }
+                n.FuelPct = max > 0 ? amount / max * 100 : -1;
+            }
+            else if (eng.Stream.Last != null)
+            {
+                var t = eng.Stream.Last;
+                n.UT = t.UT; n.Altitude = t.Altitude; n.Speed = t.Speed; n.Apoapsis = t.Apoapsis; n.Periapsis = t.Periapsis; n.Stage = t.Stage; n.FuelPct = t.FuelPct; n.Situation = t.Situation;
+            }
+            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup), overlayMemory);
+        }
+
         Vessel Streamed()
         {
             var eng = Eng;

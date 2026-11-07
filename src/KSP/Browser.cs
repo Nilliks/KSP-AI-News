@@ -676,7 +676,7 @@ namespace KerbalNews.KSP
         static readonly Dictionary<string, TMP_FontAsset> fontByFamily = new Dictionary<string, TMP_FontAsset>();
         static bool fontsLogged;
 
-        static TMP_FontAsset Font(string family)
+        internal static TMP_FontAsset Font(string family)
         {
             family = (family ?? "sans").Trim().Trim('"', '\'').ToLowerInvariant();
             if (family.Contains("serif") && !family.Contains("sans")) family = "serif";
@@ -1113,6 +1113,7 @@ namespace KerbalNews.KSP
                     // The stream's video: a render texture the stream driver keeps drawing into.
                     if (StreamDriver.Frame != null) raw.texture = StreamDriver.Frame;
                     else raw.color = Color.black;
+                    StreamOverlayUi.Attach(go, im.W, im.H);   // the broadcast's on-screen stats
                     continue;
                 }
                 var tex = LoadImage(im.Src);

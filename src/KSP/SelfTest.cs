@@ -306,6 +306,8 @@ namespace KerbalNews.KSP
             if (modeEng) yield return EngFlightCheck(sys, v);
             yield return Go("live.kb");
             yield return Shot("flight-live-ascent");
+            var ov = StreamDriver.Overlay();
+            Check(ov != null && ov.Milestones.Count >= 4 && ov.Milestones[0].Done && ov.Clock.StartsWith("T+"), "flight: stats overlay shows the flight" + (ov != null ? " (" + ov.Clock + ", " + ov.Speed + " m/s, " + ov.Altitude + ", " + ov.Stage + ", " + ov.Throttle + ", milestones " + string.Join(" ", ov.Milestones.Select(x => x.Label + (x.Done ? "*" : "")).ToArray()) + ")" : ""));
             var spot = eng.State.Forum.FirstOrDefault(t => t.Image != "");
             Check(spot != null, "flight: a spotter posted a photo on Snackboard" + (spot != null ? ": " + spot.Title : ""));
             if (spot != null) { yield return Go(Sites.ForumHost + "/t/" + spot.Id); yield return Shot("flight-spotter-thread"); }
