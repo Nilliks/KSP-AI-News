@@ -341,7 +341,7 @@ namespace KerbalNews.KSP
             yield return Visit(br, "herald.kb");
             yield return Shot("logo-herald");
             // Kmail: an interview request, accepted from the page, books the kerbal.
-            var kerbal = eng.State.Crew.Values.FirstOrDefault(c => !c.Dead && c.OnRoster);
+            var kerbal = eng.State.Crew.Values.Where(c => !c.Dead).OrderByDescending(c => c.OnRoster).FirstOrDefault();
             if (kerbal == null) { Log("SKIP Kmail booking: nobody on the roster"); yield break; }
             var m = new MailMsg { Id = "eselftest", Thread = "eselftest", Kind = "press", Org = "herald", From = "Selma Kerman", FromAddr = "s.kerman@herald.kb", Ask = "interview", Kerbal = kerbal.Name, Topic = "the self-test", Subject = "Interview request: " + kerbal.Name, Body = "Dear Director,\n\nCould we talk to " + kerbal.Name + "?\n\nSelma Kerman", UT = now - 1, DueUT = now + 2 * 21600, Status = "open" };
             eng.State.Mail.Add(m);
