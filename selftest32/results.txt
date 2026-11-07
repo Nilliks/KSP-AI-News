@@ -1,0 +1,199 @@
+PASS demo news built: 19 articles, 4 threads
+PASS kerbalnews.kb -> "Kerbal News Network" height 2300, 129 paragraphs, 67 links, 1 fields
+PASS kerbalnews.kb text fits its boxes
+PASS herald.kb/article/a2 -> "Crew lands on Mun - Kerbin Daily Herald" height 2771, 193 paragraphs, 87 links, 2 fields
+PASS herald.kb/article/a2 text fits its boxes
+PASS kerbnet.kb -> "Kerbnet" height 2709, 149 paragraphs, 42 links, 0 fields
+PASS kerbnet.kb text fits its boxes
+PASS snackboard.kb -> "Snackboard" height 717, 70 paragraphs, 49 links, 0 fields
+PASS snackboard.kb text fits its boxes
+PASS snackboard.kb/t/t198 -> "We just landed on the Mun. Ask us anything! - Snackboard" height 841, 79 paragraphs, 45 links, 2 fields
+PASS snackboard.kb/t/t198 text fits its boxes
+PASS snackboard.kb/submit -> "New post - Snackboard" height 764, 60 paragraphs, 39 links, 4 fields
+PASS snackboard.kb/submit text fits its boxes
+PASS tracker.kb -> "Universe tracker" height 577, 40 paragraphs, 19 links, 0 fields
+PASS tracker.kb text fits its boxes
+PASS agency.kb -> "Agency profile" height 1517, 55 paragraphs, 38 links, 10 fields
+PASS agency.kb text fits its boxes
+PASS agency.kb/assistant -> "Assistant" height 736, 39 paragraphs, 34 links, 2 fields
+PASS agency.kb/assistant text fits its boxes
+PASS agency.kb/ledger -> "Paper trail" height 224, 27 paragraphs, 25 links, 0 fields
+PASS agency.kb/ledger text fits its boxes
+PASS agency.kb/mods -> "Mods" height 13328, 480 paragraphs, 176 links, 149 fields
+PASS agency.kb/mods text fits its boxes
+PASS engineering.kb -> "KSC Engineering" height 322, 41 paragraphs, 27 links, 2 fields
+PASS engineering.kb text fits its boxes
+PASS settings.kb -> "Settings" height 3542, 175 paragraphs, 115 links, 8 fields
+PASS settings.kb text fits its boxes
+PASS telemetry.kb -> "Telemetry sharing" height 366, 34 paragraphs, 23 links, 0 fields
+PASS telemetry.kb text fits its boxes
+PASS kerbalnews.kb/search?q=mun -> "Search" height 717, 43 paragraphs, 27 links, 1 fields
+PASS kerbalnews.kb/search?q=mun text fits its boxes
+PASS kerbalnews.kb/polls -> "Polls" height 366, 31 paragraphs, 19 links, 0 fields
+PASS kerbalnews.kb/polls text fits its boxes
+PASS pressroom.kb -> "Press room" height 759, 48 paragraphs, 34 links, 2 fields
+PASS pressroom.kb text fits its boxes
+PASS gallery.kb -> "Gallery" height 759, 31 paragraphs, 22 links, 0 fields
+PASS gallery.kb text fits its boxes
+PASS live.kb -> "Live" height 233, 23 paragraphs, 19 links, 0 fields
+PASS live.kb text fits its boxes
+PASS dailykraken.kb/article/a5 -> "You won't BELIEVE what really happened when crew lands on Mun - The Daily Kraken" height 2304, 146 paragraphs, 66 links, 2 fields
+PASS dailykraken.kb/article/a5 text fits its boxes
+PASS herald.kb -> "Kerbin Daily Herald" height 394, 36 paragraphs, 23 links, 0 fields
+PASS herald.kb text fits its boxes
+PASS orbitalobserver.kb -> "Orbital Observer" height 238, 28 paragraphs, 22 links, 0 fields
+PASS orbitalobserver.kb text fits its boxes
+PASS inquirer.kb -> "The Kerbal Inquirer" height 382, 27 paragraphs, 22 links, 0 fields
+PASS inquirer.kb text fits its boxes
+PASS dailykraken.kb -> "The Daily Kraken" height 624, 35 paragraphs, 22 links, 0 fields
+PASS dailykraken.kb text fits its boxes
+PASS munmonthly.kb -> "Mun Monthly" height 357, 24 paragraphs, 20 links, 0 fields
+PASS munmonthly.kb text fits its boxes
+PASS kscwatch.kb -> "KSC Watch" height 374, 35 paragraphs, 23 links, 0 fields
+PASS kscwatch.kb text fits its boxes
+PASS kscireview.kb -> "Kerbin Science Review" height 271, 25 paragraphs, 20 links, 0 fields
+PASS kscireview.kb text fits its boxes
+PASS council.gov.kb -> "Planetary Council Press Office" height 261, 25 paragraphs, 20 links, 0 fields
+PASS council.gov.kb text fits its boxes
+PASS ui: three wheel notches scroll 330 units down
+PASS ui: scrollbar follows (1.00 -> 0.80)
+PASS ui: notches in a row add up (550)
+PASS ui: scrolling up stops at the top (0)
+PASS ui: top-left corner resizes and moves the window (2011 -> 2111 wide)
+PASS ui: the page re-flows to the new width (1985 -> 2085)
+PASS ui: the window stops at its smallest size (520 x 360)
+PASS ui: dragging the title bar moves the window without resizing it ((779.0, 0.0) -> (864.7, 57.1))
+PASS ui: the title bar cannot leave the top of the screen (0)
+  science: Kerbalism detected = True, AI = True
+PASS science: the team interpreted the Mun sample (Dr. Linmy Kerman, importance 5, AI): First Surface Sample from the Mun: Regolith and Glassy Beads from the Midlands
+  science finding: This is the first material ever returned from the Mun. The sample from the Midlands is mostly regolith, a fine grey dust, with a few glassy beads mixed in. The regolith is consistent with a broken, dusty surface layer; the beads suggest some material was melted and quickly cooled at some point. This subject is now fully known from this one sample.
+  science unknowns: The result text does not identify any mineral or volatile, and it gives no bead abundance, grain size or location context beyond the Midlands. It cannot tell us the age of the surface or how the beads formed. | next: Compare this sample with samples from other Mun biomes and with Kerbin and Minmus material to see whether the glassy beads are widespread.
+PASS science: finding sent to the Kerbin Science Review
+PASS science: the paper's page opens: First Surface Sample from the Mun: Regolith and Glassy Beads from the Midlands - Kerbin Science Review
+  world: scan found 0 facts
+PASS world: every reader ran without errors
+PASS world: a roundup was started
+PASS world: roundup wrote 2 stories (AI): observer: Duna Transfer Window Opens in Four Days / munmonthly: Thirty Days Among the Stars: Valentina Kerman's Cumulative Milestone
+  world story observer: Duna Transfer Window Opens in Four Days | The launch window from Kerbin to Duna opens in roughly four days, according to the standard planetary alignment. The geometry that makes a Duna transfer practical recurs on a cycle of about 228 days, and the current approach is the first such alignment of the new year.  For mission planners, the win
+  world story munmonthly: Thirty Days Among the Stars: Valentina Kerman's Cumulative Milestone | Valentina Kerman has now spent thirty days in space, counted across her career to date. It is a number that sounds modest until you sit with it: a full month of a kerbal's life lived not on the surface but in orbit, in the small volume of a spacecraft, breathing recycled air and watching Kerbin turn
+PASS world: the story's page opens
+PASS anonymous comment posted
+PASS community replied to it (templates)
+PASS new Snackboard thread opened: snackboard.kb/t/t214
+PASS A+ makes the page bigger, not the window: zoom 1.0 -> 1.1
+  new game via Game CreateNewGame(System.String, Modes, GameParameters, System.String, GameScenes, EditorFacility), 27 scenarios
+PASS flight: test save KerbalNewsSelfTest reached the space center
+  test craft without 3 launch clamps: C:/Program Files (x86)/Steam/steamapps/common/Kerbal Space Program/KSP_x64_Data/../saves/KerbalNewsSelfTest/Ships/VAB/KerbalNewsSelfTest.craft
+  scenarios in the test save: ROCScenario, AlarmClockScenario, PartUpgradeManager, ResourceScenario, ProgressTracking, VesselRecovery, KerbalInventoryScenario, ScenarioAchievements, ScenarioCustomWaypoints, ScenarioDestructibles, SentinelScenario, CommNetScenario, DeployedScience, DiscoverableObjects, Kerbalism, KerbalKonstructsSettings, NewsScenario, InterVesselManager, KPBSScenario, UnloadedResources, DeepFreeze, SCANcontroller, SpaceDustScenario, Trajectories, GroundBlastFxScenario
+PASS flight: Kerbal X on the pad
+PASS flight: live stream started for Kerbal X
+PASS flight: press photo of the craft on the pad
+PASS flight: countdown started and held: HOLD: the countdown was stopped at T-00:56, in the final minute
+PASS flight: countdown reached T-0 after the final ten seconds
+  before staging: packed False, paused False, timeScale 1.00, warp 1.0, ctrlState throttle 1.00
+  staged (1), now stage 7, situation PRELAUNCH, speed 0.0, throttle 1.00/1.00, packed False, timeScale 1.00
+  craft moving after 1 staging(s), 0.5 s, situation PRELAUNCH
+    engine liquidEngine2-2.v2: ignited False, flameout False, throttle 0.00 (requested 0, independent True), thrust 0.0 kN, Off
+    engine liquidEngineMainsail.v2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 1381.0 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+    engine liquidEngine2: ignited True, flameout False, throttle 1.00 (requested 0.9999999, independent True), thrust 168.5 kN, Nominal
+PASS flight: Kerbal X left the pad (1 stagings, situation FLYING, altitude 8077 m)
+PASS flight: liftoff photo
+PASS flight: ascent photo
+PASS flight: stream chat has 203 viewer messages, 11378 viewers
+PASS flight: liftoff shown on stream: the launch countdown started at T-01:00; HOLD: the countdown was stopped at T-00:56, in the final minute; the countdown was recycled from T-00:56 back to T-00:14 and is holding; the countdown resumed from T-00:14; T-10 seconds: the final countdown; T-0: the countdown reached zero; stage 7 activated; liftoff right on time at T-0; the broadcast cut to the onboard hull cameras
+PASS flight: stream video rendered
+  camera cut 407.5s Hull camera: looking aft (alt 168 m, nearest ground camera 4.9 km)
+  camera cut 420.7s Tracking camera (alt 1208 m, nearest ground camera 5.1 km)
+  camera cut 426.9s Long range tracker (alt 2135 m, nearest ground camera 5.4 km)
+  camera cut 427.9s skipped Long range tracker (brightness 238)
+  camera cut 427.9s Tracking camera (alt 2308 m, nearest ground camera 5.5 km)
+  camera cut 428.9s skipped Tracking camera (brightness 241)
+  camera cut 428.9s Hull camera: looking aft (alt 2499 m, nearest ground camera 5.6 km)
+  camera cut 442.0s Hull camera: horizon (alt 5442 m, nearest ground camera 7.5 km)
+PASS flight: the stream cut between cameras 6 times
+PASS flight: at least two ground cameras used: Tracking camera, Long range tracker
+PASS flight: camera name on the stream page: Hull camera: horizon
+  camera cut 452.9s Hull camera: looking up (alt 8634 m, nearest ground camera 10.2 km)
+  camera cut 461.4s Hull camera: horizon (alt 11540 m, nearest ground camera 12.9 km)
+  camera cut 467.6s Hull camera: looking aft (alt 13941 m, nearest ground camera 15.2 km)
+PASS flight: hull cameras used: 6
+PASS flight: the stream video keeps changing (14 different of 14 saved frames)
+PASS flight: the chat heard about the onboard cameras
+  chat can show Chinese: False
+  chat its_kraken: jinxed it
+  chat kerb6962: W
+  chat kerb6962: GODSPEEEEED
+  chat telescope_tina: don't jinx it
+  chat Munwatcher93: LETS GOOOOO
+  chat struts_4_life: STRUTS
+  chat booster_4life3973: THE SOUND MUST BE INSANE THERE
+  chat grandma_kerman: be safe up there
+  chat gimbal_lock: SEND IIIT
+  chat xX_val_Xx: W
+  chat xX_strut_Xx: :rocket:
+  chat jebfan_42: @grandma_kerman it's uncrewed, nothing to worry about
+  chat kiddo_kerman: W
+  chat sky_skeptic: still watching that altitude
+  chat kiddo_kerman: LETS GOOOOOO
+  chat snackhatch: SEND IT
+  chat xX_val_Xx: W
+  chat debriscounter: WWWWW
+  chat rocket_bob: GODSPEEEEED
+  chat snackhatch: THE SHAKING ON THAT CAMERA LOL
+  chat booster_4life39: WALLPAPER MATERIAL RIGHT THEREEEE LOL
+  chat Munwatcher93: LETS GOOOOOO
+  chat struts_4_life: STRUTS
+  chat xX_strut_Xx: :rocket: :rocket:
+  chat booster_4life3973: NO WAY
+  chat gimbal_lock: o7
+  chat its_jeb: THE HULL CAM IS INCREDIBLE
+  chat its_kraken: soup
+  chat sky_skeptic: still climbing at 4.4k, fine
+  chat jebfan_42: @gimbal_lock o7
+  chat kiddo_kerman: W
+  chat grandma_kerman: that's a good altitude dear
+  chat random_viewer_88: why is everyone saying struts lol
+  chat debriscounter: send it
+  chat xX_val_Xx: who else watching from work
+  chat booster_4life3973: the swivel cluster sounds so clean
+  chat lurker_mk2: hi all, first stream here
+  chat mystery_goo_kid67: SEND IT
+  chat sky_skeptic: @random_viewer_88 running joke, don't worry
+  chat telescope_tina: anyone know if the gift shop is open rn
+  chat kiddo_kerman: MOAR BOOSTERS
+  chat gimbal_lock: caps lock gang
+  chat its_kraken: bruh
+  chat Munwatcher93: CAMERA
+  chat jebfan_42: @lurker_mk2 welcome
+  chat booster_4life3973: audio lag again
+  chat struts_4_life: why is chat so slow
+  chat sky_skeptic: laggy for me too
+  chat xX_val_Xx: it's like 2 seconds behind, annoying
+  chat random_viewer_88: this is CGI
+  chat gimbal_lock: @random_viewer_88 here we go
+  chat Munwatcher93: it's live you nut
+  chat kiddo_kerman: ?
+  chat its_kraken: kerbin is flat
+  chat struts_4_life: @its_kraken no
+  chat jebfan_42: trolls
+  chat kiddo_kerman: pickles
+  chat grandma_kerman: anyone else's screen pixelated
+  chat lurker_mk2: low res on my end
+  chat xX_val_Xx: still watching, altitude going up
+PASS flight: stats overlay shows the flight (T+00:00:59, 458 m/s, 15.2 km, STAGE 1 OF 8, THROTTLE 100%, milestones LIFTOFF* MAX Q* STAGE 2 STAGE 3 STAGE 4 ENGINE CUTOFF ORBIT)
+PASS flight: a spotter posted a photo on Snackboard: Kerbal X is on the pad. Got a shot from the causeway
+  press photo pad: Hanbree Kerman for Orbital Observer, 1250 mm from a field near the space center, about 2.3 km away
+  press photo liftoff: Gus Kerman for the KSC press pool, 70 mm with a sound-triggered remote camera beside the pad
+  press photo ascent: Mirela Kerman for Kerbin Daily Herald, 2200 mm from a press boat offshore, about 8.9 km away
+  press photo ascent: Hanbree Kerman for The Daily Kraken, 1550 mm from the hills inland, about 9.4 km away
+  press photo ascent: Sigrid Kerman for Kerbin Daily Herald, 2050 mm from a press boat offshore, about 18.9 km away
+PASS flight: stream ended and archived
+  world (flight): scan found 1 facts (Kerbalism API found)
+  world fact (flight) [sky 2] window:Moho:0: Launch window to Moho approaches | The launch window from Kerbin to Moho opens in about 8.7 days. The planets line up like this only about every 135 days, which is when a trip costs the least fuel. Mission planners everywhere watch these dates.
+PASS world (flight): every reader ran without errors
+ALL PASSED
