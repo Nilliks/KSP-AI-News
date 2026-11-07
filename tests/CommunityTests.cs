@@ -296,7 +296,7 @@ public static class CommunityTests
         Assert(craft.WrittenUT > 0 && craft.Sections.Count == 1 && craft.Pending == 0, "the AI text is stored");
         var html = MakeSites(eng).Render(Sites.WikiUrl(craft)).Html;
         Assert(html.Contains("class=\"cite\"") && !html.Contains("stub"), "cite linked, no stub note");
-        Assert(craft.History.Any(h => h.Note == "First full article"), "revision noted");
+        Assert(craft.History.Any(h => h.Note == "Expanded from a stub into a full article") && craft.History.Count(h => h.Note.StartsWith("Page created")) == 1, "revision noted once, after the creation entry");
         int n = t.Sent.Count;
         eng.Tick(Day * 6, 20, true);
         Assert(!t.Sent.Skip(n).Any(r => UserPrompt(r).Contains("PAGE test_rocket_v1")), "no rewrite without new events");

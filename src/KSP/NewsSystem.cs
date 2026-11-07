@@ -61,6 +61,7 @@ namespace KerbalNews.KSP
                 return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null;
             });
             Sites.Now = () => Planetarium.GetUniversalTime();
+            Sites.ImageExists = Browser.ImageExists;
             Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;

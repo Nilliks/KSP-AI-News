@@ -1250,15 +1250,27 @@ namespace KerbalNews.KSP
 
         static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
 
+        /// <summary>Where an image src lives on disk: kbimg: (AI images), kbshot: (the gallery) or a path under GameData/KerbalNews.</summary>
+        public static string ImagePath(string src)
+        {
+            string root = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews");
+            return src.StartsWith("kbimg:") ? Path.Combine(root, "PluginData/Images/" + Path.GetFileName(src.Substring(6)))
+                : src.StartsWith("kbshot:") ? Path.Combine(GalleryStore.Dir, Path.GetFileName(src.Substring(7)))
+                : Path.Combine(root, src.TrimStart('/'));
+        }
+
+        public static bool ImageExists(string src)
+        {
+            if (string.IsNullOrEmpty(src) || src == "kblive:frame") return !string.IsNullOrEmpty(src);
+            try { return File.Exists(ImagePath(src)); } catch (Exception) { return false; }
+        }
+
         static Texture2D LoadImage(string src)
         {
             if (string.IsNullOrEmpty(src)) return null;
             Texture2D tex;
             if (textures.TryGetValue(src, out tex)) return tex;
-            string root = Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews");
-            string path = src.StartsWith("kbimg:") ? Path.Combine(root, "PluginData/Images/" + Path.GetFileName(src.Substring(6)))
-                : src.StartsWith("kbshot:") ? Path.Combine(GalleryStore.Dir, Path.GetFileName(src.Substring(7)))
-                : Path.Combine(root, src.TrimStart('/'));
+            string path = ImagePath(src);
             try
             {
                 if (File.Exists(path))

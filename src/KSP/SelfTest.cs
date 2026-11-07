@@ -473,6 +473,8 @@ namespace KerbalNews.KSP
             yield return new WaitForSeconds(0.8f);
         }
 
+        static bool AboutDuna(Article a) { return (a.Headline + " " + a.Body).IndexOf("Duna", StringComparison.OrdinalIgnoreCase) >= 0; }
+
         IEnumerator AiCheck(NewsSystem sys, Browser br, NewsState state, double now)
         {
             var g = NewsSystem.Settings;
@@ -489,7 +491,8 @@ namespace KerbalNews.KSP
             sys.Sites.Now = () => t;
             int count = state.Articles.Count;
             float start = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup - start < 180 && state.Articles.Count == count)
+            // Background news can land first, so wait for the Duna story itself.
+            while (Time.realtimeSinceStartup - start < 180 && !state.Articles.Skip(count).Any(a => AboutDuna(a)))
             {
                 eng.Tick(t, Time.realtimeSinceStartup, true);
                 yield return new WaitForSeconds(1);
@@ -497,25 +500,31 @@ namespace KerbalNews.KSP
             var fresh = state.Articles.Skip(count).ToList();
             Check(fresh.Count > 0 && fresh.All(a => !a.Offline), "AI wrote " + fresh.Count + " articles in " + (Time.realtimeSinceStartup - start).ToString("0") + " s" + (eng.LastError != "" ? " (last error: " + eng.LastError + ")" : ""));
             if (fresh.Count == 0) yield break;
-            var lead = fresh.OrderByDescending(a => a.Body.Length).First();
-            Log("AI headline: " + lead.Headline);
+            var lead = fresh.Where(a => AboutDuna(a)).OrderByDescending(a => a.Body.Length).FirstOrDefault() ?? fresh.OrderByDescending(a => a.Body.Length).First();
+            Log("AI headline: " + lead.Headline + " (" + fresh.Count(a => AboutDuna(a)) + " about Duna Dawn)");
+            // A story can be scheduled to publish a little later; move the browser clock so its page exists.
+            if (lead.PublishedUT > t) { t = lead.PublishedUT + 60; sys.Sites.Now = () => t; }
             yield return Visit(br, Sites.ArticleUrl(lead));
 
             br.Act("action:comment/a:" + lead.Id + "/agency", new Dictionary<string, string> { { "comment", "The crew is healthy and the capture burn went exactly to plan. More soon." } });
-            var mine = lead.Comments.Last();
-            start = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup - start < 120 && state.CommunityJobs.Count > 0)
+            var mine = lead.Comments.LastOrDefault();
+            Check(mine != null, "official comment posted on " + Sites.ArticleUrl(lead));
+            if (mine != null)
             {
-                eng.Tick(t + 1, Time.realtimeSinceStartup, true);
-                yield return new WaitForSeconds(1);
+                start = Time.realtimeSinceStartup;
+                while (Time.realtimeSinceStartup - start < 120 && state.CommunityJobs.Count > 0)
+                {
+                    eng.Tick(t + 1, Time.realtimeSinceStartup, true);
+                    yield return new WaitForSeconds(1);
+                }
+                var replies = lead.Comments.Where(c => c.ReplyTo == mine.Id || lead.Comments.Any(p => p.Id == c.ReplyTo && p.ReplyTo == mine.Id)).ToList();
+                Check(replies.Count > 0, "AI community replied to the official comment: " + replies.Count + " replies");
+                foreach (var r in replies.Take(4)) Log("  " + r.Author + ": " + Sites.Unlinked(state, r.Text));
+                br.Open(Sites.ArticleUrl(lead));
+                yield return new WaitForSeconds(0.5f);
+                br.ScrollTo(1);
+                yield return Shot("ai-article-comments");
             }
-            var replies = lead.Comments.Where(c => c.ReplyTo == mine.Id || lead.Comments.Any(p => p.Id == c.ReplyTo && p.ReplyTo == mine.Id)).ToList();
-            Check(replies.Count > 0, "AI community replied to the official comment: " + replies.Count + " replies");
-            foreach (var r in replies.Take(4)) Log("  " + r.Author + ": " + Sites.Unlinked(state, r.Text));
-            br.Open(Sites.ArticleUrl(lead));
-            yield return new WaitForSeconds(0.5f);
-            br.ScrollTo(1);
-            yield return Shot("ai-article-comments");
 
             // The personal assistant: a lookup step, then an action that waits for approval.
             yield return Go("agency.kb/assistant");

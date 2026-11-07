@@ -27,6 +27,8 @@ namespace KerbalNews.Web
         public NewsEngine Engine;
         public Func<WorldDigest> Digest = () => null;
         public Func<double> Now = () => 0;
+        /// <summary>Whether an image src (kbimg:, kbshot: or a GameData path) has a file behind it. The game sets this.</summary>
+        public Func<string, bool> ImageExists = src => true;
         public Func<float> UiScale = () => 1;
         /// <summary>The vessel the player is flying (persistentId and name), or nulls outside flight.</summary>
         public Func<string> ActiveVesselId = () => null;

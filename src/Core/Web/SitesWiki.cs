@@ -126,10 +126,11 @@ namespace KerbalNews.Web
         string WikiImage(WikiPage p, List<Article> refs)
         {
             var ids = new HashSet<string>(p.Flights.Select(f => f.VesselId).Where(v => v != ""));
-            var shot = State.Gallery.Where(g => (g.Public || g.IsPress) && (ids.Contains(g.VesselId) || p.Kind == "place" && g.Body == p.Title)).OrderByDescending(g => g.IsPress && g.Kind == "liftoff").ThenByDescending(g => g.UT).FirstOrDefault();
-            if (shot != null) return "kbshot:" + shot.File;
-            var a = refs.LastOrDefault(x => x.Image != "");
-            return a != null ? ImageUrl(a.Image) : "";
+            var shot = State.Gallery.Where(g => (g.Public || g.IsPress) && (ids.Contains(g.VesselId) || p.Kind == "place" && g.Body == p.Title)).OrderByDescending(g => g.IsPress && g.Kind == "liftoff").ThenByDescending(g => g.UT)
+                .Select(g => "kbshot:" + g.File).FirstOrDefault(src => ImageExists(src));
+            if (shot != null) return shot;
+            // No picture at all means no picture box, rather than an empty frame.
+            return refs.Where(x => x.Image != "").Select(x => ImageUrl(x.Image)).LastOrDefault(src => src != "" && ImageExists(src)) ?? "";
         }
 
         static object Row(string label, string value, string url = "") { return new Dictionary<string, object> { { "label", label }, { "value", value }, { "url", url } }; }

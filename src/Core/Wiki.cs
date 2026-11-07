@@ -395,12 +395,13 @@ namespace KerbalNews
                         .Select(s => new WikiSection { Heading = ResponseParser.Clip(Json.Str(s, "heading", "").Trim(), 80), Text = ResponseParser.Clip(Json.Str(s, "text", "").Trim(), 3000) })
                         .Where(s => s.Heading != "" && s.Text != "").Take(6).ToList();
                     if (lead == "") continue;
+                    bool first = p.WrittenUT < 0;   // the page was created earlier from the template; this is its first real article
                     p.Lead = ResponseParser.Clip(lead, 1500);
                     p.Sections = secs;
                     p.WrittenUT = ut;
                     p.Pending = 0;
                     string ch = ResponseParser.Clip(Json.Str(o, "change", "").Trim(), 120);
-                    p.Revise(ut, instruction != "" ? "An account at " + AgencyShort : "Kerbopedia editors", ch != "" ? ch : instruction != "" ? ResponseParser.Clip(instruction, 120) : "Updated");
+                    p.Revise(ut, instruction != "" ? "An account at " + AgencyShort : "Kerbopedia editors", first && instruction == "" ? "Expanded from a stub into a full article" : ch != "" ? ch : instruction != "" ? ResponseParser.Clip(instruction, 120) : "Updated");
                 }
             });
         }
