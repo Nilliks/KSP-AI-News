@@ -56,7 +56,7 @@ namespace KerbalNews.Web
 
         static readonly Dictionary<string, string> SpecialSites = new Dictionary<string, string>
         {
-            { "kerbnet.kb", "kerbnet" }, { "tracker.kb", "tracker" }, { "agency.kb", "agency" }, { "settings.kb", "settings" }, { "telemetry.kb", "telemetry" },
+            { KmailHost, "kmail" }, { "kerbnet.kb", "kerbnet" }, { "tracker.kb", "tracker" }, { "agency.kb", "agency" }, { "settings.kb", "settings" }, { "telemetry.kb", "telemetry" },
         };
 
         /// <summary>Splits "host/path?query" into parts. Accepts "http(s)://" prefixes.</summary>
@@ -90,7 +90,7 @@ namespace KerbalNews.Web
             try
             {
                 var offSite = SiteCatalog.ByDomain(host);
-                if (offSite != null && !Engine.Settings.SiteOn(offSite.Id) && (offSite.Group != "Agency" || offSite.Id == "engineering")) return SiteOff(url, offSite);
+                if (offSite != null && !Engine.Settings.SiteOn(offSite.Id) && (offSite.Group != "Agency" || offSite.Id == "engineering" || offSite.Id == "kmail")) return SiteOff(url, offSite);
                 var outlet = Outlets.All.FirstOrDefault(o => o.Domain == host);
                 if (outlet != null)
                 {
@@ -110,6 +110,7 @@ namespace KerbalNews.Web
                 {
                     switch (site)
                     {
+                        case "kmail": return Kmail(url, path, query);
                         case "kerbnet": return Page(url, "kerbnet", "index.html", KerbnetModel(path.StartsWith("story/") ? path.Substring(6) : null), "Kerbnet", true);
                         case "tracker": return Page(url, "tracker", "index.html", TrackerModel(), "Universe tracker", true);
                         case "agency":
@@ -169,7 +170,7 @@ namespace KerbalNews.Web
 
         static readonly string[][] NetLinks =
         {
-            new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "kerbopedia.kb", "Kerbopedia" }, new[] { "telemetry.kb", "Telemetry" },
+            new[] { "kmail.kb", "Kmail" }, new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "kerbopedia.kb", "Kerbopedia" }, new[] { "telemetry.kb", "Telemetry" },
             new[] { "pressroom.kb", "Press room" }, new[] { "gallery.kb", "Gallery" }, new[] { "live.kb", "Live" }, new[] { "agency.kb", "Agency" },
             new[] { "engineering.kb", "Engineering" }, new[] { "settings.kb", "Settings" },
         };
@@ -210,7 +211,11 @@ namespace KerbalNews.Web
             foreach (var l in NetLinks)
             {
                 var s = SiteCatalog.ByDomain(l[0]);
-                if (s == null || Engine.Settings.SiteOn(s.Id)) links.Add(new Dictionary<string, object> { { "domain", l[0] }, { "name", l[1] } });
+                if (s == null || Engine.Settings.SiteOn(s.Id))
+                {
+                    int mail = l[0] == KmailHost ? Engine.UnreadMail(now) : 0;
+                    links.Add(new Dictionary<string, object> { { "domain", l[0] }, { "name", l[1] + (mail > 0 ? " (" + mail + ")" : "") } });
+                }
             }
             m["netLinks"] = links;
             m["siteOn"] = SiteCatalog.All.ToDictionary(x => x.Id, x => (object)Engine.Settings.SiteOn(x.Id));
@@ -506,6 +511,7 @@ namespace KerbalNews.Web
             m["retro"] = g.Retrospectives;
             m["worldOpts"] = new List<object> { opt("Off", "usage-world/0", g.WorldNews == 0), opt("A little", "usage-world/1", g.WorldNews == 1), opt("Normal", "usage-world/2", g.WorldNews == 2), opt("Lots", "usage-world/3", g.WorldNews == 3) };
             m["worldOn"] = g.WorldNews > 0;
+            m["mailOpts"] = new List<object> { opt("Off", "usage-mail/0", g.MailLevel == 0), opt("Less", "usage-mail/1", g.MailLevel == 1), opt("Normal", "usage-mail/2", g.MailLevel == 2), opt("More", "usage-mail/3", g.MailLevel == 3) };
             m["worldFlavor"] = g.WorldFlavor;
             m["worldRivals"] = g.WorldRivals;
             m["scale"] = g.UiScale > 0.4f ? g.UiScale.ToString("0.0", Inv) + "x" : "auto (" + UiScale().ToString("0.0", Inv) + "x)";

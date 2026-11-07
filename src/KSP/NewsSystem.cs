@@ -48,6 +48,7 @@ namespace KerbalNews.KSP
                 ScreenMessages.PostScreenMessage("Kerbal News: " + why + " (" + (d >= 0 ? "+" : "-") + "√" + NewsEngine.Money(Math.Abs(d)) + ")", 4f, ScreenMessageStyle.UPPER_RIGHT);
             };
             Engine.ArticlesPublished += OnPublished;
+            Engine.MailArrived += OnMail;
             Engine.SaveImage = SaveImage;
             Engine.PressShotRemoved += file =>
             {
@@ -215,6 +216,25 @@ namespace KerbalNews.KSP
                 case Vessel.Situations.DOCKED: return "docked in orbit of " + b;
                 default: return "near " + b;
             }
+        }
+
+        float lastMailPopup = -100;
+        int mailHeld;
+
+        /// <summary>The in-game pop-up for new email. A burst of mail shows one line for the rest.</summary>
+        void OnMail(MailMsg m)
+        {
+            if (!Settings.NotifyOnPublish) return;
+            if (Time.realtimeSinceStartup - lastMailPopup < 3f)
+            {
+                mailHeld++;
+                if (mailHeld == 1) ScreenMessages.PostScreenMessage("<color=#8ab4ff>Kmail:</color> more new email in your inbox", 5f, ScreenMessageStyle.UPPER_CENTER);
+                return;
+            }
+            lastMailPopup = Time.realtimeSinceStartup;
+            mailHeld = 0;
+            string tail = m.Important && m.DueUT >= 0 && m.Open ? " (reply by " + Engine.Clock.FormatDate(m.DueUT) + ")" : "";
+            ScreenMessages.PostScreenMessage("<color=#8ab4ff>Kmail:</color> " + m.From + ": " + m.Subject + tail, m.Important ? 8f : 5f, ScreenMessageStyle.UPPER_CENTER);
         }
 
         void OnPublished(List<Article> fresh)

@@ -733,6 +733,10 @@ namespace KerbalNews
         public Dictionary<string, WikiPage> Wiki = new Dictionary<string, WikiPage>();
         /// <summary>Kerbopedia was filled in from the news already in the save (once, for saves from before it existed).</summary>
         public bool WikiSeeded;
+        /// <summary>Kmail: every email in and out, the assistant's standing permission to answer routine mail, and when the last quiet-day letter came.</summary>
+        public List<MailMsg> Mail = new List<MailMsg>();
+        public bool MailAuto;
+        public double LastQuietMailUT = -1;
         /// <summary>Science results that reached Kerbin, for the journal.</summary>
         public List<ScienceResult> Science = new List<ScienceResult>();
         public List<ScienceFinding> Findings = new List<ScienceFinding>();
@@ -907,6 +911,9 @@ namespace KerbalNews
             var wiki = n.AddNode("WIKI");
             wiki.Add("seeded", WikiSeeded);
             foreach (var wp in Wiki.Values) wp.Save(wiki.AddNode("PAGE"));
+            var mail = n.AddNode("MAIL");
+            mail.Add("auto", MailAuto); mail.Add("lastQuiet", LastQuietMailUT);
+            foreach (var mm in Mail) mm.Save(mail.AddNode("MSG"));
             var crew = n.AddNode("CREW");
             foreach (var c in Crew.Values) c.Save(crew.AddNode("KERBAL"));
             foreach (var a in Anniversaries) n.Add("anniversary", a);
@@ -1024,6 +1031,12 @@ namespace KerbalNews
             var wikiNode = n.GetNode("WIKI");
             if (wikiNode != null) s.WikiSeeded = wikiNode.GetBool("seeded");
             if (wikiNode != null) foreach (var wn in wikiNode.GetNodes("PAGE")) { var wp = WikiPage.Load(wn); if (wp.Slug != "") s.Wiki[wp.Slug] = wp; }
+            var mailNode = n.GetNode("MAIL");
+            if (mailNode != null)
+            {
+                s.MailAuto = mailNode.GetBool("auto"); s.LastQuietMailUT = mailNode.GetDouble("lastQuiet", -1);
+                foreach (var mn in mailNode.GetNodes("MSG")) { var mm = MailMsg.Load(mn); if (mm.Id != "") s.Mail.Add(mm); }
+            }
             var crewNode = n.GetNode("CREW");
             if (crewNode != null) foreach (var cn in crewNode.GetNodes("KERBAL")) { var c = CrewFame.Load(cn); if (c.Name != "") s.Crew[c.Name] = c; }
             foreach (var an in n.GetAll("anniversary")) s.Anniversaries.Add(an);

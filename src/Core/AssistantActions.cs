@@ -26,6 +26,10 @@ namespace KerbalNews
                     return "Send a legal letter demanding a " + (Arg(a, "demand") == "correction" ? "correction" : "retraction") + " of " + (la != null ? "\"" + la.Headline + "\" (" + Outlets.NameOf(la.Outlet) + ")" : "the article") + ", legal fees about √12,000";
                 case "ad_campaign": return "Ad campaign \"" + ResponseParser.Clip(Arg(a, "message"), 80) + "\" for √" + Money(ArgMoney(a, "budget")) + " in " + string.Join(", ", ArgList(a, "outlets").Select(x => { var oo = FindOutlet(x); return oo != null ? oo.Name : x; }).ToArray());
                 case "edit_wiki": return "Edit the Kerbopedia page \"" + Arg(a, "page") + "\"";
+                case "reply_mail": { var em = FindMail(Arg(a, "email"), double.MaxValue); return "Reply to " + (em != null ? em.From + " (\"" + em.Subject + "\")" : "the email") + (Arg(a, "decision") != "" && Arg(a, "decision") != "none" ? ": " + Arg(a, "decision") : ""); }
+                case "send_mail": return "Email " + Arg(a, "to") + ": \"" + ResponseParser.Clip(Arg(a, "subject"), 80) + "\"";
+                case "approve_mail": { var em = FindMail(Arg(a, "email"), double.MaxValue); return em != null && em.Amount > 0 ? "Accept √" + Money(em.Amount) + " from " + em.From : "Accept the money in that email"; }
+                case "mail_auto": return (ArgBool(a, "on") ? "Answer" : "Stop answering") + " routine email on my own";
                 case "press_release": return "Publish the press release \"" + ResponseParser.Clip(Arg(a, "title"), 80) + "\"";
                 case "leak": return "Leak to " + (o != null ? o.Name : Arg(a, "outlet")) + ": " + ResponseParser.Clip(Arg(a, "info"), 80);
                 case "public_apology": return "Publish a public apology about " + Arg(a, "about", "recent events");
@@ -148,6 +152,19 @@ namespace KerbalNews
                         return i < 0 ? "I couldn't find that standing order." : "Dropped the standing order.";
                     }
                     case "edit_wiki": return WikiEdit(a, ut);
+                    case "reply_mail":
+                    {
+                        string text = Arg(a, "text");
+                        var em = FindMail(Arg(a, "email"), ut);
+                        if (em == null) return "I couldn't find that email.";
+                        if (text == "") text = Arg(a, "decision") == "decline" ? DeclineText(em) : em.Open ? AcceptText(em, Arg(a, "kerbal")) : "Thank you for your email.";
+                        return MailReply(em.Id, text, Arg(a, "decision"), Arg(a, "kerbal"), Arg(a, "when"), Arg(a, "statement"), ut, true);
+                    }
+                    case "send_mail": return MailSend(Arg(a, "to"), Arg(a, "subject"), Arg(a, "body"), ut, true);
+                    case "approve_mail": return MailApprove(FindMail(Arg(a, "email"), ut), ut);
+                    case "mail_auto":
+                        State.MailAuto = ArgBool(a, "on");
+                        return State.MailAuto ? "From now on I'll answer routine email myself. Anything with a request, money or a deadline still comes to you." : "I'll leave all email to you.";
                     case "delete_post": return EditPost(a, ut, true);
                     case "edit_post": return EditPost(a, ut, false);
                     case "add_lore":

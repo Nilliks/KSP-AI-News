@@ -98,6 +98,7 @@ namespace KerbalNews
                         return sb.Length == 0 ? "No named reporters yet." : sb.ToString();
                     }
                     case "wiki": return WikiLookup(Arg(args, "page"));
+                    case "mail": return Arg(args, "email") != "" ? MailRead(Arg(args, "email"), ut) : MailLookup(Arg(args, "filter"), Arg(args, "query"), ut);
                     case "crew":
                     {
                         foreach (var c in State.Crew.Values.Where(x => x.OnRoster || x.Flights > 0).OrderByDescending(x => x.Fame).Take(30))

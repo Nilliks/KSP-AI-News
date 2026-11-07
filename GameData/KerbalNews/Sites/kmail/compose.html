@@ -1,0 +1,13 @@
+<html><body>
+{{> top}}
+<div class="main">
+{{> side}}
+<div class="read">
+  <div class="shead"><span class="subject">New message</span></div>
+  <label>To</label><input name="to" value="{{to}}" placeholder="An outlet, a company, the Council, a kerbal's family, a school, anyone">
+  <label>Subject</label><input name="subject" value="{{subject}}">
+  <label>Message</label><textarea name="body" rows="10"></textarea>
+  <div class="rrow"><button class="primary" data-action="mail-send">Send</button><span class="dim small">They write back, and may make an offer or write a story. Outlets: {{outletList}}.</span></div>
+</div>
+</div>
+</body></html>

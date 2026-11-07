@@ -43,6 +43,8 @@ namespace KerbalNews
         public bool Retrospectives = true;
         /// <summary>Background world news (asteroids, windows, crew milestones...): 0 off, 1 a little, 2 normal, 3 lots.</summary>
         public int WorldNews = 2;
+        /// <summary>Kmail volume: 0 off, 1 less, 2 normal, 3 more.</summary>
+        public int MailLevel = 2;
         /// <summary>Invented color around the game facts (weather, politics, culture), and rival programs (Kerbin orbit only).</summary>
         public bool WorldFlavor = true;
         public bool WorldRivals = true;
@@ -178,6 +180,7 @@ namespace KerbalNews
             settings.Add("streamChat", StreamChatPer10Min);
             settings.Add("retrospectives", Retrospectives);
             settings.Add("worldNews", WorldNews);
+            settings.Add("mailLevel", MailLevel);
             settings.Add("worldFlavor", WorldFlavor);
             settings.Add("worldRivals", WorldRivals);
             settings.Add("uiScale", (double)UiScale);
@@ -238,6 +241,7 @@ namespace KerbalNews
                 g.StreamChatPer10Min = Math.Max(10, Math.Min(600, settings.GetInt("streamChat", 120)));
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.WorldNews = Math.Max(0, Math.Min(3, settings.GetInt("worldNews", 2)));
+                g.MailLevel = Math.Max(0, Math.Min(3, settings.GetInt("mailLevel", 2)));
                 g.WorldFlavor = settings.GetBool("worldFlavor", true);
                 g.WorldRivals = settings.GetBool("worldRivals", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);

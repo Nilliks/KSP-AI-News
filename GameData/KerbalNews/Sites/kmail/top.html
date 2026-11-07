@@ -1,0 +1,9 @@
+{{> netbar}}
+<div class="top">
+  <div class="brand"><a class="logo" href="kmail.kb">Kmail</a></div>
+  <div class="search"><input name="mq" value="{{q}}" placeholder="Search mail"><button data-action="mail-search">Search</button></div>
+  <div class="grow"></div>
+  <span class="me">{{me}}</span>
+</div>
+{{#notice}}<div class="notice">{{notice}}</div>{{/notice}}
+{{#mailOff}}<div class="notice">New mail is turned off. Turn it back on under Kmail email in <a href="settings.kb">Settings</a>.</div>{{/mailOff}}

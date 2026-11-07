@@ -107,7 +107,8 @@ namespace KerbalNews
         {
             var list = actions.Take(8).ToList();
             // If anything costs money, the whole plan waits, so an announcement never goes out before the deal is approved.
-            if (!Settings.AssistantConfirm || !list.Any(a => Spends(Arg(a, "cmd"))))
+            // Money from Kmail always waits for the director, whatever the setting says.
+            if (!list.Any(a => Arg(a, "cmd") == "approve_mail") && (!Settings.AssistantConfirm || !list.Any(a => Spends(Arg(a, "cmd")))))
             {
                 foreach (var a in list) AssistantSay("result", Execute(Arg(a, "cmd"), Json.Obj(Json.Get(a, "args")) ?? new Dictionary<string, object>(), ut), ut);
                 return;
@@ -165,6 +166,7 @@ namespace KerbalNews
 - reporters {}: named reporters at each outlet and how they feel about the agency (goodwill or grudges, and why).
 - orders {}: your standing orders.
 - wiki {page?}: Kerbopedia, the public encyclopedia of the agency's craft, crew and places: the page list, or one page's current text.
+- mail {filter?: unread|open, query?, email?}: Kmail, the director's inbox: a list of conversations with ids (e12), or with email one conversation in full.
 - crew {}: the roster: each kerbal's trait, level, where they are, fame, and any scheduled interviews or briefings.
 ACTIONS:
 - press_release {type: announcement|update|incident|teaser, title, body, vessel?, photos?: [gallery ids]}: official release on the press room. Write the text yourself if not given.
@@ -198,6 +200,10 @@ ACTIONS:
 - delete_post {target}: delete one of the agency's own comments or threads (id or words from it). Someone may have screenshotted it.
 - edit_post {target, text}: change the text of one of the agency's own comments or threads.
 - edit_wiki {page, lead?, sections?: [{heading, text}], rewrite?, remember?, note?}: change a Kerbopedia page (title or slug; a new title makes a new page). lead replaces the opening; each section replaces the one with that heading, adds it if new, or removes it when text is """"; rewrite asks Kerbopedia's writers to redo the page following an instruction; remember is a lasting wish the page keeps in later updates; note is the edit summary. Look the page up first when changing existing text. Free, but the page history shows the edit came from the agency.
+- reply_mail {email, text?, decision?: accept|decline|counter|none, kerbal?, when?, statement?}: answer an email in Kmail for the director (signed as you, for the Director). Write the text yourself unless given. What you agree to really happens: an accepted interview is booked, a statement is printed, a visit takes place. decision says what the reply does with the sender's request (counter = yes, but with another kerbal or date). Read the email first if you haven't.
+- send_mail {to, subject, body}: write a new email to anyone: an outlet (id or name), a company, the Council, a kerbal's family, a school. They answer, and may make an offer or write a story.
+- approve_mail {email}: take the money in an email offer the director has accepted (a sponsorship). Money moves only with this, and it always waits for the director's OK.
+- mail_auto {on: true|false}: whether you answer routine mail (fan letters, citizens, simple press questions) on your own. Only when the director asks.
 - add_order {text}: remember a standing order from the director (""from now on..."", ""always..."", ""never...""). Follow it in every later request.
 - remove_order {order}: drop a standing order (its number or words from it).";
 
@@ -245,6 +251,8 @@ ACTIONS:
             }
             string inc = IncidentText();
             if (inc != "") sb.AppendLine("ENGINEERING INVESTIGATIONS (internal findings are confidential unless the director decides otherwise; released ones are public):\n" + inc);
+            string inbox = Settings.SiteOn("kmail") ? InboxText(ut) : "";
+            if (inbox != "") sb.AppendLine(inbox);
             var open = State.Deals.Where(d => d.Status == "pending").ToList();
             if (open.Count > 0) sb.AppendLine("DEALS STILL OPEN: " + string.Join("; ", open.Select(d => d.Summary).ToArray()));
             sb.AppendLine("CONVERSATION (oldest first; the last line is the request to handle now):");

@@ -39,6 +39,9 @@ namespace KerbalNews.Web
 
             switch (verb)
             {
+                case "mail-search": case "mail-reply": case "mail-send": case "mail-quick": case "mail-assist": case "mail-auto": case "mail-read":
+                    KmailAction(verb, arg, form, r);
+                    break;
                 case "wiki-search":
                     r.Navigate = WikiHost + "/search?q=" + Uri.EscapeDataString(Get(form, "wq").Trim());
                     break;
@@ -102,6 +105,13 @@ namespace KerbalNews.Web
                     else if (verb == "usage-stream") g.StreamSeconds = Math.Max(10, v);
                     else g.Retrospectives = !g.Retrospectives;
                     g.Usage = g.UsageMatch;
+                    SaveSettings();
+                    break;
+                }
+                case "usage-mail":
+                {
+                    int w;
+                    if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out w)) g.MailLevel = Math.Max(0, Math.Min(3, w));
                     SaveSettings();
                     break;
                 }

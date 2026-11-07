@@ -1,0 +1,9 @@
+<div class="side">
+  <a class="compose" href="kmail.kb/compose">Compose</a>
+  {{#folders}}<a class="folder{{#on}} on{{/on}}" href="{{url}}"><span class="fname">{{name}}</span><span class="fcount">{{count}}</span></a>{{/folders}}
+  <div class="sidehead">LABELS</div>
+  {{#labels}}<a class="label{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/labels}}
+  <div class="sidehead">ASSISTANT</div>
+  {{#auto}}<a class="label" href="action:mail-auto/off">{{assistantFirst}} answers routine mail: on</a>{{/auto}}
+  {{^auto}}<a class="label" href="action:mail-auto/on">{{assistantFirst}} answers routine mail: off</a>{{/auto}}
+</div>

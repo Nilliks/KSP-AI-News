@@ -1,0 +1,33 @@
+<html><body>
+{{> top}}
+<div class="main">
+{{> side}}
+<div class="read">
+  <a class="back" href="kmail.kb">Back to inbox</a>
+  <div class="shead"><span class="subject">{{subject}}</span>{{#label}}<span class="badge plain">{{label}}</span>{{/label}}</div>
+  {{#msgs}}<div class="msg{{#out}} mine{{/out}}">
+    <div class="mhead"><span class="avatar{{#out}} me{{/out}}">{{initials}}</span><div class="mwho"><span><b>{{from}}</b> <span class="dim">&lt;{{addr}}&gt;</span></span><span class="dim small">to {{to}} · {{when}}</span></div></div>
+    <div class="body">{{#paras}}<p>{{text}}</p>{{/paras}}</div>
+  </div>{{/msgs}}
+  {{#mailStatus}}<div class="status">{{mailStatus}}</div>{{/mailStatus}}
+  {{#open}}<div class="quick">
+    <button class="primary" data-action="mail-quick/{{id}}/accept">{{acceptLabel}}</button>
+    {{#canOther}}<input name="kerbal" placeholder="or another kerbal"><button data-action="mail-quick/{{id}}/other">Offer them instead</button>{{/canOther}}
+    <button data-action="mail-quick/{{id}}/decline">Politely decline</button>
+    <button data-action="mail-assist/{{id}}">Ask {{assistantFirst}} to reply</button>
+  </div>{{/open}}
+  {{#awaiting}}<div class="quick"><button class="primary" data-action="mail-quick/{{id}}/approve">Approve: take the √{{amount}}</button><span class="dim">Nothing is paid until you approve.</span></div>{{/awaiting}}
+  <div class="replybox">
+    <div class="dim small">Reply to {{replyTo}}</div>
+    <textarea name="body" rows="4" placeholder="Write your reply. Say yes, no, or offer something else; Kmail works out what you agreed to and sets it up."></textarea>
+    <div class="rrow"><button class="primary" data-action="mail-reply/{{id}}">Send</button><span class="dim small">Kmail reads what you agree to and sets it up.</span></div>
+  </div>
+</div>
+<div class="aside">
+  {{#due}}<div class="card warn"><b>{{due}}</b><p>{{ifIgnored}}</p></div>{{/due}}
+  {{#waiting}}<div class="card"><b>Waiting for their answer</b><p>You replied; they'll get back to you.</p></div>{{/waiting}}
+  {{#yesDoes}}<div class="card"><b>What replying yes does</b><p>{{yesDoes}}</p></div>{{/yesDoes}}
+  {{#assistantTip}}<div class="card"><b>{{assistantName}} (assistant)</b><p>"{{assistantTip}}"</p><a href="action:mail-assist/{{id}}">Ask {{assistantFirst}} to handle it</a></div>{{/assistantTip}}
+</div>
+</div>
+</body></html>

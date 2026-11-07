@@ -63,6 +63,9 @@
   {{#worldOn}}<div class="row"><a class="toggle{{#worldFlavor}} on{{/worldFlavor}}" href="action:toggle-world-flavor">Weather, politics and culture</a>
     <a class="toggle{{#worldRivals}} on{{/worldRivals}}" href="action:toggle-world-rivals">Rival programs (Kerbin orbit only)</a></div>{{/worldOn}}
   <p class="hint">News from the world around you, read from your game: asteroids and comets, eclipses, transfer windows, debris coming down, crew milestones, part makers, records, new tech, stations, far-off probes, and Kerbalism space weather. Several stories share one AI call every few days; something big gets its own.</p>
+  <label>Kmail email</label>
+  <div class="providers">{{#mailOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/mailOpts}}</div>
+  <p class="hint">How much mail reaches your inbox: one to three emails after a big event, and a letter now and then on quiet days. Mail waits until the news is written, and a batch of emails shares one cheap AI call.</p>
   <div class="row" style="margin-top: 8px"><a class="toggle{{#retro}} on{{/retro}}" href="action:toggle-retro">Anniversaries and year in review</a>
     <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a></div>
   <p class="hint">Calls you start yourself (the assistant, crew chat, your comments) are not limited.</p>

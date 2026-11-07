@@ -1,0 +1,73 @@
+body { background: #f3f5f8; color: #1c2430; font-size: 14px; line-height: 1.45; }
+a { color: #1f5fbf; }
+a:hover { color: #123e80; }
+.top { display: flex; align-items: center; gap: 20px; padding: 10px 24px; background: #ffffff; border-bottom: 1px solid #dde2ea; }
+.brand { width: 190px; }
+.logo { font-size: 22px; font-weight: bold; color: #1c2430; }
+.search { display: flex; gap: 6px; }
+.search input { width: 420px; padding: 8px 12px; border: 1px solid #dde2ea; background: #f3f5f8; font-size: 14px; }
+.search button { padding: 8px 12px; border: 1px solid #dde2ea; background: #ffffff; color: #1c2430; font-size: 14px; }
+.grow { flex: 1; }
+.me { font-size: 13px; color: #4a5568; }
+.notice { margin: 10px 16px 0 16px; padding: 10px 14px; background: #e8f0fd; color: #123e80; border: 1px solid #c4d7f5; }
+.main { display: flex; }
+.side { width: 210px; padding: 16px 12px; }
+.side a { display: block; }
+.compose { padding: 12px 16px; margin-bottom: 12px; background: #d8e6fb; color: #123e80; font-weight: bold; }
+.side a.folder { display: flex; padding: 7px 12px; color: #1c2430; }
+.folder.on { background: #d8e6fb; color: #123e80; font-weight: bold; }
+.fname { flex: 1; }
+.fcount { font-weight: bold; }
+.sidehead { margin-top: 16px; margin-bottom: 4px; padding: 0 12px; font-size: 12px; color: #4a5568; font-weight: bold; }
+.label { padding: 5px 12px; color: #1c2430; }
+.label.on { background: #d8e6fb; color: #123e80; }
+.list { flex: 1; margin: 12px 16px 16px 0; background: #ffffff; }
+.lhead { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid #e6eaf0; font-size: 13px; }
+.dim { color: #4a5568; }
+.small { font-size: 12px; }
+.none { padding: 30px 18px; color: #4a5568; }
+.row { display: flex; align-items: center; gap: 14px; padding: 11px 18px; border-bottom: 1px solid #eef1f5; color: #4a5568; }
+.row:hover { background: #f5f8fc; }
+.row.unread { color: #1c2430; }
+.dot { width: 9px; height: 9px; background: #2b6fd6; }
+.nodot { width: 9px; }
+.from { width: 200px; }
+.row.unread .from { font-weight: bold; }
+.badge { padding: 2px 8px; font-size: 12px; font-weight: bold; background: #e6eaf0; color: #1c2430; }
+.badge.due { background: #fde8cf; color: #7a3d00; }
+.badge.offer { background: #dcf2e3; color: #13532b; }
+.badge.good { background: #dcf2e3; color: #13532b; }
+.badge.bad { background: #f9dcdc; color: #7a1616; }
+.subj { flex: 1; }
+.row.unread .st { font-weight: bold; }
+.snip { color: #4a5568; font-weight: normal; }
+.time { font-size: 13px; }
+.row.unread .time { font-weight: bold; }
+.read { flex: 1; margin: 12px 16px 16px 0; background: #ffffff; padding: 18px 26px; }
+.back { font-size: 13px; }
+.shead { display: flex; align-items: center; gap: 12px; margin: 10px 0 14px 0; }
+.subject { font-size: 22px; font-weight: bold; }
+.msg { padding: 12px 0; border-bottom: 1px solid #eef1f5; }
+.msg.mine { background: #fafbfd; padding: 12px 10px; }
+.mhead { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.avatar { width: 38px; height: 38px; background: #8a3b2a; color: #ffffff; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+.avatar.me { background: #2b6fd6; }
+.mwho { display: flex; flex-direction: column; }
+.body { width: 720px; line-height: 1.6; }
+.body p { margin-bottom: 10px; }
+.status { margin-top: 12px; padding: 10px 14px; background: #f3f5f8; color: #1c2430; }
+.quick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.read .quick input { width: 180px; padding: 8px 10px; border: 1px solid #c3ccd8; font-size: 14px; }
+button { padding: 9px 16px; border: 1px solid #c3ccd8; background: #ffffff; color: #1c2430; font-size: 14px; }
+button.primary { border: 1px solid #2b6fd6; background: #2b6fd6; color: #ffffff; font-weight: bold; }
+.replybox { margin-top: 16px; border: 1px solid #dde2ea; padding: 12px 14px; }
+.replybox textarea { width: 100%; padding: 6px 0; font-size: 14px; border: 1px solid #ffffff; }
+.rrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.read label { display: block; margin-top: 10px; margin-bottom: 4px; font-size: 13px; color: #4a5568; }
+.read input { width: 100%; padding: 8px 10px; border: 1px solid #c3ccd8; font-size: 14px; }
+.read > textarea { width: 100%; padding: 8px 10px; border: 1px solid #c3ccd8; font-size: 14px; }
+.aside { width: 290px; margin: 12px 16px 16px 0; }
+.card { background: #ffffff; padding: 14px 16px; margin-bottom: 12px; }
+.card p { font-size: 13px; margin-top: 6px; margin-bottom: 6px; }
+.card.warn { background: #fff6ea; border: 1px solid #f0cf9c; }
+.card.warn b { color: #7a3d00; }
