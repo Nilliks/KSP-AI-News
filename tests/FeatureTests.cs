@@ -950,4 +950,38 @@ public static class FeatureTests
         var eng = new NewsEngine(new NewsState(), new GlobalSettings(), new CoreTests.FakeTransport(), new SimpleClock(21600));
         Assert(eng.Transport is LocalQueueTransport, "engine queues local requests");
     }
+
+    public static void TestSpeculativePiecesAboutWhereTheAgencyHasntBeen()
+    {
+        const double day = 21600;
+        var s = new NewsState();
+        s.Profile.Name = "Kerbin Space Agency";
+        var g = new GlobalSettings { OfflineMode = true };
+        var eng = new NewsEngine(s, g, null, new SimpleClock(day));
+        eng.WorldScan = ut => new List<WorldFact>();
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, 10, "v1", "Mun", "Jebediah Kerman"));
+        eng.Tick(day * 3, 1, true);
+        var reach = eng.AgencyReach();
+        Assert(reach.ContainsKey("Mun") && reach["Mun"] == "landed" && !reach.ContainsKey("Duna"), "the agency's reach comes from its own stories");
+        for (int d = 4; d <= 40; d++) eng.Tick(day * d, d, true);
+        var dreams = s.Articles.Where(a => a.Tags.Contains("what if")).ToList();
+        Assert(dreams.Count >= 3 && dreams.Count <= 6, "a speculative piece every 8 days or so, got " + dreams.Count);
+        Assert(dreams.All(a => a.Kind == "feature" && !(a.Tags.Contains("Mun") && !a.Headline.Contains("live on"))), "a place already landed on only comes up as somewhere to stay: " + string.Join(" | ", dreams.Select(a => a.Headline).ToArray()));
+        Assert(dreams.Select(a => a.Tags.Last()).Distinct().Count() == dreams.Count, "a different place each time");
+        Assert(dreams.All(a => a.Body.Contains("No one") || a.Body.Contains("Nobody at the agency has announced")), "offline text says it's only a dream");
+        Assert(!dreams.Any(a => a.Body.Contains("SPECULATIVE")), "the note to the writer stays out of the article");
+
+        // Online: it rides in the roundup call, marked for the writer.
+        string sent = null;
+        var t = new CoreTests.FakeTransport { Responder = r => { sent = r.Body; return CoreTests.AnthropicReply(r); } };
+        var s2 = new NewsState();
+        var eng2 = new NewsEngine(s2, CoreTests.OnlineSettings(), t, new SimpleClock(day));
+        eng2.WorldScan = ut => new List<WorldFact>();
+        eng2.Bodies = () => new List<BodyInfo> { new BodyInfo { Name = "Sun", Star = true }, new BodyInfo { Name = "Kerbin", Parent = "Sun", OrbitKm = 13599840, PeriodDays = 426, Gravity = 1, RadiusKm = 600 }, new BodyInfo { Name = "Gael", Parent = "Sun", OrbitKm = 20000000, PeriodDays = 700, Gravity = 0.9, RadiusKm = 550, Atmosphere = true } };
+        eng2.Tick(0, 0, true);
+        eng2.Tick(3.5 * day, 1, true);
+        Assert(sent != null && sent.Contains("SPECULATIVE") && sent.Contains("Gael") && sent.Contains("NO such plan"), "the roundup asks for a speculative piece about a modded planet");
+    }
 }

@@ -33,6 +33,7 @@ namespace KerbalNews.KSP
             Engine = new NewsEngine(new NewsState(), Settings, transport, clock);
             Engine.LocalizeTag = Names.Of;
             Engine.Digest = () => Snapshots.Digest(Engine.State);
+            Engine.Bodies = GameBodies;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
@@ -217,6 +218,27 @@ namespace KerbalNews.KSP
                 default: return "near " + b;
             }
         }
+
+        /// <summary>The solar system as the press sees it (Kopernicus planets included), for the speculative "what would it take" pieces.</summary>
+        static List<BodyInfo> GameBodies()
+        {
+            var list = new List<BodyInfo>();
+            if (FlightGlobals.Bodies == null) return list;
+            foreach (var b in FlightGlobals.Bodies)
+            {
+                if (b == null) continue;
+                bool star = b.referenceBody == null || b.referenceBody == b || b.orbit == null;
+                list.Add(new BodyInfo
+                {
+                    Name = b.bodyName, Parent = star ? "" : b.referenceBody.bodyName, Star = star,
+                    RadiusKm = b.Radius / 1000, Gravity = b.GeeASL, Atmosphere = b.atmosphere, Ocean = b.ocean,
+                    OrbitKm = star ? 0 : b.orbit.semiMajorAxis / 1000, PeriodDays = star ? 0 : b.orbit.period / KspClockDay(),
+                });
+            }
+            return list;
+        }
+
+        static double KspClockDay() { return new KspClock().DaySeconds; }
 
         float lastMailPopup = -100;
         int mailHeld;

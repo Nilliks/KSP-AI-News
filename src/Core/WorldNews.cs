@@ -64,6 +64,7 @@ namespace KerbalNews
             { "politics", new[] { "herald", "council", "kscwatch" } },
             { "culture", new[] { "munmonthly", "inquirer", "herald" } },
             { "rival", new[] { "observer", "kraken", "herald" } },
+            { "dream", new[] { "munmonthly", "science", "observer", "herald" } },
         };
 
         public string WorldOutlet(WorldFact f)
@@ -169,6 +170,9 @@ namespace KerbalNews
             foreach (var f in pool) if (pick.Count < n && !pick.Any(p => p.Kind == f.Kind)) pick.Add(f);
             foreach (var f in pool) if (pick.Count < n && !pick.Contains(f)) pick.Add(f);
             foreach (var f in pick) State.WorldPending.Remove(f);
+            // Now and then a speculative piece about somewhere the agency hasn't been yet. It rides along in the same call.
+            var dream = Dream(ut, new Random(OfflineWriter.StableHash("dream" + Math.Floor(ut / Day))));
+            if (dream != null && WorldOutlet(dream) != null) pick.Add(dream);
             // Flavor fills the gaps: always one when there is no game news, otherwise now and then.
             var rng = new Random(OfflineWriter.StableHash("world" + Math.Floor(ut / Day)));
             if (Settings.WorldFlavor && (pick.Count == 0 || (pick.Count < n && rng.NextDouble() < 0.6)))
@@ -276,6 +280,7 @@ namespace KerbalNews
             sb.AppendLine("RULES:");
             sb.AppendLine("- Use ONLY the facts given for each item. Do not invent missions, discoveries, numbers, names or dates. You may explain what the facts mean and add general background.");
             sb.AppendLine("- Never say " + AgencyName + " did something that is not in the facts.");
+            sb.AppendLine("- Items marked SPECULATIVE are dreaming pieces: imagine and reason about what such a trip would take (rockets, windows, years, risks, cost) using real spaceflight thinking and the facts given, but never claim the agency plans it.");
             sb.AppendLine("- Rival space programs (" + string.Join(", ", Rivals) + ") only ever work in orbit around Kerbin. They never fly beyond Kerbin orbit, never beat the agency to anything, and stay small next to it. Keep them vague: no specs, no dates.");
             sb.AppendLine("- Write in each outlet's own voice. 80-220 words per story. Short paragraphs separated by blank lines. Kerbal names end in Kerman. Everyone in this world is a kerbal: say kerbal spaceflight, never human.");
             sb.AppendLine("OUTLETS:");
@@ -318,6 +323,7 @@ namespace KerbalNews
                 Significance = 10 + f.Sig * 8, Offline = offline, Model = offline ? "offline templates" : Settings.Preset.Id + " / " + Settings.WriterModel,
             };
             if (outlet == "council") a.Kind = "statement";
+            if (f.Kind == "dream") a.Kind = "feature";
             a.Tags.Add("world");
             a.Tags.Add(WorldTag(f.Kind));
             if (f.Body != "" && f.Body != "Kerbin") a.Tags.Add(f.Body);
@@ -339,6 +345,7 @@ namespace KerbalNews
                 case "base": return "stations and bases";
                 case "probe": return "deep space";
                 case "mod": return "space weather";
+                case "dream": return "what if";
                 case "rival": return "rival programs";
                 default: return kind;
             }
@@ -348,6 +355,7 @@ namespace KerbalNews
 
         static string OfflineWorldSub(WorldFact f)
         {
+            if (f.Kind == "dream") return "No one has announced a trip. But it is fun to work out what one would take.";
             int i = f.Text.IndexOf(". ", StringComparison.Ordinal);
             return i > 0 ? f.Text.Substring(0, i + 1) : f.Text;
         }
@@ -365,10 +373,19 @@ namespace KerbalNews
                 case "tech": tail = "Experts are guessing what the agency will build next with it. The agency has not said."; break;
                 case "base": tail = "It is a quiet kind of success: no launch, no fireworks, just the work going on day after day."; break;
                 case "probe": tail = "Far from home, it is a reminder of how big the system is, and how long the agency's machines keep working."; break;
+                case "dream": return "Kerbals have always looked up and wondered. " + DreamOffline(f.Text) + "\n\nNobody at the agency has announced any such plan. But a few years ago, the trips it makes today sounded like dreams too.";
                 case "mod": tail = "Mission planners say they take space weather seriously, and crews have shelter plans."; break;
                 default: tail = ""; break;
             }
             return f.Text + (tail != "" ? "\n\n" + tail : "");
+        }
+
+        /// <summary>The facts of a speculative item without the note to the writer.</summary>
+        static string DreamOffline(string text)
+        {
+            const string end = "Do not claim anything has been decided, built or scheduled.";
+            int i = text.IndexOf(end, StringComparison.Ordinal);
+            return i >= 0 ? text.Substring(i + end.Length).Trim() : text;
         }
 
         public static string FmtDays(double days) { return days.ToString(days < 10 ? "0.#" : "0", CultureInfo.InvariantCulture); }
