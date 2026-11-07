@@ -82,6 +82,9 @@ namespace KerbalNews
         public Dictionary<string, string> FetchedModels = new Dictionary<string, string>();
         public int MaxTokens = 6000;
         public int TimeoutSeconds = 120;
+        /// <summary>Local model servers: context window asked of Ollama (tokens), and the longer time limit per request (seconds).</summary>
+        public int LocalContext = 16384;
+        public int LocalTimeoutSeconds = 600;
         public bool NotifyOnPublish = true;
         public bool GenerateDuringWarp = false;
         /// <summary>News window scale; 0 means automatic from screen size.</summary>
@@ -155,6 +158,8 @@ namespace KerbalNews
             settings.Add("offline", OfflineMode);
             settings.Add("maxTokens", MaxTokens);
             settings.Add("timeout", TimeoutSeconds);
+            settings.Add("localContext", LocalContext);
+            settings.Add("localTimeout", LocalTimeoutSeconds);
             settings.Add("notify", NotifyOnPublish);
             settings.Add("warpGeneration", GenerateDuringWarp);
             settings.Add("pressPhotos", PressPhotos);
@@ -212,6 +217,8 @@ namespace KerbalNews
                 g.ProviderId = settings.Get("provider", g.ProviderId);
                 g.OfflineMode = settings.GetBool("offline", true);
                 g.MaxTokens = Math.Max(1000, settings.GetInt("maxTokens", g.MaxTokens));
+                g.LocalContext = Math.Max(2048, Math.Min(262144, settings.GetInt("localContext", g.LocalContext)));
+                g.LocalTimeoutSeconds = Math.Max(60, Math.Min(3600, settings.GetInt("localTimeout", g.LocalTimeoutSeconds)));
                 g.TimeoutSeconds = Math.Max(10, settings.GetInt("timeout", g.TimeoutSeconds));
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);

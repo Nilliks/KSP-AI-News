@@ -56,7 +56,8 @@ namespace KerbalNews
         {
             State = state;
             Settings = settings;
-            Transport = transport;
+            // Local model servers get one request at a time and a longer time limit.
+            Transport = transport is LocalQueueTransport ? transport : new LocalQueueTransport(transport, () => Settings.CanCallAi && Providers.IsLocal(Settings.BaseUrl) ? Settings.BaseUrl : null, () => Settings.LocalTimeoutSeconds);
             Clock = clock;
             Outlets.IsOn = id => Settings.SiteOn(id);
         }
@@ -177,6 +178,7 @@ namespace KerbalNews
         public void Tick(double ut, double realTime, bool allowCalls)
         {
             FillerQuietDays = Settings.QuietDays;
+            Providers.LocalContext = Settings.LocalContext;
             StreamInterval = Settings.StreamSeconds;
             bool side = InSide();
             if (side) allowCalls = false;   // FMRS side timeline: nothing done here survives

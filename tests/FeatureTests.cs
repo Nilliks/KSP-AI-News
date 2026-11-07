@@ -913,4 +913,41 @@ public static class FeatureTests
         var b = StreamOverlay.Build(pre, new LiveNumbers { Stage = 7 }, double.NaN);
         Assert(string.Join(",", a.Milestones.Select(x => x.Label).ToArray()) == string.Join(",", b.Milestones.Select(x => x.Label).ToArray()), "the milestone strip keeps its labels through liftoff");
     }
+
+    public static void TestLocalModels()
+    {
+        // Ollama: native API (an old /v1 address still works) with a bigger context window and JSON mode.
+        Providers.LocalContext = 16384;
+        var o = Providers.Build(Providers.Get("ollama"), "http://localhost:11434/v1/", "", "qwen2.5:14b", "sys", "usr", 900, true);
+        Assert(o.Url == "http://localhost:11434/api/chat" && o.Body.Contains("\"num_ctx\":16384") && o.Body.Contains("\"num_predict\":900") && o.Body.Contains("\"format\":\"json\"") && o.Body.Contains("\"stream\":false"), "ollama request: " + o.Url + " " + o.Body);
+        string text, err;
+        Assert(Providers.TryExtractText(ApiKind.Ollama, new HttpResult { Status = 200, Body = "{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"ok\\\":true}\"}}" }, out text, out err) && text == "{\"ok\":true}", "ollama reply: " + text + err);
+        Assert(!Providers.TryExtractText(ApiKind.Ollama, new HttpResult { Status = 404, Body = "{\"error\":\"model 'x' not found, try pulling it first\"}" }, out text, out err) && err.Contains("try pulling"), "ollama error: " + err);
+        var tags = Providers.ParseModelList(ApiKind.Ollama, "{\"models\":[{\"name\":\"qwen2.5:14b\"},{\"name\":\"nomic-embed-text\"},{\"name\":\"llama3.1:8b\"}]}");
+        Assert(tags.Count == 2 && tags.Contains("qwen2.5:14b"), "ollama model list without embedders");
+        Assert(Providers.BuildListModels(Providers.Get("ollama"), "http://localhost:11434", "").Url == "http://localhost:11434/api/tags", "ollama tags url");
+
+        // Reasoning models' thinking is dropped before the JSON is read.
+        Assert(Providers.StripThinking("<think>maybe {\"a\":1}?</think>\n{\"b\":2}") == "{\"b\":2}", "think block removed");
+        Assert(Providers.StripThinking("some thoughts </think>{\"b\":2}") == "{\"b\":2}", "orphan close tag");
+        Assert(Providers.StripThinking("{\"b\":2}") == "{\"b\":2}", "plain reply untouched");
+
+        Assert(Providers.IsLocal("http://localhost:1234/v1") && Providers.IsLocal("http://192.168.1.20:11434") && Providers.IsLocal("http://172.20.0.5:8080") && !Providers.IsLocal("https://api.deepseek.com") && !Providers.IsLocal("http://172.40.0.1"), "local addresses");
+
+        // One request at a time to a local server, with a long time limit; cloud requests are not held up.
+        var inner = new CoreTests.FakeTransport();   // holds callbacks until we answer
+        string local = "http://localhost:11434";
+        var q = new LocalQueueTransport(inner, () => local, () => 600);
+        var got = new List<string>();
+        q.Send(new HttpRequestSpec { Url = local + "/api/chat", TimeoutSeconds = 120 }, r => got.Add("a"));
+        q.Send(new HttpRequestSpec { Url = local + "/api/chat" }, r => got.Add("b"));
+        q.Send(new HttpRequestSpec { Url = "https://generativelanguage.googleapis.com/v1beta/x" }, r => got.Add("img"));
+        Assert(inner.Sent.Count == 2 && inner.Sent[0].TimeoutSeconds == 600 && inner.Sent[1].Url.StartsWith("https://"), "second local request waits; cloud goes straight out");
+        inner.Pending[0](new HttpResult { Status = 200 });
+        Assert(inner.Sent.Count == 3 && inner.Sent[2].Url.StartsWith(local) && got[0] == "a", "next local request goes when the first finishes");
+
+        // The engine wraps its transport, so the whole mod gets this.
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings(), new CoreTests.FakeTransport(), new SimpleClock(21600));
+        Assert(eng.Transport is LocalQueueTransport, "engine queues local requests");
+    }
 }

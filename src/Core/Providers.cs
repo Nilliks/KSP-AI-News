@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace KerbalNews
 {
-    public enum ApiKind { Anthropic, OpenAICompatible, Gemini }
+    public enum ApiKind { Anthropic, OpenAICompatible, Gemini, Ollama }
 
     public class ProviderPreset
     {
@@ -67,9 +67,17 @@ namespace KerbalNews
                 WriterModel = "deepseek-chat", CheapModel = "deepseek-chat" },
             new ProviderPreset { Id = "openrouter", Name = "OpenRouter", Kind = ApiKind.OpenAICompatible, BaseUrl = "https://openrouter.ai/api/v1",
                 WriterModel = "anthropic/claude-sonnet-5.5", CheapModel = "anthropic/claude-haiku-5.5", KeyHint = "sk-or-..." },
-            new ProviderPreset { Id = "ollama", Name = "Ollama (local)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:11434/v1",
-                WriterModel = "llama3.1", CheapModel = "llama3.1", NeedsKey = false, JsonMode = true },
+            // Ollama's own API, not its OpenAI-compatible one: only the native API lets us raise the context window, which
+            // otherwise silently cuts off the start of long prompts (the instructions).
+            new ProviderPreset { Id = "ollama", Name = "Ollama (local)", Kind = ApiKind.Ollama, BaseUrl = "http://localhost:11434",
+                WriterModel = "qwen2.5:14b", CheapModel = "qwen2.5:7b", NeedsKey = false, JsonMode = true },
             new ProviderPreset { Id = "lmstudio", Name = "LM Studio (local)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:1234/v1",
+                WriterModel = "local-model", CheapModel = "local-model", NeedsKey = false, JsonMode = false },
+            new ProviderPreset { Id = "llamacpp", Name = "llama.cpp server (local)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:8080/v1",
+                WriterModel = "local-model", CheapModel = "local-model", NeedsKey = false, JsonMode = false },
+            new ProviderPreset { Id = "koboldcpp", Name = "KoboldCpp (local)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:5001/v1",
+                WriterModel = "local-model", CheapModel = "local-model", NeedsKey = false, JsonMode = false },
+            new ProviderPreset { Id = "jan", Name = "Jan (local)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:1337/v1",
                 WriterModel = "local-model", CheapModel = "local-model", NeedsKey = false, JsonMode = false },
             new ProviderPreset { Id = "custom", Name = "Custom (OpenAI-compatible)", Kind = ApiKind.OpenAICompatible, BaseUrl = "http://localhost:8000/v1",
                 WriterModel = "model", CheapModel = "model", NeedsKey = false, JsonMode = false },
@@ -84,7 +92,53 @@ namespace KerbalNews
             Suggest("mistral", "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest");
             Suggest("deepseek", "deepseek-chat", "deepseek-reasoner");
             Suggest("openrouter", "anthropic/claude-sonnet-5.5", "openai/gpt-5-mini", "google/gemini-2.5-flash", "deepseek/deepseek-chat");
-            Suggest("ollama", "llama3.1", "qwen2.5", "mistral");
+            Suggest("ollama", "qwen2.5:14b", "qwen2.5:7b", "llama3.1:8b", "mistral-nemo", "gemma3:12b");
+        }
+
+        /// <summary>Context window (tokens) asked of a local Ollama model. Ollama's default is small enough to cut off our prompts.</summary>
+        public static int LocalContext = 16384;
+
+        /// <summary>True when the URL points at this computer or the home network: a local model server.</summary>
+        public static bool IsLocal(string url)
+        {
+            Uri u;
+            if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out u)) return false;
+            string h = u.Host.ToLowerInvariant();
+            if (h == "localhost" || h == "::1" || h == "[::1]" || h.EndsWith(".local") || h.StartsWith("127.") || h.StartsWith("10.") || h.StartsWith("192.168.")) return true;
+            if (h.StartsWith("172."))
+            {
+                var parts = h.Split('.'); int b;
+                if (parts.Length == 4 && int.TryParse(parts[1], out b) && b >= 16 && b <= 31) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Ollama's address without a trailing /v1 (older settings saved the OpenAI-compatible one).</summary>
+        static string OllamaRoot(string root)
+        {
+            root = root.TrimEnd('/');
+            return root.EndsWith("/v1") ? root.Substring(0, root.Length - 3) : root;
+        }
+
+        /// <summary>Reasoning models (Qwen3, DeepSeek-R1...) think out loud in think tags before answering; keep only the answer.</summary>
+        public static string StripThinking(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            foreach (var tag in new[] { "think", "thinking", "reasoning" })
+            {
+                string open = "<" + tag + ">", close = "</" + tag + ">";
+                int a;
+                while ((a = text.IndexOf(open, StringComparison.OrdinalIgnoreCase)) >= 0)
+                {
+                    int b = text.IndexOf(close, a, StringComparison.OrdinalIgnoreCase);
+                    if (b < 0) { text = text.Substring(0, a); break; }   // cut off mid-thought: nothing usable after it
+                    text = text.Substring(0, a) + text.Substring(b + close.Length);
+                }
+                // Some servers drop the opening tag and send only the close.
+                int c = text.IndexOf(close, StringComparison.OrdinalIgnoreCase);
+                if (c >= 0) text = text.Substring(c + close.Length);
+            }
+            return text.Trim();
         }
 
         static void Suggest(string id, params string[] models)
@@ -101,6 +155,9 @@ namespace KerbalNews
             req.Url = root + "/models" + (p.Kind == ApiKind.Gemini ? "?pageSize=200" : "");
             switch (p.Kind)
             {
+                case ApiKind.Ollama:
+                    req.Url = OllamaRoot(root) + "/api/tags";
+                    break;
                 case ApiKind.Anthropic:
                     req.Url = root + "/models?limit=100";
                     req.Headers["x-api-key"] = apiKey ?? "";
@@ -121,7 +178,15 @@ namespace KerbalNews
             var list = new List<string>();
             object root;
             if (!Json.TryParse(body, out root)) return list;
-            if (kind == ApiKind.Gemini)
+            if (kind == ApiKind.Ollama)
+            {
+                foreach (var m in Json.Arr(Json.Get(root, "models")) ?? new List<object>())
+                {
+                    var name = Json.Str(m, "name", Json.Str(m, "model", ""));
+                    if (name != "" && name.IndexOf("embed", StringComparison.OrdinalIgnoreCase) < 0) list.Add(name);
+                }
+            }
+            else if (kind == ApiKind.Gemini)
             {
                 foreach (var m in Json.Arr(Json.Get(root, "models")) ?? new List<object>())
                 {
@@ -179,6 +244,22 @@ namespace KerbalNews
                     req.Body = Json.Write(body);
                     break;
                 }
+                case ApiKind.Ollama:
+                {
+                    req.Url = OllamaRoot(root) + "/api/chat";
+                    var body = new Dictionary<string, object>
+                    {
+                        { "model", model },
+                        { "stream", false },
+                        { "messages", new List<object> {
+                            new Dictionary<string, object> { { "role", "system" }, { "content", system } },
+                            new Dictionary<string, object> { { "role", "user" }, { "content", user } } } },
+                        { "options", new Dictionary<string, object> { { "num_ctx", LocalContext }, { "num_predict", maxTokens } } },
+                    };
+                    if (jsonMode) body["format"] = "json";
+                    req.Body = Json.Write(body);
+                    break;
+                }
                 case ApiKind.Gemini:
                 {
                     req.Url = root + "/models/" + Uri.EscapeDataString(model) + ":generateContent";
@@ -232,7 +313,7 @@ namespace KerbalNews
             Json.TryParse(res.Body, out root);
             if (!res.Ok)
             {
-                string msg = Json.Path(root, "error.message") as string ?? Json.Path(root, "0.error.message") as string ?? Truncate(res.Body, 200);
+                string msg = Json.Path(root, "error.message") as string ?? Json.Path(root, "0.error.message") as string ?? Json.Get(root, "error") as string ?? Truncate(res.Body, 200);
                 error = "HTTP " + res.Status + ": " + msg;
                 return false;
             }
@@ -257,10 +338,14 @@ namespace KerbalNews
                     }
                     break;
                 }
+                case ApiKind.Ollama:
+                    text = Json.Path(root, "message.content") as string;
+                    break;
                 default:
                     text = Json.Path(root, "choices.0.message.content") as string;
                     break;
             }
+            text = StripThinking(text);
             if (string.IsNullOrEmpty(text)) { error = "Provider response had no text"; return false; }
             return true;
         }

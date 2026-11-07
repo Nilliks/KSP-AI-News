@@ -17,7 +17,7 @@ textarea { height: 70px; }
 h2 { margin-top: 18px; font-size: 20px; color: #1f3b5a; }
 .save { margin-top: 14px; }
 
-.providers { display: flex; gap: 6px; margin-top: 6px; }
+.providers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .prov { background: #e6e0d2; color: #1d1d1b; padding: 6px 10px; font-size: 14px; }
 .prov.on { background: #1f3b5a; color: #ffffff; }
 .ok { color: #2e7d32; font-weight: bold; }

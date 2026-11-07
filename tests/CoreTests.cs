@@ -452,8 +452,8 @@ public static class CoreTests
         var ge = Providers.Build(Providers.Get("gemini"), null, "k", "gemini-2.5-flash", "sys", "usr", 1000, true);
         Eq("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", ge.Url, "gemini url");
         Eq("k", ge.Headers["x-goog-api-key"], "gemini key header");
-        var lo = Providers.Build(Providers.Get("ollama"), "http://127.0.0.1:11434/v1/", "", "llama", "sys", "usr", 1000, false);
-        Eq("http://127.0.0.1:11434/v1/chat/completions", lo.Url, "base url override");
+        var lo = Providers.Build(Providers.Get("lmstudio"), "http://127.0.0.1:1234/v1/", "", "llama", "sys", "usr", 1000, false);
+        Eq("http://127.0.0.1:1234/v1/chat/completions", lo.Url, "base url override");
         Assert(!lo.Headers.ContainsKey("Authorization"), "no auth header without key");
 
         string text, err;
