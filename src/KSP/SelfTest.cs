@@ -319,6 +319,11 @@ namespace KerbalNews.KSP
             }
             br.Act("action:stream-end", null);
             Check(eng.Stream == null && eng.State.Streams.Count > 0, "flight: stream ended and archived");
+            // The world as seen from a live flight scene (the menu-time check has no vessels to read).
+            var wf = WorldScanner.Scan(eng.State, Planetarium.GetUniversalTime(), 21600);
+            Log("  world (flight): scan found " + wf.Count + " facts" + (WorldScanner.LastLog.Count > 0 ? " (" + string.Join("; ", WorldScanner.LastLog.ToArray()) + ")" : ""));
+            foreach (var f in wf.Take(25)) Log("  world fact (flight) [" + f.Kind + " " + f.Sig + "] " + f.Key + ": " + f.Headline + " | " + f.Text);
+            Check(!WorldScanner.LastLog.Any(l => l.Contains("failed")), "world (flight): every reader ran without errors");
             PressCamera.IgnoreDaylight = false;
             if (modeEng) { yield return CrashCheck(sys, v); yield return SaveCheck(sys); }
         }

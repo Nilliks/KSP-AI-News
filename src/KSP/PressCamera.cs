@@ -46,7 +46,7 @@ namespace KerbalNews.KSP
             var v = FlightGlobals.ActiveVessel;
             if (eng == null || !On || v == null || v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody()) return;
             string id = v.persistentId.ToString();
-            if (id != vesselId) { vesselId = id; lastSit = v.situation; padTime = 0; liftoffAt = -1; recoveryAt = -1; ascentShots = 0; wasOnPad = false; }
+            if (id != vesselId) { vesselId = id; lastSit = v.situation; padTime = 0; skyRetries = 0; liftoffAt = -1; recoveryAt = -1; ascentShots = 0; wasOnPad = false; }
             float now = Time.realtimeSinceStartup;
             var sit = v.situation;
             bool silent = eng.State.IsSilent(id);
@@ -55,7 +55,8 @@ namespace KerbalNews.KSP
             {
                 wasOnPad = true;
                 padTime += Time.deltaTime;
-                if (padTime > 4 && !eng.HasPressShot(id, "pad")) Shoot(v, "pad", null);
+                // Give the scene time to settle, and retry every few seconds if the sky was missing.
+                if (padTime > 8 && now >= nextPadTry && skyRetries < 6 && !busy && !eng.HasPressShot(id, "pad")) { nextPadTry = now + 4f; Shoot(v, "pad", null); }
             }
             // Liftoff: the craft was on the pad and is now flying, however the situation got there.
             if (wasOnPad && (sit == Vessel.Situations.FLYING || sit == Vessel.Situations.SUB_ORBITAL || v.srfSpeed > 12))
@@ -225,6 +226,14 @@ namespace KerbalNews.KSP
 
             var tex = RenderView(cam, aim, camUp, vfov);
             if (tex == null) { Debug.Log("[KerbalNews] Press photo (" + kind + "): render failed"); return null; }
+            // Right after a scene loads the sky (drawn in scaled space) can still be missing, leaving the craft against black.
+            if (day && (kind == "pad" || kind == "liftoff") && style != "helicopter" && skyRetries < 6 && SkyMissing(tex))
+            {
+                Destroy(tex);
+                skyRetries++;
+                Debug.Log("[KerbalNews] Press photo (" + kind + "): the sky came out black, trying again shortly");
+                return null;
+            }
             Develop(tex, d, style, kind);
 
             double mm = 12.0 / Math.Tan(vfov * Math.PI / 360);
@@ -280,6 +289,21 @@ namespace KerbalNews.KSP
             }
             catch (Exception) { }
             return true;
+        }
+
+        int skyRetries;
+        float nextPadTry;
+
+        /// <summary>True when the top of a daytime frame is near-black: the sky wasn't drawn.</summary>
+        static bool SkyMissing(Texture2D tex)
+        {
+            var px = tex.GetPixels32();
+            int w = tex.width, h = tex.height;
+            if (px.Length != w * h || h < 10) return false;
+            long sum = 0; int n = 0;
+            for (int y = h - h / 8; y < h; y++)   // Texture2D rows run bottom to top
+                for (int x = 0; x < w; x += 4) { var c = px[y * w + x]; sum += c.r + c.g + c.b; n++; }
+            return n > 0 && sum / (3.0 * n) < 28;
         }
 
         static bool Daylight(CelestialBody body, Vector3d at)

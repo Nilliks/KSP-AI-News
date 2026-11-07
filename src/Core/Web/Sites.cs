@@ -313,9 +313,10 @@ namespace KerbalNews.Web
                 m["image"] = ImageUrl(a.Image);
                 m["photoCredit"] = PhotoCredit(a);
                 double now = Now();
-                m["related"] = State.Articles.Where(x => x.StoryId == a.StoryId && x.Id != a.Id && x.PublishedUT <= now)
+                bool hasStory = a.StoryId != "";   // world news and papers stand alone
+                m["related"] = State.Articles.Where(x => hasStory && x.StoryId == a.StoryId && x.Id != a.Id && x.PublishedUT <= now)
                     .Select(x => (object)ArticleModel(x, false)).ToList();
-                var social = State.Social.Where(p => p.StoryId == a.StoryId && p.UT <= now).ToList();
+                var social = State.Social.Where(p => hasStory && p.StoryId == a.StoryId && p.UT <= now).ToList();
                 m["socialCount"] = social.Count;
                 m["socialUrl"] = "kerbnet.kb/story/" + a.StoryId;
                 var story = State.Stories.FirstOrDefault(s => s.Id == a.StoryId);

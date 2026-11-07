@@ -277,7 +277,7 @@ namespace KerbalNews
             sb.AppendLine("- Use ONLY the facts given for each item. Do not invent missions, discoveries, numbers, names or dates. You may explain what the facts mean and add general background.");
             sb.AppendLine("- Never say " + AgencyName + " did something that is not in the facts.");
             sb.AppendLine("- Rival space programs (" + string.Join(", ", Rivals) + ") only ever work in orbit around Kerbin. They never fly beyond Kerbin orbit, never beat the agency to anything, and stay small next to it. Keep them vague: no specs, no dates.");
-            sb.AppendLine("- Write in each outlet's own voice. 80-220 words per story. Short paragraphs separated by blank lines. Kerbal names end in Kerman.");
+            sb.AppendLine("- Write in each outlet's own voice. 80-220 words per story. Short paragraphs separated by blank lines. Kerbal names end in Kerman. Everyone in this world is a kerbal: say kerbal spaceflight, never human.");
             sb.AppendLine("OUTLETS:");
             foreach (var o in outlets) sb.AppendLine("- " + o.Id + " (" + o.Name + "): " + o.Style + " " + o.Bias);
             string canon = PromptBuilder.ProfileText(State);

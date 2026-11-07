@@ -19,7 +19,7 @@
   <div class="tags">{{#tags}}<span class="tag">{{.}}</span>{{/tags}}</div>
   <div class="tools">
     {{#socialCount}}<a class="btn" href="{{socialUrl}}">{{socialCount}} posts on Kerbnet</a>{{/socialCount}}
-    <a class="btn" href="action:rewrite/{{storyId}}">Rewrite with current model</a>
+    {{#storyId}}<a class="btn" href="action:rewrite/{{storyId}}">Rewrite with current model</a>{{/storyId}}
     {{#model}}<span class="meta">Written by {{model}}</span>{{/model}}
   </div>
   {{#related.0}}<div class="related"><h4>Elsewhere on this story</h4>
