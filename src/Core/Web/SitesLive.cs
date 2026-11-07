@@ -40,8 +40,7 @@ namespace KerbalNews.Web
             m["viewers"] = st.Viewers.ToString("N0", LiveInv);
             m["peak"] = st.PeakViewers.ToString("N0", LiveInv);
             m["camera"] = st.Camera;
-            double met = t != null ? t.UT - st.StartUT : 0;
-            m["met"] = "T+" + TimeSpan.FromSeconds(Math.Max(0, met)).ToString(@"hh\:mm\:ss");
+            m["met"] = StreamOverlay.Clock(st, t != null ? t.UT : st.StartUT, double.NaN);
             // Launch countdown: the clock replaces the mission time until liftoff, with the controls for the player.
             double left = Engine.CountdownLeft(Engine.RealTime);
             string cd = st.Countdown;
@@ -60,7 +59,7 @@ namespace KerbalNews.Web
                     Stat("Altitude", TelemetrySample.Km(t.Altitude)), Stat("Speed", t.Speed.ToString("N0", LiveInv) + " m/s"),
                     Stat("Apoapsis", t.Situation != "PRELAUNCH" && t.Situation != "LANDED" && t.Situation != "SPLASHED" && t.Apoapsis > 0 ? TelemetrySample.Km(t.Apoapsis) : "-"),
                     Stat("Periapsis", t.Situation == "PRELAUNCH" || t.Situation == "LANDED" || t.Situation == "SPLASHED" ? "-" : t.Periapsis < 0 ? "suborbital" : TelemetrySample.Km(t.Periapsis)),
-                    Stat("Stage", t.Stage.ToString(LiveInv)), Stat("Fuel", t.FuelPct >= 0 ? t.FuelPct.ToString("0", LiveInv) + "%" : "-"),
+                    Stat("Stage", StreamOverlay.StageText(st, t.Stage)), Stat("Fuel", t.FuelPct >= 0 ? t.FuelPct.ToString("0", LiveInv) + "%" : "-"),
                     Stat("G-force", t.G.ToString("0.0", LiveInv) + " g"), Stat("Status", t.Situation.ToLowerInvariant().Replace("_", " ") + " · " + t.Body),
                 };
                 double max = Math.Max(2000, st.AltitudeTrace.DefaultIfEmpty(0).Max());   // a rocket sitting on the pad stays a flat line near the bottom

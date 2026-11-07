@@ -67,6 +67,9 @@ namespace KerbalNews
         public int CountShown = int.MinValue;
         public int Holds, Recycles;
         public readonly List<double> AltitudeTrace = new List<double>();
+        /// <summary>What the stats overlay has seen (liftoff time, stages at liftoff, max Q...). One clock and one stage count for the page and the overlay.</summary>
+        public readonly OverlayMemory Overlay = new OverlayMemory();
+        public bool Lifted { get { return Moments.Any(x => x.StartsWith("liftoff", StringComparison.Ordinal)); } }
     }
 
     /// <summary>A finished stream, kept in the save for the archive and for the press.</summary>
@@ -270,6 +273,11 @@ namespace KerbalNews
             st.Max.Altitude = Math.Max(st.Max.Altitude, s.Altitude);
             st.Max.Speed = Math.Max(st.Max.Speed, s.Speed);
             st.AltitudeTrace.Add(s.Altitude);
+            if (st.Lifted)
+            {
+                if (st.Overlay.LiftoffUT < 0) st.Overlay.LiftoffUT = s.UT;
+                if (st.Overlay.StagesAtLiftoff < 0) st.Overlay.StagesAtLiftoff = s.Stage;
+            }
             if (st.AltitudeTrace.Count > 120) st.AltitudeTrace.RemoveAt(0);
             if (moment != null) StreamMoment(moment, realTime);
         }

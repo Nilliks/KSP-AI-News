@@ -891,21 +891,26 @@ public static class FeatureTests
     public static void TestStreamOverlayStats()
     {
         var st = new StreamSession { VesselId = "v1", VesselName = "Kerbal X", Camera = "Tracking camera" };
-        var mem = new OverlayMemory();
-        var m = StreamOverlay.Build(st, new LiveNumbers { UT = 100, Stage = 3, FuelPct = 100 }, double.NaN, mem);
+        var m = StreamOverlay.Build(st, new LiveNumbers { UT = 100, Stage = 3, FuelPct = 100 }, double.NaN);
         Assert(m.Clock == "ON THE PAD" && m.Stage == "ON THE PAD" && m.Vessel == "KERBAL X" && m.Camera == "TRACKING CAMERA" && !m.ShowApoapsis, "on the pad: " + m.Clock);
         st.Countdown = "hold";
-        m = StreamOverlay.Build(st, new LiveNumbers { UT = 100, Stage = 3 }, 42, mem);
+        m = StreamOverlay.Build(st, new LiveNumbers { UT = 100, Stage = 3 }, 42);
         Assert(m.Hold && m.Clock.StartsWith("T-"), "countdown with hold: " + m.Clock);
         st.Countdown = "launched"; st.Moments.Add("liftoff right on time at T-0");
-        m = StreamOverlay.Build(st, new LiveNumbers { UT = 200, Stage = 2, Speed = 40, Altitude = 120, Q = 1, Throttle = 1, FuelPct = 90 }, double.NaN, mem);
+        m = StreamOverlay.Build(st, new LiveNumbers { UT = 200, Stage = 2, Speed = 40, Altitude = 120, Q = 1, Throttle = 1, FuelPct = 90 }, double.NaN);
         Assert(m.Clock == "T+00:00:00" && m.Stage == "STAGE 1 OF 3" && m.Milestones[0].Done && !m.Milestones[1].Done && m.Throttle == "THROTTLE 100%" && Math.Abs(m.Fuel - 0.9) < 1e-9, "liftoff: " + m.Stage);
         Assert(string.Join(",", m.Milestones.Select(x => x.Label).ToArray()) == "LIFTOFF,MAX Q,STAGE 2,STAGE 3,ENGINE CUTOFF,ORBIT", "milestones from the craft's stages");
-        StreamOverlay.Build(st, new LiveNumbers { UT = 250, Stage = 2, Q = 24, Throttle = 1, Altitude = 9000, Apoapsis = 12000 }, double.NaN, mem);
-        m = StreamOverlay.Build(st, new LiveNumbers { UT = 272, Stage = 1, Q = 12, Throttle = 1, Altitude = 21000, Apoapsis = 40000, Speed = 900 }, double.NaN, mem);
+        StreamOverlay.Build(st, new LiveNumbers { UT = 250, Stage = 2, Q = 24, Throttle = 1, Altitude = 9000, Apoapsis = 12000 }, double.NaN);
+        m = StreamOverlay.Build(st, new LiveNumbers { UT = 272, Stage = 1, Q = 12, Throttle = 1, Altitude = 21000, Apoapsis = 40000, Speed = 900 }, double.NaN);
         Assert(m.Milestones[1].Done && m.Milestones[2].Done && !m.Milestones[3].Done && m.Stage == "STAGE 2 OF 3" && m.ShowApoapsis && m.Apoapsis == "40.0 km" && m.Altitude == "21.0 km" && m.Clock == "T+00:01:12", "max Q and staging: " + m.Clock);
         st.Camera = "Hull camera: looking aft";
-        m = StreamOverlay.Build(st, new LiveNumbers { UT = 500, Stage = 1, Throttle = 0, Altitude = 75000, Apoapsis = 80000, Periapsis = 72000, Situation = "ORBITING" }, double.NaN, mem);
+        m = StreamOverlay.Build(st, new LiveNumbers { UT = 500, Stage = 1, Throttle = 0, Altitude = 75000, Apoapsis = 80000, Periapsis = 72000, Situation = "ORBITING" }, double.NaN);
         Assert(m.Milestones[4].Done && m.Milestones[5].Done && m.Camera == "ONBOARD · LOOKING AFT", "cutoff and orbit: " + m.Camera);
+        Assert(StreamOverlay.Clock(st, 272, double.NaN) == "T+00:01:12" && StreamOverlay.StageText(st, 1) == "Stage 2 of 3", "the page uses the same clock and stage count");
+        var pre = new StreamSession { VesselId = "v2", VesselName = "X" };
+        var a = StreamOverlay.Build(pre, new LiveNumbers { Stage = 8 }, double.NaN);
+        pre.Moments.Add("liftoff");
+        var b = StreamOverlay.Build(pre, new LiveNumbers { Stage = 7 }, double.NaN);
+        Assert(string.Join(",", a.Milestones.Select(x => x.Label).ToArray()) == string.Join(",", b.Milestones.Select(x => x.Label).ToArray()), "the milestone strip keeps its labels through liftoff");
     }
 }

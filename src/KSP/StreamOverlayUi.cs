@@ -83,14 +83,14 @@ namespace KerbalNews.KSP
             clock = Text(cb.transform, 0, 24, 214, 38, 30, true, Color.white, TextAlignmentOptions.TopRight);
 
             // Bottom left: speed, altitude, apoapsis.
-            var tele = Box("tele", root, 28, 720 - 74 - 82, 470, 82, Panel);
+            var tele = Box("tele", root, 28, 720 - 74 - 82, 560, 82, Panel);
             Text(tele.transform, 18, 12, 140, 18, 13, false, Head).text = "SPEED";
             speed = Text(tele.transform, 18, 32, 150, 40, 32, true, Color.white);
-            Text(tele.transform, 168, 12, 140, 18, 13, false, Head).text = "ALTITUDE";
-            alt = Text(tele.transform, 168, 32, 150, 40, 32, true, Color.white);
+            Text(tele.transform, 196, 12, 140, 18, 13, false, Head).text = "ALTITUDE";
+            alt = Text(tele.transform, 196, 32, 170, 40, 32, true, Color.white);
             apBox = new GameObject("ap", typeof(RectTransform)); apBox.transform.SetParent(tele.transform, false);
-            apHead = Text(apBox.transform, 318, 12, 140, 18, 13, false, Head); apHead.text = "APOAPSIS";
-            ap = Text(apBox.transform, 318, 32, 150, 40, 32, true, Color.white);
+            apHead = Text(apBox.transform, 380, 12, 140, 18, 13, false, Head); apHead.text = "APOAPSIS";
+            ap = Text(apBox.transform, 380, 32, 170, 40, 32, true, Color.white);
 
             // Bottom right: stage, throttle, fuel.
             var right = Box("stage", root, W - 28 - 260, 720 - 74 - 82, 260, 82, Panel);

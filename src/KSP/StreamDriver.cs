@@ -40,7 +40,6 @@ namespace KerbalNews.KSP
             if (Frame != null) { Frame.Release(); Destroy(Frame); Frame = null; }
         }
 
-        static readonly OverlayMemory overlayMemory = new OverlayMemory();
 
         /// <summary>The stats overlay's numbers for this instant, or null when nothing is streaming.</summary>
         public static OverlayModel Overlay()
@@ -75,7 +74,7 @@ namespace KerbalNews.KSP
                 var t = eng.Stream.Last;
                 n.UT = t.UT; n.Altitude = t.Altitude; n.Speed = t.Speed; n.Apoapsis = t.Apoapsis; n.Periapsis = t.Periapsis; n.Stage = t.Stage; n.FuelPct = t.FuelPct; n.Situation = t.Situation;
             }
-            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup), overlayMemory);
+            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup));
         }
 
         Vessel Streamed()
@@ -121,6 +120,8 @@ namespace KerbalNews.KSP
                 {
                     liftedFor = vid;
                     eng.StreamMoment("liftoff", now);
+                    eng.Stream.Overlay.LiftoffUT = Planetarium.GetUniversalTime();
+                    eng.Stream.Overlay.StagesAtLiftoff = v.currentStage;
                 }
                 try { eng.StreamSample(Sample(v), now); }
                 catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream telemetry: " + e.Message); }
