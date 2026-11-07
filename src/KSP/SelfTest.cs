@@ -95,6 +95,7 @@ namespace KerbalNews.KSP
             yield return ScienceCheck(sys, br, now);
             yield return WorldCheck(sys, br, now);
             yield return WikiCheck(sys, br, now);
+            yield return KmailCheck(sys, br, now);
             // Act() fills the form fields of the page on screen, so go back to the article first.
             yield return Go(Sites.ArticleUrl(top));
 

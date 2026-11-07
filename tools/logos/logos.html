@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Each .logo is rendered to GameData/KerbalNews/Sites/logos/<id>.png by render.js, on a transparent background. */
+body { margin: 0; padding: 20px; background: #888888; font-family: Inter, sans-serif; }
+.logo { display: inline-flex; align-items: center; gap: 12px; margin: 10px; vertical-align: top; }
+.icon { width: 40px; height: 40px; display: inline-block; margin: 10px; }
+.col { display: flex; flex-direction: column; }
+</style></head><body>
+
+<!-- ============ Newspaper nameplates (colors fit each site's masthead) ============ -->
+<div class="logo" id="herald"><span style="font-family: 'Playfair Display'; font-weight: 900; font-size: 46px; color: #1f3b5a; white-space: nowrap;">The Kerbin Daily Herald</span></div>
+
+<div class="logo" id="observer" style="gap: 14px;">
+  <svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="10" fill="#2d5d3a"/><ellipse cx="26" cy="26" rx="24" ry="9" fill="none" stroke="#2d5d3a" stroke-width="3" transform="rotate(-25 26 26)"/><circle cx="47" cy="17" r="3.5" fill="#2d5d3a"/></svg>
+  <div class="col"><span style="font-family: 'Space Grotesk'; font-weight: 700; font-size: 30px; color: #2d5d3a; line-height: 1;">ORBITAL</span><span style="font-family: 'Space Grotesk'; font-weight: 500; font-size: 18px; color: #2d5d3a; letter-spacing: 6px; line-height: 1.2;">OBSERVER</span></div>
+</div>
+
+<div class="logo" id="inquirer"><span style="font-family: Oswald; font-weight: 700; font-size: 44px; color: #ffffff; letter-spacing: 1px; font-style: italic; white-space: nowrap; line-height: 1.15;">THE KERBAL INQUIRER</span></div>
+
+<div class="logo" id="kraken">
+  <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="20" r="14" fill="#b05ad6"/><circle cx="23" cy="18" r="3" fill="#1d0b29"/><circle cx="35" cy="18" r="3" fill="#1d0b29"/><path d="M17 30 C12 42 8 46 6 54 M23 33 C22 44 18 50 16 56 M35 33 C36 44 40 50 42 56 M41 30 C46 42 50 46 52 54" fill="none" stroke="#b05ad6" stroke-width="4" stroke-linecap="round"/></svg>
+  <div class="col"><span style="font-family: Oswald; font-weight: 500; font-size: 15px; color: #e0c0f0; letter-spacing: 4px; line-height: 1.2;">THE DAILY</span><span style="font-family: Oswald; font-weight: 700; font-size: 38px; color: #ffffff; line-height: 1;">KRAKEN</span></div>
+</div>
+
+<div class="logo" id="munmonthly">
+  <svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="24" fill="#cbb8ea"/><circle cx="18" cy="20" r="5" fill="#a48fcb"/><circle cx="33" cy="33" r="7" fill="#a48fcb"/><circle cx="35" cy="14" r="3" fill="#a48fcb"/></svg>
+  <span style="font-family: 'Libre Baskerville'; font-size: 40px; color: #f3e9ff; font-style: italic; white-space: nowrap;">Mun Monthly</span>
+</div>
+
+<div class="logo" id="kscwatch">
+  <svg width="56" height="40" viewBox="0 0 56 40"><path d="M2 20 C14 2 42 2 54 20 C42 38 14 38 2 20 Z" fill="none" stroke="#8a6d1d" stroke-width="3.5"/><circle cx="28" cy="20" r="9" fill="#8a6d1d"/></svg>
+  <span style="font-family: Inter; font-weight: 800; font-size: 32px; color: #2a2414; white-space: nowrap;">KSC WATCH</span>
+</div>
+
+<div class="logo" id="science" style="gap: 14px;">
+  <div style="width: 52px; height: 52px; border: 3px solid #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Libre Baskerville'; font-weight: 700; font-size: 19px; color: #ffffff;">KSR</div>
+  <div class="col"><span style="font-family: 'Libre Baskerville'; font-size: 22px; color: #ffffff; line-height: 1.2;">Kerbin Science</span><span style="font-family: 'Libre Baskerville'; font-size: 22px; color: #ffffff; line-height: 1.2;">Review</span></div>
+</div>
+
+<div class="logo" id="council" style="gap: 14px;">
+  <svg width="50" height="50" viewBox="0 0 54 54"><circle cx="27" cy="27" r="24" fill="none" stroke="#ffffff" stroke-width="3"/><circle cx="27" cy="27" r="9" fill="#ffffff"/><path d="M27 3 L27 13 M27 41 L27 51 M3 27 L13 27 M41 27 L51 27" stroke="#ffffff" stroke-width="3"/></svg>
+  <div class="col"><span style="font-family: 'Libre Baskerville'; font-weight: 700; font-size: 22px; color: #ffffff; white-space: nowrap;">PLANETARY COUNCIL</span><span style="font-family: Inter; font-weight: 500; font-size: 12px; color: #c7ccd4; letter-spacing: 3px;">PRESS OFFICE</span></div>
+</div>
+
+<div class="logo" id="knn">
+  <div style="padding: 4px 12px; background: #ffd27f; border-radius: 4px; font-family: Inter; font-weight: 800; font-size: 32px; color: #0f2238; line-height: 1.2;">KNN</div>
+  <span style="font-family: Inter; font-weight: 700; font-size: 24px; color: #ffffff; white-space: nowrap;">Kerbal News Network</span>
+</div>
+
+<br>
+<!-- ============ Square icons: apps, and each outlet for the KNN bar ============ -->
+<svg class="icon" id="icon-kerbnet" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#1d9bf0"/><path d="M20 8 L24 22 L20 19 L16 22 Z M14 28 L26 28" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>
+<svg class="icon" id="icon-snackboard" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#e8662a"/><path d="M9 13 h22 a3 3 0 0 1 3 3 v9 a3 3 0 0 1 -3 3 h-12 l-6 5 v-5 h-4 a3 3 0 0 1 -3 -3 v-9 a3 3 0 0 1 3 -3 z" fill="#ffffff"/></svg>
+<svg class="icon" id="icon-live" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#d42a2a"/><circle cx="20" cy="20" r="5" fill="#ffffff"/><path d="M11 11 a13 13 0 0 0 0 18 M29 11 a13 13 0 0 1 0 18" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/></svg>
+<svg class="icon" id="icon-wiki" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ffffff"/><circle cx="20" cy="20" r="15" fill="none" stroke="#202122" stroke-width="2.5"/><ellipse cx="20" cy="20" rx="15" ry="6" fill="none" stroke="#202122" stroke-width="2"/><path d="M20 5 L20 35" stroke="#202122" stroke-width="2"/></svg>
+<svg class="icon" id="icon-kmail" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ffffff"/><rect x="3" y="9" width="34" height="22" rx="4" fill="#2b6fd6"/><path d="M5 12 L20 23 L35 12" fill="none" stroke="#ffffff" stroke-width="2.5"/></svg>
+<svg class="icon" id="icon-agency" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#14365c"/><path d="M20 6 L25 26 L20 23 L15 26 Z" fill="#ffffff"/><path d="M8 32 L32 32" stroke="#ffd27f" stroke-width="3"/></svg>
+<svg class="icon" id="icon-engineering" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#3a4a5c"/><circle cx="20" cy="20" r="8" fill="none" stroke="#ffffff" stroke-width="3"/><path d="M20 6 v5 M20 29 v5 M6 20 h5 M29 20 h5 M10 10 l3.5 3.5 M26.5 26.5 L30 30 M30 10 l-3.5 3.5 M13.5 26.5 L10 30" stroke="#ffffff" stroke-width="3"/></svg>
+<svg class="icon" id="icon-pressroom" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#14365c"/><rect x="9" y="10" width="22" height="20" fill="none" stroke="#ffffff" stroke-width="2.5"/><path d="M13 16 h14 M13 21 h14 M13 26 h8" stroke="#ffffff" stroke-width="2"/></svg>
+<svg class="icon" id="icon-gallery" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#14365c"/><rect x="7" y="12" width="26" height="18" rx="2" fill="none" stroke="#ffffff" stroke-width="2.5"/><circle cx="20" cy="21" r="5" fill="none" stroke="#ffffff" stroke-width="2.5"/><rect x="14" y="8" width="8" height="4" fill="#ffffff"/></svg>
+<svg class="icon" id="icon-tracker" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#0f1720"/><circle cx="20" cy="20" r="5" fill="#7fd1ff"/><circle cx="20" cy="20" r="11" fill="none" stroke="#7fd1ff" stroke-width="2"/><circle cx="20" cy="20" r="16.5" fill="none" stroke="#7fd1ff" stroke-width="1.5"/><circle cx="31" cy="20" r="2.5" fill="#ffffff"/><circle cx="9" cy="13" r="2" fill="#ffffff"/></svg>
+<svg class="icon" id="icon-telemetry" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#1e6b52"/><path d="M12 28 a11 11 0 0 1 16 -16 M15.5 24.5 a6 6 0 0 1 9 -9" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/><circle cx="13" cy="27" r="3" fill="#ffffff"/></svg>
+<svg class="icon" id="icon-settings" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#5a6270"/><path d="M10 13 h20 M10 20 h20 M10 27 h20" stroke="#ffffff" stroke-width="2.5"/><circle cx="16" cy="13" r="3" fill="#5a6270" stroke="#ffffff" stroke-width="2"/><circle cx="25" cy="20" r="3" fill="#5a6270" stroke="#ffffff" stroke-width="2"/><circle cx="14" cy="27" r="3" fill="#5a6270" stroke="#ffffff" stroke-width="2"/></svg>
+<svg class="icon" id="icon-knn" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#ffd27f"/><text x="20" y="26" text-anchor="middle" font-family="Inter" font-weight="800" font-size="14" fill="#0f2238">KNN</text></svg>
+<svg class="icon" id="icon-herald" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#1f3b5a"/><text x="20" y="30" text-anchor="middle" font-family="Playfair Display" font-weight="900" font-size="26" fill="#ffffff">H</text></svg>
+<svg class="icon" id="icon-observer" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#2d5d3a"/><circle cx="20" cy="20" r="6" fill="#ffffff"/><ellipse cx="20" cy="20" rx="15" ry="6" fill="none" stroke="#ffffff" stroke-width="2.5" transform="rotate(-25 20 20)"/><circle cx="33" cy="13" r="2.5" fill="#ffffff"/></svg>
+<svg class="icon" id="icon-inquirer" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#c4161c"/><text x="20" y="30" text-anchor="middle" font-family="Oswald" font-weight="700" font-style="italic" font-size="26" fill="#ffffff">KI</text></svg>
+<svg class="icon" id="icon-kraken" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#1d0b29"/><circle cx="20" cy="15" r="8" fill="#b05ad6"/><circle cx="17" cy="14" r="1.8" fill="#1d0b29"/><circle cx="23" cy="14" r="1.8" fill="#1d0b29"/><path d="M13 21 C10 28 8 31 7 35 M17 23 C16 29 14 32 13 36 M23 23 C24 29 26 32 27 36 M27 21 C30 28 32 31 33 35" fill="none" stroke="#b05ad6" stroke-width="2.5" stroke-linecap="round"/></svg>
+<svg class="icon" id="icon-munmonthly" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#2b1d45"/><circle cx="20" cy="20" r="13" fill="#cbb8ea"/><circle cx="15" cy="16" r="3" fill="#a48fcb"/><circle cx="24" cy="24" r="4" fill="#a48fcb"/><circle cx="25" cy="12" r="1.8" fill="#a48fcb"/></svg>
+<svg class="icon" id="icon-kscwatch" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#fbfaf5"/><path d="M4 20 C12 8 28 8 36 20 C28 32 12 32 4 20 Z" fill="none" stroke="#8a6d1d" stroke-width="3"/><circle cx="20" cy="20" r="6" fill="#8a6d1d"/></svg>
+<svg class="icon" id="icon-science" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#11657a"/><rect x="7" y="7" width="26" height="26" fill="none" stroke="#ffffff" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Libre Baskerville" font-weight="700" font-size="11" fill="#ffffff">KSR</text></svg>
+<svg class="icon" id="icon-council" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#2f3640"/><circle cx="20" cy="20" r="14" fill="none" stroke="#ffffff" stroke-width="2.5"/><circle cx="20" cy="20" r="5" fill="#ffffff"/><path d="M20 6 L20 12 M20 28 L20 34 M6 20 L12 20 M28 20 L34 20" stroke="#ffffff" stroke-width="2.5"/></svg>
+</body></html>

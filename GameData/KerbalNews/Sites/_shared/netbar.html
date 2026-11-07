@@ -1,6 +1,6 @@
 <div class="netbar">
-  <a class="brand" href="kerbalnews.kb">KNN</a>
-  {{#outlets}}<a href="{{domain}}">{{name}}</a>{{/outlets}}
-  {{#netLinks}}<a href="{{domain}}">{{name}}</a>{{/netLinks}}
+  <a class="brand" href="kerbalnews.kb"><img src="Sites/logos/icon-knn.png" alt="" width="16" height="16" style="width: 16px; height: 16px; flex-shrink: 0">KNN</a>
+  {{#outlets}}<a href="{{domain}}">{{#icon}}<img src="{{icon}}" alt="" width="16" height="16" style="width: 16px; height: 16px; flex-shrink: 0">{{/icon}}{{name}}</a>{{/outlets}}
+  {{#netLinks}}<a href="{{domain}}">{{#icon}}<img src="{{icon}}" alt="" width="16" height="16" style="width: 16px; height: 16px; flex-shrink: 0">{{/icon}}{{name}}</a>{{/netLinks}}
 </div>
 {{#aiOff}}<div class="aibanner"><b>AI is off.</b> <span>Articles are written from simple templates.{{#offline}} Offline mode is on.{{/offline}}</span> <a href="settings.kb">Turn on AI in Settings</a></div>{{/aiOff}}

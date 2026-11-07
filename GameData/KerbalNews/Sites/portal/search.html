@@ -1,6 +1,6 @@
 <html><body>
 {{> netbar}}
-<div class="top"><div class="logo">ARCHIVE SEARCH</div>
+<div class="top"><div class="brandrow"><a href="kerbalnews.kb" style="display: block"><img src="Sites/logos/knn.png" alt="" width="254" height="32" style="width: 254px; height: 32px; flex-shrink: 0"></a><div class="logo">ARCHIVE SEARCH</div></div>
   <div class="searchbar"><input name="q" value="{{q}}" placeholder="Vessel, kerbal, outlet, anything"><button data-action="search">Search</button></div></div>
 <div class="wrap"><p class="meta">{{count}} results</p>
   {{#results}}<div class="item"><div class="src">{{outletName}}</div><a class="hl" href="{{url}}">{{headline}}</a><div class="meta">{{date}} &middot; {{kindLabel}}</div></div>{{/results}}

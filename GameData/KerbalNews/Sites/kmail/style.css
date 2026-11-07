@@ -2,7 +2,7 @@ body { background: #f3f5f8; color: #1c2430; font-size: 14px; line-height: 1.45; 
 a { color: #1f5fbf; }
 a:hover { color: #123e80; }
 .top { display: flex; align-items: center; gap: 20px; padding: 10px 24px; background: #ffffff; border-bottom: 1px solid #dde2ea; }
-.brand { width: 190px; }
+.brand { width: 190px; display: flex; align-items: center; gap: 10px; }
 .logo { font-size: 22px; font-weight: bold; color: #1c2430; }
 .search { display: flex; gap: 6px; }
 .search input { width: 420px; padding: 8px 12px; border: 1px solid #dde2ea; background: #f3f5f8; font-size: 14px; }

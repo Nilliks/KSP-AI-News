@@ -331,6 +331,30 @@ namespace KerbalNews.KSP
             yield return Shot("wiki-history");
         }
 
+        IEnumerator KmailCheck(NewsSystem sys, Browser br, double now)
+        {
+            var eng = sys.Engine;
+            // Logos: every file the pages point at is installed.
+            var missing = new[] { "herald", "observer", "inquirer", "kraken", "munmonthly", "kscwatch", "science", "council", "knn", "icon-kmail", "icon-wiki", "icon-agency", "icon-knn", "icon-herald" }
+                .Where(id => !Browser.ImageExists("Sites/logos/" + id + ".png")).ToList();
+            Check(missing.Count == 0, "logos installed" + (missing.Count > 0 ? ", missing: " + string.Join(", ", missing.ToArray()) : ""));
+            yield return Visit(br, "herald.kb");
+            yield return Shot("logo-herald");
+            // Kmail: an interview request, accepted from the page, books the kerbal.
+            var kerbal = eng.State.Crew.Values.FirstOrDefault(c => !c.Dead && c.OnRoster);
+            if (kerbal == null) { Log("SKIP Kmail booking: nobody on the roster"); yield break; }
+            var m = new MailMsg { Id = "eselftest", Thread = "eselftest", Kind = "press", Org = "herald", From = "Selma Kerman", FromAddr = "s.kerman@herald.kb", Ask = "interview", Kerbal = kerbal.Name, Topic = "the self-test", Subject = "Interview request: " + kerbal.Name, Body = "Dear Director,\n\nCould we talk to " + kerbal.Name + "?\n\nSelma Kerman", UT = now - 1, DueUT = now + 2 * 21600, Status = "open" };
+            eng.State.Mail.Add(m);
+            yield return Visit(br, "kmail.kb");
+            yield return Shot("kmail-inbox");
+            yield return Visit(br, Sites.MailUrl(m));
+            yield return Shot("kmail-open");
+            br.Act("action:mail-quick/eselftest/accept", null);
+            Check(m.Status == "accepted" && eng.State.Appearances.Any(a => a.Kerbal == kerbal.Name && a.Status == "scheduled"), "Kmail: accepting books " + kerbal.Name + ": " + m.Outcome);
+            yield return Visit(br, Sites.MailUrl(m));
+            yield return Shot("kmail-accepted");
+        }
+
         IEnumerator WorldCheck(NewsSystem sys, Browser br, double now)
         {
             var eng = sys.Engine;

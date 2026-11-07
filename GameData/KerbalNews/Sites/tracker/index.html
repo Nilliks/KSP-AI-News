@@ -1,6 +1,6 @@
 <html><body>
 {{> netbar}}
-<div class="head"><h1>Universe tracker</h1><p>Everything the public can see from the ground &middot; {{today}}</p></div>
+<div class="head"><div class="brandrow"><img src="Sites/logos/icon-tracker.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><h1>Universe tracker</h1></div><p>Everything the public can see from the ground &middot; {{today}}</p></div>
 <div class="wrap">
   <div class="stats">{{#stats}}<div class="stat"><div class="v">{{value}}</div><div class="l">{{label}}</div></div>{{/stats}}</div>
   {{#crewNames}}<div class="panel"><h3>Kerbals in space now</h3><p>{{crewNames}}</p></div>{{/crewNames}}

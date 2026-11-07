@@ -170,10 +170,18 @@ namespace KerbalNews.Web
 
         static readonly string[][] NetLinks =
         {
-            new[] { "kmail.kb", "Kmail" }, new[] { "kerbnet.kb", "Kerbnet" }, new[] { "snackboard.kb", "Snackboard" }, new[] { "tracker.kb", "Universe" }, new[] { "kerbopedia.kb", "Kerbopedia" }, new[] { "telemetry.kb", "Telemetry" },
-            new[] { "pressroom.kb", "Press room" }, new[] { "gallery.kb", "Gallery" }, new[] { "live.kb", "Live" }, new[] { "agency.kb", "Agency" },
-            new[] { "engineering.kb", "Engineering" }, new[] { "settings.kb", "Settings" },
+            new[] { "kmail.kb", "Kmail", "kmail" }, new[] { "kerbnet.kb", "Kerbnet", "kerbnet" }, new[] { "snackboard.kb", "Snackboard", "snackboard" }, new[] { "tracker.kb", "Universe", "tracker" },
+            new[] { "kerbopedia.kb", "Kerbopedia", "wiki" }, new[] { "telemetry.kb", "Telemetry", "telemetry" }, new[] { "pressroom.kb", "Press room", "pressroom" }, new[] { "gallery.kb", "Gallery", "gallery" },
+            new[] { "live.kb", "Live", "live" }, new[] { "agency.kb", "Agency", "agency" }, new[] { "engineering.kb", "Engineering", "engineering" }, new[] { "settings.kb", "Settings", "settings" },
         };
+
+        /// <summary>The small square logo for the KNN bar, or "" when there is none (an outlet added by a config, say).</summary>
+        string LogoIcon(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return "";
+            string src = "Sites/logos/icon-" + id + ".png";
+            return ImageExists(src) ? src : "";
+        }
 
         PageResult SiteOff(string url, SiteInfo s)
         {
@@ -204,7 +212,7 @@ namespace KerbalNews.Web
             m["mood"] = MoodModel();
             m["outlets"] = Outlets.Enabled.Select(o => (object)new Dictionary<string, object>
             {
-                { "id", o.Id }, { "name", o.Name }, { "domain", o.Domain }, { "color", o.Color },
+                { "id", o.Id }, { "name", o.Name }, { "domain", o.Domain }, { "color", o.Color }, { "icon", LogoIcon(o.Id) },
             }).ToList();
             // The bar's other links, minus the sites the player turned off.
             var links = new List<object>();
@@ -214,7 +222,7 @@ namespace KerbalNews.Web
                 if (s == null || Engine.Settings.SiteOn(s.Id))
                 {
                     int mail = l[0] == KmailHost ? Engine.UnreadMail(now) : 0;
-                    links.Add(new Dictionary<string, object> { { "domain", l[0] }, { "name", l[1] + (mail > 0 ? " (" + mail + ")" : "") } });
+                    links.Add(new Dictionary<string, object> { { "domain", l[0] }, { "name", l[1] + (mail > 0 ? " (" + mail + ")" : "") }, { "icon", LogoIcon(l.Length > 2 ? l[2] : "") } });
                 }
             }
             m["netLinks"] = links;

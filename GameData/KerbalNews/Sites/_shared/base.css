@@ -3,7 +3,10 @@ body { font-family: sans; font-size: 16px; color: #1d1d1b; background: #f4f1ea; 
 a { color: #1a4f8b; }
 a:hover { color: #a3201c; }
 .netbar { display: flex; flex-wrap: wrap; background: #111418; padding: 6px 14px; gap: 4px 14px; align-items: center; }
-.netbar a { color: #c9ced6; font-size: 13px; }
+.netbar a { color: #c9ced6; font-size: 13px; display: flex; align-items: center; gap: 5px; }
+.brandrow { display: flex; align-items: center; gap: 12px; }
+.brandrow h1 { margin-bottom: 0px; }
+.brandrow .short { color: #ffd27f; font-size: 22px; font-weight: bold; }
 .netbar a:hover { color: #ffffff; }
 .netbar .brand { color: #ffd27f; font-weight: bold; }
 .aibanner { background: #fff3cd; color: #5c4400; padding: 8px 14px; border-bottom: 1px solid #e0c46c; display: flex; gap: 12px; align-items: center; }

@@ -1,6 +1,6 @@
 <html><body>
 {{> netbar}}
-<div class="head"><h1>Installed mods</h1><p>The press knows about the mods marked "AI knows", so stories can mention modded parts, planets and systems. Found {{count}} mods in GameData; {{included}} are shared with the AI.</p></div>
+<div class="head"><div class="brandrow"><img src="Sites/logos/icon-agency.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><span class="short">{{agencyShort}}</span><h1>Installed mods</h1></div><p>The press knows about the mods marked "AI knows", so stories can mention modded parts, planets and systems. Found {{count}} mods in GameData; {{included}} are shared with the AI.</p></div>
 {{> _tabs}}
 <div class="wrap">
   <div class="sendrow"><a class="btn" href="action:toggle-mods-context">{{#on}}Mods are in the AI's context. Click to leave them out{{/on}}{{^on}}Mods are left out of the AI's context. Click to include them{{/on}}</a><span class="spacer"></span><a href="action:rescan-mods">Scan again</a></div>

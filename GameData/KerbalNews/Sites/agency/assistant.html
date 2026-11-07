@@ -1,6 +1,6 @@
 <html><body>
 {{> netbar}}
-<div class="head"><h1>{{name}}, your assistant</h1><p>Ask in plain English: releases, leaks, donations, deals, posts, briefings. Funds: {{funds}}.</p></div>
+<div class="head"><div class="brandrow"><img src="Sites/logos/icon-agency.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><span class="short">{{agencyShort}}</span><h1>{{name}}, your assistant</h1></div><p>Ask in plain English: releases, leaks, donations, deals, posts, briefings. Funds: {{funds}}.</p></div>
 {{> _tabs}}
 <div class="wrap">
 {{#off}}<p class="warn">The assistant is turned off. Turn it on in <a href="settings.kb">Settings</a>.</p>{{/off}}
