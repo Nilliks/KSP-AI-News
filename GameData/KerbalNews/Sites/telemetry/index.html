@@ -11,6 +11,7 @@
   <h2>Vessels the press knows about</h2>
   {{#vessels}}<div class="vessel"><span class="name">{{name}}</span><span class="meta">launched {{launched}}</span>
     {{#silent}}<span class="state silent">Silent</span> <a href="action:privacy/{{id}}/share">Share</a>{{/silent}}
-    {{^silent}}<span class="state shared">Shared</span> <a href="action:privacy/{{id}}/silent">Make silent</a>{{/silent}}</div>{{/vessels}}
+    {{^silent}}<span class="state shared">Shared</span> <a href="action:privacy/{{id}}/silent">Make silent</a>{{/silent}}
+    <a class="remove" href="action:telemetry-remove/{{id}}">Remove</a></div>{{/vessels}}
   {{^vessels}}<p class="hint">No other vessels yet.</p>{{/vessels}}
 </div></body></html>

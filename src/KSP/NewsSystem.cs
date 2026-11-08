@@ -87,6 +87,24 @@ namespace KerbalNews.KSP
             Sites.SaveSettings = SaveSettings;
             Sites.RescanMods = () => ScanMods(false);
             Sites.ImportScreenshots = GalleryStore.ImportStock;
+            Sites.VesselExists = id =>
+            {
+                uint pid;
+                if (!uint.TryParse(id, out pid)) return null;
+                bool known = false;
+                if (FlightGlobals.Vessels != null && FlightGlobals.Vessels.Count > 0)
+                {
+                    known = true;
+                    if (FlightGlobals.Vessels.Any(v => v != null && v.persistentId == pid)) return true;
+                }
+                var fs = HighLogic.CurrentGame != null ? HighLogic.CurrentGame.flightState : null;
+                if (fs != null && fs.protoVessels != null && fs.protoVessels.Count > 0)
+                {
+                    known = true;
+                    if (fs.protoVessels.Any(p => p != null && p.persistentId == pid)) return true;
+                }
+                return known ? false : (bool?)null;
+            };
             Sites.ActiveVesselId = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? FlightGlobals.ActiveVessel.persistentId.ToString() : null;
             Sites.ActiveVesselName = () => HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null ? Names.Of(FlightGlobals.ActiveVessel) : null;
             collector = new EventCollector(() => HasGame ? Engine : null);

@@ -32,6 +32,8 @@ namespace KerbalNews.Web
         public Func<float> UiScale = () => 1;
         /// <summary>The vessel the player is flying (persistentId and name), or nulls outside flight.</summary>
         public Func<string> ActiveVesselId = () => null;
+        /// <summary>Host: whether a vessel still exists in the game (not crashed, recovered or deleted). Null: unknown.</summary>
+        public Func<string, bool?> VesselExists = id => null;
         public Func<string> ActiveVesselName = () => null;
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -573,12 +575,21 @@ namespace KerbalNews.Web
             m["silentDefault"] = State.SilentByDefault;
             if (!string.IsNullOrEmpty(active))
                 m["active"] = new Dictionary<string, object> { { "id", active }, { "name", ActiveVesselName() ?? "" }, { "silent", State.IsSilent(active) } };
-            m["vessels"] = State.Tracked.Values.Where(t => t.VesselId != active).OrderByDescending(t => t.LaunchUT).Take(60).Select(t => (object)new Dictionary<string, object>
+            // Craft that crashed, were recovered or deleted, and ones the player removed from the list, don't show.
+            m["vessels"] = State.Tracked.Values.Where(t => t.VesselId != active && OnTelemetryList(t)).OrderByDescending(t => t.LaunchUT).Take(60).Select(t => (object)new Dictionary<string, object>
             {
                 { "id", t.VesselId }, { "name", t.Craft != null && t.Craft.VesselName != "" ? t.Craft.VesselName : t.VesselId },
                 { "launched", Date(t.LaunchUT) }, { "silent", State.IsSilent(t.VesselId) },
             }).ToList();
             return m;
+        }
+
+        bool OnTelemetryList(TrackedVessel t)
+        {
+            if (t.Flags.Contains("destroyed") || t.Flags.Contains("hidden")) return false;
+            bool? exists = null;
+            try { exists = VesselExists(t.VesselId); } catch (Exception) { exists = null; }
+            return exists != false;
         }
 
         Dictionary<string, object> SearchModel(string q)

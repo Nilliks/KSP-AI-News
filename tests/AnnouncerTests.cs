@@ -470,6 +470,24 @@ public static class AnnouncerTests
         Assert(eng.CountdownHold(13) && st.Countdown == "hold" && st.CountLeft == 0, "the Hold button still works at T-0");
     }
 
+    public static void TestTelemetryListDropsGoneCraft()
+    {
+        var eng = new NewsEngine(new NewsState(), new GlobalSettings { OfflineMode = true }, new CoreTests.FakeTransport(), new SimpleClock(Day));
+        eng.State.Tracked["1"] = new TrackedVessel { VesselId = "1", Craft = new CraftSnapshot { VesselName = "Alive One" } };
+        eng.State.Tracked["2"] = new TrackedVessel { VesselId = "2", Craft = new CraftSnapshot { VesselName = "Crashed Two" } };
+        eng.State.Tracked["2"].Flags.Add("destroyed");
+        eng.State.Tracked["3"] = new TrackedVessel { VesselId = "3", Craft = new CraftSnapshot { VesselName = "Recovered Three" } };
+        eng.State.Tracked["4"] = new TrackedVessel { VesselId = "4", Craft = new CraftSnapshot { VesselName = "Unwanted Four" } };
+        var dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var p = Path.Combine(dir, rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
+        sites.VesselExists = id => id == "3" ? false : (bool?)true;
+        string h = sites.Render("telemetry.kb").Html;
+        Assert(h.Contains("Alive One") && h.Contains("Unwanted Four") && !h.Contains("Crashed Two") && !h.Contains("Recovered Three"), "crashed and gone craft are off the list");
+        sites.Handle("telemetry-remove/4", new Dictionary<string, string>());
+        h = sites.Render("telemetry.kb").Html;
+        Assert(!h.Contains("Unwanted Four") && h.Contains("Alive One") && eng.State.Tracked.ContainsKey("4"), "Remove takes it off the list but keeps its history");
+    }
+
     public static void TestLongPausesAreShortened()
     {
         var a = PaddedPcm(0, 0.8).Bytes; var gap = new byte[(int)(Voice.Rate * 0.6) * 2]; var b = PaddedPcm(0, 0.8).Bytes;

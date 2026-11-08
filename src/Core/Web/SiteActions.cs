@@ -240,6 +240,12 @@ namespace KerbalNews.Web
                     int s2 = arg.LastIndexOf('/');
                     if (s2 > 0) State.SetSilent(arg.Substring(0, s2), arg.Substring(s2 + 1) == "silent");
                     break;
+                case "telemetry-remove":
+                {
+                    var tv = State.Tracked.Values.FirstOrDefault(t => t.VesselId == arg);
+                    if (tv != null && !tv.Flags.Contains("hidden")) tv.Flags.Add("hidden");   // off the list; its news history stays
+                    break;
+                }
                 case "privacy-default":
                     State.SilentByDefault = arg == "silent";
                     break;
