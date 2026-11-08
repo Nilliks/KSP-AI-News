@@ -2,15 +2,12 @@
 {{> netbar}}
 <div class="head"><div class="brandrow"><img src="Sites/logos/icon-settings.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><h1>Settings</h1></div><p>Shared by all saves. Keys are stored in GameData/KerbalNews/PluginData/secrets.cfg, never in your save.</p></div>
 <div class="wrap">
-  <h2>AI writing</h2>
+  <h2>AI connection</h2>
   <div class="row" style="align-items: center"><a class="toggle{{^offline}} on{{/offline}}" href="action:toggle-offline">{{#offline}}AI is OFF (offline templates). Click to turn on{{/offline}}{{^offline}}AI is ON. Click to use offline templates{{/offline}}</a></div>
-  <label>How much the AI writes (every site)</label>
-  <div class="providers">{{#aiAmountOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/aiAmountOpts}}</div>
-  <p class="hint">{{aiAmountHint}} Whatever the AI doesn't write comes from templates. Things you ask for yourself (your assistant, crew chat, the engineers, your Kmail replies) always use the AI while it is on.</p>
   <label>Provider</label>
   <div class="providers">{{#providers}}<a class="prov{{#on}} on{{/on}}" href="action:provider/{{id}}">{{name}}</a>{{/providers}}</div>
   {{#provider}}
-  {{#needsKey}}<label>API key for {{name}}</label><input name="key" type="password" placeholder="{{#hasKey}}saved (type to replace){{/hasKey}}{{^hasKey}}{{keyHint}}{{/hasKey}}"><p class="hint">{{#hasKey}}A key is saved.{{/hasKey}}{{^hasKey}}No key saved yet.{{/hasKey}}</p>{{/needsKey}}
+  {{#needsKey}}<label>API key for {{name}}</label><input name="key" type="password" placeholder="{{#hasKey}}saved (type to replace){{/hasKey}}{{^hasKey}}{{keyHint}}{{/hasKey}}"><p class="hint">{{#hasKey}}A key is saved. <a href="action:forget-key/main">Forget this key</a>{{/hasKey}}{{^hasKey}}No key saved yet.{{/hasKey}}</p>{{/needsKey}}
   {{^needsKey}}<p class="hint">No key needed for {{name}}.</p>{{/needsKey}}
   <label>Writer model (big stories): <span class="current">{{writerModel}}</span></label>
   <div class="models">{{#writerChoices}}<a class="prov{{#on}} on{{/on}}" href="action:writer/{{id}}">{{id}}</a>{{/writerChoices}}</div>
@@ -22,32 +19,17 @@
   <label>Endpoint</label><input name="baseUrl" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
   <p class="hint">Click a model to use it, or type any exact model name and Save. An empty field means the default.</p>
   {{/provider}}
-  <label>Max output tokens</label><input name="maxTokens" value="{{maxTokens}}">
+  <p class="hint">Can these models see pictures? <b>{{#canSee}}Yes{{/canSee}}{{^canSee}}No{{/canSee}}</b></p>
   <div class="save row"><button class="btn" data-action="save-settings">Save</button><button class="btn" data-action="test-connection">Save and test connection</button></div>
   {{#testResult}}<p class="{{#testOk}}ok{{/testOk}}{{^testOk}}bad{{/testOk}}">{{testResult}}</p>{{/testResult}}
   <p class="hint">{{providerName}} &middot; {{status}}{{#error}} &middot; last error: {{error}}{{/error}}</p>
 
-  <h2>Features</h2>
-  <p class="hint">Turn parts of Kerbal News on or off. Everything here is shared by all saves.</p>
-  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#pressPhotos}} on{{/pressPhotos}}" href="action:toggle-pressphotos">Press photographers shoot your launches</a>
-    <a class="toggle{{#assistantOn}} on{{/assistantOn}}" href="action:toggle-assistant">Personal assistant (Agency site)</a>
-    <a class="toggle{{#assistantConfirm}} on{{/assistantConfirm}}" href="action:toggle-assistant-confirm">Assistant asks before spending money</a></div>
-  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#crewChat}} on{{/crewChat}}" href="action:toggle-crewchat">Talk to your crew</a>
-    <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a>
-    <a class="toggle{{#tieIns}} on{{/tieIns}}" href="action:toggle-tieins">News can spark contracts (career)</a>
-    <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
-
-  <h2>Websites</h2>
-  <p class="hint">Turn off any site you don't want. A turned-off site leaves the link bar and the front page, and the AI stops writing for it, so each story costs a little less.{{#sitesOffCount}} {{sitesOffCount}} turned off.{{/sitesOffCount}}</p>
-  {{#siteGroups}}
-  <h3>{{group}}</h3>
-  {{#sites}}<div class="site row"><a class="toggle{{#on}} on{{/on}}" href="action:toggle-site/{{id}}">{{#on}}On{{/on}}{{^on}}Off{{/on}}</a><div class="sitetext"><b>{{name}}</b> <span class="domain">{{domain}}</span><br>{{description}}{{^on}} <span class="off">Off: {{whenOff}}</span>{{/on}}</div></div>{{/sites}}
-  {{/siteGroups}}
-
-  <h2>API usage</h2>
-  <p class="hint">Turn AI use down to save money, or up for a busier news world. A preset sets everything below; any change makes it Custom.</p>
-  <div class="providers">{{#usagePresets}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/usagePresets}}</div>
-  <p class="hint">{{usageText}}</p>
+  <h2>How much AI (and what it costs)</h2>
+  <label>How much the AI writes (every site)</label>
+  <div class="providers">{{#aiAmountOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/aiAmountOpts}}</div>
+  <p class="hint">{{aiAmountHint}} Whatever the AI doesn't write comes from templates. Things you ask for yourself (your assistant, crew chat, the engineers, your Kmail replies) always use the AI while it is on. Each stop also sets the knobs below to a matching level.</p>
+  <div class="row" style="margin-top: 6px"><a class="toggle{{#showTune}} on{{/showTune}}" href="action:toggle-tune">{{#showTune}}Hide fine-tuning{{/showTune}}{{^showTune}}Fine-tune{{/showTune}}</a></div>
+  {{#showTune}}
   <label>Quiet-day features and opinion pieces</label>
   <div class="providers">{{#quietOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/quietOpts}}</div>
   <label>Article length, comments and social posts</label>
@@ -56,24 +38,34 @@
   <div class="providers">{{#outletOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/outletOpts}}</div>
   <label>Use the writer model (the expensive one) for</label>
   <div class="providers">{{#writerOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/writerOpts}}</div>
-  <label>Livestream chat updates</label>
-  <div class="providers">{{#streamOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamOpts}}</div>
-  <label>Livestream chat messages per 10 minutes</label>
-  <div class="providers">{{#streamChatOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamChatOpts}}</div>
-  <p class="hint">For quiet stretches. The chat speeds up and slows down on its own, and goes wild at liftoff, explosions, landings and other big moments. More messages make each chat update a little longer, not more frequent.</p>
   <label>Background world news</label>
   <div class="providers">{{#worldOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/worldOpts}}</div>
   {{#worldOn}}<div class="row"><a class="toggle{{#worldFlavor}} on{{/worldFlavor}}" href="action:toggle-world-flavor">Weather, politics and culture</a>
     <a class="toggle{{#worldRivals}} on{{/worldRivals}}" href="action:toggle-world-rivals">Rival programs (Kerbin orbit only)</a></div>{{/worldOn}}
-  <p class="hint">News from the world around you, read from your game: asteroids and comets, eclipses, transfer windows, debris coming down, crew milestones, part makers, records, new tech, stations, far-off probes, and Kerbalism space weather. Several stories share one AI call every few days; something big gets its own.</p>
+  <p class="hint">News from the world around you, read from your game: asteroids and comets, eclipses, transfer windows, debris coming down, crew milestones, part makers, records, new tech, stations, far-off probes, and Kerbalism space weather. Several stories share one AI call every few days.</p>
   <label>Kmail email</label>
   <div class="providers">{{#mailOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/mailOpts}}</div>
-  <p class="hint">How much mail reaches your inbox: one to three emails after a big event, and a letter now and then on quiet days. Mail waits until the news is written, and a batch of emails shares one cheap AI call.</p>
-  <div class="row" style="margin-top: 8px"><a class="toggle{{#retro}} on{{/retro}}" href="action:toggle-retro">Anniversaries and year in review</a>
-    <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a></div>
-  <p class="hint">Calls you start yourself (the assistant, crew chat, your comments) are not limited.</p>
+  <p class="hint">One to three emails after a big event, and a letter now and then on quiet days. Story mail is written in the same AI call as the news.</p>
+  <label>Livestream chat updates</label>
+  <div class="providers">{{#streamOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamOpts}}</div>
+  <label>Livestream chat messages per 10 minutes</label>
+  <div class="providers">{{#streamChatOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/streamChatOpts}}</div>
+  <p class="hint">For quiet stretches. The chat speeds up and slows down on its own, and goes wild at liftoff, explosions, landings and other big moments.</p>
+  {{/showTune}}
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a>
+    <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
 
-  <h2>Article photos (optional)</h2>
+  <h2>Pictures</h2>
+  <div class="row" style="margin-top: 6px"><a class="toggle{{#photoLook}} on{{/photoLook}}" href="action:toggle-photolook">The AI looks at your photos and the livestream</a></div>
+  <p class="hint">Each photo is looked at once; the description then feeds articles, comments, Kerbopedia and the stream chat at no extra cost. Only models that can see get pictures.</p>
+  {{#needHelper}}
+  <label>Who looks, since your model can't see</label>
+  <div class="providers">{{#visionOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/visionOpts}}</div>
+  {{#vision}}<p class="hint">{{name}} ({{model}}) looks at each photo once, and at the stream camera at big moments.{{#hasKey}} A key is saved. <a href="action:forget-key/vision">Forget this key</a>{{/hasKey}}</p>
+  {{^hasKey}}<label>API key for {{name}}</label><input name="visionKey" type="password" placeholder="{{keyHint}}"><div class="save row"><button class="btn" data-action="save-settings">Save</button></div>{{/hasKey}}{{/vision}}
+  {{/needHelper}}
+  <div class="row" style="margin-top: 8px"><a class="toggle{{#pressPhotos}} on{{/pressPhotos}}" href="action:toggle-pressphotos">Press photographers shoot your launches</a></div>
+  <h3>Article photos drawn by an image service (optional)</h3>
   <p class="hint">A separate image service, with its own key, draws one press photo for bigger stories. It is off unless you pick a service. It costs one image call per qualifying story.</p>
   <div class="providers"><a class="prov{{#imageOff}} on{{/imageOff}}" href="action:img-provider/off">Off</a>{{#imageProviders}}<a class="prov{{#on}} on{{/on}}" href="action:img-provider/{{id}}">{{name}}</a>{{/imageProviders}}</div>
   {{#image}}
@@ -91,16 +83,37 @@
   {{#imageTest}}<div style="width: 480px"><img src="{{imageTest}}" style="width: 100%; aspect-ratio: 3/2"></div>{{/imageTest}}
   {{#imageStatus}}<p class="hint">Last photo: {{imageStatus}}</p>{{/imageStatus}}
 
-  <h2>Telemetry</h2>
-  <p class="hint">Choose per craft whether the public gets its telemetry and specs, or only what can be seen from the ground. <a href="telemetry.kb">Open telemetry sharing</a></p>
+  <h2>Features</h2>
+  <p class="hint">Turn parts of Kerbal News on or off.</p>
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#assistantOn}} on{{/assistantOn}}" href="action:toggle-assistant">Personal assistant (Agency site)</a>
+    <a class="toggle{{#assistantConfirm}} on{{/assistantConfirm}}" href="action:toggle-assistant-confirm">Assistant asks before spending money</a>
+    <a class="toggle{{#mailAuto}} on{{/mailAuto}}" href="action:toggle-mail-auto">Assistant answers routine mail on its own (this save)</a></div>
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#crewChat}} on{{/crewChat}}" href="action:toggle-crewchat">Talk to your crew</a>
+    <a class="toggle{{#ktv}} on{{/ktv}}" href="action:toggle-ktv">KTV news segments</a>
+    <a class="toggle{{#tieIns}} on{{/tieIns}}" href="action:toggle-tieins">News can spark contracts (career)</a>
+    <a class="toggle{{#retro}} on{{/retro}}" href="action:toggle-retro">Anniversaries and year in review</a></div>
 
-  <h2>Display</h2>
-  <div class="row" style="align-items: center"><span>Whole window size (toolbar, frame and page): <b>{{scale}}</b>. The A− and A+ buttons in the toolbar zoom only the page.</span>
+  <h2>Websites</h2>
+  <p class="hint">Turn off any site you don't want. A turned-off site leaves the link bar and the front page, and the AI stops writing for it, so each story costs a little less.{{#sitesOffCount}} {{sitesOffCount}} turned off.{{/sitesOffCount}}</p>
+  {{#siteGroups}}
+  <h3>{{group}}</h3>
+  {{#sites}}<div class="site row"><a class="toggle{{#on}} on{{/on}}" href="action:toggle-site/{{id}}">{{#on}}On{{/on}}{{^on}}Off{{/on}}</a><div class="sitetext"><b>{{name}}</b> <span class="domain">{{domain}}</span><br>{{description}}{{^on}} <span class="off">Off: {{whenOff}}</span>{{/on}}</div></div>{{/sites}}
+  {{/siteGroups}}
+
+  <h2>Notifications and display</h2>
+  <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#notify}} on{{/notify}}" href="action:toggle-notify">Message when news is published</a>
+    <a class="toggle{{#mailPopups}} on{{/mailPopups}}" href="action:toggle-mailpopups">Pop-up when new Kmail arrives</a></div>
+  <label>How soon news comes out after an event</label>
+  <div class="providers">{{#newsDelayOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/newsDelayOpts}}</div>
+  <div class="row" style="align-items: center; margin-top: 8px"><span>Whole window size (toolbar, frame and page): <b>{{scale}}</b>. The A− and A+ buttons in the toolbar zoom only the page.</span>
     <a class="toggle" href="action:scale/-">Smaller</a><a class="toggle" href="action:scale/+">Bigger</a><a class="toggle" href="action:scale/auto">Auto</a></div>
-  <div class="row" style="margin-top: 8px"><a class="toggle{{#notify}} on{{/notify}}" href="action:toggle-notify">Message when news is published</a>
-    <a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a></div>
+  <p class="hint">Telemetry: choose per craft whether the public gets its telemetry and specs, or only what can be seen from the ground. <a href="telemetry.kb">Open telemetry sharing</a></p>
 
-  <h2>Testing tools</h2>
+  <h2>Advanced</h2>
+  <div class="row"><div><label>Max output tokens</label><input name="maxTokens" value="{{maxTokens}}"></div><div><label>Wait for the AI (seconds)</label><input name="timeout" value="{{timeout}}"></div></div>
+  {{#isLocal}}<div class="row"><div><label>Local model context size (tokens)</label><input name="localContext" value="{{localContext}}"></div><div><label>Local model wait (seconds)</label><input name="localTimeout" value="{{localTimeout}}"></div></div>{{/isLocal}}
+  <div class="save row"><button class="btn" data-action="save-settings">Save</button></div>
+  <h3>Testing tools</h3>
   <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>
-  <p class="hint">Normally news arrives about one Kerbin day after an event. Publish pending news now skips the wait.</p>
+  <p class="hint">Publish pending news now skips the usual wait after an event.</p>
 </div></body></html>

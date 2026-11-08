@@ -532,8 +532,34 @@ namespace KerbalNews.Web
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;
             AddImageSettings(m, g);
+            // Merged "How much AI" section: fine-tuning folds away.
+            m["showTune"] = ShowTune;
+            // Pictures.
+            bool sees = Providers.CanSee(g.Preset, g.CheapModel) || Providers.CanSee(g.Preset, g.WriterModel);
+            m["canSee"] = sees;
+            m["photoLook"] = g.PhotoLook;
+            m["needHelper"] = g.PhotoLook && !sees;
+            var helpers = Providers.All.Where(p => p.NeedsKey && p.Id != g.ProviderId && p.Kind != ApiKind.Ollama && Providers.CanSee(p, p.CheapModel)).ToList();
+            m["visionOpts"] = new List<object> { opt("Nobody", "vision-provider/off", g.VisionProviderId == "") }
+                .Concat(helpers.Select(p => opt(p.Name + (g.Keys.ContainsKey(p.Id) && g.Keys[p.Id] != "" ? " (key saved)" : " (no key)"), "vision-provider/" + p.Id, g.VisionProviderId == p.Id))).ToList();
+            var vp = Providers.Get(g.VisionProviderId);
+            if (vp != null && !sees)
+                m["vision"] = new Dictionary<string, object> { { "name", vp.Name }, { "model", vp.CheapModel }, { "hasKey", g.Keys.ContainsKey(vp.Id) && g.Keys[vp.Id] != "" }, { "keyHint", vp.KeyHint } };
+            // Features, notifications.
+            m["mailAuto"] = Engine.State.MailAuto;
+            m["mailPopups"] = g.MailPopups;
+            m["newsDelayOpts"] = new List<object> { opt("Fast (a few hours)", "news-delay/0.35", Math.Abs(g.NewsDelay - 0.35) < 0.01), opt("Normal (about a day)", "news-delay/1", Math.Abs(g.NewsDelay - 1) < 0.01), opt("Slow (a few days)", "news-delay/2.5", Math.Abs(g.NewsDelay - 2.5) < 0.01) };
+            // Advanced.
+            m["timeout"] = g.TimeoutSeconds;
+            bool local = g.Preset.Kind == ApiKind.Ollama || new[] { "lmstudio", "llamacpp", "koboldcpp", "jan" }.Contains(g.Preset.Id);
+            m["isLocal"] = local;
+            m["localContext"] = g.LocalContext;
+            m["localTimeout"] = g.LocalTimeoutSeconds;
             return m;
         }
+
+        /// <summary>Whether the fine-tuning knobs under "How much AI" are open (this session only).</summary>
+        public bool ShowTune;
 
         public string FetchResult = "";
         public string TestResult = "";

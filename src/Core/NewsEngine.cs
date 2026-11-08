@@ -167,7 +167,7 @@ namespace KerbalNews
         {
             s.Significance = Significance.StoryScore(s);
             var plan = CoveragePlan.For(s);
-            s.PublishUT = s.CreatedUT + plan.EarliestDelay * Day;
+            s.PublishUT = s.CreatedUT + plan.EarliestDelay * Settings.NewsDelay * Day;
         }
 
         // ------------------------------------------------------------------ tick
@@ -409,7 +409,7 @@ namespace KerbalNews
             {
                 a.Model = model;
                 var assign = plan.Outlets.FirstOrDefault(o => o.OutletId == a.Outlet);
-                double delay = story.Kind == "filler" || story.Kind == "tip" ? 0 : (assign != null ? assign.DelayDays : 1);
+                double delay = story.Kind == "filler" || story.Kind == "tip" ? 0 : (assign != null ? assign.DelayDays : 1) * Settings.NewsDelay;
                 a.Id = State.NewId("a");
                 a.StoryId = story.Id;
                 a.Significance = story.Significance;

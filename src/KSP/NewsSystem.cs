@@ -248,7 +248,7 @@ namespace KerbalNews.KSP
         /// <summary>The in-game pop-up for new email. A burst of mail shows one line for the rest.</summary>
         void OnMail(MailMsg m)
         {
-            if (!Settings.NotifyOnPublish) return;
+            if (!Settings.MailPopups) return;
             if (Time.realtimeSinceStartup - lastMailPopup < 3f)
             {
                 mailHeld++;

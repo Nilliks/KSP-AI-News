@@ -309,7 +309,8 @@ public static class FeatureTests
 
         string dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
         var sites = new Sites(eng, rel => { var f = Path.Combine(dir, rel); return File.Exists(f) ? File.ReadAllText(f) : null; });
-        Assert(sites.Render("settings.kb").Html.Contains("API usage") && sites.Render("settings.kb").Html.Contains("usage-outlets/2"), "settings shows the knobs");
+        Assert(!sites.Render("settings.kb").Html.Contains("usage-outlets/2"), "knobs fold away"); sites.ShowTune = true;
+        Assert(sites.Render("settings.kb").Html.Contains("How much AI") && sites.Render("settings.kb").Html.Contains("usage-outlets/2"), "fine-tune shows the knobs");
         sites.Handle("action:usage-outlets/5", null);
         Assert(g.MaxOutlets == 5 && g.Usage == "custom", "a knob makes it custom");
         sites.Handle("action:usage/balanced", null);

@@ -87,6 +87,23 @@ namespace KerbalNews.Web
                 case "toggle-offline": g.OfflineMode = !g.OfflineMode; SaveSettings(); break;
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
+                case "toggle-tune": ShowTune = !ShowTune; break;
+                case "toggle-photolook": g.PhotoLook = !g.PhotoLook; SaveSettings(); break;
+                case "vision-provider": g.VisionProviderId = arg == "off" ? "" : arg; SaveSettings(); break;
+                case "toggle-mailpopups": g.MailPopups = !g.MailPopups; SaveSettings(); break;
+                case "toggle-mail-auto": Engine.State.MailAuto = !Engine.State.MailAuto; break;
+                case "news-delay":
+                {
+                    double d;
+                    if (double.TryParse(arg, NumberStyles.Float, CultureInfo.InvariantCulture, out d)) g.NewsDelay = Math.Max(0.2, Math.Min(4, d));
+                    SaveSettings();
+                    break;
+                }
+                case "forget-key":
+                    g.Keys.Remove(arg == "vision" ? g.VisionProviderId : g.ProviderId);
+                    TestResult = "Key forgotten."; TestOk = true;
+                    SaveSettings();
+                    break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
                 case "usage": g.ApplyUsage(arg); SaveSettings(); break;
                 case "usage-quiet":
@@ -111,7 +128,7 @@ namespace KerbalNews.Web
                 case "ai-amount":
                 {
                     int w;
-                    if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out w)) g.AiAmount = Math.Max(0, Math.Min(4, w));
+                    if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out w)) g.ApplyAiAmount(w);
                     SaveSettings();
                     break;
                 }
@@ -249,6 +266,11 @@ namespace KerbalNews.Web
             if (form.ContainsKey("baseUrl")) g.BaseUrls[id] = form["baseUrl"].Trim();
             int mt;
             if (int.TryParse(Get(form, "maxTokens").Trim(), NumberStyles.Integer, Inv, out mt)) g.MaxTokens = Math.Max(1000, Math.Min(32000, mt));
+            if (int.TryParse(Get(form, "timeout").Trim(), NumberStyles.Integer, Inv, out mt)) g.TimeoutSeconds = Math.Max(20, Math.Min(900, mt));
+            if (int.TryParse(Get(form, "localContext").Trim(), NumberStyles.Integer, Inv, out mt)) g.LocalContext = Math.Max(2048, Math.Min(262144, mt));
+            if (int.TryParse(Get(form, "localTimeout").Trim(), NumberStyles.Integer, Inv, out mt)) g.LocalTimeoutSeconds = Math.Max(60, Math.Min(3600, mt));
+            string vkey = Get(form, "visionKey").Trim();
+            if (vkey != "" && g.VisionProviderId != "") g.Keys[g.VisionProviderId] = vkey;
         }
 
         static string Get(IDictionary<string, string> form, string k, string def = "")

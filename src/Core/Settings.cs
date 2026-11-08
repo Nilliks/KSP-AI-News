@@ -73,6 +73,20 @@ namespace KerbalNews
 
         public static readonly string[] UsagePresets = { "saver", "balanced", "full" };
 
+        /// <summary>The "How much the AI writes" stop also sets the spend knobs: Nothing/Big news = Saver, Most/Almost everything = Balanced, Everything = Full. Feature switches (KTV, anniversaries) are left alone.</summary>
+        public void ApplyAiAmount(int stop)
+        {
+            AiAmount = Math.Max(0, Math.Min(4, stop));
+            bool ktv = KtvOn, retro = Retrospectives;
+            ApplyUsage(AiAmount <= AiBig ? "saver" : AiAmount >= AiAll ? "full" : "balanced");
+            KtvOn = ktv; Retrospectives = retro;
+        }
+
+        /// <summary>Kmail pop-ups in flight, separate from the news message.</summary>
+        public bool MailPopups = true;
+        /// <summary>How soon news comes out after an event: 0.35 fast, 1 normal, 2.5 slow (times the outlet's usual delay).</summary>
+        public double NewsDelay = 1;
+
         public void ApplyUsage(string preset)
         {
             Usage = preset;
@@ -190,6 +204,8 @@ namespace KerbalNews
             settings.Add("assistant", AssistantOn);
             settings.Add("assistantConfirm", AssistantConfirm);
             settings.Add("photoLook", PhotoLook);
+            settings.Add("mailPopups", MailPopups);
+            settings.Add("newsDelay", NewsDelay);
             settings.Add("visionProvider", VisionProviderId);
             settings.Add("crewChat", CrewChatOn);
             settings.Add("ktv", KtvOn);
@@ -254,6 +270,8 @@ namespace KerbalNews
                 g.AssistantOn = settings.GetBool("assistant", true);
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
                 g.PhotoLook = settings.GetBool("photoLook", true);
+                g.MailPopups = settings.GetBool("mailPopups", true);
+                g.NewsDelay = Math.Max(0.2, Math.Min(4, settings.GetDouble("newsDelay", 1)));
                 g.VisionProviderId = settings.Get("visionProvider", "");
                 g.CrewChatOn = settings.GetBool("crewChat", true);
                 g.KtvOn = settings.GetBool("ktv", true);

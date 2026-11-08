@@ -223,4 +223,59 @@ public static class VarietyTests
         var resp = new Dictionary<string, object> { { "content", new List<object> { new Dictionary<string, object> { { "type", "text" }, { "text", text } } } } };
         return new HttpResult { Status = 200, Body = Json.Write(resp) };
     }
+
+    public static void TestSettingsPageAfterTheReorganisation()
+    {
+        var g = new GlobalSettings { ProviderId = "deepseek", OfflineMode = false };
+        g.Keys["deepseek"] = "k";
+        var s = new NewsState();
+        var eng = new NewsEngine(s, g, null, new SimpleClock(Day));
+        var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var p = System.IO.Path.Combine(dir, rel); return System.IO.File.Exists(p) ? System.IO.File.ReadAllText(p) : null; });
+        sites.Now = () => 0;
+        Func<string> page = () => sites.Render("settings.kb").Html;
+        string h = page();
+        Assert(!h.Contains("{{") && !h.Contains("Missing template"), "renders cleanly");
+        foreach (var part in new[] { "AI connection", "How much AI", "Pictures", "Features", "Websites", "Notifications and display", "Advanced" }) Assert(h.Contains(part), "section " + part);
+        Assert(!h.Contains("API usage") && !h.Contains("usage/saver"), "the old preset buttons are gone");
+        Assert(h.Split(new[] { "toggle-ktv" }, StringSplitOptions.None).Length == 2, "KTV switch appears once");
+        Assert(h.Contains("Who looks, since your model can't see") && h.Contains("vision-provider/gemini"), "DeepSeek can't see: pick a helper");
+        Assert(h.Contains("Forget this key"), "forget the key");
+
+        g.KtvOn = true;
+        sites.Handle("ai-amount/0", new Dictionary<string, string>());
+        Assert(g.AiAmount == 0 && g.MaxOutlets == 3 && g.QuietDays == 0 && g.KtvOn, "the slider sets the spend knobs, not the features");
+        sites.Handle("ai-amount/4", new Dictionary<string, string>());
+        Assert(g.WriterFrom == "brief" && g.WorldNews == 3, "Everything = full knobs");
+
+        sites.Handle("vision-provider/gemini", new Dictionary<string, string>());
+        Assert(page().Contains("API key for Google (Gemini)") || page().Contains("API key for Google"), "asks for the helper's key");
+        sites.Handle("save-settings", new Dictionary<string, string> { { "visionKey", "gk" }, { "timeout", "200" } });
+        Assert(g.Keys["gemini"] == "gk" && g.TimeoutSeconds == 200 && eng.CanLook, "helper key saved and usable");
+        sites.Handle("forget-key/vision", new Dictionary<string, string>());
+        Assert(!g.Keys.ContainsKey("gemini") && !eng.CanLook, "helper key forgotten");
+
+        sites.Handle("toggle-mailpopups", new Dictionary<string, string>());
+        sites.Handle("news-delay/0.35", new Dictionary<string, string>());
+        sites.Handle("toggle-mail-auto", new Dictionary<string, string>());
+        var n = new DataNode("S"); var sec = new DataNode("X"); g.Save(n, sec);
+        var back = GlobalSettings.Load(n, sec);
+        Assert(!back.MailPopups && Math.Abs(back.NewsDelay - 0.35) < 0.001 && s.MailAuto, "new switches saved");
+
+        // Fast news really comes out sooner.
+        var t = new CoreTests.FakeTransport { Responder = CoreTests.AnthropicReply };
+        var on = CoreTests.OnlineSettings();
+        on.NewsDelay = 0.35;
+        var e2 = new NewsEngine(new NewsState(), on, t, new SimpleClock(Day));
+        e2.Tick(0, 0, true);
+        e2.TrackLaunch("v1", CoreTests.Craft(), 10);
+        e2.Ingest(CoreTests.Ev(EventTypes.Launch, 10, "v1", "Kerbin", "Jebediah Kerman"));
+        e2.Ingest(CoreTests.Ev(EventTypes.Orbit, 400, "v1", "Kerbin", "Jebediah Kerman"));
+        e2.Tick(Day * 0.5, 1, true);
+        Assert(t.Sent.Count == 1 && e2.State.Articles.All(a => a.PublishedUT < Day * 0.6), "fast: out within half a day");
+
+        // Local providers show their own knobs.
+        g.ProviderId = "ollama";
+        Assert(page().Contains("Local model context size"), "local knobs for local models");
+    }
 }
