@@ -188,6 +188,30 @@ namespace KerbalNews
             return ResponseParser.Clip(msg ?? "", 160);
         }
 
+        /// <summary>
+        /// Cuts the quiet off the start (and, for countdown numbers, the end) of a clip. v3 clips often open with a breath or
+        /// a pause, which put each number late and made the gaps uneven. Keeps a few milliseconds so words aren't clipped.
+        /// </summary>
+        public static byte[] Trim(byte[] pcm, bool end)
+        {
+            if (pcm == null || pcm.Length < 400) return pcm;
+            int n = pcm.Length / 2;
+            const int threshold = 900;            // about -31 dB
+            int window = Rate / 100;              // 10 ms
+            Func<int, bool> loud = i => { int v = (short)(pcm[2 * i] | pcm[2 * i + 1] << 8); return v > threshold || v < -threshold; };
+            int first = 0;
+            while (first < n && !loud(first)) first++;
+            if (first >= n) return pcm;           // all quiet: leave it
+            int last = n - 1;
+            if (end) while (last > first && !loud(last)) last--;
+            first = Math.Max(0, first - window * 2);
+            last = end ? Math.Min(n - 1, last + window * 6) : n - 1;
+            if (first == 0 && last == n - 1) return pcm;
+            var outBytes = new byte[(last - first + 1) * 2];
+            Array.Copy(pcm, first * 2, outBytes, 0, outBytes.Length);
+            return outBytes;
+        }
+
         public static double Seconds(byte[] pcm) { return pcm == null ? 0 : pcm.Length / 2.0 / Rate; }
 
         /// <summary>Name for a cached clip: the same words in the same voice are only ever paid for once.</summary>

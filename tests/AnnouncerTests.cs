@@ -154,6 +154,43 @@ public static class AnnouncerTests
         Assert(st.Said.Any(l => l.Text.ToLowerInvariant().Contains("hold")), "the hold is called");
     }
 
+    static HttpResult PaddedPcm(double silence, double sound)
+    {
+        int a = (int)(Voice.Rate * silence), b = (int)(Voice.Rate * sound);
+        var bytes = new byte[(a + b) * 2];
+        for (int i = a; i < a + b; i++) { short v = (short)((i % 20) < 10 ? 8000 : -8000); bytes[2 * i] = (byte)v; bytes[2 * i + 1] = (byte)(v >> 8); }
+        return new HttpResult { Status = 200, Bytes = bytes };
+    }
+
+    public static void TestCountNumbersStayOnTheSecondWithSlowClips()
+    {
+        // v3 clips start with silence and run long; other lines run long too. The numbers must still land on each second.
+        var rig = Make(VoiceSettings());
+        var lens = new List<int>();
+        rig.Eng.PlayVoice = (pcm, rate) => { rig.Played.Add(pcm.Length + "@" + rate); lens.Add(pcm.Length); };
+        rig.T.Responder = r =>
+        {
+            var text = Json.Str(Json.Parse(r.Body), "text", "");
+            if (!r.Url.Contains("elevenlabs")) return ChatText("{\"viewers\":300,\"messages\":[]}");
+            rig.Spoken.Add(text);
+            return text.Length < 10 ? PaddedPcm(0.5, 1.8) : PaddedPcm(0.4, 4.5);
+        };
+        var eng = rig.Eng;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        Run(eng, 0, 2);
+        eng.CountdownStart(25, 2);   // T-0 at 27
+        Run(eng, 2, 29, 0.05);
+        string[] words = { "Ten.", "Nine.", "Eight.", "Seven.", "Six.", "Five.", "Four.", "Three.", "Two.", "One." };
+        for (int i = 0; i < 10; i++)
+        {
+            var l = st.Said.Where(x => x.Text == words[i]).ToList();
+            double want = 27 - (10 - i);
+            Assert(l.Count == 1 && Math.Abs(l[0].At - want) < 0.25, words[i] + " at " + want + ": " + string.Join(" | ", st.Said.Select(x => x.At.ToString("0.00") + " " + x.Text).ToArray()));
+        }
+        Assert(!st.Said.Any(x => x.Text.Length >= 10 && x.At > 16.5 && x.At < 26.9), "nothing else is said over the final count");
+        Assert(lens.Count > 0 && lens.Min() < (int)(Voice.Rate * 2.3) * 2, "the silence at the start of a clip is cut");
+    }
+
     public static void TestNoKeyMeansCaptionsOnly()
     {
         var rig = Make(new GlobalSettings { OfflineMode = true });

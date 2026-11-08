@@ -42,7 +42,6 @@ namespace KerbalNews
         public string VoiceStatus = "";
         public int VoiceCalls;
         double voiceFreeAt;
-        bool lastWasCount;
 
         bool VoiceReady { get { return Settings.VoiceOn && !VoiceBroken && PlayVoice != null && Transport != null; } }
         /// <summary>Recorded lines can play even without a key: the ones shipped with the mod, or saved earlier.</summary>
@@ -367,9 +366,9 @@ namespace KerbalNews
             if (double.IsNaN(left) || left > 14 || left < 1) return;
             st.FinalCountQueued = true;
             st.FinalCountSaid = true;
-            speech.RemoveAll(s => !s.Count && s.Pcm == null);
+            speech.RemoveAll(s => !s.Count);   // nothing else talks over the final count
             for (int n = 10; n >= 1; n--)
-                if (n <= left + 0.2) Say(st, CountWords[n] + ".", realTime, realTime + (left - n), 0.7, true);
+                if (n <= left + 0.2) Say(st, CountWords[n] + ".", realTime, realTime + (left - n), 0.45, true);
         }
 
         /// <summary>A hold, recycle or scrub stops the numbers that haven't been said.</summary>
@@ -401,9 +400,14 @@ namespace KerbalNews
             speech.RemoveAll(s => realTime > s.Deadline);
             if (speech.Count == 0) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             var next = speech.Where(s => s.Ready && s.PlayAt <= realTime).OrderBy(s => s.PlayAt).FirstOrDefault();
-            if (next == null || realTime < voiceFreeAt - (next.Count ? 0.2 : 0) && !(next.Count && lastWasCount)) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
+            // Countdown numbers go on the second, cutting off whatever is still playing; anything else waits its turn and
+            // never starts if it would run into a number.
+            bool blocked = next == null
+                || !next.Count && realTime < voiceFreeAt
+                || !next.Count && speech.Any(s => s.Count && s.PlayAt < realTime + Math.Max(1.5, Voice.Seconds(next.Pcm) + 0.3));
+            if (blocked) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             speech.Remove(next);
-            lastWasCount = next.Count;   // the next number cuts off this one rather than falling behind the clock
+            if (next.Pcm != null) next.Pcm = Voice.Trim(next.Pcm, next.Count);
             double dur = Voice.Seconds(next.Pcm);
             int words = next.Text.Split(' ').Length;
             var line = new AnnouncerLine { At = realTime - st.StartReal, Text = next.Text, Seconds = dur };
