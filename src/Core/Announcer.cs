@@ -34,6 +34,8 @@ namespace KerbalNews
         readonly List<Speech> speech = new List<Speech>();
         /// <summary>Host: plays 16-bit mono PCM at the given rate, at the announcer volume.</summary>
         public Action<byte[], int> PlayVoice;
+        /// <summary>Cuts off the clip that's playing (a loss silences the announcer mid-sentence).</summary>
+        public Action StopVoice;
         /// <summary>Host: a cache of short clips on disk, by Voice.CacheKey.</summary>
         public Func<string, byte[]> VoiceCacheGet;
         public Action<string, byte[]> VoiceCachePut;
@@ -308,7 +310,17 @@ namespace KerbalNews
             if (line == "") return;
             bool urgent = rule == "liftoff" || rule == "liftoff_crew" || rule == "boom" || rule == "crew_lost" || rule == "hold" || rule == "scrub";
             if (urgent) speech.RemoveAll(s => !s.Count);   // nothing queued should hold up a liftoff or a loss
-            Say(st, line, realTime, 0, urgent ? 6 : 12, false, RuleMood(rule));
+            double playAt = 0;
+            if (rule == "boom" || rule == "crew_lost")
+            {
+                // A real commentator goes quiet for a moment before finding the words: stop mid-sentence, then a beat of silence.
+                if (realTime < voiceFreeAt && StopVoice != null) { try { StopVoice(); } catch (Exception) { } }
+                double beat = 1.6 + (OfflineWriter.StableHash(st.VesselId + realTime.ToString("0", CultureInfo.InvariantCulture)) & 0x7fffffff) % 900 / 1000.0;
+                playAt = realTime + beat;
+                voiceFreeAt = Math.Min(voiceFreeAt, playAt);
+                if (st.Caption != "") { st.Caption = ""; Changed(); }
+            }
+            Say(st, line, realTime, playAt, urgent ? 6 : 12, false, RuleMood(rule));
         }
 
         static string BodyFrom(string what, string after)

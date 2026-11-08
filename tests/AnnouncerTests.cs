@@ -191,6 +191,24 @@ public static class AnnouncerTests
         Assert(lens.Count > 0 && lens.Min() < (int)(Voice.Rate * 2.3) * 2, "the silence at the start of a clip is cut");
     }
 
+    public static void TestLossIsCalledAfterAStunnedPause()
+    {
+        var rig = Make(VoiceSettings());
+        int stops = 0;
+        rig.Eng.StopVoice = () => stops++;
+        var eng = rig.Eng;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        Run(eng, 0, 4);
+        eng.StreamSample(new TelemetrySample { UT = 1, Altitude = 80, Situation = "FLYING", Body = "Kerbin" }, 5);
+        eng.StreamMoment("liftoff", 5);
+        Run(eng, 5, 5.5);   // the liftoff call is still playing
+        eng.StreamMoment("Kerbal X was destroyed", 5.5);
+        Run(eng, 5.5, 10, 0.05);
+        var loss = st.Said.Where(l => l.Text.Contains("vehicle")).ToList();
+        Assert(loss.Count == 1 && loss[0].At >= 5.5 + 1.5 && loss[0].At <= 5.5 + 2.6, "the loss comes after a pause: " + string.Join(" | ", st.Said.Select(l => l.At.ToString("0.00") + " " + l.Text).ToArray()));
+        Assert(stops == 1, "the liftoff call is cut off: " + stops);
+    }
+
     public static void TestNoKeyMeansCaptionsOnly()
     {
         var rig = Make(new GlobalSettings { OfflineMode = true });
