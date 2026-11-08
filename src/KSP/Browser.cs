@@ -233,7 +233,10 @@ namespace KerbalNews.KSP
             // Live pages refresh when news arrives; never while the player is typing into the page.
             // The engineering page shows live craft data, so it refreshes every few seconds.
             if (url.StartsWith(Sites.EngineeringHost) && Time.realtimeSinceStartup > nextEngRender) { nextEngRender = Time.realtimeSinceStartup + 3f; dirty = true; }
-            if (dirty && !typing) { dirty = false; wantRender = true; }
+            // Never rebuild the page under a mouse button that's held down: the button being clicked would be destroyed
+            // between press and release and the click lost. Live pages redraw every second, so this ate clicks on Hold.
+            bool pressing = Input.GetMouseButton(0);
+            if (dirty && !typing && !pressing) { dirty = false; wantRender = true; }
             if (wantRender && width > 10) { wantRender = false; Render(true); }
 
             foreach (var f in fields.Values.Concat(chromeFields)) ResetFieldScroll(f);

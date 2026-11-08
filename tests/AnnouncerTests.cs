@@ -459,6 +459,17 @@ public static class AnnouncerTests
             }
     }
 
+    public static void TestHoldWorksAtZeroToo()
+    {
+        var rig = Make(new GlobalSettings { OfflineMode = true });
+        var eng = rig.Eng;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.CountdownStart(10, 1);
+        Run(eng, 1, 13);
+        Assert(st.Countdown == "zero", "at T-0, still on the pad");
+        Assert(eng.CountdownHold(13) && st.Countdown == "hold" && st.CountLeft == 0, "the Hold button still works at T-0");
+    }
+
     public static void TestLongPausesAreShortened()
     {
         var a = PaddedPcm(0, 0.8).Bytes; var gap = new byte[(int)(Voice.Rate * 0.6) * 2]; var b = PaddedPcm(0, 0.8).Bytes;

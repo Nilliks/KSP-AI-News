@@ -222,8 +222,8 @@ namespace KerbalNews
         public bool CountdownHold(double realTime)
         {
             var st = Stream;
-            if (st == null || st.Countdown != "counting") return false;
-            st.CountLeft = CountdownLeft(realTime); st.CountMark = realTime; st.Countdown = "hold"; st.Holds++;
+            if (st == null || st.Countdown != "counting" && st.Countdown != "zero") return false;
+            st.CountLeft = Math.Max(0, CountdownLeft(realTime)); st.CountMark = realTime; st.Countdown = "hold"; st.Holds++;
             StopFinalCount(st);
             StreamMoment("HOLD: the countdown was stopped at " + CountClock(st.CountLeft) + (st.CountLeft < 60 ? ", in the final minute" : "") + (st.Holds > 1 ? " (hold number " + st.Holds + " today)" : ""), realTime);
             Changed();
