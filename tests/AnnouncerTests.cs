@@ -255,6 +255,9 @@ public static class AnnouncerTests
         Assert(!h.Contains("{{") && h.Contains("Livestream announcer and replays") && h.Contains("ElevenLabs API key") && h.Contains("Smooth (3 frames a second)"), "section renders");
         sites.Handle("save-voice", new Dictionary<string, string> { { "voiceKey", " el-123 " }, { "voiceCustom", "myvoice42" } });
         Assert(g.VoiceKey == "el-123" && g.VoiceId == "myvoice42" && g.VoiceOn, "key and custom voice saved");
+        g.Keys.Remove(GlobalSettings.VoiceKeyId);
+        sites.Handle("save-settings", new Dictionary<string, string> { { "voiceKey", "el-123" } });
+        Assert(g.VoiceKey == "el-123", "any Save button keeps the voice key");
         sites.Handle("announcer/2", new Dictionary<string, string>());
         sites.Handle("voice-model/eleven_multilingual_v2", new Dictionary<string, string>());
         sites.Handle("replays/2", new Dictionary<string, string>());

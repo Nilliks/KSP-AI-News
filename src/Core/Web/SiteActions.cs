@@ -271,6 +271,9 @@ namespace KerbalNews.Web
             if (int.TryParse(Get(form, "localTimeout").Trim(), NumberStyles.Integer, Inv, out mt)) g.LocalTimeoutSeconds = Math.Max(60, Math.Min(3600, mt));
             string vkey = Get(form, "visionKey").Trim();
             if (vkey != "" && g.VisionProviderId != "") g.Keys[g.VisionProviderId] = vkey;
+            // Any Save on the page keeps a pasted ElevenLabs key, not only the one in the announcer section.
+            string voiceKey = Get(form, "voiceKey").Trim();
+            if (voiceKey != "") { g.Keys[GlobalSettings.VoiceKeyId] = voiceKey; g.VoiceEnabled = true; }
         }
 
         static string Get(IDictionary<string, string> form, string k, string def = "")
