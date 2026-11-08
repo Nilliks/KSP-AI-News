@@ -104,14 +104,20 @@
   <p class="hint">{{voiceModelHint}}{{#directed}} Each line is sent with a delivery direction such as [excited, shouting over a cheering crowd] for liftoff or [quiet, somber voice] for a loss, which this model acts out.{{/directed}}{{^directed}} For the most announcer-like delivery pick v3: it acts on directions in the text (liftoff shouted, holds tense). The other models only use the style through their voice settings.{{/directed}}</p>
   <label>Volume</label>
   <div class="providers">{{#voiceVolumeOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceVolumeOpts}}</div>
+  <label>Flight controller on the radio loop (click one to hear a sample)</label>
+  <div class="providers">{{#ctlOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/ctlOpts}}</div>
+  <p class="hint">{{ctlHint}}</p>
+  <label>Crowd and control-room sound</label>
+  <div class="providers">{{#sfxOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/sfxOpts}}</div>
+  <p class="hint">Control-room murmur under the stream, the crowd cheering and the roar at liftoff, applause at orbit and touchdown, a gasp when something goes wrong. {{sfxHint}}</p>
   <div class="save row"><button class="btn" data-action="save-voice">Save</button><button class="btn" data-action="test-voice">Save and play a test line</button></div>
   {{#voiceTestResult}}<p class="{{#voiceTestOk}}ok{{/voiceTestOk}}{{^voiceTestOk}}bad{{/voiceTestOk}}">{{voiceTestResult}}</p>{{/voiceTestResult}}
   {{#pre}}<h3>Pre-recorded lines</h3>
-  <p class="hint">{{done}} of {{total}} common lines are recorded for {{voice}} in this model and style: the countdown, liftoff, staging, orbit and landings at Kerbin, the Mun, Minmus, Duna and Eve, holds and scrubs. Recorded lines play instantly and cost nothing, and the announcer picks them over new wording. Lines with your craft's name or live numbers are still made as they happen.</p>
-  {{^allDone}}{{^busy}}<div class="row"><a class="toggle" href="action:prerecord">Record the {{todo}} missing lines now (about {{letters}} letters)</a></div>{{/busy}}{{/allDone}}
+  <p class="hint">{{done}} of {{total}} common lines and sounds are recorded for {{voice}}{{#ctl}} and {{ctl}} on the radio{{/ctl}} in this model and style: the countdown, the go/no-go poll, the controller's callouts, liftoff, staging, orbit and landings at Kerbin, the Mun, Minmus, Duna and Eve, holds and scrubs{{#sfxTodo}}, plus {{sfxTodo}} sound effects{{/sfxTodo}}. Recorded lines play instantly and cost nothing, and the announcer picks them over new wording. Lines with your craft's name or live numbers are still made as they happen.</p>
+  {{^allDone}}{{^busy}}<div class="row"><a class="toggle" href="action:prerecord">Record the {{todo}} missing lines now (about {{letters}} letters{{#sfxCredits}}, and {{sfxCredits}} credits for the sound effects{{/sfxCredits}})</a></div>{{/busy}}{{/allDone}}
   {{#status}}<p class="hint">{{status}}</p>{{/status}}
   {{#anyDone}}{{^busy}}<div class="row"><a class="toggle" href="action:export-voice">Ship these lines with the mod</a></div>
-  <p class="hint">Copies the {{done}} recordings (not your key) into GameData/KerbalNews/Voice/{{bank}}, so players who get that folder hear the announcer without an ElevenLabs account.</p>{{/busy}}{{/anyDone}}{{/pre}}
+  <p class="hint">Copies the {{done}} recordings (not your key) into GameData/KerbalNews/Voice ({{bank}}{{#ctl}}, {{ctlBank}}{{/ctl}}, sfx), so players who get that folder hear the announcer without an ElevenLabs account.</p>{{/busy}}{{/anyDone}}{{/pre}}
   {{#voiceStatus}}<p class="bad">Last voice problem: {{voiceStatus}}</p>{{/voiceStatus}}
   {{/announcerOn}}
   <h3>Replays</h3>

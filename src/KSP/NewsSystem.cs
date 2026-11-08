@@ -56,6 +56,8 @@ namespace KerbalNews.KSP
             // The livestream announcer's voice, and stream replays on disk.
             Engine.PlayVoice = AnnouncerAudio.Play;
             Engine.StopVoice = AnnouncerAudio.Stop;
+            Engine.PlaySound = StreamSounds.Play;
+            Engine.StopSound = StreamSounds.Stop;
             Engine.VoiceCacheGet = ReplayStore.CacheGet;
             Engine.VoiceCachePut = ReplayStore.CachePut;
             Engine.ExportVoiceBank = ReplayStore.ExportBank;

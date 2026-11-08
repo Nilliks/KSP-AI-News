@@ -10,6 +10,8 @@ namespace KerbalNews
     public class TelemetrySample
     {
         public double UT, Altitude, Speed, Apoapsis, Periapsis, G, FuelPct = -1;
+        /// <summary>Seconds for a radio signal from the craft to reach Kerbin.</summary>
+        public double SignalDelay;
         public int Stage;
         public string Situation = "", Body = "";
         public List<string> Crew = new List<string>();
@@ -89,6 +91,7 @@ namespace KerbalNews
         /// <summary>The stream's entry in the save, made when it starts so any save during or after the stream keeps it.</summary>
         public StreamArchive Archive;
         public double ArchiveSyncAt;
+        public readonly BroadcastState Bc = new BroadcastState();
     }
 
     /// <summary>A finished stream, kept in the save for the archive and for the press.</summary>
@@ -146,6 +149,7 @@ namespace KerbalNews
             var crewed = Tracked(vesselId) != null && Tracked(vesselId).Craft != null && Tracked(vesselId).Craft.Crew.Count > 0;
             Stream = new StreamSession { VesselId = vesselId ?? "", VesselName = vesselName ?? "", StartUT = ut, StartReal = realTime, NextBatchReal = realTime + 3 };
             Stream.Viewers = Stream.PeakViewers = (int)((200 + State.Mood.Excitement * 60) * (crewed ? 2 : 1));
+            Stream.Bc.ViewerBase = Stream.Viewers;
             Stream.Chat.Add(new ChatMessage { System = true, Text = "Welcome to the " + AgencyName + " livestream of " + vesselName + "." });
             speech.Clear();
             voiceFreeAt = 0;
@@ -154,6 +158,9 @@ namespace KerbalNews
             SyncArchive(Stream, ut);
             RecordChat(Stream, Stream.Chat[0], realTime);
             Say(Stream, AnnLine("open", Stream), realTime, realTime + 1.5, 15);
+            fetches.Clear();
+            fetching = 0;
+            PlaySfx(Stream, "room", realTime);
             Changed();
             return Stream;
         }
@@ -386,6 +393,7 @@ namespace KerbalNews
             TickCountdown(st, realTime);
             TickFinalCount(st, realTime);
             TickCommentary(st, realTime);
+            TickBroadcast(st, realTime);
             TickVoice(st, realTime);
             TickRecording(st, realTime);
             if (realTime >= st.ArchiveSyncAt) { st.ArchiveSyncAt = realTime + 20; SyncArchive(st, st.Last != null ? st.Last.UT : st.StartUT); }
@@ -561,11 +569,9 @@ namespace KerbalNews
                 st.Queue.Add(new KeyValuePair<double, ChatMessage>(realTime + times[i], msgs[i]));
             }
             st.Queue.Sort((a, b) => a.Key.CompareTo(b.Key));
-            int target = viewers.HasValue ? viewers.Value : st.Viewers;
-            if (hype >= 2) target = (int)(target * (1 + 0.12 * Math.Min(6, hype)));
-            // Viewers drift toward the model's estimate, with bumps for big moments.
-            st.Viewers = Math.Max(10, (int)(st.Viewers * 0.5 + target * 0.5));
-            st.PeakViewers = Math.Max(st.PeakViewers, st.Viewers);
+            // The audience drifts toward the model's estimate; the surge at big moments rides on top (TickViewers).
+            if (viewers.HasValue) st.Bc.ViewerBase = Math.Max(10, st.Bc.ViewerBase * 0.5 + viewers.Value / Math.Max(1, st.Bc.Surge) * 0.5);
+            ApplyViewers(st);
             Changed();
         }
 
@@ -579,6 +585,8 @@ namespace KerbalNews
             var arch = SyncArchive(st, ut);
             FinishRecording(st, arch);
             speech.Clear();
+            fetches.Clear();
+            StopSounds();
             var pool = st.Chat.Where(c => !c.System).ToList();
             arch.Highlights.Clear();
             arch.Highlights.AddRange(pool.Where(c => c.Player).Take(5));

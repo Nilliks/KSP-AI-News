@@ -321,7 +321,7 @@ public class Vessel : UnityEngine.MonoBehaviour
     public Orbit orbit; public double launchTime, missionTime; public ProtoVessel protoVessel; public DiscoveryInfo DiscoveryInfo;
     public Part rootPart;
     public VesselDeltaV VesselDeltaV;
-    public PatchedConicSolver patchedConicSolver; public double verticalSpeed, radarAltitude, dynamicPressurekPa; public Vector3d upAxis, srf_velocity; public UnityEngine.Vector3 angularVelocity; public UnityEngine.Transform ReferenceTransform; public ActionGroupList ActionGroups; public VesselAutopilot Autopilot;
+    public PatchedConicSolver patchedConicSolver; public double verticalSpeed, radarAltitude, dynamicPressurekPa, mach; public Vector3d upAxis, srf_velocity; public UnityEngine.Vector3 angularVelocity; public UnityEngine.Transform ReferenceTransform; public ActionGroupList ActionGroups; public VesselAutopilot Autopilot;
     public float GetTotalMass() { return 0; }
     public Vector3d GetWorldPos3D() { return new Vector3d(); }
     public List<ProtoCrewMember> GetVesselCrew() { return null; }

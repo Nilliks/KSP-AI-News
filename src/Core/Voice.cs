@@ -15,6 +15,7 @@ namespace KerbalNews
         public const string BaseUrl = "https://api.elevenlabs.io/v1";
         public const string DefaultVoice = "iP95p4xoKVk53GoZ742B";   // Chris
         public const string DefaultModel = "eleven_v3";
+        public const string DefaultController = "pqHfZKP75CvOlQylNhV4";   // Bill
 
         /// <summary>A few of ElevenLabs' stock voices that suit a launch commentator: id, name, description.</summary>
         public static readonly string[][] Voices =
@@ -49,6 +50,14 @@ namespace KerbalNews
         public static string Direction(string mood, string style)
         {
             bool hype = style == "excited";
+            if (style == "radio")
+                switch (mood)
+                {
+                    case "tense": return "[urgent but controlled, clipped radio call]";
+                    case "loss": return "[flat, quiet, controlled radio call]";
+                    case "big": return "[steady, quietly pleased radio call]";
+                    default: return "[calm, clipped mission control radio call]";
+                }
             switch (mood)
             {
                 case "big": return hype ? "[excited, shouting over a cheering crowd]" : "[proud, rising excitement]";
@@ -116,7 +125,7 @@ namespace KerbalNews
         public static HttpRequestSpec Build(string key, string voiceId, string model, string text, string style = "calm")
         {
             model = string.IsNullOrEmpty(model) ? DefaultModel : model;
-            bool hype = style == "excited";
+            bool hype = style == "excited";   // "radio" (the flight controller) reads like calm
             // v3 takes its delivery from the directions in the text, and only three stability settings; the older models
             // get a livelier, less steady read for the excited style.
             var vs = TakesDirections(model)
@@ -158,6 +167,7 @@ namespace KerbalNews
             var bytes = res.Bytes;
             if (bytes == null || bytes.Length < 200) { error = "ElevenLabs sent no audio."; return false; }
             // A JSON body where audio should be means something went wrong upstream.
+            if (bytes[0] == (byte)'I' && bytes[1] == (byte)'D' && bytes[2] == (byte)'3' || bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) { error = "ElevenLabs sent MP3 instead of raw audio."; return false; }
             if (bytes[0] == (byte)'{') { error = "ElevenLabs sent text instead of audio: " + ResponseParser.Clip(Encoding.UTF8.GetString(bytes), 120); return false; }
             if (bytes.Length % 2 == 1) Array.Resize(ref bytes, bytes.Length - 1);
             pcm = bytes;
@@ -210,6 +220,116 @@ namespace KerbalNews
             var outBytes = new byte[(last - first + 1) * 2];
             Array.Copy(pcm, first * 2, outBytes, 0, outBytes.Length);
             return outBytes;
+        }
+
+        // ------------------------------------------------------------------ sound effects
+
+        public const string SfxModel = "eleven_text_to_sound_v3";
+
+        /// <summary>A sound effect from ElevenLabs (crowd, control room), as raw PCM like the voice.</summary>
+        public static HttpRequestSpec BuildSfx(string key, string prompt, double seconds, bool loop)
+        {
+            var body = new Dictionary<string, object>
+            {
+                { "text", prompt ?? "" },
+                { "duration_seconds", Math.Max(0.5, Math.Min(30, seconds)) },
+                { "prompt_influence", 0.5 },
+                { "model_id", SfxModel },
+            };
+            if (loop) body["loop"] = true;
+            var req = new HttpRequestSpec { Url = BaseUrl + "/sound-generation?output_format=pcm_22050", Body = Json.Write(body), TimeoutSeconds = 60 };
+            req.Headers["xi-api-key"] = key ?? "";
+            req.Headers["Content-Type"] = "application/json";
+            return req;
+        }
+
+        static short S(byte[] b, int i) { return (short)(b[2 * i] | b[2 * i + 1] << 8); }
+        static void Put(byte[] b, int i, double v) { int x = (int)Math.Round(Math.Max(-32767, Math.Min(32767, v))); b[2 * i] = (byte)x; b[2 * i + 1] = (byte)(x >> 8); }
+
+        /// <summary>Blends the end of a clip into its start, so it loops without a click even if it wasn't made seamless.</summary>
+        public static byte[] LoopSmooth(byte[] pcm)
+        {
+            if (pcm == null) return null;
+            int n = pcm.Length / 2, f = Math.Min(Rate / 2, n / 4);
+            if (f < 32) return pcm;
+            var o = new byte[(n - f) * 2];
+            Array.Copy(pcm, 0, o, 0, o.Length);
+            for (int i = 0; i < f; i++)
+            {
+                double a = (double)i / f;
+                Put(o, i, S(pcm, i) * a + S(pcm, n - f + i) * (1 - a));
+            }
+            return o;
+        }
+
+        /// <summary>A pure tone with soft edges, for the Quindar beeps around a controller's radio call.</summary>
+        public static double[] Tone(double hz, double seconds, double amp)
+        {
+            int n = (int)(Rate * seconds), edge = Rate / 200;
+            var o = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double env = Math.Min(1, Math.Min(i, n - 1 - i) / (double)edge);
+                o[i] = Math.Sin(2 * Math.PI * hz * i / Rate) * amp * env;
+            }
+            return o;
+        }
+
+        /// <summary>
+        /// Makes a clean voice clip sound like a mission control radio loop: a narrow 300-3000 Hz band, a little drive and
+        /// hiss, and (for the controller) the Quindar tones, 2525 Hz before the call and 2475 Hz after, as on Apollo.
+        /// Stations answering the poll get a thinner, slightly lower channel so they don't sound like the same person.
+        /// </summary>
+        public static byte[] Radio(byte[] pcm, bool quindar, bool station)
+        {
+            if (pcm == null || pcm.Length < 4) return pcm;
+            int n = pcm.Length / 2;
+            var x = new double[n];
+            for (int i = 0; i < n; i++) x[i] = S(pcm, i) / 32768.0;
+            if (station) x = Resample(x, 0.93);
+            double lo = station ? 450 : 300, hi = station ? 2500 : 3000;
+            double aH = Rate / (Rate + 2 * Math.PI * lo), aL = 2 * Math.PI * hi / (Rate + 2 * Math.PI * hi);
+            double hpPrev = 0, hpIn = 0, l1 = 0, l2 = 0, peak = 1e-6;
+            var rng = new Random(n);
+            var y = new double[x.Length];
+            for (int i = 0; i < x.Length; i++)
+            {
+                double hp = aH * (hpPrev + x[i] - hpIn); hpIn = x[i]; hpPrev = hp;
+                l1 += aL * (hp - l1); l2 += aL * (l1 - l2);
+                double v = Math.Tanh(l2 * (station ? 3.2 : 2.4));
+                v += (rng.NextDouble() - 0.5) * 0.012;
+                y[i] = v;
+                peak = Math.Max(peak, Math.Abs(v));
+            }
+            double g = 0.85 / peak;
+            var parts = new List<double[]>();
+            if (quindar) { parts.Add(Tone(2525, 0.25, 0.22)); parts.Add(new double[Rate / 12]); }
+            for (int i = 0; i < y.Length; i++) y[i] *= g;
+            parts.Add(y);
+            // Keying off: a short burst of static, then the closing tone.
+            var tail = new double[Rate / 14];
+            for (int i = 0; i < tail.Length; i++) tail[i] = (rng.NextDouble() - 0.5) * 0.18 * (1 - (double)i / tail.Length);
+            parts.Add(tail);
+            if (quindar) { parts.Add(new double[Rate / 20]); parts.Add(Tone(2475, 0.25, 0.22)); }
+            int total = parts.Sum(p => p.Length);
+            var o = new byte[total * 2];
+            int k = 0;
+            foreach (var p in parts) foreach (var v in p) Put(o, k++, v * 32767);
+            return o;
+        }
+
+        static double[] Resample(double[] x, double speed)
+        {
+            int n = (int)(x.Length / speed);
+            var o = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double p = i * speed;
+                int a = (int)p;
+                double f = p - a;
+                o[i] = a + 1 < x.Length ? x[a] * (1 - f) + x[a + 1] * f : x[Math.Min(a, x.Length - 1)];
+            }
+            return o;
         }
 
         public static double Seconds(byte[] pcm) { return pcm == null ? 0 : pcm.Length / 2.0 / Rate; }

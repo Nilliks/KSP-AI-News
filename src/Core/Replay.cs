@@ -236,7 +236,11 @@ namespace KerbalNews
         }
 
         public void CloseReplay() { if (Replay != null) { Replay.Playing = false; StopVoiceNow(); } }
-        void StopVoiceNow() { if (StopReplayVoice != null) { try { StopReplayVoice(); } catch (Exception) { } } }
+        void StopVoiceNow()
+        {
+            if (StopReplayVoice != null) { try { StopReplayVoice(); } catch (Exception) { } }
+            if (Stream == null) StopSounds();
+        }
 
         public void ReplayPlayPause()
         {
@@ -246,6 +250,7 @@ namespace KerbalNews
             r.Playing = !r.Playing;
             r.LastReal = -1;
             if (!r.Playing) StopVoiceNow();
+            else if (Stream == null && r.Data.Events.Any(e => ReplayData.K(e) == "sfx" && Json.Str(e, "x", "") == "room")) ReplaySfx("room");
             Changed();
         }
 
@@ -287,6 +292,7 @@ namespace KerbalNews
                     if (t > to) break;
                     string v = ReplayData.K(e) == "ann" ? Json.Str(e, "v", "") : "";
                     if (v != "") { try { PlayReplayVoice(r.Data.Folder, v); } catch (Exception) { } }
+                    if (ReplayData.K(e) == "sfx") ReplaySfx(Json.Str(e, "x", ""));
                 }
             if (to >= r.Data.Length) { r.Playing = false; Changed(); }
             else if ((int)from != (int)to) Changed();

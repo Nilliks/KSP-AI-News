@@ -11,6 +11,8 @@ namespace KerbalNews
     {
         public double At;
         public string Text = "";
+        /// <summary>"host" (the commentator), "ctl" (the flight controller on the radio) or "stn" (a station answering the poll).</summary>
+        public string Speaker = "host";
         public string Audio = "";
         public double Seconds;
     }
@@ -21,15 +23,47 @@ namespace KerbalNews
     /// commentary the stream's chat call also asks the AI for one line of colour. With an ElevenLabs key the lines are
     /// spoken; without one they show as captions. Short stock lines (countdown numbers) are cached so they're paid for once.
     /// </summary>
+    /// <summary>A line that can be recorded once: its words (Key), mood (Value) and who says it. Sound effects have
+    /// Speaker "sfx", their name as Key and the prompt as Value.</summary>
+    public class VoiceLine
+    {
+        public string Key = "", Value = "", Speaker = "host";
+        public double Seconds;
+        public bool Loop;
+    }
+
     public partial class NewsEngine
     {
         class Speech
         {
-            public string Text;
-            public double PlayAt, Deadline;
+            public string Text, Speaker = "host", Mood = "routine", Tag = "", Sfx = "";
+            public double PlayAt, Deadline, Gap;
             public byte[] Pcm;
             public bool Ready, Count;
+            public int Tries;
         }
+
+        /// <summary>Lines waiting for ElevenLabs: a few at a time, soonest first (the free plan allows few requests at once).</summary>
+        readonly List<KeyValuePair<Speech, Action>> fetches = new List<KeyValuePair<Speech, Action>>();
+        int fetching;
+        const int MaxFetching = 3;
+
+        void PumpFetches()
+        {
+            while (fetching < MaxFetching && fetches.Count > 0)
+            {
+                var next = fetches.OrderBy(f => f.Key.PlayAt).First();
+                fetches.Remove(next);
+                if (!speech.Contains(next.Key)) continue;   // dropped while it waited
+                fetching++;
+                next.Value();
+            }
+        }
+
+        static string SpeakerOf(string rule) { return rule.StartsWith("c_") ? "ctl" : rule.StartsWith("s_") ? "stn" : "host"; }
+        bool OnRadio(string speaker) { return speaker != "host" && Settings.ControllerOn; }
+        string VoiceOf(string speaker) { return OnRadio(speaker) ? Settings.ControllerVoiceId : Settings.VoiceId; }
+        string StyleOf(string speaker) { return OnRadio(speaker) ? "radio" : Settings.AnnouncerStyle; }
 
         readonly List<Speech> speech = new List<Speech>();
         /// <summary>Host: plays 16-bit mono PCM at the given rate, at the announcer volume.</summary>
@@ -72,14 +106,65 @@ namespace KerbalNews
             { "soi", new[] { "{craft} has entered {body}'s sphere of influence.", "We are now inside {body}'s sphere of influence." } },
             { "landing", new[] { "Touchdown! {craft} is down on {body}!", "Contact! We have touchdown on {body}.", "The vehicle is down on {body}. What a moment." } },
             { "splash", new[] { "Splashdown! {craft} is in the water.", "And splashdown. Welcome home.", "Splashdown confirmed." } },
-            { "dock", new[] { "Capture confirmed. We are docked.", "Docking confirmed. Two vehicles, one.", "And we have a hard dock." } },
-            { "boom", new[] { "We appear to have lost the vehicle.", "That is not what we wanted to see. We've lost the vehicle.", "Obviously a major malfunction. The vehicle is gone." } },
+            { "dock", new[] { "And they're docked! Two vehicles, now one.", "Docking confirmed. A beautiful piece of flying.", "And we have a hard dock." } },
+            { "boom", new[] { "We appear to have lost the vehicle.", "We can now confirm that the vehicle has been lost.", "Obviously a major malfunction. The vehicle is gone." } },
             { "anomaly", new[] { "We may have an anomaly there.", "We saw something come off the vehicle. Stand by.", "Looks like we've lost a piece of the vehicle." } },
             { "crew_lost", new[] { "We have lost the crew. Our thoughts are with their families.", "This is a dark day. The crew have been lost." } },
             { "milestone", new[] { "That's a first for {agency}.", "History is being made right now.", "A milestone moment for {agency}." } },
             { "telemetry", new[] { "Altitude {alt}, speed {speed} metres per second.", "{alt} up, travelling at {speed} metres per second.", "We're at {alt}. Velocity {speed} metres per second.", "Coming up on {alt}. Speed {speed}." } },
             { "coast", new[] { "The vehicle is coasting now. Apoapsis {ap}.", "Quiet on the vehicle as it coasts. Apoapsis is {ap}.", "Coasting, with an apoapsis of {ap}." } },
+            // The commentator around the flight controller's calls.
+            { "poll", new[] { "We're coming up on the go, no-go poll. Let's listen in.", "The launch director is about to poll the team. Let's listen.", "Time for the go, no-go poll. Here's the loop." } },
+            { "poll_go", new[] { "And the team is go for launch.", "All stations are go. We are go for launch.", "That's a go from everyone. We're go for launch." } },
+            { "standby", new[] { "We're standing by for more information from the flight team.", "Stand by. We're waiting on word from mission control.", "We don't have any more information at this time. Please stand by." } },
+            { "recap_loss", new[] { "The flight team will now begin looking into what happened. We'll share more as we learn it.", "An investigation will follow. We'll bring you more information when we have it." } },
+            { "signoff", new[] { "That concludes our live coverage. Thank you for watching.", "That's all from us. Thanks for joining the broadcast.", "And that wraps up today's coverage. Thanks for watching." } },
+            { "lag", new[] { "The signal takes {lag} to reach us from {body}, so we're waiting on confirmation.", "It takes {lag} for the signal to get here from {body}. Stand by for confirmation." } },
+            // The flight controller, on the radio loop.
+            { "c_tower", new[] { "Tower cleared.", "The vehicle has cleared the tower." } },
+            { "c_super", new[] { "Vehicle is supersonic.", "Supersonic." } },
+            { "c_bucket", new[] { "Throttling down for max Q.", "Engines throttling down." } },
+            { "c_maxq", new[] { "Max Q. Peak aerodynamic pressure.", "Vehicle is through max Q." } },
+            { "c_throttle_up", new[] { "Throttling back up.", "Engines back at full throttle." } },
+            { "c_meco", new[] { "MECO. Main engine cutoff.", "Main engine cutoff confirmed." } },
+            { "c_cutoff", new[] { "Engine cutoff.", "Cutoff confirmed." } },
+            { "c_stage", new[] { "Stage separation confirmed.", "Separation confirmed.", "We have good separation." } },
+            { "c_ignite", new[] { "Ignition.", "Good ignition.", "Engine ignition confirmed." } },
+            { "c_orbit", new[] { "Flight, we have orbit insertion.", "Orbital insertion confirmed." } },
+            { "c_touchdown", new[] { "Contact light.", "Touchdown confirmed." } },
+            { "c_splash", new[] { "Splashdown confirmed.", "Flight, we have splashdown." } },
+            { "c_dock", new[] { "Capture confirmed.", "Contact and capture." } },
+            { "c_anomaly", new[] { "Flight, we're seeing an anomaly.", "We've got an off-nominal reading, flight." } },
+            { "c_los", new[] { "Flight, we've lost telemetry.", "We have loss of signal.", "No data, flight." } },
+            { "c_poll_open", new[] { "All stations, this is the launch director. Stand by for the go, no-go poll for launch." } },
+            { "c_poll_close", new[] { "Launch director is go. We are go for launch.", "Copy all. We are go for launch." } },
+            { "s_go", new[] { "Go.", "Go for launch.", "We're go." } },
         };
+
+        /// <summary>The stations the launch director polls, and how each answers when crewed flights add the crew.</summary>
+        static readonly string[][] PollStations =
+        {
+            new[] { "Booster." }, new[] { "Propulsion." }, new[] { "Guidance." }, new[] { "Range." }, new[] { "Weather." }, new[] { "Crew support." },
+        };
+
+        public const string ControllerSample = "Flight, guidance. Vehicle is supersonic. Max Q in ten seconds.";
+
+        /// <summary>Sound effects, made once with ElevenLabs and shipped: name, prompt, seconds, loop or once.</summary>
+        public static readonly string[][] Sounds =
+        {
+            new[] { "room", "Quiet mission control room ambience: low murmur of people talking, soft keyboard typing, faint radio chatter, air conditioning hum. No music.", "22", "loop" },
+            new[] { "cheer", "A large crowd of spectators outdoors at a rocket launch viewing site cheering, whistling and clapping, heard from a short distance.", "9", "once" },
+            new[] { "rumble", "The deep crackling roar of a large rocket launch heard from several kilometres away, rising and then slowly fading.", "14", "once" },
+            new[] { "applause", "A mission control room erupts in applause and cheering, people clapping and shouting with joy, indoors.", "7", "once" },
+            new[] { "gasp", "A crowd of spectators gasps in shock all at once, a few cries, then falls silent.", "4", "once" },
+            new[] { "murmur", "A worried crowd murmuring quietly after something went wrong, outdoors.", "6", "once" },
+        };
+
+        static string SfxKey(string name)
+        {
+            var fx = Sounds.FirstOrDefault(x => x[0] == name);
+            return fx == null ? "" : Voice.CacheKey("sfx:" + name, Voice.SfxModel, fx[1] + "|" + fx[2] + "|" + fx[3]);
+        }
 
         static readonly string[] CountWords = { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten" };
 
@@ -103,9 +188,9 @@ namespace KerbalNews
             // With the voice on, prefer lines already recorded (pre-recorded or said before): they play at once and cost nothing.
             if (CanPlay && VoiceCacheGet != null && opts.Length > 1)
             {
-                string mood = RuleMood(rule);
+                string mood = RuleMood(rule), who = SpeakerOf(rule);
                 var cached = Enumerable.Range(0, opts.Length).Where(i => i != (annLast.ContainsKey(rule + "#prev") ? annLast[rule + "#prev"] : -1))
-                    .Where(i => { string t = fill(opts[i]); return t != "" && IsRecorded(t, mood); }).ToList();
+                    .Where(i => { string t = fill(opts[i]); return t != "" && IsRecorded(t, mood, who); }).ToList();
                 if (cached.Count > 0) pick = cached[rng.Next(cached.Count)];
             }
             annLast[rule + "#prev"] = pick;
@@ -114,21 +199,22 @@ namespace KerbalNews
 
         static string RuleMood(string rule)
         {
-            return rule == "boom" || rule == "crew_lost" ? "loss"
-                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" ? "tense"
-                : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" ? "big"
+            return rule == "boom" || rule == "crew_lost" || rule == "recap_loss" || rule == "c_los" ? "loss"
+                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" || rule == "standby" || rule == "lag" || rule == "c_anomaly" ? "tense"
+                : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" || rule == "poll_go" || rule == "c_poll_close" ? "big"
                 : rule == "zero" || rule == "count_30" ? "count" : "routine";
         }
 
-        string VoiceKeyFor(string text, string mood)
+        string VoiceKeyFor(string text, string mood, string speaker = "host")
         {
-            return Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, Voice.Spoken(text, mood, Settings.AnnouncerStyle, Settings.VoiceModel));
+            string style = StyleOf(speaker);
+            return Voice.CacheKey(VoiceOf(speaker), Settings.VoiceModel + "|" + style, Voice.Spoken(text, mood, style, Settings.VoiceModel));
         }
 
-        bool IsRecorded(string text, string mood)
+        bool IsRecorded(string text, string mood, string speaker = "host")
         {
             if (VoiceCacheGet == null) return false;
-            try { var b = VoiceCacheGet(VoiceKeyFor(text, mood)); return b != null && b.Length > 0; } catch (Exception) { return false; }
+            try { var b = VoiceCacheGet(VoiceKeyFor(text, mood, speaker)); return b != null && b.Length > 0; } catch (Exception) { return false; }
         }
 
         // ------------------------------------------------------------------ pre-recording
@@ -137,15 +223,23 @@ namespace KerbalNews
 
         /// <summary>Every announcer line that doesn't name the craft or read out live numbers, in the current voice's words:
         /// the countdown, the stock calls, orbit and landings at the usual places. These can be recorded once and reused.</summary>
-        public List<KeyValuePair<string, string>> CommonLines()
+        public List<VoiceLine> CommonLines()
         {
-            var l = new List<KeyValuePair<string, string>>();
-            Action<string, string> add = (t, mood) => { if (t != "" && !t.Contains("{") && !l.Any(x => x.Key == t && x.Value == mood)) l.Add(new KeyValuePair<string, string>(t, mood)); };
+            var l = new List<VoiceLine>();
+            var keys = new HashSet<string>();
+            string who = "host";
+            Action<string, string> add = (t, mood) =>
+            {
+                if (t == "" || t.Contains("{")) return;
+                string sp = who == "stn" ? "ctl" : who;   // a station's answer is the controller's recording, filtered differently
+                if (keys.Add(VoiceKeyFor(t, mood, sp))) l.Add(new VoiceLine { Key = t, Value = mood, Speaker = sp });
+            };
             for (int n = 10; n >= 1; n--) add(CountWords[n] + ".", "count");
             foreach (var kv in AnnLines)
             {
-                if (kv.Key == "telemetry" || kv.Key == "coast") continue;
+                if (kv.Key == "telemetry" || kv.Key == "coast" || kv.Key == "lag") continue;
                 string mood = RuleMood(kv.Key);
+                who = SpeakerOf(kv.Key);
                 foreach (var o in kv.Value)
                 {
                     if (o.Contains("{craft}") || o.Contains("{crew}") || o.Contains("{alt}") || o.Contains("{speed}") || o.Contains("{ap}")) continue;
@@ -160,27 +254,54 @@ namespace KerbalNews
                     add(t, mood);
                 }
             }
+            who = "host";
             add(SampleLine, "big");
+            who = "ctl";
+            add(ControllerSample, "routine");
+            foreach (var st in PollStations) add(st[0], "routine");
+            foreach (var fx in Sounds)
+                if (keys.Add(SfxKey(fx[0]))) l.Add(new VoiceLine { Key = fx[0], Value = fx[1], Speaker = "sfx", Seconds = double.Parse(fx[2], CultureInfo.InvariantCulture), Loop = fx[3] == "loop" });
             return l;
+        }
+
+        string LineKey(VoiceLine x) { return x.Speaker == "sfx" ? SfxKey(x.Key) : VoiceKeyFor(x.Key, x.Value, x.Speaker); }
+        bool LineRecorded(VoiceLine x)
+        {
+            if (VoiceCacheGet == null) return false;
+            try { var b = VoiceCacheGet(LineKey(x)); return b != null && b.Length > 0; } catch (Exception) { return false; }
+        }
+
+        /// <summary>The bank folder a line ships in: the commentator's, the controller's, or the sound effects.</summary>
+        string BankOf(string speaker)
+        {
+            if (speaker == "sfx") return "sfx";
+            return (VoiceLabel(VoiceOf(speaker)) + "-" + Settings.VoiceModel + "-" + StyleOf(speaker)).ToLowerInvariant().Replace(" ", "_").Replace("/", "_").Replace("\\", "_");
         }
 
         /// <summary>Host: copies recorded clips into a voice bank that ships with the mod (folder, then key and words for each).</summary>
         public Action<string, List<KeyValuePair<string, string>>> ExportVoiceBank;
 
         /// <summary>The bank's folder name for the current voice, model and style, e.g. chris-eleven_v3-calm.</summary>
-        public string BankName { get { return (VoiceLabel(Settings.VoiceId) + "-" + Settings.VoiceModel + "-" + Settings.AnnouncerStyle).ToLowerInvariant().Replace(" ", "_").Replace("/", "_").Replace("\\", "_"); } }
+        public string BankName { get { return BankOf("host"); } }
+        public string ControllerBankName { get { return BankOf("ctl"); } }
+        public bool SoundRecorded(string name) { return SoundClip(name) != null; }
 
-        /// <summary>The recorded common lines that fit every player (not the ones with this save's agency name), for shipping.</summary>
+        /// <summary>The recorded common lines that fit every player (not the ones with this save's agency name), for shipping:
+        /// one folder for the commentator, one for the controller, one for the sound effects.</summary>
         public int ExportBank()
         {
             if (ExportVoiceBank == null) return 0;
-            var lines = CommonLines().Where(x => !x.Key.Contains(AgencyName) && IsRecorded(x.Key, x.Value))
-                .Select(x => new KeyValuePair<string, string>(VoiceKeyFor(x.Key, x.Value), x.Key)).ToList();
-            if (lines.Count > 0) ExportVoiceBank(BankName, lines);
-            return lines.Count;
+            int n = 0;
+            foreach (var g in CommonLines().Where(x => !x.Key.Contains(AgencyName) && LineRecorded(x)).GroupBy(x => BankOf(x.Speaker)))
+            {
+                var lines = g.Select(x => new KeyValuePair<string, string>(LineKey(x), x.Speaker == "sfx" ? x.Key + ": " + x.Value : x.Key)).ToList();
+                ExportVoiceBank(g.Key, lines);
+                n += lines.Count;
+            }
+            return n;
         }
 
-        public List<KeyValuePair<string, string>> LinesToRecord() { return CommonLines().Where(x => !IsRecorded(x.Key, x.Value)).ToList(); }
+        public List<VoiceLine> LinesToRecord() { return CommonLines().Where(x => !LineRecorded(x)).ToList(); }
 
         public bool Prerecording { get; private set; }
         public string PrerecordStatus = "";
@@ -193,11 +314,12 @@ namespace KerbalNews
             if (todo.Count == 0) { PrerecordStatus = "All common lines are already recorded."; return false; }
             Prerecording = true;
             int done = 0, total = todo.Count;
-            string voice = Settings.VoiceId, model = Settings.VoiceModel, style = Settings.AnnouncerStyle;
+            string voice = Settings.VoiceId, model = Settings.VoiceModel, style = Settings.AnnouncerStyle, ctl = Settings.ControllerVoiceId;
+            bool ctlOn = Settings.ControllerOn;
             Action next = null;
             next = () =>
             {
-                if (done >= todo.Count || Settings.VoiceId != voice || Settings.VoiceModel != model || Settings.AnnouncerStyle != style)
+                if (done >= todo.Count || Settings.VoiceId != voice || Settings.VoiceModel != model || Settings.AnnouncerStyle != style || Settings.ControllerVoiceId != ctl || Settings.ControllerOn != ctlOn)
                 {
                     Prerecording = false;
                     PrerecordStatus = done >= todo.Count ? "Recorded " + total + " lines. They play instantly and cost nothing from now on." : "Stopped: the voice settings changed. Press the button again for the new voice.";
@@ -205,15 +327,23 @@ namespace KerbalNews
                     return;
                 }
                 var item = todo[done];
-                string spoken = Voice.Spoken(item.Key, item.Value, style, model);
+                string key = LineKey(item);
+                HttpRequestSpec req;
+                if (item.Speaker == "sfx") req = Voice.BuildSfx(Settings.VoiceKey, item.Value, item.Seconds, item.Loop);
+                else
+                {
+                    string st = StyleOf(item.Speaker);
+                    req = Voice.Build(Settings.VoiceKey, VoiceOf(item.Speaker), model, Voice.Spoken(item.Key, item.Value, st, model), st);
+                }
                 VoiceCalls++;
-                Transport.Send(Voice.Build(Settings.VoiceKey, voice, model, spoken, style), res =>
+                Transport.Send(req, res =>
                 {
                     byte[] pcm;
                     string err;
                     if (Voice.TryExtract(res, out pcm, out err))
                     {
-                        try { VoiceCachePut(Voice.CacheKey(voice, model + "|" + style, spoken), pcm); } catch (Exception) { }
+                        if (item.Loop) pcm = Voice.LoopSmooth(pcm);
+                        try { VoiceCachePut(key, pcm); } catch (Exception) { }
                         done++;
                         PrerecordStatus = "Recording... " + done + " of " + total;
                         changed();
@@ -300,27 +430,13 @@ namespace KerbalNews
             else if (m.StartsWith("docking")) rule = "dock";
             else if (m.Contains("crew lost")) rule = "crew_lost";
             else if (m.Contains("destroyed")) rule = "boom";
-            else if (m.Contains("part of the vessel exploded")) rule = st.Lifted && realTime - st.LastAnnReal > 8 ? "anomaly" : null;
+            else if (m.Contains("part of the vessel exploded")) rule = st.Lifted ? "anomaly" : null;
             else if (m.StartsWith("milestone")) rule = "milestone";
-            else if (mode >= 2 && m.StartsWith("stage ") && st.Lifted) rule = realTime - st.LastAnnReal > 12 ? "stage" : null;
+            else if (m.StartsWith("stage ") && st.Lifted) rule = "stage";
             else if (mode >= 2 && m.Contains("onboard hull cameras")) rule = realTime - st.LastAnnReal > 10 ? "onboard" : null;
             if (rule == null) return;
             if (x.ContainsKey("body") && x["body"] == "") x["body"] = st.Last != null ? st.Last.Body : "Kerbin";
-            string line = AnnLine(rule, st, x);
-            if (line == "") return;
-            bool urgent = rule == "liftoff" || rule == "liftoff_crew" || rule == "boom" || rule == "crew_lost" || rule == "hold" || rule == "scrub";
-            if (urgent) speech.RemoveAll(s => !s.Count);   // nothing queued should hold up a liftoff or a loss
-            double playAt = 0;
-            if (rule == "boom" || rule == "crew_lost")
-            {
-                // A real commentator goes quiet for a moment before finding the words: stop mid-sentence, then a beat of silence.
-                if (realTime < voiceFreeAt && StopVoice != null) { try { StopVoice(); } catch (Exception) { } }
-                double beat = 1.6 + (OfflineWriter.StableHash(st.VesselId + realTime.ToString("0", CultureInfo.InvariantCulture)) & 0x7fffffff) % 900 / 1000.0;
-                playAt = realTime + beat;
-                voiceFreeAt = Math.Min(voiceFreeAt, playAt);
-                if (st.Caption != "") { st.Caption = ""; Changed(); }
-            }
-            Say(st, line, realTime, playAt, urgent ? 6 : 12, false, RuleMood(rule));
+            CallMoment(st, rule, x, realTime);
         }
 
         static string BodyFrom(string what, string after)
@@ -333,41 +449,56 @@ namespace KerbalNews
         }
 
         /// <summary>Queues a line. playAt 0 means as soon as it's ready; maxWait is how stale it may get before it's dropped.</summary>
-        void Say(StreamSession st, string text, double realTime, double playAt, double maxWait, bool count = false, string mood = "routine")
+        Speech Say(StreamSession st, string text, double realTime, double playAt, double maxWait, bool count = false, string mood = "routine",
+            string speaker = "host", double gap = 0, string tag = "", string sfx = "")
         {
             if (count) mood = "count";
             text = (text ?? "").Trim();
-            if (Settings.Announcer <= 0 || text == "" || st == null) return;
+            if (Settings.Announcer <= 0 || text == "" || st == null) return null;
             double at = playAt > 0 ? playAt : realTime;
-            var sp = new Speech { Text = text, PlayAt = at, Deadline = at + maxWait, Count = count };
+            var sp = new Speech { Text = text, PlayAt = at, Deadline = at + maxWait, Count = count, Speaker = speaker, Mood = mood, Gap = gap, Tag = tag, Sfx = sfx };
             speech.Add(sp);
             st.LastAnnReal = Math.Max(st.LastAnnReal, realTime);
-            if (!CanPlay) { sp.Ready = true; return; }
-            string spoken = Voice.Spoken(text, mood, Settings.AnnouncerStyle, Settings.VoiceModel);
-            string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
+            if (!CanPlay) { sp.Ready = true; return sp; }
+            string rec = speaker == "stn" ? "ctl" : speaker;
+            string style = StyleOf(rec), voice = VoiceOf(rec);
+            string spoken = Voice.Spoken(text, mood, style, Settings.VoiceModel);
+            string key = Voice.CacheKey(voice, Settings.VoiceModel + "|" + style, spoken);
             byte[] cached = null;
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
-            if (cached != null && cached.Length > 0) { sp.Pcm = cached; sp.Ready = true; return; }
-            if (!VoiceReady) { sp.Ready = true; return; }   // no key: this line is a caption
-            VoiceCalls++;
+            if (cached != null && cached.Length > 0) { sp.Pcm = cached; sp.Ready = true; return sp; }
+            if (!VoiceReady) { sp.Ready = true; return sp; }   // no key: this line is a caption
             bool keep = count || st.VesselName == "" || !text.Contains(st.VesselName);   // anything without the craft's name can come up again
-            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
+            string model = Settings.VoiceModel, vkey = Settings.VoiceKey;
+            Action send = null;
+            send = () =>
             {
-                byte[] pcm;
-                string err;
-                if (Voice.TryExtract(res, out pcm, out err))
+                VoiceCalls++;
+                sp.Tries++;
+                Transport.Send(Voice.Build(vkey, voice, model, spoken, style), res =>
                 {
-                    sp.Pcm = pcm;
-                    VoiceStatus = "";
-                    if (keep && VoiceCachePut != null) { try { VoiceCachePut(key, pcm); } catch (Exception) { } }
-                }
-                else
-                {
-                    VoiceStatus = err;
-                    if (Voice.IsFatal(res)) VoiceBroken = true;
-                }
-                sp.Ready = true;
-            });
+                    fetching = Math.Max(0, fetching - 1);
+                    byte[] pcm;
+                    string err;
+                    if (Voice.TryExtract(res, out pcm, out err))
+                    {
+                        sp.Pcm = pcm;
+                        VoiceStatus = "";
+                        if (keep && VoiceCachePut != null) { try { VoiceCachePut(key, pcm); } catch (Exception) { } }
+                    }
+                    else if (res != null && res.Status == 429 && sp.Tries < 3) { fetches.Add(new KeyValuePair<Speech, Action>(sp, send)); PumpFetches(); return; }
+                    else
+                    {
+                        VoiceStatus = err;
+                        if (Voice.IsFatal(res)) VoiceBroken = true;
+                    }
+                    sp.Ready = true;
+                    PumpFetches();
+                });
+            };
+            fetches.Add(new KeyValuePair<Speech, Action>(sp, send));
+            PumpFetches();
+            return sp;
         }
 
         /// <summary>The final ten seconds, one number a second, fetched a few seconds early so each lands on time.</summary>
@@ -410,19 +541,22 @@ namespace KerbalNews
         void TickVoice(StreamSession st, double realTime)
         {
             speech.RemoveAll(s => realTime > s.Deadline);
+            PumpFetches();
             if (speech.Count == 0) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             var next = speech.Where(s => s.Ready && s.PlayAt <= realTime).OrderBy(s => s.PlayAt).FirstOrDefault();
             // Countdown numbers go on the second, cutting off whatever is still playing; anything else waits its turn and
             // never starts if it would run into a number.
             bool blocked = next == null
-                || !next.Count && realTime < voiceFreeAt
+                || !next.Count && realTime < voiceFreeAt + next.Gap
                 || !next.Count && speech.Any(s => s.Count && s.PlayAt < realTime + Math.Max(1.5, Voice.Seconds(next.Pcm) + 0.3));
             if (blocked) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             speech.Remove(next);
             if (next.Pcm != null) next.Pcm = Voice.Trim(next.Pcm, next.Count);
+            if (next.Pcm != null && OnRadio(next.Speaker)) next.Pcm = Voice.Radio(next.Pcm, next.Speaker == "ctl", next.Speaker == "stn");
+            if (next.Sfx != "") PlaySfx(st, next.Sfx, realTime);
             double dur = Voice.Seconds(next.Pcm);
             int words = next.Text.Split(' ').Length;
-            var line = new AnnouncerLine { At = realTime - st.StartReal, Text = next.Text, Seconds = dur };
+            var line = new AnnouncerLine { At = realTime - st.StartReal, Text = next.Text, Seconds = dur, Speaker = next.Speaker };
             if (next.Pcm != null && next.Pcm.Length > 0)
             {
                 try { PlayVoice(next.Pcm, Voice.Rate); } catch (Exception) { }
@@ -435,10 +569,10 @@ namespace KerbalNews
             }
             else voiceFreeAt = realTime + (next.Count ? 0.6 : 1.5);   // captions only: a short gap so lines don't flash past
             st.Said.Add(line);
-            st.Caption = next.Text;
+            st.Caption = (next.Speaker == "host" || !Settings.ControllerOn ? "" : next.Speaker == "ctl" ? "FLIGHT: " : "LOOP: ") + next.Text;
             st.CaptionUntil = realTime + Math.Max(next.Count ? 1 : 4, Math.Max(dur + 1.5, words * 0.4));
             st.LastAnnReal = realTime;
-            Record(st, realTime, "ann", "x", line.Text, "v", line.Audio, "d", Math.Round(dur, 2));
+            Record(st, realTime, "ann", "x", st.Caption, "v", line.Audio, "d", Math.Round(dur, 2));
             Changed();
         }
 
@@ -448,23 +582,26 @@ namespace KerbalNews
         /// A sample of the chosen voice, model and style from the settings page (also when a voice is picked). The same sample
         /// is saved, so listening to a voice again costs nothing.
         /// </summary>
-        public bool VoiceTest(Action<string> done)
+        public bool VoiceTest(Action<string> done, string speaker = "host")
         {
             if (PlayVoice == null) { done("The voice can only play inside the game."); return false; }
-            string spoken = Voice.Spoken(SampleLine, "big", Settings.AnnouncerStyle, Settings.VoiceModel);
-            string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
-            string who = VoiceLabel(Settings.VoiceId);
+            string style = StyleOf(speaker), voice = VoiceOf(speaker), text = speaker == "host" ? SampleLine : ControllerSample, mood = speaker == "host" ? "big" : "routine";
+            bool radio = OnRadio(speaker);
+            string spoken = Voice.Spoken(text, mood, style, Settings.VoiceModel);
+            string key = Voice.CacheKey(voice, Settings.VoiceModel + "|" + style, spoken);
+            string who = VoiceLabel(voice);
+            Func<byte[], byte[]> fx = p => radio ? Voice.Radio(Voice.Trim(p, false), true, false) : p;
             byte[] cached = null;
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
             if (cached != null && cached.Length > 0)
             {
-                try { PlayVoice(cached, Voice.Rate); } catch (Exception) { }
+                try { PlayVoice(fx(cached), Voice.Rate); } catch (Exception) { }
                 done("Playing " + who + ".");
                 return true;
             }
             if (Settings.VoiceKey == "" || Transport == null) { done("No recording of " + who + " comes with the mod. Save an ElevenLabs key to hear any voice."); return false; }
             VoiceCalls++;
-            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
+            Transport.Send(Voice.Build(Settings.VoiceKey, voice, Settings.VoiceModel, spoken, style), res =>
             {
                 byte[] pcm;
                 string err;
@@ -472,7 +609,7 @@ namespace KerbalNews
                 {
                     VoiceBroken = false; VoiceStatus = "";
                     if (VoiceCachePut != null) { try { VoiceCachePut(key, pcm); } catch (Exception) { } }
-                    try { PlayVoice(pcm, Voice.Rate); } catch (Exception) { }
+                    try { PlayVoice(fx(pcm), Voice.Rate); } catch (Exception) { }
                     done("Playing " + who + ".");
                 }
                 else { VoiceStatus = err; done(err); }

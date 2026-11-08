@@ -33,6 +33,11 @@ namespace KerbalNews
         public double VoiceVolume = 0.8;
         /// <summary>"calm" (mission control) or "excited" (sportscaster): the delivery directions and voice settings.</summary>
         public string AnnouncerStyle = "calm";
+        /// <summary>The flight controller: a second, calm voice on the radio loop for the callouts and the go/no-go poll.</summary>
+        public bool ControllerOn = true;
+        public string ControllerVoiceId = Voice.DefaultController;
+        /// <summary>Crowd, applause and control-room sound under the stream: 0 off, up to 1.</summary>
+        public double SfxVolume = 0.6;
         /// <summary>Voices loaded from the player's ElevenLabs account: "id|name|description;..." (not secret).</summary>
         public string FetchedVoices = "";
         public List<string[]> FetchedVoiceList
@@ -240,6 +245,9 @@ namespace KerbalNews
             settings.Add("voiceModel", VoiceModel);
             settings.Add("voiceVolume", VoiceVolume);
             settings.Add("announcerStyle", AnnouncerStyle);
+            settings.Add("controllerOn", ControllerOn);
+            settings.Add("controllerVoice", ControllerVoiceId);
+            settings.Add("sfxVolume", SfxVolume);
             settings.Add("voiceDefaults2", true);
             settings.AddText("voices", FetchedVoices);
             settings.Add("replays", ReplayQuality);
@@ -320,6 +328,10 @@ namespace KerbalNews
                 if (!settings.GetBool("voiceDefaults2") && g.VoiceId == "pNInz6obpgDQGcFmaJgB" && g.VoiceModel == "eleven_flash_v2_5") { g.VoiceId = Voice.DefaultVoice; g.VoiceModel = Voice.DefaultModel; }
                 g.VoiceVolume = Math.Max(0, Math.Min(1, settings.GetDouble("voiceVolume", 0.8)));
                 g.AnnouncerStyle = settings.Get("announcerStyle", "calm") == "excited" ? "excited" : "calm";
+                g.ControllerOn = settings.GetBool("controllerOn", true);
+                g.ControllerVoiceId = settings.Get("controllerVoice", Voice.DefaultController);
+                if (g.ControllerVoiceId == "") g.ControllerVoiceId = Voice.DefaultController;
+                g.SfxVolume = Math.Max(0, Math.Min(1, settings.GetDouble("sfxVolume", 0.6)));
                 g.FetchedVoices = settings.GetText("voices") ?? "";
                 g.ReplayQuality = Math.Max(0, Math.Min(2, settings.GetInt("replays", 1)));
                 g.ReplayMaxGb = Math.Max(1, Math.Min(50, settings.GetInt("replayMaxGb", 3)));

@@ -19,7 +19,7 @@ namespace KerbalNews.KSP
         /// <summary>Self-test only: use the hull cameras whatever the distance.</summary>
         public static bool ForceHull;
 
-        float nextSample, nextFrame, lastBoom, nextRecTry;
+        float nextSample, nextFrame, lastBoom, nextRecTry, nextFlight;
         string liftedFor = "";
         readonly System.Random rng = new System.Random();
 
@@ -50,8 +50,19 @@ namespace KerbalNews.KSP
             var v = FlightGlobals.ActiveVessel;
             if (v == null || v.persistentId.ToString() != id)
                 v = FlightGlobals.Vessels == null ? null : FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.loaded && x.persistentId.ToString() == id);
+            var n = v != null ? Numbers(v) : new LiveNumbers();
+            if (v == null && eng.Stream.Last != null)
+            {
+                var t = eng.Stream.Last;
+                n.UT = t.UT; n.Altitude = t.Altitude; n.Speed = t.Speed; n.Apoapsis = t.Apoapsis; n.Periapsis = t.Periapsis; n.Stage = t.Stage; n.FuelPct = t.FuelPct; n.Situation = t.Situation;
+            }
+            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup));
+        }
+
+        /// <summary>The craft's numbers this instant: for the overlay and the flight controller's callouts.</summary>
+        static LiveNumbers Numbers(Vessel v)
+        {
             var n = new LiveNumbers();
-            if (v != null)
             {
                 n.UT = Planetarium.GetUniversalTime();
                 n.Altitude = v.altitude;
@@ -68,13 +79,13 @@ namespace KerbalNews.KSP
                         foreach (PartResource r in p.Resources)
                             if (r.resourceName == "LiquidFuel" || r.resourceName == "Oxidizer" || r.resourceName == "SolidFuel") { amount += r.amount; max += r.maxAmount; }
                 n.FuelPct = max > 0 ? amount / max * 100 : -1;
+                n.Mach = v.mach;
+                double thrust = 0;
+                foreach (var e in v.FindPartModulesImplementing<ModuleEngines>())
+                    if (e != null && e.EngineIgnited && !e.flameout) thrust += e.finalThrust;
+                n.Thrust = thrust;
             }
-            else if (eng.Stream.Last != null)
-            {
-                var t = eng.Stream.Last;
-                n.UT = t.UT; n.Altitude = t.Altitude; n.Speed = t.Speed; n.Apoapsis = t.Apoapsis; n.Periapsis = t.Periapsis; n.Stage = t.Stage; n.FuelPct = t.FuelPct; n.Situation = t.Situation;
-            }
-            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup));
+            return n;
         }
 
         Vessel Streamed()
@@ -125,6 +136,13 @@ namespace KerbalNews.KSP
                 }
                 try { eng.StreamSample(Sample(v), now); }
                 catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream telemetry: " + e.Message); }
+            }
+            // The flight controller's callouts (supersonic, max Q, cutoff) need the numbers more often than the chat does.
+            if (v != null && now > nextFlight)
+            {
+                nextFlight = now + 0.2f;
+                try { eng.StreamFlight(Numbers(v), now); }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream callouts: " + e.Message); nextFlight = now + 5; }
             }
             eng.TickStream(now, !eng.WarpHold && TimeWarp.CurrentRate <= 1.01f);   // the stream chat waits out a time warp too
         }
@@ -529,6 +547,8 @@ namespace KerbalNews.KSP
                     foreach (PartResource r in p.Resources)
                         if (r.resourceName == "LiquidFuel" || r.resourceName == "Oxidizer" || r.resourceName == "SolidFuel") { amount += r.amount; max += r.maxAmount; }
             s.FuelPct = max > 0 ? amount / max * 100 : -1;
+            var home = FlightGlobals.GetHomeBody();
+            if (home != null && v.mainBody != home) s.SignalDelay = (v.GetWorldPos3D() - home.position).magnitude / 299792458.0;
             var crew = v.GetVesselCrew();
             if (crew != null) foreach (var c in crew) s.Crew.Add(c.name);
             return s;

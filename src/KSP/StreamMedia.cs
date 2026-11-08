@@ -55,6 +55,53 @@ namespace KerbalNews.KSP
         }
     }
 
+    /// <summary>The stream's sound bed: control-room ambience on a loop, and crowd and launch-roar effects, one source each.</summary>
+    public static class StreamSounds
+    {
+        static readonly Dictionary<string, AudioSource> sources = new Dictionary<string, AudioSource>();
+        static GameObject host;
+
+        static AudioSource Src(string channel)
+        {
+            AudioSource s;
+            if (sources.TryGetValue(channel, out s) && s != null) return s;
+            if (host == null) { host = new GameObject("KerbalNewsSounds"); UnityEngine.Object.DontDestroyOnLoad(host); }
+            s = host.AddComponent<AudioSource>();
+            s.playOnAwake = false;
+            s.spatialBlend = 0f;
+            sources[channel] = s;
+            return s;
+        }
+
+        public static void Play(string channel, byte[] pcm, bool loop, double volume)
+        {
+            if (pcm == null || pcm.Length < 4) return;
+            try
+            {
+                int n = pcm.Length / 2;
+                var data = new float[n];
+                for (int i = 0; i < n; i++) data[i] = (short)(pcm[2 * i] | pcm[2 * i + 1] << 8) / 32768f;
+                var clip = AudioClip.Create("KerbalNewsSound", n, 1, Voice.Rate, false);
+                clip.SetData(data, 0);
+                var s = Src(channel);
+                var old = s.clip;
+                s.Stop();
+                s.clip = clip;
+                s.loop = loop;
+                s.volume = (float)Math.Max(0, Math.Min(1, volume));
+                s.Play();
+                if (old != null) UnityEngine.Object.Destroy(old);
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream sound: " + e.Message); }
+        }
+
+        public static void Stop(string channel)
+        {
+            foreach (var kv in sources)
+                if (kv.Value != null && (channel == null || kv.Key == channel)) kv.Value.Stop();
+        }
+    }
+
     /// <summary>
     /// Replays on disk, beside each save (saves/&lt;save&gt;/KerbalNews/replays/&lt;folder&gt;): index.json, f00001.jpg frames and
     /// v001.wav announcer clips. Also the cache of short announcer clips (GameData/KerbalNews/PluginData/VoiceCache).

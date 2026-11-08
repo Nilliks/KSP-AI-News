@@ -16,7 +16,7 @@ namespace KerbalNews.Web
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };
             m["announcerOpts"] = new List<object> { opt("Off", "announcer/0", g.Announcer == 0), opt("Big moments", "announcer/1", g.Announcer == 1), opt("Full commentary", "announcer/2", g.Announcer == 2) };
             m["announcerHint"] = g.Announcer == 0 ? "No announcer on your streams."
-                : g.Announcer == 1 ? "The announcer calls the countdown (the last ten seconds one by one), liftoff, orbit, landings, holds, scrubs and anything going wrong. No AI calls: the lines come from templates."
+                : g.Announcer == 1 ? "The announcer calls the countdown (the last ten seconds one by one), liftoff, orbit, landings, holds, scrubs and anything going wrong, and the flight controller makes the radio callouts and runs the go/no-go poll. No AI calls: the lines come from templates."
                 : "Everything in Big moments, plus staging, camera cuts, the odd altitude and speed call on the climb, and one line of AI commentary with each chat update (no extra AI calls; it rides along).";
             m["announcerOn"] = g.Announcer > 0;
             bool hasKey = g.VoiceKey != "";
@@ -28,6 +28,17 @@ namespace KerbalNews.Web
             m["voicesLoaded"] = g.FetchedVoiceList.Count > 0;
             m["styleOpts"] = new List<object> { opt("Mission control (calm)", "announcer-style/calm", g.AnnouncerStyle != "excited"), opt("Sportscaster (excited)", "announcer-style/excited", g.AnnouncerStyle == "excited") };
             m["directed"] = Voice.TakesDirections(g.VoiceModel);
+            var ctl = new List<object> { opt("Off (the commentator reads the calls)", "controller/off", !g.ControllerOn) };
+            ctl.AddRange(voices.Where(v => v[0] != g.VoiceId).Select(v => opt(v[1], "controller/" + v[0], g.ControllerOn && g.ControllerVoiceId == v[0])));
+            m["ctlOpts"] = ctl;
+            m["ctlHint"] = g.ControllerOn
+                ? Engine.VoiceLabel(g.ControllerVoiceId) + " is the flight controller: a calm second voice on a crackly radio loop, with the beeps NASA used (Quindar tones) around each call. They call tower cleared, supersonic, max Q, engine cutoff, staging and orbit, and run the go/no-go poll at T-5 minutes."
+                : "No second voice: the commentator reads the callouts and the poll.";
+            m["sfxOpts"] = new List<object> { opt("Off", "sfx-volume/0", g.SfxVolume <= 0), opt("Quiet", "sfx-volume/0.3", Math.Abs(g.SfxVolume - 0.3) < 0.01), opt("Normal", "sfx-volume/0.6", Math.Abs(g.SfxVolume - 0.6) < 0.01), opt("Loud", "sfx-volume/1", Math.Abs(g.SfxVolume - 1) < 0.01) };
+            int sfxHave = NewsEngine.Sounds.Count(fx => Engine.SoundRecorded(fx[0]));
+            m["sfxHint"] = sfxHave == NewsEngine.Sounds.Length ? "All " + sfxHave + " sounds are recorded."
+                : sfxHave > 0 ? sfxHave + " of " + NewsEngine.Sounds.Length + " sounds are recorded; the rest are made with the button below."
+                : "The sounds are made once with ElevenLabs' sound effects, using the button below, and can ship with the mod like the voice lines.";
             if (hasKey)
             {
                 var all = Engine.CommonLines();
@@ -35,8 +46,11 @@ namespace KerbalNews.Web
                 m["pre"] = new Dictionary<string, object>
                 {
                     { "voice", Engine.VoiceLabel(g.VoiceId) }, { "total", all.Count }, { "todo", todo.Count }, { "done", all.Count - todo.Count },
-                    { "letters", todo.Sum(x => Voice.Spoken(x.Key, x.Value, g.AnnouncerStyle, g.VoiceModel).Length).ToString("N0", Inv) },
+                    { "letters", todo.Where(x => x.Speaker != "sfx").Sum(x => Voice.Spoken(x.Key, x.Value, x.Speaker == "host" || !g.ControllerOn ? g.AnnouncerStyle : "radio", g.VoiceModel).Length).ToString("N0", Inv) },
                     { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 }, { "anyDone", all.Count > todo.Count }, { "bank", Engine.BankName },
+                    { "ctl", g.ControllerOn ? Engine.VoiceLabel(g.ControllerVoiceId) : "" }, { "ctlBank", Engine.ControllerBankName },
+                    { "sfxTodo", todo.Count(x => x.Speaker == "sfx") },
+                    { "sfxCredits", ((int)todo.Where(x => x.Speaker == "sfx").Sum(x => x.Seconds * 40)).ToString("N0", Inv) },
                 };
             }
             m["voiceModelOpts"] = Voice.Models.Select(v => opt(v[1], "voice-model/" + v[0], g.VoiceModel == v[0])).ToList();
@@ -62,11 +76,11 @@ namespace KerbalNews.Web
             return l;
         }
 
-        void PlaySample()
+        void PlaySample(string speaker = "host")
         {
             VoiceTestResult = "Getting a sample...";
             VoiceTestOk = true;
-            Engine.VoiceTest(msg => { VoiceTestOk = msg.StartsWith("Playing"); VoiceTestResult = msg; Changed(); });
+            Engine.VoiceTest(msg => { VoiceTestOk = msg.StartsWith("Playing"); VoiceTestResult = msg; Changed(); }, speaker);
         }
 
         ActionResult HandleVoice(string verb, string arg, IDictionary<string, string> form)
@@ -83,6 +97,11 @@ namespace KerbalNews.Web
                     if (AllVoices(g).Any(v => v[0] == arg)) { g.VoiceId = arg; Engine.ResetVoice(); SaveSettings(); PlaySample(); }
                     return r;
                 case "voice-model": if (Voice.Models.Any(v => v[0] == arg)) { g.VoiceModel = arg; Engine.ResetVoice(); SaveSettings(); PlaySample(); } return r;
+                case "controller":
+                    if (arg == "off") { g.ControllerOn = false; SaveSettings(); return r; }
+                    if (AllVoices(g).Any(v => v[0] == arg)) { g.ControllerOn = true; g.ControllerVoiceId = arg; SaveSettings(); PlaySample("ctl"); }
+                    return r;
+                case "sfx-volume": if (double.TryParse(arg, NumberStyles.Float, Inv, out d)) g.SfxVolume = Math.Max(0, Math.Min(1, d)); SaveSettings(); return r;
                 case "announcer-style": g.AnnouncerStyle = arg == "excited" ? "excited" : "calm"; SaveSettings(); PlaySample(); return r;
                 case "prerecord":
                     if (!Engine.Prerecord(Changed)) { VoiceTestResult = Engine.PrerecordStatus != "" ? Engine.PrerecordStatus : "Save an ElevenLabs key first."; VoiceTestOk = true; }
@@ -90,7 +109,7 @@ namespace KerbalNews.Web
                 case "export-voice":
                 {
                     int copied = Engine.ExportBank();
-                    VoiceTestResult = copied > 0 ? "Copied " + copied + " recorded lines into GameData/KerbalNews/Voice/" + Engine.BankName + ". Everyone who gets this folder with the mod hears them, with or without a key." : "Nothing recorded to copy yet.";
+                    VoiceTestResult = copied > 0 ? "Copied " + copied + " recorded lines and sounds into GameData/KerbalNews/Voice. Everyone who gets this folder with the mod hears them, with or without a key." : "Nothing recorded to copy yet.";
                     VoiceTestOk = copied > 0;
                     return r;
                 }

@@ -8,7 +8,7 @@ namespace KerbalNews
     /// <summary>What the craft is doing this instant, read by the KSP layer a few times a second for the on-screen stats.</summary>
     public class LiveNumbers
     {
-        public double UT, Speed, Altitude, Apoapsis, Periapsis, Throttle, FuelPct = -1, Q, AtmosphereTop = 70000;
+        public double UT, Speed, Altitude, Apoapsis, Periapsis, Throttle, FuelPct = -1, Q, AtmosphereTop = 70000, Mach, Thrust;
         public int Stage;
         public string Situation = "";
     }
