@@ -26,24 +26,30 @@ namespace KerbalNews
             bool killed = story.HasEvent(EventTypes.CrewKilled);
             bool failed = story.HasEvent(EventTypes.Failure);
 
+            var v = Vars(story, lead, agency, vessel, state, clock);
             foreach (var o in plan.Outlets)
             {
                 var art = new Article { Outlet = o.OutletId, Kind = o.Kind, Offline = true };
-                art.Headline = Headline(story, lead, o.OutletId, agency, vessel, rng);
-                art.Subhead = Subhead(story, lead, agency);
+                art.Headline = Headline(story, lead, o.OutletId, v, rng);
+                art.Subhead = Subhead(story, lead, v, rng);
                 art.Reporter = Reporter(o.OutletId, rng);
-                art.Body = Body(story, lead, o.OutletId, agency, state, clock);
+                art.Body = Body(story, lead, o.OutletId, agency, state, clock, v, rng);
                 art.Tags.AddRange(Tags(story));
                 int n = o.Comments;
+                var seen = new HashSet<string>();
                 for (int i = 0; i < n; i++)
                 {
                     var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
-                    art.Comments.Add(new Comment { Author = c.Handle, Text = CannedComment(c.Handle, killed, failed, rng), Likes = rng.Next(0, 1 + (int)story.Significance * 3) });
+                    string text = CannedComment(c.Handle, killed, failed, rng);
+                    for (int k = 0; k < 12 && seen.Contains(CommentKey(text)); k++) text = CannedComment(c.Handle, killed, failed, rng);
+                    if (seen.Contains(CommentKey(text))) continue;
+                    seen.Add(CommentKey(text));
+                    art.Comments.Add(new Comment { Author = c.Handle, Text = text, Likes = rng.Next(0, 1 + (int)story.Significance * 3) });
                 }
                 cov.Articles.Add(art);
             }
-            // Templates repeat quickly, so offline Kerbnet gets a few distinct posts rather than many copies.
-            var socialLines = CannedSocial(vessel, agency, killed, failed).OrderBy(x => rng.Next()).Take(Math.Min(plan.SocialPosts, 5)).ToList();
+            // A few distinct posts rather than many copies.
+            var socialLines = CannedSocial(v, killed, failed, rng, Math.Min(plan.SocialPosts, 8));
             var socialHandles = Outlets.Commenters.Select(c => c.Handle).OrderBy(x => rng.Next()).ToList();
             for (int i = 0; i < socialLines.Count; i++)
             {
@@ -62,7 +68,7 @@ namespace KerbalNews
                 var t = new ForumThread
                 {
                     Board = failed || killed ? "general" : "launches",
-                    Title = vessel == "" ? (killed ? "Thinking of the crew today" : failed ? "What went wrong today?" : "Today's launch discussion thread") : (killed ? "Thread for " + vessel + ": thinking of the crew" : failed ? "What went wrong with " + vessel + "?" : vessel + " discussion thread"),
+                    Title = Phrases.Fresh(killed ? "f_title_loss" : failed ? "f_title_fail" : "f_title_good", v, rng),
                     Body = cov.Articles.Count > 0 ? cov.Articles[0].Subhead : "",
                     Author = who.Handle, Score = rng.Next(5, 20 + (int)story.Significance * 4),
                 };
@@ -102,7 +108,7 @@ namespace KerbalNews
                 for (int i = 0; i < o.Comments; i++)
                 {
                     var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
-                    art.Comments.Add(new Comment { Author = c.Handle, Text = Pick(rng, "Nice to hear it from them directly.", "Sounds like PR to me.", "I'll believe it when I see it.", "Good. More of this, please.", "What aren't they saying?"), Likes = rng.Next(1, 30) });
+                    art.Comments.Add(new Comment { Author = c.Handle, Text = Phrases.Rule("c_release", null, rng), Likes = rng.Next(1, 30) });
                 }
                 cov.Articles.Add(art);
             }
@@ -143,18 +149,9 @@ namespace KerbalNews
                 var c = Outlets.Commenters[((StableHash(job.Target) & 0x7fffffff) + i * 3) % Outlets.Commenters.Count];
                 string text;
                 if (job.Target.StartsWith("g:") && job.CommentId == "")
-                    text = Pick(rng, "Wallpaper material.", "Is that real or a render?", "Look at that view!", "Zoom and enhance, what's that on the left?", "Framing this one.", "How much did this photo cost us?");
-                else if (job.Mode == "townhall")
-                    text = Pick(rng, "What exactly went wrong, and what have you changed since?", "Why should we trust the next launch?", "How much did the failure cost taxpayers?",
-                        "Were the crews told about the risks?", "Who signed off on that flight?", "When will the full investigation be published?", "Thank you for facing us. What can families expect from you now?", "Will you pause launches until it is fixed?");
-                else if (job.Mode == "ama")
-                    text = Pick(rng, "What is the next big mission?", "How do you decide who flies?", "What does a launch actually cost?", "Is it true the cafeteria runs out of snacks before every launch?",
-                        "How do you keep the crews safe after what happened last time?", "When are we going to Duna?", "What happens to all the debris?", "Do you ever get scared watching a launch?");
-                else if (agency)
-                    text = Pick(rng, "Appreciate the official response. Any numbers you can share?", "That reads like it came straight from the press office.", "Thanks for engaging with us here, that's rare.",
-                        "So what are you NOT telling us?", "Good to hear it from you directly.", "Can you confirm the crew is safe?");
-                else
-                    text = Pick(rng, "Interesting take.", "Source?", "I was thinking the same thing.", "Hard disagree, but fair point.", "You sound like you work at KSC.", "This. Exactly this.");
+                    text = Phrases.Rule("r_photo", null, rng);
+                else text = Phrases.Rule(job.Mode == "townhall" ? "r_townhall" : job.Mode == "ama" ? "r_ama" : agency ? "r_agency" : "r_public", null, rng);
+                for (int k = 0; k < 4 && outList.Any(x => x.Text == text); k++) text = Phrases.Rule(job.Mode == "townhall" ? "r_townhall" : job.Mode == "ama" ? "r_ama" : agency ? "r_agency" : "r_public", null, rng);
                 outList.Add(new Comment { Author = c.Handle, Text = text, Likes = rng.Next(1, agency ? 40 : 12), ReplyTo = job.Mode == "ama" || job.Mode == "townhall" ? "" : job.CommentId });
             }
             return outList;
@@ -180,7 +177,7 @@ namespace KerbalNews
                 for (int i = 0; i < o.Comments; i++)
                 {
                     var c = Outlets.Commenters[rng.Next(Outlets.Commenters.Count)];
-                    art.Comments.Add(new Comment { Author = c.Handle, Text = Pick(rng, "Interesting.", "Well, well, well.", "Can anyone confirm this?", "Follow the money.", "Not surprised.", "This is going to be a long week for the press office."), Likes = rng.Next(0, 30) });
+                    art.Comments.Add(new Comment { Author = c.Handle, Text = Phrases.Rule("c_tip", null, rng), Likes = rng.Next(0, 30) });
                 }
                 cov.Articles.Add(art);
             }
@@ -189,41 +186,54 @@ namespace KerbalNews
 
         static string Pick(Random r, params string[] options) { return options[r.Next(options.Length)]; }
 
-        static string Headline(Story s, NewsEvent e, string outlet, string agency, string vessel, Random r)
+        /// <summary>The facts a template may use, by name. Empty ones make the options that need them drop out.</summary>
+        static Dictionary<string, string> Vars(Story s, NewsEvent e, string agency, string vessel, NewsState state, IGameClock clock)
         {
-            if (s.Kind == "filler" && outlet == "kraken") return Pick(r, "Is " + agency + " hiding a BASE on the Mun? Our insider says YES", "The Kraken is REAL, and " + agency + " knows it", "Cafeteria insider: the kerbonaut FEUD nobody is talking about");
-            if (s.Kind == "filler") return Pick(r, "A quiet week at " + agency + ": what comes next?", "Inside " + agency + " between missions", "Opinion: where should " + agency + " go from here?");
-            if (e == null) return agency + " news update";
-            string body = e.Body;
-            string crew = string.Join(", ", e.Crew.ToArray());
-            string what = WhatHappened(e, agency, vessel);
+            var v = new Dictionary<string, string>();
+            v["agency"] = agency;
+            v["vessel"] = vessel;
+            string what = e != null ? WhatHappened(e, agency, vessel != "" ? vessel : "the craft") : agency + " news update";
+            v["what"] = what;
+            v["what_l"] = what.Length > 1 ? char.ToLowerInvariant(what[0]) + what.Substring(1) : what;
+            v["what_up"] = what.ToUpperInvariant();
+            string body = e != null && e.Body != "" && e.Body != "Kerbin" ? e.Body : "";
+            v["body"] = body;
+            var crew = e != null ? e.Crew : new List<string>();
+            v["crew"] = string.Join(", ", crew.ToArray());
+            v["crew_first"] = crew.Count > 0 ? crew[0].Split(' ')[0] : "";
+            v["date"] = e != null ? clock.FormatDate(e.UT) : "";
+            v["mood"] = state.Mood.Describe();
+            if (!s.Silent && s.Craft != null && s.Craft.Parts > 0)
+            {
+                v["mass"] = Math.Round(s.Craft.MassTons).ToString(Inv);
+                v["parts"] = s.Craft.Parts.ToString(Inv);
+                v["stages"] = s.Craft.Stages.ToString(Inv);
+                if (s.Craft.DeltaV > 0) v["dv"] = Math.Round(s.Craft.DeltaV).ToString("#,0", Inv);
+                v["size"] = s.Craft.MassTons > 150 ? "a heavy lifter" : s.Craft.MassTons > 40 ? "a mid-size launcher" : "a light vehicle";
+            }
+            return v;
+        }
+
+        static string Headline(Story s, NewsEvent e, string outlet, Dictionary<string, string> v, Random r)
+        {
+            if (s.Kind == "filler") return Phrases.Fresh(outlet == "kraken" ? "hl_filler_kraken" : "hl_filler", v, r);
+            if (e == null) return v["agency"] + " news update";
+            bool loss = e.Type == EventTypes.CrewKilled, fail = loss || e.Type == EventTypes.Failure;
+            string rule;
             switch (outlet)
             {
-                case "kraken":
-                    if (s.Silent) return Pick(r, "SECRET ROCKET: what " + agency + " is HIDING from you", "They launched WHAT? Insiders spill on " + agency + "'s mystery craft");
-                    if (e.Type == EventTypes.Failure) return Pick(r, "Was it the KRAKEN? The " + vessel + " theory " + agency + " won't talk about", "SABOTAGE? 7 clues in the " + vessel + " disaster");
-                    return Pick(r, "You won't BELIEVE what really happened when " + what.Substring(0, 1).ToLowerInvariant() + what.Substring(1), what + "... or did it? Our insider says no");
-                case "inquirer":
-                    if (e.Type == EventTypes.CrewKilled) return "TRAGEDY: " + crew + " lost aboard " + vessel;
-                    if (e.Type == EventTypes.Failure) return Pick(r, "KABOOM! " + vessel + " goes up in smoke", "Another " + agency + " rocket, another fireball");
-                    return Pick(r, "WOW! ", "THEY DID IT! ", "") + what.ToUpperInvariant().Substring(0, 1) + what.Substring(1) + "!";
-                case "observer":
-                    if (!s.Silent && s.Craft != null && s.Craft.Parts > 0) return what + ": a " + Math.Round(s.Craft.MassTons) + "-tonne, " + s.Craft.Stages + "-stage design under the microscope";
-                    return "Analysis: " + what;
-                case "kscwatch":
-                    if (e.Type == EventTypes.CrewKilled || e.Type == EventTypes.Failure) return "Questions " + agency + " must answer after the " + vessel + " loss";
-                    return "Our take: " + what + ". Was it worth it?";
-                case "munmonthly":
-                    return e.Crewed && crew != "" ? "The kerbals behind the moment: " + crew : "Why " + what.ToLowerInvariant() + " matters";
-                case "science":
-                    return "Researchers weigh in: what " + vessel + " means for science" + (body != "" && body != "Kerbin" ? " at " + body : "");
-                case "council":
-                    if (e.Type == EventTypes.CrewKilled) return "Statement from the Planetary Council on the loss of " + crew;
-                    return "Planetary Council congratulates " + agency;
-                default:
-                    if (e.Type == EventTypes.CrewKilled) return agency + " mourns " + crew + " after " + vessel + " disaster";
-                    return what;
+                case "kraken": rule = s.Silent ? "hl_kraken_secret" : fail ? "hl_kraken_fail" : "hl_kraken"; break;
+                case "inquirer": rule = loss ? "hl_loss" : fail ? "hl_inquirer_fail" : "hl_inquirer"; break;
+                case "observer": rule = loss ? "hl_loss" : fail ? "hl_fail" : "hl_observer"; break;
+                case "kscwatch": rule = fail ? "hl_kscwatch_fail" : "hl_kscwatch"; break;
+                case "munmonthly": rule = loss ? "hl_loss" : "hl_munmonthly"; break;
+                case "science": rule = loss ? "hl_loss" : "hl_science"; break;
+                case "council": rule = loss ? "hl_council_loss" : fail ? "hl_fail" : "hl_council"; break;
+                default: rule = loss ? "hl_loss" : fail ? "hl_fail" : "hl_good"; break;
             }
+            string h = Phrases.Fresh(rule, v, r);
+            if (h == "") h = Phrases.Fresh(loss ? "hl_loss" : fail ? "hl_fail" : "hl_good", v, r);
+            return Phrases.Cap(h != "" ? h : v["what"]);
         }
 
         static string WhatHappened(NewsEvent e, string agency, string vessel)
@@ -246,30 +256,39 @@ namespace KerbalNews
             }
         }
 
-        static string Subhead(Story s, NewsEvent e, string agency)
+        static string Subhead(Story s, NewsEvent e, Dictionary<string, string> v, Random r)
         {
-            if (s.Kind == "filler") return "With no launches in recent days, a look at the state of the program.";
+            if (s.Kind == "filler") return Phrases.Rule("filler_mid", v, r);
             if (e == null) return "";
-            if (e.Type == EventTypes.CrewKilled) return "The agency has not yet said what went wrong.";
-            if (e.Type == EventTypes.Failure) return e.Crewed ? "The crew's status is the first question on everyone's mind." : "No crew were aboard.";
-            return e.Crewed ? "A crewed flight for " + agency + "." : "An uncrewed flight for " + agency + ".";
+            if (e.Type == EventTypes.CrewKilled) return Phrases.Rule("sub_loss", v, r);
+            if (e.Type == EventTypes.Failure) return e.Crewed ? "The crew's status is the first question on everyone's mind." : Phrases.Rule("sub_fail", v, r).Replace("The crew's status is the first question on everyone's mind.", "No crew were aboard.");
+            var sv = new Dictionary<string, string>(v);
+            if (!e.Crewed) sv["crew"] = "";
+            string sub = Phrases.Rule("sub_good", sv, r);
+            if (sub.StartsWith("A crewed") && !e.Crewed) sub = "An uncrewed flight for " + v["agency"] + ".";
+            if (sub.StartsWith("An uncrewed") && e.Crewed) sub = "A crewed flight for " + v["agency"] + ".";
+            return sub;
         }
 
         static readonly string[] FirstNames = { "Bobak", "Lisdun", "Maxzor", "Gregrim", "Tedrin", "Meloise", "Haldin", "Corbur", "Sidmund", "Valdred", "Jeneny", "Aldbert" };
 
         static string Reporter(string outlet, Random r) { return FirstNames[r.Next(FirstNames.Length)] + " Kerman"; }
 
-        static string Body(Story s, NewsEvent lead, string outlet, string agency, NewsState state, IGameClock clock)
+        static string Body(Story s, NewsEvent lead, string outlet, string agency, NewsState state, IGameClock clock, Dictionary<string, string> v, Random r)
         {
             var sb = new StringBuilder();
             if (s.Kind == "filler")
             {
-                sb.Append("It has been a quiet stretch for " + agency + ". " + s.Topic + "\n\n");
+                sb.Append(Phrases.Rule("filler_open", v, r) + " " + s.Topic + "\n\n");
+                sb.Append(Phrases.Rule("filler_mid", v, r) + "\n\n");
                 var d = state.DigestHistory.LastOrDefault();
                 if (d != null)
                     sb.AppendFormat(Inv, "By the latest public count the agency has {0} satellites and {1} stations in operation, with {2} tracked pieces of debris and {3} kerbonauts currently in space.", d.Satellites, d.Stations, d.Debris, d.CrewInSpace);
-                return sb.ToString();
+                return sb.ToString().Trim();
             }
+            bool loss = lead != null && lead.Type == EventTypes.CrewKilled, fail = loss || lead != null && lead.Type == EventTypes.Failure;
+            string open = Phrases.Rule(loss ? "open_loss" : fail ? "open_fail" : "open_good", v, r);
+            if (open != "") sb.Append(Phrases.Cap(open) + (loss ? "" : " " + Phrases.Cap(Phrases.Rule(fail ? "quote_fail" : "quote_good", v, r))) + "\n\n");
             foreach (var e in s.Events.OrderBy(x => x.UT))
                 sb.Append(clock.FormatDate(e.UT) + ": " + (s.Silent ? PromptBuilder.DescribeSilent(e) : PromptBuilder.Describe(e)) + " ");
             sb.Append("\n\n");
@@ -280,16 +299,12 @@ namespace KerbalNews
             }
             else if (s.Craft != null)
                 sb.Append(PromptBuilder.CraftText(s.Craft) + "\n\n");
-            if (outlet == "observer" && !s.Silent && s.Craft != null && s.Craft.Parts > 0)
-                sb.AppendFormat(Inv, "At {0:0.#} tonnes and {1} parts, the vehicle is {2} by the standards of the program so far.\n\n",
-                    s.Craft.MassTons, s.Craft.Parts, s.Craft.MassTons > 150 ? "a heavy lifter" : s.Craft.MassTons > 40 ? "a mid-size launcher" : "a light vehicle");
-            if (lead != null && lead.Type == EventTypes.CrewKilled)
-                sb.Append("Flags at the space center flew at half staff. Members of the public left flowers at the main gate.");
-            else if (lead != null && lead.Type == EventTypes.Failure)
-                sb.Append("Engineers are expected to review the telemetry. " + state.Mood.Describe());
-            else
-                sb.Append(agency + " officials called the flight a success. " + state.Mood.Describe());
-            return sb.ToString();
+            string angle = outlet == "observer" || outlet == "kscwatch" || outlet == "inquirer" || outlet == "kraken" || outlet == "munmonthly" || outlet == "science" ? Phrases.Rule("angle_" + outlet, v, r) : "";
+            if (angle != "" && !(fail && (outlet == "inquirer" || outlet == "kraken"))) sb.Append(angle + "\n\n");
+            string close = Phrases.Rule(loss ? "close_loss" : fail ? "close_fail" : "close_good", v, r);
+            sb.Append(close);
+            if (!close.Contains(v["mood"]) && !loss) sb.Append(" " + v["mood"]);
+            return sb.ToString().Trim();
         }
 
         static IEnumerable<string> Tags(Story s)
@@ -301,41 +316,29 @@ namespace KerbalNews
             foreach (var b in s.Events.Select(e => e.Body).Where(b => b != "").Distinct()) yield return b.ToLowerInvariant();
         }
 
+        /// <summary>Two comments count as the same when they end the same way, whatever opener they start with.</summary>
+        static string CommentKey(string t)
+        {
+            t = t ?? "";
+            foreach (var rule in new[] { "c_good_core", "c_fail_core", "c_loss" })
+                foreach (var core in Phrases.Options(rule)) if (t.Contains(core)) return core;
+            return t;
+        }
+
         static string CannedComment(string handle, bool killed, bool failed, Random r)
         {
-            if (killed) return Pick(r, "Rest easy. Fly safe up there.", "Thoughts with the families tonight.", "There needs to be a full inquiry into this.", "Heartbreaking. They knew the risks and went anyway.");
-            if (failed) return Pick(r, "Back to the drawing board, I suppose.", "How much did that cost us?", "Test flights fail. That's what they're for.", "This is the part they never show on the posters.");
-            return Pick(r, "Great to see!", "What a time to be alive.", "Was that worth the money? Genuinely asking.", "Saw it from my back garden!", "Another one for the history books.", "Jeb would be proud.");
+            return Phrases.Rule(killed ? "c_loss" : failed ? "c_fail" : "c_good", null, r);
         }
 
-        // With no craft name, lines that name the craft are dropped instead of reading "a photo of ?".
-        static string[] CannedSocial(string vessel, string agency, bool killed, bool failed)
+        static List<string> CannedSocial(Dictionary<string, string> v, bool killed, bool failed, Random r, int n)
         {
-            if (vessel == "") return CannedSocialLines("\u0001", agency, killed, failed).Where(l => l.IndexOf('\u0001') < 0).ToArray();
-            return CannedSocialLines(vessel, agency, killed, failed);
-        }
-
-        static string[] CannedSocialLines(string vessel, string agency, bool killed, bool failed)
-        {
-            if (killed) return new[]
+            var list = new List<string>();
+            for (int k = 0; k < n * 4 && list.Count < n; k++)
             {
-                "Can't stop thinking about the " + vessel + " crew. #FlySafe", "Somebody at " + agency + " needs to answer for this.",
-                "Flags at half mast in my town tonight.", "They knew the risks. Doesn't make it easier.", "Hold the families close today.",
-                "We owe them answers, not a press release.", "Turned the news off. Couldn't watch any more.",
-            };
-            if (failed) return new[]
-            {
-                "Watched " + vessel + " come apart from the beach. Still processing.", "rapid unplanned disassembly is a funny way to say 'it blew up'",
-                "Saw the fireball from the causeway. Wow.", "That's going to cost someone their weekend.", "So... was that supposed to happen?",
-                "My dog is still hiding under the bed after that bang.", "Rockets are hard. They'll fix it.", "How much did that one cost us?",
-            };
-            return new[]
-            {
-                vessel + " looked incredible today!", "Proud of " + agency + " today.", "ok but who's paying for all these rockets",
-                "Took the kids to watch " + vessel + ". They won't stop talking about it.", "Clear skies, loud engines, best morning in weeks.",
-                "Every launch still gives me goosebumps.", "Anyone else get a good photo of " + vessel + "?", "Space is cool and I will not be taking questions.",
-                "The traffic on the causeway was worse than the countdown.", "Can't wait to see where " + vessel + " goes next.",
-            };
+                string line = Phrases.Rule(killed ? "s_loss" : failed ? "s_fail" : "s_good", v, r);
+                if (line != "" && !list.Contains(line)) list.Add(line);
+            }
+            return list;
         }
 
         public static int StableHash(string s)

@@ -362,21 +362,8 @@ namespace KerbalNews
 
         static string OfflineWorldBody(WorldFact f)
         {
-            string tail;
-            switch (f.Kind)
-            {
-                case "sky": tail = "Amateur astronomers are being urged to look up. Observatories will keep watching and share what they find."; break;
-                case "safety": tail = "Tracking stations are watching closely. Experts say most small objects burn up harmlessly, but the growing crowd in orbit worries some."; break;
-                case "crew": tail = "Colleagues say the milestone is a credit to years of training, and fans have flooded the agency with messages."; break;
-                case "company": tail = "Industry watchers say space work is becoming a real business on Kerbin, and the suppliers want everyone to know it."; break;
-                case "record": tail = "Statisticians are already updating the record books."; break;
-                case "tech": tail = "Experts are guessing what the agency will build next with it. The agency has not said."; break;
-                case "base": tail = "It is a quiet kind of success: no launch, no fireworks, just the work going on day after day."; break;
-                case "probe": tail = "Far from home, it is a reminder of how big the system is, and how long the agency's machines keep working."; break;
-                case "dream": return "Kerbals have always looked up and wondered. " + DreamOffline(f.Text) + "\n\nNobody at the agency has announced any such plan. But a few years ago, the trips it makes today sounded like dreams too.";
-                case "mod": tail = "Mission planners say they take space weather seriously, and crews have shelter plans."; break;
-                default: tail = ""; break;
-            }
+            if (f.Kind == "dream") return "Kerbals have always looked up and wondered. " + DreamOffline(f.Text) + "\n\nNobody at the agency has announced any such plan. But a few years ago, the trips it makes today sounded like dreams too.";
+            string tail = Phrases.Rule("w_" + f.Kind, null, new Random(OfflineWriter.StableHash(f.Key)));
             return f.Text + (tail != "" ? "\n\n" + tail : "");
         }
 

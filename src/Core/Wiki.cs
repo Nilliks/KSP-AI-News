@@ -486,7 +486,11 @@ namespace KerbalNews
                     string type = c != null && c.VesselType != "" ? c.VesselType.ToLowerInvariant() : "craft";
                     bool crewed = p.Flights.Any(f => f.Crew.Count > 0);
                     var first = p.Flights.OrderBy(f => f.LaunchUT).FirstOrDefault();
-                    string s = p.Title + " is a " + (crewed ? "crewed " : "") + (type == "ship" ? "spacecraft" : type) + " built by " + ag + ".";
+                    // Worded from the bank, but seeded by the title so the page reads the same every time it is opened.
+                    int seed = 17; foreach (char ch in p.Title) seed = unchecked(seed * 31 + ch);
+                    var lv = new Dictionary<string, string> { { "title", p.Title }, { "agency", ag }, { "kind", (crewed ? "crewed " : "") + (type == "ship" ? "spacecraft" : type) } };
+                    string s = Phrases.Rule("wk_craft_lead", lv, new Random(seed));
+                    if (s == "") s = p.Title + " is a " + (crewed ? "crewed " : "") + (type == "ship" ? "spacecraft" : type) + " built by " + ag + ".";
                     if (first != null) s += " It first flew on " + Clock.FormatDate(first.LaunchUT) + (first.Crew.Count > 0 ? " with " + string.Join(", ", first.Crew.ToArray()) + " aboard" : "") + ".";
                     if (p.Flights.Count > 1) s += " It has flown " + p.Flights.Count + " times.";
                     return s;

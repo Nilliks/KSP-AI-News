@@ -295,13 +295,20 @@ namespace KerbalNews
         void OfflineMail(MailMsg m)
         {
             string sign = "\n\n" + m.From;
+            var rng = new Random(OfflineWriter.StableHash(m.From + m.Subject + m.UT.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + m.Ask + m.Kerbal));
+            var v = new Dictionary<string, string>
+            {
+                { "topic", m.Topic }, { "kerbal", m.Kerbal }, { "kerbal_first", FirstName(m.Kerbal) }, { "outlet", Outlets.NameOf(m.Org) },
+                { "due", m.DueUT >= 0 ? Clock.FormatDate(m.DueUT) : "" }, { "from", m.From }, { "amount", Money(m.Amount) },
+            };
+            Func<string, string> R = rule => Phrases.Rule(rule, v, rng);
             switch (m.Ask)
             {
-                case "interview": m.Subject = "Interview request: " + m.Kerbal; m.Body = "Dear Director,\n\nCongratulations on " + m.Topic + ". " + Outlets.NameOf(m.Org) + " would love an exclusive interview with " + m.Kerbal + " about it. Could you let us know by " + Clock.FormatDate(m.DueUT) + "?" + sign; break;
-                case "statement": m.Subject = "Request for comment: " + m.Topic; m.Body = "Dear Director,\n\nWe are writing about " + m.Topic + " and would like the agency's statement. Our story runs on " + Clock.FormatDate(m.DueUT) + "; without a reply we'll note that the agency did not respond." + sign; break;
-                case "sponsor": m.Subject = "Sponsorship proposal"; m.Body = "Dear Director,\n\n" + m.From + " would like to sponsor your next flight for √" + Money(m.Amount) + ", in return for our logo on the craft and a mention in your releases. The offer stands until " + Clock.FormatDate(m.DueUT) + "." + sign; break;
-                case "hearing": m.Subject = "Invitation to testify: " + m.Topic; m.Body = "Director,\n\nThe Council's science committee requests your testimony about " + m.Topic + " on " + Clock.FormatDate(m.DueUT) + ". Please confirm your attendance." + sign; break;
-                case "visit": m.Subject = "Can " + FirstName(m.Kerbal) + " visit our class?"; m.Body = "Hello!\n\nOur students have been following " + m.Kerbal + " and they have SO many questions. Could " + FirstName(m.Kerbal) + " visit us? Any day before " + Clock.FormatDate(m.DueUT) + " works." + sign; break;
+                case "interview": m.Subject = "Interview request: " + m.Kerbal; m.Body = R("m_open_press") + "\n\n" + R("m_congrats") + " " + R("m_interview") + " " + R("m_reply_by") + sign; break;
+                case "statement": m.Subject = "Request for comment: " + m.Topic; m.Body = R("m_open_press") + "\n\n" + R("m_statement") + " " + R("m_statement_due") + sign; break;
+                case "sponsor": m.Subject = "Sponsorship proposal"; m.Body = R("m_open_press") + "\n\n" + R("m_sponsor") + " " + R("m_sponsor_due") + sign; break;
+                case "hearing": m.Subject = "Invitation to testify: " + m.Topic; m.Body = "Director,\n\n" + R("m_hearing") + sign; break;
+                case "visit": m.Subject = "Can " + FirstName(m.Kerbal) + " visit our class?"; m.Body = R("m_open_warm") + "\n\n" + R("m_visit") + " " + R("m_visit_due") + sign; break;
                 case "update": m.Subject = m.Topic == "lost" ? "About " + m.Kerbal : "When is " + FirstName(m.Kerbal) + " coming home?"; m.Body = m.Topic == "lost" ? "Director,\n\nNobody has told us anything about what happened to " + m.Kerbal + ". We deserve answers." + sign : "Hello,\n\n" + FirstName(m.Kerbal) + " has been away a long time now. Is everything all right? When will they be back?" + sign; break;
                 default: m.Subject = m.Kind == "council" ? "Budget review" : "About " + m.Topic; m.Body = m.Kind == "council" ? "Director,\n\nThe Council will review the agency's budget this season. We would welcome any notes on the program's progress." + sign : "To whoever reads these,\n\nI've been following " + m.Topic + ". Some of us are watching what you do with our money." + sign; break;
             }
