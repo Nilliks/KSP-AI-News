@@ -75,7 +75,7 @@ namespace TMPro
         public enum ContentType { Standard, Password }
         public class SubmitEvent : UnityEngine.Events.UnityEvent<string> { }
         public RectTransform textViewport; public TMP_Text textComponent; public UnityEngine.UI.Graphic placeholder;
-        public TMP_FontAsset fontAsset; public float pointSize; public bool richText, customCaretColor, isFocused; public Color caretColor;
+        public TMP_FontAsset fontAsset; public float pointSize; public bool richText, customCaretColor, isFocused; public Color caretColor; public int caretWidth; public float caretBlinkRate;
         public LineType lineType; public ContentType contentType; public string text;
         public SubmitEvent onSubmit = new SubmitEvent();
         public void MoveTextStart(bool shift) { }

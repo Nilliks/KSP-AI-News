@@ -1250,6 +1250,12 @@ namespace KerbalNews.KSP
             if (password) f.contentType = TMP_InputField.ContentType.Password;
             f.caretColor = Col(color, Color.black);
             f.customCaretColor = true;
+            f.caretWidth = 2;
+            f.caretBlinkRate = 0.85f;
+            // TMP builds the caret when the field is enabled, and only if it already has its text component. AddComponent
+            // enabled it before the text was attached, so there was no caret at all: switch it off and on to build one.
+            f.enabled = false;
+            f.enabled = true;
             return f;
         }
 
