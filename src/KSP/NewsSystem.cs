@@ -63,6 +63,7 @@ namespace KerbalNews.KSP
             Engine.PlayReplayVoice = ReplayStore.PlayVoice;
             Engine.StopReplayVoice = AnnouncerAudio.Stop;
             Engine.ReplayDiskUse = ReplayStore.DiskUse;
+            Engine.ReplayFolders = ReplayStore.Folders;
             Engine.StreamEnded += a => ReplayStore.Prune(Settings.ReplayMaxGb, "");
             Engine.PressShotRemoved += file =>
             {

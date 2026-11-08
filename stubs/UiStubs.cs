@@ -60,6 +60,7 @@ namespace TMPro
     public class TMP_TextInfo { public int linkCount, lineCount; public TMP_LinkInfo[] linkInfo; public TMP_LineInfo[] lineInfo; }
     public class TMP_Text : UnityEngine.UI.MaskableGraphic
     {
+        public float preferredWidth;
         public string text; public TMP_FontAsset font; public float fontSize, lineSpacing; public FontStyles fontStyle;
         public bool richText, enableWordWrapping; public TextAlignmentOptions alignment; public TextOverflowModes overflowMode;
         public TMP_TextInfo textInfo;

@@ -90,6 +90,17 @@ namespace KerbalNews.KSP
             catch (Exception e) { Debug.LogWarning("[KerbalNews] Could not save replay index: " + e.Message); }
         }
 
+        /// <summary>Replay folders beside the current save that have an index, so they can be watched.</summary>
+        public static List<string> Folders()
+        {
+            try
+            {
+                if (!Directory.Exists(SaveDir)) return new List<string>();
+                return new DirectoryInfo(SaveDir).GetDirectories().Where(d => File.Exists(Path.Combine(d.FullName, "index.json"))).Select(d => d.Name).ToList();
+            }
+            catch (Exception) { return new List<string>(); }
+        }
+
         public static string LoadIndex(string folder)
         {
             try

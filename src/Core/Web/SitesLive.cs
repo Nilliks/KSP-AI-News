@@ -17,7 +17,7 @@ namespace KerbalNews.Web
             var m = M();
             if (path.StartsWith("a/"))
             {
-                var a = State.Streams.FirstOrDefault(x => x.Id == path.Substring(2));
+                var a = Engine.FindStream(path.Substring(2));
                 if (a == null) return NotFound(url);
                 var am = ArchiveModel(a, true);
                 var player = Engine.OpenReplay(a);
@@ -28,7 +28,7 @@ namespace KerbalNews.Web
             }
             var st = Engine.Stream;
             m["result"] = LiveResult;
-            m["archives"] = State.Streams.AsEnumerable().Reverse().Take(12).Select(a => (object)ArchiveModel(a, false)).ToList();
+            m["archives"] = Engine.AllStreams().AsEnumerable().Reverse().Take(12).Select(a => (object)ArchiveModel(a, false)).ToList();
             if (st == null)
             {
                 string active = ActiveVesselId();

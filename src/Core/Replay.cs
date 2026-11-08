@@ -85,6 +85,59 @@ namespace KerbalNews
         /// <summary>Host: stops a replay's voice mid-line (pause, seek, leaving the page).</summary>
         public Action StopReplayVoice;
         public ReplayPlayer Replay { get; private set; }
+        /// <summary>Host: the replay folders saved beside this save, so a stream still shows if the game was never saved after it.</summary>
+        public Func<List<string>> ReplayFolders;
+        readonly Dictionary<string, StreamArchive> orphanCache = new Dictionary<string, StreamArchive>();
+
+        /// <summary>
+        /// Every stream to list: the ones in the save, plus replays on disk the save doesn't know about (the game was quit or
+        /// reloaded before it saved the archive). Those are rebuilt from their index.
+        /// </summary>
+        public List<StreamArchive> AllStreams()
+        {
+            var list = new List<StreamArchive>(State.Streams);
+            if (ReplayFolders == null || LoadReplayIndex == null) return list;
+            List<string> folders;
+            try { folders = ReplayFolders() ?? new List<string>(); } catch (Exception) { return list; }
+            var known = new HashSet<string>(State.Streams.Where(a => a.Replay != "").Select(a => a.Replay));
+            if (Stream != null && Stream.RecFolder != "") known.Add(Stream.RecFolder);   // still being recorded
+            foreach (var f in folders)
+            {
+                if (known.Contains(f)) continue;
+                StreamArchive a;
+                if (!orphanCache.TryGetValue(f, out a))
+                {
+                    string json = null;
+                    try { json = LoadReplayIndex(f); } catch (Exception) { json = null; }
+                    a = ArchiveFromIndex(f, json);
+                    orphanCache[f] = a;
+                }
+                if (a != null) list.Add(a);
+            }
+            return list.OrderBy(a => a.StartUT).ToList();
+        }
+
+        public StreamArchive FindStream(string id) { return AllStreams().FirstOrDefault(a => a.Id == id); }
+
+        static StreamArchive ArchiveFromIndex(string folder, string json)
+        {
+            var d = ReplayData.Parse(folder, json);
+            if (d == null) return null;
+            object root;
+            Json.TryParse(json, out root);
+            double start = Json.Num(root, "startUT", 0);
+            var tels = d.Events.Where(e => ReplayData.K(e) == "tel").ToList();
+            var a = new StreamArchive
+            {
+                Id = "r-" + folder, VesselId = Json.Str(root, "vesselId", ""), VesselName = d.Vessel != "" ? d.Vessel : "Stream",
+                StartUT = start, EndUT = start + d.Length, Replay = folder,
+                PeakViewers = (int)Json.Num(root, "peak", tels.Count > 0 ? tels.Max(e => Json.Num(e, "vw", 0)) : 0),
+                MaxAltitude = Json.Num(root, "maxAlt", tels.Count > 0 ? tels.Max(e => Json.Num(e, "alt", 0)) : 0),
+                MaxSpeed = Json.Num(root, "maxSpeed", tels.Count > 0 ? tels.Max(e => Json.Num(e, "spd", 0)) : 0),
+            };
+            a.Moments.AddRange(d.Events.Where(e => ReplayData.K(e) == "mom").Select(e => Json.Str(e, "x", "")).Take(20));
+            return a;
+        }
         /// <summary>Host: bytes used by all saved replays, for the settings page.</summary>
         public Func<long> ReplayDiskUse;
 
@@ -144,7 +197,8 @@ namespace KerbalNews
         {
             return Json.Write(new Dictionary<string, object>
             {
-                { "vessel", st.VesselName }, { "agency", AgencyName }, { "startUT", st.StartUT }, { "length", Math.Round(realTime - st.StartReal, 1) },
+                { "vessel", st.VesselName }, { "vesselId", st.VesselId }, { "agency", AgencyName }, { "startUT", st.StartUT }, { "length", Math.Round(realTime - st.StartReal, 1) },
+                { "peak", st.PeakViewers }, { "maxAlt", Math.Round(st.Max.Altitude) }, { "maxSpeed", Math.Round(st.Max.Speed) },
                 { "fps", st.RecFps }, { "frames", st.RecFrames }, { "events", st.Rec.Cast<object>().ToList() },
             });
         }

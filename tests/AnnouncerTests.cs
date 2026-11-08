@@ -237,6 +237,14 @@ public static class AnnouncerTests
         for (double t = 2000; t <= 2010; t += 0.1) eng.TickReplay(t);
         Assert(!eng.Replay.Playing && Math.Abs(eng.Replay.Pos - eng.Replay.Data.Length) < 0.01, "stops at the end");
 
+        // The game wasn't saved after the stream: the replay on disk still shows and plays.
+        eng.State.Streams.Clear();
+        eng.ReplayFolders = () => rig.Index.Keys.ToList();
+        string list2 = sites.Render("live.kb").Html;
+        Assert(list2.Contains("REPLAY") && list2.Contains("Kerbal X") && list2.Contains("live.kb/a/r-" + arch.Replay), "an unsaved stream is still listed");
+        string h2 = sites.Render("live.kb/a/r-" + arch.Replay).Html;
+        Assert(h2.Contains("kbreplay:frame") && h2.Contains("replay-play"), "and plays");
+
         // Replays off: nothing recorded.
         eng.Settings.ReplayQuality = 0;
         var st2 = eng.StartStream("v1", "Kerbal X", 50, 50);

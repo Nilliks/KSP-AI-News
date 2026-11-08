@@ -155,7 +155,9 @@ namespace KerbalNews.KSP
         float nextStreamRender;
         /// <summary>Chat arrives a line at a time; redraw the live page at most once a second.</summary>
         void OnStreamChanged() { if (url.StartsWith(Sites.LiveHost)) streamDirty = true; }
-        public bool Showing { get { return visible; } }
+        /// <summary>The page is on screen: open and not shrunk to the small widget.</summary>
+        public bool Showing { get { return visible && !minimized; } }
+        public bool Minimized { get { return visible && minimized; } }
         public string Url { get { return url; } }
         void MarkDirty() { dirty = true; }
 
@@ -182,6 +184,7 @@ namespace KerbalNews.KSP
             visible = true;
             if (canvasGo == null) Build();
             canvasGo.SetActive(true);
+            if (minimized) Restore();
             wantRender = true;
         }
 
@@ -214,6 +217,7 @@ namespace KerbalNews.KSP
         {
             if (!visible || canvasGo == null) return;
             if (Sys == null || !Sys.HasGame) { Hide(); return; }
+            if (minimized) { UpdateMini(); return; }
             if (Math.Abs(scaler.scaleFactor - Scale) > 0.001f) { scaler.scaleFactor = Scale; ClampWindow(); wantRender = true; }
 
             float width = viewportRt.rect.width;
@@ -356,11 +360,16 @@ namespace KerbalNews.KSP
             windowTitle.raycastTarget = false;
             windowTitle.overflowMode = TextOverflowModes.Ellipsis;
             windowTitle.enableWordWrapping = false;
-            Stretch(Rt(wt), 40, 0, 44, 0);
+            Stretch(Rt(wt), 40, 0, 86, 0);
             var closeGo = MakeButton(tb.transform, "close", Close);
             var cRt = Rt(closeGo);
             cRt.anchorMin = new Vector2(1, 0.5f); cRt.anchorMax = new Vector2(1, 0.5f); cRt.pivot = new Vector2(1, 0.5f);
             cRt.anchoredPosition = new Vector2(-4, 0); cRt.sizeDelta = new Vector2(36, 24);
+            var minGo = MakeButton(tb.transform, "minimize", Minimize);
+            var mRt = Rt(minGo);
+            mRt.anchorMin = new Vector2(1, 0.5f); mRt.anchorMax = new Vector2(1, 0.5f); mRt.pivot = new Vector2(1, 0.5f);
+            mRt.anchoredPosition = new Vector2(-44, 0); mRt.sizeDelta = new Vector2(36, 24);
+            BuildMini();
 
             // Toolbar: back, forward, reload, home, address, text size. Dragging its empty parts moves the window too.
             var bar = New("Toolbar", win.transform);
@@ -528,6 +537,94 @@ namespace KerbalNews.KSP
             return bar;
         }
 
+        // ------------------------------------------------------------------ minimized widget
+
+        bool minimized;
+        GameObject miniGo;
+        RectTransform miniRt;
+        TextMeshProUGUI miniText;
+        Vector2 miniPos = new Vector2(-1, -1);
+        float nextMini;
+
+        /// <summary>A small bar the browser shrinks to: KNN and the unread count, and during a livestream LIVE with the
+        /// countdown (or HOLD, or the mission clock). Click it to open the browser again; drag it to move it.</summary>
+        void BuildMini()
+        {
+            miniGo = New("Mini", canvasGo.transform);
+            miniRt = Rt(miniGo);
+            var bg = miniGo.AddComponent<Image>();
+            bg.color = Col("#181b20", Color.black);
+            var h = miniGo.AddComponent<ClickHandler>();
+            h.OnClick = Restore;
+            h.Target = bg; h.Normal = bg.color; h.Hover = Col("#262b33", Color.black);
+            var drag = miniGo.AddComponent<DragHandler>();
+            drag.OnDragged = d => { miniPos += new Vector2(d.x, -d.y) / Scale; PlaceMini(); };
+            var t = New("Text", miniGo.transform);
+            miniText = Label(t, 17, "#e6e8eb", false);
+            miniText.overflowMode = TextOverflowModes.Overflow;
+            Stretch(Rt(t), 12, 0, 12, 0);
+            miniGo.SetActive(false);
+        }
+
+        void PlaceMini()
+        {
+            float sw = Screen.width / Scale, sh = Screen.height / Scale;
+            float w = miniRt.sizeDelta.x > 0 ? miniRt.sizeDelta.x : 160;
+            miniPos.x = Mathf.Clamp(miniPos.x, 0, Mathf.Max(0, sw - w));
+            miniPos.y = Mathf.Clamp(miniPos.y, 0, Mathf.Max(0, sh - 42));
+            TopLeft(miniRt, miniPos.x, miniPos.y, w, 42);
+        }
+
+        void Minimize()
+        {
+            if (canvasGo == null) return;
+            minimized = true;
+            if (miniPos.x < 0) miniPos = winPos;
+            windowRt.gameObject.SetActive(false);
+            miniGo.SetActive(true);
+            InputLockManager.RemoveControlLock(HoverLock);
+            InputLockManager.RemoveControlLock(TypeLock);
+            nextMini = 0;
+            UpdateMini();
+        }
+
+        void Restore()
+        {
+            minimized = false;
+            if (miniGo != null) miniGo.SetActive(false);
+            if (windowRt != null) windowRt.gameObject.SetActive(true);
+            wantRender = true;
+            dirty = true;
+        }
+
+        void UpdateMini()
+        {
+            bool over = miniRt != null && RectTransformUtility.RectangleContainsScreenPoint(miniRt, Input.mousePosition, null);
+            if (over) InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.KSC_ALL | ControlTypes.TRACKINGSTATION_ALL, HoverLock);
+            else InputLockManager.RemoveControlLock(HoverLock);
+            if (Time.realtimeSinceStartup < nextMini || miniText == null) return;
+            nextMini = Time.realtimeSinceStartup + 0.2f;
+            var e = Sys.Engine;
+            int unread = e.UnreadCount(Sites.Now());
+            string text = "<b><color=#ffd27f>KNN</color></b>" + (unread > 0 ? "  (" + unread + " new)" : "");
+            var st = e.Stream;
+            if (st != null)
+            {
+                double left = e.CountdownLeft(Time.realtimeSinceStartup);
+                string clock;
+                if (st.Countdown == "hold") clock = "<color=#f2cc60><b>HOLD</b></color>  " + NewsEngine.CountClock(left);
+                else if (st.Countdown == "scrubbed") clock = "<color=#ff7b72><b>SCRUBBED</b></color>";
+                else if (!double.IsNaN(left)) clock = NewsEngine.CountClock(left);
+                else clock = StreamOverlay.Clock(st, Planetarium.GetUniversalTime(), double.NaN);
+                text += "   <color=#ff4d4d><b>LIVE</b></color>  <size=22><b>" + clock + "</b></size>";
+                if (st.Caption != "") text += "  <color=#8b929c><size=14>" + TextItem.Escape(st.Caption.Length > 60 ? st.Caption.Substring(0, 60) + "..." : st.Caption) + "</size></color>";
+            }
+            miniText.text = text;
+            float w = Mathf.Clamp(miniText.preferredWidth + 26, 110, 640);
+            if (Math.Abs(miniRt.sizeDelta.x - w) > 2 || miniRt.sizeDelta.y < 1) { miniRt.sizeDelta = new Vector2(w, 42); }
+            PlaceMini();
+        }
+
         void ClampWindow()
         {
             float sw = Screen.width / Scale, sh = Screen.height / Scale;
@@ -649,6 +746,7 @@ namespace KerbalNews.KSP
                 case "back": seg(30, 10, 16, 24); seg(16, 24, 30, 38); return l;
                 case "forward": seg(18, 10, 32, 24); seg(32, 24, 18, 38); return l;
                 case "close": seg(13, 13, 35, 35); seg(35, 13, 13, 35); return l;
+                case "minimize": seg(13, 31, 35, 31); return l;
                 case "home": seg(9, 24, 24, 10); seg(24, 10, 39, 24); seg(14, 21, 14, 38); seg(14, 38, 34, 38); seg(34, 38, 34, 21); return l;
                 case "reload":
                 {
