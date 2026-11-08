@@ -189,6 +189,16 @@ namespace KerbalNews
             return plan;
         }
 
+        /// <summary>A short brief for an event too small for the papers (only with the AI slider at "Everything").</summary>
+        public static CoveragePlan ForSmall(Story s)
+        {
+            var plan = new CoveragePlan { Tier = "brief", SocialPosts = 2 };
+            string id = (s.HasEvent(EventTypes.Launch) || s.HasEvent(EventTypes.Orbit)) && KerbalNews.Outlets.IsOn("observer") ? "observer" : KerbalNews.Outlets.IsOn("herald") ? "herald" : KerbalNews.Outlets.All.Where(o => KerbalNews.Outlets.IsOn(o.Id) && !o.IsOfficial).Select(o => o.Id).FirstOrDefault();
+            if (id != null) plan.Outlets.Add(new OutletAssignment { OutletId = id, Kind = "news", Words = 80, Comments = 2, DelayDays = 0.1 });
+            plan.Forum = false;
+            return plan;
+        }
+
         /// <summary>Who answers a press release: the papers of record always, the tabloid and the watchdog when there's blood in the water.</summary>
         public static CoveragePlan ForRelease(Story s, string type)
         {

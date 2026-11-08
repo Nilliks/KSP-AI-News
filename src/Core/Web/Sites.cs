@@ -519,6 +519,12 @@ namespace KerbalNews.Web
             m["retro"] = g.Retrospectives;
             m["worldOpts"] = new List<object> { opt("Off", "usage-world/0", g.WorldNews == 0), opt("A little", "usage-world/1", g.WorldNews == 1), opt("Normal", "usage-world/2", g.WorldNews == 2), opt("Lots", "usage-world/3", g.WorldNews == 3) };
             m["worldOn"] = g.WorldNews > 0;
+            m["aiAmountOpts"] = new List<object> { opt("Nothing", "ai-amount/0", g.AiAmount == 0), opt("Big news only", "ai-amount/1", g.AiAmount == 1), opt("Most", "ai-amount/2", g.AiAmount == 2), opt("Almost everything", "ai-amount/3", g.AiAmount == 3), opt("Everything", "ai-amount/4", g.AiAmount == 4) };
+            m["aiAmountHint"] = g.AiAmount == 0 ? "Templates write all the news, posts, comments, chat, world news, mail and encyclopedia pages."
+                : g.AiAmount == 1 ? "The AI writes major and historic stories. Smaller stories, world news, mail, Kerbopedia, replies and livestream chat use templates."
+                : g.AiAmount == 2 ? "The AI writes normal stories and up, world news, mail, Kerbopedia and replies. Small briefs, quiet-day features and livestream chat use templates."
+                : g.AiAmount == 3 ? "The AI writes every story, post, comment, world news, mail, Kerbopedia page and livestream chat."
+                : "Like Almost everything, plus a short AI brief even for small events that would otherwise get no story. Costs the most.";
             m["mailOpts"] = new List<object> { opt("Off", "usage-mail/0", g.MailLevel == 0), opt("Less", "usage-mail/1", g.MailLevel == 1), opt("Normal", "usage-mail/2", g.MailLevel == 2), opt("More", "usage-mail/3", g.MailLevel == 3) };
             m["worldFlavor"] = g.WorldFlavor;
             m["worldRivals"] = g.WorldRivals;

@@ -108,6 +108,13 @@ namespace KerbalNews.Web
                     SaveSettings();
                     break;
                 }
+                case "ai-amount":
+                {
+                    int w;
+                    if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out w)) g.AiAmount = Math.Max(0, Math.Min(4, w));
+                    SaveSettings();
+                    break;
+                }
                 case "usage-mail":
                 {
                     int w;

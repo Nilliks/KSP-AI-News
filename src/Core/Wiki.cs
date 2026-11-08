@@ -299,7 +299,7 @@ namespace KerbalNews
         void TickWiki(double ut, bool allowCalls)
         {
             if (!State.WikiSeeded) WikiSeed(ut);
-            if (WikiBusy || !Settings.SiteOn("wiki") || !Settings.CanCallAi || !allowCalls || InSide()) return;
+            if (WikiBusy || !Settings.SiteOn("wiki") || !Settings.AiWrites(GlobalSettings.AiMost) || !allowCalls || InSide()) return;
             if (ut < nextWikiUT) return;
             nextWikiUT = ut + 0.25 * Day;
             // A page waits until the news has been quiet for a day, so it cites the coverage and one call covers a whole mission.

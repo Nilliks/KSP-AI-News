@@ -43,6 +43,24 @@ namespace KerbalNews
         public bool Retrospectives = true;
         /// <summary>Background world news (asteroids, windows, crew milestones...): 0 off, 1 a little, 2 normal, 3 lots.</summary>
         public int WorldNews = 2;
+        /// <summary>
+        /// How much of the generated text the AI writes, on every site (the rest comes from templates):
+        /// 0 nothing, 1 big news only, 2 most, 3 almost everything (default), 4 everything, small events included.
+        /// Things the player asks for directly (assistant, crew chat, engineers, replies to mail) always use the AI when it is on.
+        /// </summary>
+        public int AiAmount = 3;
+        public const int AiBig = 1, AiMost = 2, AiAlmostAll = 3, AiAll = 4;
+        /// <summary>True when the AI is on and the slider is at or above this stop.</summary>
+        public bool AiWrites(int stop) { return CanCallAi && AiAmount >= stop; }
+        /// <summary>Whether news of this coverage tier is AI-written at the current slider stop.</summary>
+        public bool AiWritesTier(string tier)
+        {
+            if (!CanCallAi) return false;
+            if (AiAmount >= AiAlmostAll) return true;
+            if (AiAmount == AiMost) return tier != "brief" && tier != "feature";
+            if (AiAmount == AiBig) return tier == "major" || tier == "historic";
+            return false;
+        }
         /// <summary>Kmail volume: 0 off, 1 less, 2 normal, 3 more.</summary>
         public int MailLevel = 2;
         /// <summary>Invented color around the game facts (weather, politics, culture), and rival programs (Kerbin orbit only).</summary>
@@ -181,6 +199,7 @@ namespace KerbalNews
             settings.Add("retrospectives", Retrospectives);
             settings.Add("worldNews", WorldNews);
             settings.Add("mailLevel", MailLevel);
+            settings.Add("aiAmount", AiAmount);
             settings.Add("worldFlavor", WorldFlavor);
             settings.Add("worldRivals", WorldRivals);
             settings.Add("uiScale", (double)UiScale);
@@ -242,6 +261,7 @@ namespace KerbalNews
                 g.Retrospectives = settings.GetBool("retrospectives", true);
                 g.WorldNews = Math.Max(0, Math.Min(3, settings.GetInt("worldNews", 2)));
                 g.MailLevel = Math.Max(0, Math.Min(3, settings.GetInt("mailLevel", 2)));
+                g.AiAmount = Math.Max(0, Math.Min(4, settings.GetInt("aiAmount", 3)));
                 g.WorldFlavor = settings.GetBool("worldFlavor", true);
                 g.WorldRivals = settings.GetBool("worldRivals", true);
                 g.UiScale = (float)settings.GetDouble("uiScale", 0);

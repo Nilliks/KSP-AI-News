@@ -4,6 +4,9 @@
 <div class="wrap">
   <h2>AI writing</h2>
   <div class="row" style="align-items: center"><a class="toggle{{^offline}} on{{/offline}}" href="action:toggle-offline">{{#offline}}AI is OFF (offline templates). Click to turn on{{/offline}}{{^offline}}AI is ON. Click to use offline templates{{/offline}}</a></div>
+  <label>How much the AI writes (every site)</label>
+  <div class="providers">{{#aiAmountOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/aiAmountOpts}}</div>
+  <p class="hint">{{aiAmountHint}} Whatever the AI doesn't write comes from templates. Things you ask for yourself (your assistant, crew chat, the engineers, your Kmail replies) always use the AI while it is on.</p>
   <label>Provider</label>
   <div class="providers">{{#providers}}<a class="prov{{#on}} on{{/on}}" href="action:provider/{{id}}">{{name}}</a>{{/providers}}</div>
   {{#provider}}

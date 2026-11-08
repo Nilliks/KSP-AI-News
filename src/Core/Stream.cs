@@ -337,7 +337,7 @@ namespace KerbalNews
             st.Hype = st.Hype * 0.45 + moments.Sum(m => MomentWeight(m));
             int n = ChatCount(st, rng, said.Count);
             double hype = st.Hype;
-            if (!Settings.CanCallAi || !allowCalls)
+            if (!Settings.AiWrites(GlobalSettings.AiAlmostAll) || !allowCalls)
             {
                 PlayOut(st, Fit(OfflineWriter.StreamChat(this, st, moments, said), hype >= 2 ? n : Math.Min(n, 12), rng), null, realTime, hype);
                 return;

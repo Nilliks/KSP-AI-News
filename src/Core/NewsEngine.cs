@@ -230,7 +230,7 @@ namespace KerbalNews
                 Finalize(due, new GeneratedCoverage(), plan, ut);
                 return;
             }
-            if (!Settings.CanCallAi)
+            if (!Settings.AiWritesTier(plan.Tier))
             {
                 Finalize(due, OfflineWriter.Write(due, plan, State, Clock), plan, ut);
                 return;
@@ -254,6 +254,9 @@ namespace KerbalNews
             else if (s.Kind == "tip") plan = CoveragePlan.ForTip(s);
             else if (s.Kind == "release") { var r = ReleaseOf(s); plan = CoveragePlan.ForRelease(s, r != null ? r.Type : "announcement"); }
             else plan = CoveragePlan.For(s);
+            // "Everything": small events that would get no story at all get a short brief.
+            if (plan.Tier == "none" && s.Kind == "mission" && s.Significance >= 6 && s.Events.Count > 0 && Settings.AiWrites(GlobalSettings.AiAll))
+                plan = CoveragePlan.ForSmall(s);
             return ApplyUsage(plan);
         }
 

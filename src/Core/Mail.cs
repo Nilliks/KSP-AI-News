@@ -255,7 +255,7 @@ namespace KerbalNews
         void WriteMail(List<MailMsg> batch, double ut)
         {
             if (batch.Count == 0) return;
-            if (!Settings.CanCallAi) { foreach (var m in batch) { OfflineMail(m); Deliver(m, ut); } return; }
+            if (!Settings.AiWrites(GlobalSettings.AiMost)) { foreach (var m in batch) { OfflineMail(m); Deliver(m, ut); } return; }
             MailBusy = true;
             var sb = new StringBuilder();
             sb.AppendLine("You write emails sent to the director of " + AgencyName + ", a space agency in the world of Kerbal Space Program (KSP1), through its in-game email, Kmail. Each email is from a different sender; write it the way that real person would: press emails are brisk and professional, companies are businesslike, Council offices formal, schools sweet and a bit chaotic, families personal and emotional, angry citizens rude but not hateful.");
@@ -667,7 +667,7 @@ namespace KerbalNews
         {
             var due = State.Mail.Where(m => m.UT <= ut - 0.1 * Day && Routine(m) && !State.Mail.Any(x => x.Thread == m.Id && x.Outgoing)).Take(4).ToList();
             if (due.Count == 0) return false;
-            if (!Settings.CanCallAi)
+            if (!Settings.AiWrites(GlobalSettings.AiMost))
             {
                 foreach (var m in due) MailReply(m.Id, "Thank you for writing to " + AgencyName + ". We read every letter, and we appreciate you taking the time.", "none", "", "", "", ut, true);
                 AssistantSay("result", "I answered " + due.Count + " routine email" + (due.Count == 1 ? "" : "s") + " for you: " + string.Join(", ", due.Select(m => m.From).ToArray()) + ".", ut);

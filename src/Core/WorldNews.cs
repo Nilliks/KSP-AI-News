@@ -267,7 +267,7 @@ namespace KerbalNews
 
         void WriteWorld(List<WorldFact> batch, double ut)
         {
-            if (!Settings.CanCallAi)
+            if (!Settings.AiWrites(GlobalSettings.AiMost))
             {
                 foreach (var f in batch) AddWorldArticle(f, OfflineWorldHeadline(f), OfflineWorldSub(f), OfflineWorldBody(f), ut, true);
                 return;

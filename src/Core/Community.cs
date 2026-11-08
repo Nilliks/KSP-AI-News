@@ -139,7 +139,7 @@ namespace KerbalNews
             var job = State.CommunityJobs[0];
             var list = CommentsOf(job.Target);
             if (list == null) { State.CommunityJobs.RemoveAt(0); return; }
-            if (!Settings.CanCallAi)
+            if (!Settings.AiWrites(GlobalSettings.AiMost))
             {
                 ApplyReplies(job, OfflineWriter.CommunityReplies(this, job), ut);
                 return;
