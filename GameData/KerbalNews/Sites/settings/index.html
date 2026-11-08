@@ -106,6 +106,10 @@
   <div class="providers">{{#voiceVolumeOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceVolumeOpts}}</div>
   <div class="save row"><button class="btn" data-action="save-voice">Save</button><button class="btn" data-action="test-voice">Save and play a test line</button></div>
   {{#voiceTestResult}}<p class="{{#voiceTestOk}}ok{{/voiceTestOk}}{{^voiceTestOk}}bad{{/voiceTestOk}}">{{voiceTestResult}}</p>{{/voiceTestResult}}
+  {{#pre}}<h3>Pre-recorded lines</h3>
+  <p class="hint">{{done}} of {{total}} common lines are recorded for {{voice}} in this model and style: the countdown, liftoff, staging, orbit and landings at Kerbin, the Mun, Minmus, Duna and Eve, holds and scrubs. Recorded lines play instantly and cost nothing, and the announcer picks them over new wording. Lines with your craft's name or live numbers are still made as they happen.</p>
+  {{^allDone}}{{^busy}}<div class="row"><a class="toggle" href="action:prerecord">Record the {{todo}} missing lines now (about {{letters}} letters)</a></div>{{/busy}}{{/allDone}}
+  {{#status}}<p class="hint">{{status}}</p>{{/status}}{{/pre}}
   {{#voiceStatus}}<p class="bad">Last voice problem: {{voiceStatus}}</p>{{/voiceStatus}}
   {{/announcerOn}}
   <h3>Replays</h3>

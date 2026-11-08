@@ -42,6 +42,7 @@ namespace KerbalNews
         public string VoiceStatus = "";
         public int VoiceCalls;
         double voiceFreeAt;
+        bool lastWasCount;
 
         bool VoiceReady { get { return Settings.VoiceOn && !VoiceBroken && PlayVoice != null && Transport != null; } }
 
@@ -95,9 +96,122 @@ namespace KerbalNews
             var tv = Tracked(st.VesselId);
             if (tv != null && tv.Craft != null && tv.Craft.Crew.Count > 0) v["crew"] = SpokenList(tv.Craft.Crew.Select(c => c.Split(' ')[0]).ToList());
             if (extra != null) foreach (var kv in extra) v[kv.Key] = kv.Value;
-            string line = opts[pick];
-            foreach (var kv in v) line = line.Replace("{" + kv.Key + "}", kv.Value);
-            return line.Contains("{") ? "" : line;
+            Func<string, string> fill = o => { foreach (var kv in v) o = o.Replace("{" + kv.Key + "}", kv.Value); return o.Contains("{") ? "" : o; };
+            // With the voice on, prefer lines already recorded (pre-recorded or said before): they play at once and cost nothing.
+            if (VoiceReady && VoiceCacheGet != null && opts.Length > 1)
+            {
+                string mood = RuleMood(rule);
+                var cached = Enumerable.Range(0, opts.Length).Where(i => i != (annLast.ContainsKey(rule + "#prev") ? annLast[rule + "#prev"] : -1))
+                    .Where(i => { string t = fill(opts[i]); return t != "" && IsRecorded(t, mood); }).ToList();
+                if (cached.Count > 0) pick = cached[rng.Next(cached.Count)];
+            }
+            annLast[rule + "#prev"] = pick;
+            return fill(opts[pick]);
+        }
+
+        static string RuleMood(string rule)
+        {
+            return rule == "boom" || rule == "crew_lost" ? "loss"
+                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" ? "tense"
+                : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" ? "big"
+                : rule == "zero" || rule == "count_30" ? "count" : "routine";
+        }
+
+        string VoiceKeyFor(string text, string mood)
+        {
+            return Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, Voice.Spoken(text, mood, Settings.AnnouncerStyle, Settings.VoiceModel));
+        }
+
+        bool IsRecorded(string text, string mood)
+        {
+            if (VoiceCacheGet == null) return false;
+            try { var b = VoiceCacheGet(VoiceKeyFor(text, mood)); return b != null && b.Length > 0; } catch (Exception) { return false; }
+        }
+
+        // ------------------------------------------------------------------ pre-recording
+
+        static readonly string[] CommonBodies = { "Kerbin", "Mun", "Minmus", "Duna", "Eve" };
+
+        /// <summary>Every announcer line that doesn't name the craft or read out live numbers, in the current voice's words:
+        /// the countdown, the stock calls, orbit and landings at the usual places. These can be recorded once and reused.</summary>
+        public List<KeyValuePair<string, string>> CommonLines()
+        {
+            var l = new List<KeyValuePair<string, string>>();
+            Action<string, string> add = (t, mood) => { if (t != "" && !t.Contains("{") && !l.Any(x => x.Key == t && x.Value == mood)) l.Add(new KeyValuePair<string, string>(t, mood)); };
+            for (int n = 10; n >= 1; n--) add(CountWords[n] + ".", "count");
+            foreach (var kv in AnnLines)
+            {
+                if (kv.Key == "telemetry" || kv.Key == "coast") continue;
+                string mood = RuleMood(kv.Key);
+                foreach (var o in kv.Value)
+                {
+                    if (o.Contains("{craft}") || o.Contains("{crew}") || o.Contains("{alt}") || o.Contains("{speed}") || o.Contains("{ap}")) continue;
+                    string t = o.Replace("{agency}", AgencyName);
+                    if (t.Contains("{body}")) { foreach (var b in CommonBodies) add(t.Replace("{body}", b), mood); continue; }
+                    if (t.Contains("{clock}"))
+                    {
+                        int[] mins = kv.Key == "count_min" ? new[] { 1, 2, 5, 10, 30 } : kv.Key == "count_start" ? new[] { 1, 5, 10, 30 } : kv.Key == "recycle" ? new[] { 1, 5, 10 } : new int[0];
+                        foreach (var m in mins) add(t.Replace("{clock}", SpokenClock(m * 60)), mood);
+                        continue;
+                    }
+                    add(t, mood);
+                }
+            }
+            add(SampleLine, "big");
+            return l;
+        }
+
+        public List<KeyValuePair<string, string>> LinesToRecord() { return CommonLines().Where(x => !IsRecorded(x.Key, x.Value)).ToList(); }
+
+        public bool Prerecording { get; private set; }
+        public string PrerecordStatus = "";
+
+        /// <summary>Records the common lines one at a time (ElevenLabs limits parallel requests), saving each as it comes.</summary>
+        public bool Prerecord(Action changed)
+        {
+            if (Prerecording || Settings.VoiceKey == "" || Transport == null || VoiceCachePut == null) return false;
+            var todo = LinesToRecord();
+            if (todo.Count == 0) { PrerecordStatus = "All common lines are already recorded."; return false; }
+            Prerecording = true;
+            int done = 0, total = todo.Count;
+            string voice = Settings.VoiceId, model = Settings.VoiceModel, style = Settings.AnnouncerStyle;
+            Action next = null;
+            next = () =>
+            {
+                if (done >= todo.Count || Settings.VoiceId != voice || Settings.VoiceModel != model || Settings.AnnouncerStyle != style)
+                {
+                    Prerecording = false;
+                    PrerecordStatus = done >= todo.Count ? "Recorded " + total + " lines. They play instantly and cost nothing from now on." : "Stopped: the voice settings changed. Press the button again for the new voice.";
+                    changed();
+                    return;
+                }
+                var item = todo[done];
+                string spoken = Voice.Spoken(item.Key, item.Value, style, model);
+                VoiceCalls++;
+                Transport.Send(Voice.Build(Settings.VoiceKey, voice, model, spoken, style), res =>
+                {
+                    byte[] pcm;
+                    string err;
+                    if (Voice.TryExtract(res, out pcm, out err))
+                    {
+                        try { VoiceCachePut(Voice.CacheKey(voice, model + "|" + style, spoken), pcm); } catch (Exception) { }
+                        done++;
+                        PrerecordStatus = "Recording... " + done + " of " + total;
+                        changed();
+                        next();
+                    }
+                    else
+                    {
+                        Prerecording = false;
+                        VoiceStatus = err;
+                        PrerecordStatus = "Stopped after " + done + " of " + total + ": " + err;
+                        changed();
+                    }
+                });
+            };
+            PrerecordStatus = "Recording... 0 of " + total;
+            next();
+            return true;
         }
 
         static string SpokenName(string name)
@@ -177,11 +291,7 @@ namespace KerbalNews
             if (line == "") return;
             bool urgent = rule == "liftoff" || rule == "liftoff_crew" || rule == "boom" || rule == "crew_lost" || rule == "hold" || rule == "scrub";
             if (urgent) speech.RemoveAll(s => !s.Count);   // nothing queued should hold up a liftoff or a loss
-            string mood = rule == "boom" || rule == "crew_lost" ? "loss"
-                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" ? "tense"
-                : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" ? "big"
-                : rule == "zero" || rule == "count_30" ? "count" : "routine";
-            Say(st, line, realTime, 0, urgent ? 6 : 12, false, mood);
+            Say(st, line, realTime, 0, urgent ? 6 : 12, false, RuleMood(rule));
         }
 
         static string BodyFrom(string what, string after)
@@ -210,7 +320,7 @@ namespace KerbalNews
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
             if (cached != null && cached.Length > 0) { sp.Pcm = cached; sp.Ready = true; return; }
             VoiceCalls++;
-            bool keep = count || text.Length <= 48 && !text.Contains(st.VesselName == "" ? "\u0001" : st.VesselName);
+            bool keep = count || st.VesselName == "" || !text.Contains(st.VesselName);   // anything without the craft's name can come up again
             Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
             {
                 byte[] pcm;
@@ -272,8 +382,9 @@ namespace KerbalNews
             speech.RemoveAll(s => realTime > s.Deadline);
             if (speech.Count == 0) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             var next = speech.Where(s => s.Ready && s.PlayAt <= realTime).OrderBy(s => s.PlayAt).FirstOrDefault();
-            if (next == null || realTime < voiceFreeAt - (next.Count ? 0.2 : 0)) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
+            if (next == null || realTime < voiceFreeAt - (next.Count ? 0.2 : 0) && !(next.Count && lastWasCount)) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             speech.Remove(next);
+            lastWasCount = next.Count;   // the next number cuts off this one rather than falling behind the clock
             double dur = Voice.Seconds(next.Pcm);
             int words = next.Text.Split(' ').Length;
             var line = new AnnouncerLine { At = realTime - st.StartReal, Text = next.Text, Seconds = dur };

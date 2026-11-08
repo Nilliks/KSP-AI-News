@@ -41,7 +41,8 @@ public static class AnnouncerTests
                 {
                     var text = Json.Str(Json.Parse(r.Body), "text", "");
                     rig.Spoken.Add(text);
-                    return Pcm(text.Length < 8 ? 0.4 : 2);
+                    string words = System.Text.RegularExpressions.Regex.Replace(text, @"^\[[^\]]*\] ", "");
+                    return Pcm(words.Length < 8 ? 0.4 : 2);
                 }
                 return ChatText(chatJson ?? "{\"viewers\":300,\"messages\":[{\"author\":\"a\",\"text\":\"go go go\"}]}");
             }
@@ -62,6 +63,7 @@ public static class AnnouncerTests
     {
         var g = aiOn ? CoreTests.OnlineSettings() : new GlobalSettings { OfflineMode = true };
         g.Keys[GlobalSettings.VoiceKeyId] = "el-test";
+        g.VoiceModel = "eleven_flash_v2_5";   // plain text in these tests; v3 directions have their own test
         return g;
     }
 
@@ -301,6 +303,46 @@ public static class AnnouncerTests
         eng.StreamMoment("liftoff", 5);
         Run(eng, 5, 6);
         Assert(!st.Caption.Contains("[") && rig.Spoken.Last().Contains("[excited"), "caption: " + st.Caption + " / sent: " + rig.Spoken.Last());
+    }
+
+    public static void TestPrerecordedLinesAreUsedFirst()
+    {
+        var g = VoiceSettings();
+        g.VoiceModel = Voice.DefaultModel;
+        Assert(new GlobalSettings().VoiceId == "iP95p4xoKVk53GoZ742B" && Voice.DefaultModel == "eleven_v3", "Chris on v3 by default");
+        var old = new DataNode("S"); old.Add("voiceId", "pNInz6obpgDQGcFmaJgB"); old.Add("voiceModel", "eleven_flash_v2_5");
+        var moved = GlobalSettings.Load(old, null);
+        Assert(moved.VoiceId == "iP95p4xoKVk53GoZ742B" && moved.VoiceModel == "eleven_v3", "the old defaults move to Chris once");
+        var sn = new DataNode("S"); var kn = new DataNode("K"); var mine = new GlobalSettings { VoiceId = "pNInz6obpgDQGcFmaJgB", VoiceModel = "eleven_flash_v2_5" }; mine.Save(sn, kn);
+        Assert(GlobalSettings.Load(sn, kn).VoiceId == "pNInz6obpgDQGcFmaJgB", "but a later choice of Adam sticks");
+
+        var rig = Make(g);
+        var eng = rig.Eng;
+        var common = eng.CommonLines();
+        Assert(common.Count > 80 && common.All(x => !x.Key.Contains("{")), "plenty of common lines: " + common.Count);
+        Assert(common.Any(x => x.Key == "Five." && x.Value == "count") && common.Any(x => x.Key.Contains("Minmus")), "numbers and places");
+        var dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var p = Path.Combine(dir, rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
+        sites.Now = () => 0;
+        Assert(sites.Render("settings.kb").Html.Contains("action:prerecord"), "the button shows");
+        sites.Handle("prerecord", new Dictionary<string, string>());
+        Assert(rig.Spoken.Count == common.Count && eng.LinesToRecord().Count == 0 && !eng.Prerecording, "all recorded: " + rig.Spoken.Count + " / " + common.Count);
+        Assert(rig.Spoken.All(x => x.StartsWith("[")), "with v3 directions");
+        Assert(!sites.Render("settings.kb").Html.Contains("action:prerecord"), "nothing left to record");
+
+        // A whole countdown and launch now needs no new calls, apart from lines that name the craft.
+        int before = rig.Spoken.Count;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.CountdownStart(60, 1);
+        Run(eng, 1, 62);
+        eng.StreamSample(new TelemetrySample { UT = 1, Altitude = 80, Situation = "FLYING", Body = "Kerbin" }, 62);
+        eng.StreamMoment("liftoff", 62);
+        Run(eng, 62, 66);
+        eng.StreamMoment("the vessel reached orbit around Kerbin", 200);
+        Run(eng, 200, 205);
+        var fresh = rig.Spoken.Skip(before).ToList();
+        Assert(fresh.All(x => x.Contains("Kerbal X")), "only craft-name lines are new: " + string.Join(" | ", fresh.ToArray()));
+        Assert(st.Said.Count >= 14, "and the announcer still said everything: " + string.Join(" | ", st.Said.Select(l => l.Text).ToArray()));
     }
 
     public static void TestVoiceSettingsSaveAndShow()

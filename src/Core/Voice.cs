@@ -13,19 +13,19 @@ namespace KerbalNews
     {
         public const int Rate = 22050;
         public const string BaseUrl = "https://api.elevenlabs.io/v1";
-        public const string DefaultVoice = "pNInz6obpgDQGcFmaJgB";
-        public const string DefaultModel = "eleven_flash_v2_5";
+        public const string DefaultVoice = "iP95p4xoKVk53GoZ742B";   // Chris
+        public const string DefaultModel = "eleven_v3";
 
         /// <summary>A few of ElevenLabs' stock voices that suit a launch commentator: id, name, description.</summary>
         public static readonly string[][] Voices =
         {
+            new[] { "iP95p4xoKVk53GoZ742B", "Chris", "casual, upbeat (default)" },
             new[] { "pNInz6obpgDQGcFmaJgB", "Adam", "deep, steady" },
             new[] { "nPczCjzI2devNBz1zQrb", "Brian", "warm narrator" },
             new[] { "onwK4e9ZLuTAKqWW03F9", "Daniel", "British news presenter" },
             new[] { "pqHfZKP75CvOlQylNhV4", "Bill", "older, trustworthy" },
             new[] { "JBFqnCBsd6RMkjVDRZzb", "George", "British, calm" },
             new[] { "cjVigY5qzO86Huf0OWal", "Eric", "smooth, confident" },
-            new[] { "iP95p4xoKVk53GoZ742B", "Chris", "casual, upbeat" },
             new[] { "CwhRBWXzGAHq8TQ4Fs17", "Roger", "relaxed, assured" },
             new[] { "EXAVITQu4vr4xnSDxMaL", "Sarah", "clear, professional" },
             new[] { "XrExE9yKIg1WjnnlVkGX", "Matilda", "warm, friendly" },

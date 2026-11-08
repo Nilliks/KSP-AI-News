@@ -28,6 +28,17 @@ namespace KerbalNews.Web
             m["voicesLoaded"] = g.FetchedVoiceList.Count > 0;
             m["styleOpts"] = new List<object> { opt("Mission control (calm)", "announcer-style/calm", g.AnnouncerStyle != "excited"), opt("Sportscaster (excited)", "announcer-style/excited", g.AnnouncerStyle == "excited") };
             m["directed"] = Voice.TakesDirections(g.VoiceModel);
+            if (hasKey)
+            {
+                var all = Engine.CommonLines();
+                var todo = Engine.LinesToRecord();
+                m["pre"] = new Dictionary<string, object>
+                {
+                    { "voice", Engine.VoiceLabel(g.VoiceId) }, { "total", all.Count }, { "todo", todo.Count }, { "done", all.Count - todo.Count },
+                    { "letters", todo.Sum(x => Voice.Spoken(x.Key, x.Value, g.AnnouncerStyle, g.VoiceModel).Length).ToString("N0", Inv) },
+                    { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 },
+                };
+            }
             m["voiceModelOpts"] = Voice.Models.Select(v => opt(v[1], "voice-model/" + v[0], g.VoiceModel == v[0])).ToList();
             var cur = Voice.Models.FirstOrDefault(v => v[0] == g.VoiceModel);
             m["voiceModelHint"] = cur != null ? cur[1] + ": " + cur[2] + "." : "Model " + g.VoiceModel + ".";
@@ -73,6 +84,9 @@ namespace KerbalNews.Web
                     return r;
                 case "voice-model": if (Voice.Models.Any(v => v[0] == arg)) { g.VoiceModel = arg; Engine.ResetVoice(); SaveSettings(); PlaySample(); } return r;
                 case "announcer-style": g.AnnouncerStyle = arg == "excited" ? "excited" : "calm"; SaveSettings(); PlaySample(); return r;
+                case "prerecord":
+                    if (!Engine.Prerecord(Changed)) { VoiceTestResult = Engine.PrerecordStatus != "" ? Engine.PrerecordStatus : "Save an ElevenLabs key first."; VoiceTestOk = true; }
+                    return r;
                 case "load-voices":
                     VoiceTestResult = "Asking ElevenLabs for your voices...";
                     VoiceTestOk = true;

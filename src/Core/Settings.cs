@@ -240,6 +240,7 @@ namespace KerbalNews
             settings.Add("voiceModel", VoiceModel);
             settings.Add("voiceVolume", VoiceVolume);
             settings.Add("announcerStyle", AnnouncerStyle);
+            settings.Add("voiceDefaults2", true);
             settings.AddText("voices", FetchedVoices);
             settings.Add("replays", ReplayQuality);
             settings.Add("replayMaxGb", ReplayMaxGb);
@@ -315,6 +316,8 @@ namespace KerbalNews
                 if (g.VoiceId == "") g.VoiceId = Voice.DefaultVoice;
                 g.VoiceModel = settings.Get("voiceModel", Voice.DefaultModel);
                 if (g.VoiceModel == "") g.VoiceModel = Voice.DefaultModel;
+                // 2026-11-08: Chris on v3 became the default; move players still on the first defaults (Adam, Flash) over once.
+                if (!settings.GetBool("voiceDefaults2") && g.VoiceId == "pNInz6obpgDQGcFmaJgB" && g.VoiceModel == "eleven_flash_v2_5") { g.VoiceId = Voice.DefaultVoice; g.VoiceModel = Voice.DefaultModel; }
                 g.VoiceVolume = Math.Max(0, Math.Min(1, settings.GetDouble("voiceVolume", 0.8)));
                 g.AnnouncerStyle = settings.Get("announcerStyle", "calm") == "excited" ? "excited" : "calm";
                 g.FetchedVoices = settings.GetText("voices") ?? "";
