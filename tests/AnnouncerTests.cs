@@ -104,20 +104,20 @@ public static class AnnouncerTests
         Assert(rig.Played.Count == 2 && st.Caption.ToLowerInvariant().Contains("liftoff"), "liftoff is called at once: " + st.Caption);
         eng.StreamMoment("stage 2 activated", 30);
         Run(eng, 30, 32);
-        Assert(rig.Played.Count == 3 && st.Said.Last().Speaker == "ctl" && st.Said.Last().At > 31, "big moments: the controller confirms the staging a beat later: " + st.Said.Last().Text);
+        Assert(rig.Played.Count == 3 && st.Said.Last().Speaker == "stn:Booster" && st.Said.Last().At > 31, "big moments: the controller confirms the staging a beat later: " + st.Said.Last().Text);
         eng.StreamMoment("the vessel reached orbit around Kerbin", 60);
-        Run(eng, 60, 66);
-        Assert(rig.Played.Count == 5 && st.Said[3].Speaker == "ctl" && st.Said[4].Text.ToLowerInvariant().Contains("orbit"), "orbit is confirmed, then celebrated: " + string.Join(" | ", st.Said.Select(l => l.Speaker + ": " + l.Text).ToArray()));
-        Assert(st.Said.Count == 5 && eng.VoiceCalls == 5, "five lines, five voice calls");
+        Run(eng, 60, 72);
+        Assert(rig.Played.Count == 6 && st.Said[3].Speaker == "stn:FIDO" && st.Said[5].Text.ToLowerInvariant().Contains("orbit"), "orbit is confirmed, then celebrated: " + string.Join(" | ", st.Said.Select(l => l.Speaker + ": " + l.Text).ToArray()));
+        Assert(st.Said.Count == 6 && eng.VoiceCalls == 6, "six lines (Flight copies the orbit), six voice calls");
 
         eng.Settings.Announcer = 2;
         eng.StreamMoment("stage 1 activated", 90);
         Run(eng, 90, 100);
-        Assert(rig.Spoken.Count == 7, "full commentary adds the commentator on staging: " + rig.Spoken.Count);
+        Assert(rig.Spoken.Count == 8, "full commentary adds the commentator on staging: " + rig.Spoken.Count);
         eng.Settings.Announcer = 0;
         eng.StreamMoment("touchdown on Mun", 120);
         Run(eng, 120, 122);
-        Assert(rig.Spoken.Count == 7, "announcer off: silent");
+        Assert(rig.Spoken.Count == 8, "announcer off: silent");
     }
 
     public static void TestFinalCountdownLandsOnEachSecondAndIsPaidForOnce()
@@ -206,11 +206,13 @@ public static class AnnouncerTests
         Run(eng, 5.5, 25, 0.05);
         var after = st.Said.Where(l => l.At > 5.5).ToList();
         string all = string.Join(" | ", st.Said.Select(l => l.At.ToString("0.00") + " " + l.Speaker + ": " + l.Text).ToArray());
-        Assert(after.Count >= 3 && after[0].Speaker == "ctl" && after[0].At >= 5.5 + 1.5 && after[0].At <= 5.5 + 2.6, "a stunned pause, then the controller: " + all);
+        Assert(after.Count >= 4 && after[0].Speaker == "stn:Telemetry" && after[0].At >= 5.5 + 1.5 && after[0].At <= 5.5 + 2.6, "a stunned pause, then the loop reports no data: " + all);
+        Assert(after[1].Speaker == "ctl", "Flight answers: " + all);
+        after.RemoveAt(0);
         Assert(after[1].Speaker == "host" && after[1].At >= after[0].At + after[0].Seconds + 1.3, "stand by, after a gap: " + all);
         Assert(after[2].At >= after[1].At + after[1].Seconds + 2.5 && (after[2].Text.Contains("vehicle") || after[2].Text.Contains("malfunction")), "and only then the loss: " + all);
         Assert(stops == 1, "the liftoff call is cut off: " + stops);
-        Assert(after.Count == 5 && after[3].Text.StartsWith("To recap") && after[3].Text.Contains("moments after liftoff"), "a recap once it's quiet: " + all);
+        Assert(after.Count >= 4 && after[3].Text.StartsWith("To recap") && after[3].Text.Contains("moments after liftoff"), "a recap once it's quiet: " + all);
     }
 
     static void Fly(NewsEngine eng, double t, double alt, double mach, double q, double thr, double thrust)
@@ -238,11 +240,11 @@ public static class AnnouncerTests
         fly(56, 35000, 4, 1, 1, 0);           // burnout without staging: MECO
         fly(70, 40000, 4, 0.5, 1, 60);        // the next engine lights
         Run(eng, 70, 80);
-        var calls = st.Said.Where(l => l.Speaker == "ctl").Select(l => l.Text).ToList();
+        var calls = st.Said.Where(l => l.Speaker.StartsWith("stn:")).Select(l => l.Text).ToList();
         string all = string.Join(" | ", st.Said.Select(l => l.At.ToString("0.0") + " " + l.Speaker + ": " + l.Text).ToArray());
         Func<string, bool> has = w => calls.Count(c => c.ToLowerInvariant().Contains(w)) == 1;
-        Assert(has("tower") && has("supersonic") && has("throttling down") && has("max q") && (has("back up") || has("full throttle")) && (has("meco") || has("main engine")) && has("ignition"), "every callout once: " + all);
-        Assert(calls.Count == 7, "and nothing twice: " + all);
+        Assert(has("tower") && has("supersonic") && has("throttling down") && (has("fido, max q") || has("through max q")) && (has("back up") || has("full throttle")) && (has("meco") || has("main engine")) && has("ignition"), "every callout once: " + all);
+        Assert(calls.Count == 7 && st.Said.Count(l => l.Speaker == "ctl") == 2, "and nothing twice; Flight copies max Q and MECO: " + all);
         Assert(st.Rec.Count(e => (string)e["k"] == "ov") > 50, "the overlay is recorded for the replay");
         var ctlClip = rig.Played.Count;
         Assert(ctlClip >= 9, "they're heard: " + ctlClip);
@@ -256,13 +258,14 @@ public static class AnnouncerTests
         Run(eng, 0, 2);
         eng.CountdownStart(330, 2);   // T-5:00 at 32
         Run(eng, 2, 31);
-        Assert(!st.Said.Any(l => l.Speaker == "stn"), "no poll before T-5");
+        Assert(!st.Said.Any(l => l.Speaker.StartsWith("stn")), "no poll before T-5");
         Run(eng, 31, 100);
         string all = string.Join(" | ", st.Said.Select(l => l.At.ToString("0.0") + " " + l.Speaker + ": " + l.Text).ToArray());
-        var answers = st.Said.Where(l => l.Speaker == "stn").ToList();
-        Assert(answers.Count == 5 && answers.All(a => a.Text.StartsWith("Go") || a.Text.StartsWith("We're go")), "five stations answer go (uncrewed): " + all);
-        int i = st.Said.FindIndex(l => l.Text == "Booster.");
-        Assert(i > 0 && st.Said[i + 1].Speaker == "stn" && st.Said[i].Speaker == "ctl", "each station is called, then answers: " + all);
+        var answers = st.Said.Where(l => l.Speaker.StartsWith("stn:")).ToList();
+        Assert(answers.Count == 7 && answers.All(a => a.Text.Contains(" go") || a.Text.Contains(", go")) && !answers.Any(a => a.Text.Contains("crew")), "seven stations answer go (uncrewed, so no Capcom): " + all);
+        Assert(answers.Select(a => a.Speaker).Distinct().Count() == 7, "each station is its own speaker");
+        int i = st.Said.FindIndex(l => l.Text == "Booster?");
+        Assert(i > 0 && st.Said[i + 1].Speaker == "stn:Booster" && st.Said[i].Speaker == "ctl", "each station is called, then answers: " + all);
         Assert(st.Said.Last(l => l.Speaker == "host").Text.Contains("go for launch") && st.Said.Last().At < 100, "and the commentator says the team is go: " + all);
 
         // A hold during the poll stops it; resuming runs it again.
@@ -275,7 +278,7 @@ public static class AnnouncerTests
         Assert(!st.Said.Any(l => l.Text.Contains("go for launch")), "the hold stops the poll");
         eng.CountdownResume(340);
         Run(eng, 340, 420);
-        Assert(st.Said.Count(l => l.Speaker == "stn") >= 5 && st.Said.Any(l => l.Text.Contains("go for launch")), "and it runs again on resume");
+        Assert(st.Said.Count(l => l.Speaker.StartsWith("stn:")) >= 7 && st.Said.Any(l => l.Text.Contains("go for launch")), "and it runs again on resume");
     }
 
     public static void TestRadioSoundsLikeARadio()
@@ -321,7 +324,7 @@ public static class AnnouncerTests
         Run(eng, 900, 940);
         string all = string.Join(" | ", st.Said.Where(l => l.At + st.StartReal > 880).Select(l => l.At.ToString("0.0") + " " + l.Speaker + ": " + l.Text).ToArray());
         var lag = st.Said.FirstOrDefault(l => l.Text.Contains("signal"));
-        var conf = st.Said.FirstOrDefault(l => l.Speaker == "ctl" && (l.Text.Contains("Contact") || l.Text.Contains("Touchdown")));
+        var conf = st.Said.FirstOrDefault(l => l.Speaker == "stn:FIDO" && (l.Text.Contains("contact") || l.Text.Contains("touchdown")));
         Assert(lag != null && lag.At + st.StartReal < 905 && conf != null && conf.At + st.StartReal >= 900 + 21, "the signal delay is explained, then the touchdown confirmed: " + all);
     }
 
@@ -553,7 +556,7 @@ public static class AnnouncerTests
         sites.Handle("prerecord", new Dictionary<string, string>());
         Assert(rig.Spoken.Count == common.Count && eng.LinesToRecord().Count == 0 && !eng.Prerecording, "all recorded: " + rig.Spoken.Count + " / " + common.Count);
         Assert(rig.Spoken.Where(x => !common.Any(c => c.Speaker == "sfx" && c.Value == x)).All(x => x.StartsWith("[")), "with v3 directions");
-        Assert(common.Count(c => c.Speaker == "sfx") == NewsEngine.Sounds.Length && common.Any(c => c.Speaker == "ctl" && c.Key == "Vehicle is supersonic."), "controller lines and sound effects are recorded too");
+        Assert(common.Count(c => c.Speaker == "sfx") == NewsEngine.Sounds.Length && common.Any(c => c.Speaker == "stn:FIDO" && c.Key == "Flight, FIDO, vehicle is supersonic.") && common.Any(c => c.Speaker == "stn:Range" && c.Key == "Range is go for launch."), "controller lines and sound effects are recorded too");
         Assert(!sites.Render("settings.kb").Html.Contains("action:prerecord"), "nothing left to record");
 
         // A whole countdown and launch now needs no new calls, apart from lines that name the craft.

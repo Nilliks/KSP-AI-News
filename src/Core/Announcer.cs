@@ -11,7 +11,7 @@ namespace KerbalNews
     {
         public double At;
         public string Text = "";
-        /// <summary>"host" (the commentator), "ctl" (the flight controller on the radio) or "stn" (a station answering the poll).</summary>
+        /// <summary>"host" (the commentator), "ctl" (the flight controller on the radio) or "stn:Prop" (a station on the loop).</summary>
         public string Speaker = "host";
         public string Audio = "";
         public double Seconds;
@@ -61,8 +61,16 @@ namespace KerbalNews
         }
 
         static string SpeakerOf(string rule) { return rule.StartsWith("c_") ? "ctl" : rule.StartsWith("s_") ? "stn" : "host"; }
+        /// <summary>A station's speaker for a line: "stn:Prop".</summary>
+        static string StationSpeaker(string text) { return "stn:" + StationIn(text); }
         bool OnRadio(string speaker) { return speaker != "host" && Settings.ControllerOn; }
-        string VoiceOf(string speaker) { return OnRadio(speaker) ? Settings.ControllerVoiceId : Settings.VoiceId; }
+        string VoiceOf(string speaker)
+        {
+            if (!OnRadio(speaker)) return Settings.VoiceId;
+            string v;
+            if (speaker.StartsWith("stn:") && StationVoices.TryGetValue(speaker.Substring(4), out v)) return v == Settings.ControllerVoiceId ? Voice.DefaultController2 : v;
+            return Settings.ControllerVoiceId;
+        }
         string StyleOf(string speaker) { return OnRadio(speaker) ? "radio" : Settings.AnnouncerStyle; }
 
         readonly List<Speech> speech = new List<Speech>();
@@ -120,34 +128,56 @@ namespace KerbalNews
             { "recap_loss", new[] { "The flight team will now begin looking into what happened. We'll share more as we learn it.", "An investigation will follow. We'll bring you more information when we have it." } },
             { "signoff", new[] { "That concludes our live coverage. Thank you for watching.", "That's all from us. Thanks for joining the broadcast.", "And that wraps up today's coverage. Thanks for watching." } },
             { "lag", new[] { "The signal takes {lag} to reach us from {body}, so we're waiting on confirmation.", "It takes {lag} for the signal to get here from {body}. Stand by for confirmation." } },
-            // The flight controller, on the radio loop.
-            { "c_tower", new[] { "Tower cleared.", "The vehicle has cleared the tower." } },
-            { "c_super", new[] { "Vehicle is supersonic.", "Supersonic." } },
-            { "c_bucket", new[] { "Throttling down for max Q.", "Engines throttling down." } },
-            { "c_maxq", new[] { "Max Q. Peak aerodynamic pressure.", "Vehicle is through max Q." } },
-            { "c_throttle_up", new[] { "Throttling back up.", "Engines back at full throttle." } },
-            { "c_meco", new[] { "MECO. Main engine cutoff.", "Main engine cutoff confirmed." } },
-            { "c_cutoff", new[] { "Engine cutoff.", "Cutoff confirmed." } },
-            { "c_stage", new[] { "Stage separation confirmed.", "Separation confirmed.", "We have good separation." } },
-            { "c_ignite", new[] { "Ignition.", "Good ignition.", "Engine ignition confirmed." } },
-            { "c_orbit", new[] { "Flight, we have orbit insertion.", "Orbital insertion confirmed." } },
-            { "c_touchdown", new[] { "Contact light.", "Touchdown confirmed." } },
-            { "c_splash", new[] { "Splashdown confirmed.", "Flight, we have splashdown." } },
-            { "c_dock", new[] { "Capture confirmed.", "Contact and capture." } },
-            { "c_anomaly", new[] { "Flight, we're seeing an anomaly.", "We've got an off-nominal reading, flight." } },
-            { "c_los", new[] { "Flight, we've lost telemetry.", "We have loss of signal.", "No data, flight." } },
-            { "c_poll_open", new[] { "All stations, this is the launch director. Stand by for the go, no-go poll for launch." } },
-            { "c_poll_close", new[] { "Launch director is go. We are go for launch.", "Copy all. We are go for launch." } },
-            { "s_go", new[] { "Go.", "Go for launch.", "We're go." } },
+            // The loop: Flight (the flight director, also the launch director in the count) and the stations. Calls follow
+            // real loop etiquette: who you're calling, who you are, then the message, short; Flight acknowledges.
+            { "s_tower", new[] { "Flight, Booster, tower clear.", "Tower clear, Flight." } },
+            { "s_super", new[] { "Flight, FIDO, vehicle is supersonic.", "Flight, FIDO, supersonic." } },
+            { "s_bucket", new[] { "Flight, Prop, throttle down.", "Flight, Prop, throttling down for max Q." } },
+            { "s_maxq", new[] { "Flight, FIDO, max Q.", "Flight, FIDO, through max Q." } },
+            { "s_throttle_up", new[] { "Flight, Prop, throttle up.", "Flight, Prop, engines at full throttle." } },
+            { "s_meco", new[] { "Flight, Prop, MECO.", "MECO, Flight." } },
+            { "s_cutoff", new[] { "Flight, Prop, engine cutoff.", "Flight, Prop, shutdown confirmed." } },
+            { "s_stage", new[] { "Flight, Booster, stage sep confirmed.", "Flight, Booster, good separation." } },
+            { "s_ignite", new[] { "Flight, Prop, ignition.", "Flight, Prop, good ignition." } },
+            { "s_orbit", new[] { "Flight, FIDO, orbit insertion confirmed.", "Flight, FIDO, nominal orbit." } },
+            { "s_touchdown", new[] { "Flight, FIDO, contact light.", "Flight, FIDO, touchdown confirmed." } },
+            { "s_splash", new[] { "Flight, Recovery, splashdown confirmed.", "Flight, Recovery, we have splashdown." } },
+            { "s_dock", new[] { "Flight, Guidance, capture confirmed.", "Flight, Guidance, contact and capture." } },
+            { "s_anomaly", new[] { "Flight, Telemetry, we're seeing an anomaly.", "Flight, Telemetry, off-nominal readings." } },
+            { "s_los", new[] { "Flight, Telemetry, loss of signal.", "Flight, Telemetry, no data." } },
+            { "c_copy", new[] { "Copy.", "Flight copies.", "Roger." } },
+            { "c_anomaly_ack", new[] { "Copy. All stations, Flight, stay on your data.", "Flight copies. Stations, eyes on your data." } },
+            { "c_los_ack", new[] { "Copy. All stations, Flight, secure your data and stand by.", "Flight copies. All controllers, maintain your data." } },
+            { "c_poll_open", new[] { "All stations, Flight, go, no-go poll for launch.", "All stations, Flight. Stand by for the go, no-go poll." } },
+            { "c_poll_close", new[] { "Flight is go. We are go for launch.", "Copy all. We are go for launch." } },
         };
 
-        /// <summary>The stations the launch director polls, and how each answers when crewed flights add the crew.</summary>
+        /// <summary>The stations Flight polls before launch: the call, and the station's answer. Crew only flies crewed.</summary>
         static readonly string[][] PollStations =
         {
-            new[] { "Booster." }, new[] { "Propulsion." }, new[] { "Guidance." }, new[] { "Range." }, new[] { "Weather." }, new[] { "Crew support." },
+            new[] { "Booster", "Booster?", "Booster is go." }, new[] { "Prop", "Prop?", "Prop is go." }, new[] { "Guidance", "Guidance?", "Guidance, go." },
+            new[] { "FIDO", "FIDO?", "FIDO is go." }, new[] { "Range", "Range?", "Range is go for launch." }, new[] { "Weather", "Weather?", "Weather is go." },
+            new[] { "Recovery", "Recovery?", "Recovery is go." }, new[] { "Capcom", "Capcom?", "Capcom is go. The crew is go." },
         };
 
-        public const string ControllerSample = "Flight, guidance. Vehicle is supersonic. Max Q in ten seconds.";
+        /// <summary>Each station's own voice on the loop (ElevenLabs stock voices), so the poll sounds like a room of people.</summary>
+        static readonly Dictionary<string, string> StationVoices = new Dictionary<string, string>
+        {
+            { "Booster", "CwhRBWXzGAHq8TQ4Fs17" }, { "Prop", "cjVigY5qzO86Huf0OWal" }, { "Guidance", "nPczCjzI2devNBz1zQrb" },
+            { "FIDO", "CwhRBWXzGAHq8TQ4Fs17" }, { "Range", "cjVigY5qzO86Huf0OWal" }, { "Weather", "nPczCjzI2devNBz1zQrb" },
+            { "Recovery", "CwhRBWXzGAHq8TQ4Fs17" }, { "Capcom", "cjVigY5qzO86Huf0OWal" }, { "Telemetry", "nPczCjzI2devNBz1zQrb" },
+        };
+
+        /// <summary>The station a loop call comes from: the name after "Flight, " (or before ", Flight").</summary>
+        static string StationIn(string text)
+        {
+            var m = Regex.Match(text ?? "", @"^Flight, (\w+),");
+            if (m.Success) return m.Groups[1].Value;
+            var r = Regex.Match(text ?? "", @"^(\w+)( is|,| clear| Flight)");
+            return r.Success && StationVoices.ContainsKey(r.Groups[1].Value) ? r.Groups[1].Value : "Booster";
+        }
+
+        public const string ControllerSample = "All stations, Flight, go, no-go poll for launch.";
 
         /// <summary>Sound effects, made once with ElevenLabs and shipped: name, prompt, seconds, loop or once.</summary>
         public static readonly string[][] Sounds =
@@ -190,7 +220,7 @@ namespace KerbalNews
             {
                 string mood = RuleMood(rule), who = SpeakerOf(rule);
                 var cached = Enumerable.Range(0, opts.Length).Where(i => i != (annLast.ContainsKey(rule + "#prev") ? annLast[rule + "#prev"] : -1))
-                    .Where(i => { string t = fill(opts[i]); return t != "" && IsRecorded(t, mood, who); }).ToList();
+                    .Where(i => { string t = fill(opts[i]); return t != "" && IsRecorded(t, mood, who == "stn" ? StationSpeaker(t) : who); }).ToList();
                 if (cached.Count > 0) pick = cached[rng.Next(cached.Count)];
             }
             annLast[rule + "#prev"] = pick;
@@ -199,8 +229,8 @@ namespace KerbalNews
 
         static string RuleMood(string rule)
         {
-            return rule == "boom" || rule == "crew_lost" || rule == "recap_loss" || rule == "c_los" ? "loss"
-                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" || rule == "standby" || rule == "lag" || rule == "c_anomaly" ? "tense"
+            return rule == "boom" || rule == "crew_lost" || rule == "recap_loss" || rule == "s_los" || rule == "c_los_ack" ? "loss"
+                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" || rule == "standby" || rule == "lag" || rule == "s_anomaly" || rule == "c_anomaly_ack" ? "tense"
                 : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" || rule == "poll_go" || rule == "c_poll_close" ? "big"
                 : rule == "zero" || rule == "count_30" ? "count" : "routine";
         }
@@ -231,7 +261,7 @@ namespace KerbalNews
             Action<string, string> add = (t, mood) =>
             {
                 if (t == "" || t.Contains("{")) return;
-                string sp = who == "stn" ? "ctl" : who;   // a station's answer is the controller's recording, filtered differently
+                string sp = who == "stn" ? StationSpeaker(t) : who;
                 if (keys.Add(VoiceKeyFor(t, mood, sp))) l.Add(new VoiceLine { Key = t, Value = mood, Speaker = sp });
             };
             for (int n = 10; n >= 1; n--) add(CountWords[n] + ".", "count");
@@ -258,7 +288,7 @@ namespace KerbalNews
             add(SampleLine, "big");
             who = "ctl";
             add(ControllerSample, "routine");
-            foreach (var st in PollStations) add(st[0], "routine");
+            foreach (var st in PollStations) { who = "ctl"; add(st[1], "routine"); who = "stn:" + st[0]; add(st[2], "routine"); }
             foreach (var fx in Sounds)
                 if (keys.Add(SfxKey(fx[0]))) l.Add(new VoiceLine { Key = fx[0], Value = fx[1], Speaker = "sfx", Seconds = double.Parse(fx[2], CultureInfo.InvariantCulture), Loop = fx[3] == "loop" });
             return l;
@@ -284,6 +314,7 @@ namespace KerbalNews
         /// <summary>The bank's folder name for the current voice, model and style, e.g. chris-eleven_v3-calm.</summary>
         public string BankName { get { return BankOf("host"); } }
         public string ControllerBankName { get { return BankOf("ctl"); } }
+        public List<string> StationBankNames { get { return StationVoices.Keys.Select(k => BankOf("stn:" + k)).Distinct().ToList(); } }
         public bool SoundRecorded(string name) { return SoundClip(name) != null; }
 
         /// <summary>The recorded common lines that fit every player (not the ones with this save's agency name), for shipping:
@@ -313,7 +344,7 @@ namespace KerbalNews
             var todo = LinesToRecord();
             if (todo.Count == 0) { PrerecordStatus = "All common lines are already recorded."; return false; }
             Prerecording = true;
-            int done = 0, total = todo.Count;
+            int done = 0, total = todo.Count, skipped = 0;
             string voice = Settings.VoiceId, model = Settings.VoiceModel, style = Settings.AnnouncerStyle, ctl = Settings.ControllerVoiceId;
             bool ctlOn = Settings.ControllerOn;
             Action next = null;
@@ -322,7 +353,7 @@ namespace KerbalNews
                 if (done >= todo.Count || Settings.VoiceId != voice || Settings.VoiceModel != model || Settings.AnnouncerStyle != style || Settings.ControllerVoiceId != ctl || Settings.ControllerOn != ctlOn)
                 {
                     Prerecording = false;
-                    PrerecordStatus = done >= todo.Count ? "Recorded " + total + " lines. They play instantly and cost nothing from now on." : "Stopped: the voice settings changed. Press the button again for the new voice.";
+                    PrerecordStatus = done >= todo.Count ? "Recorded " + total + " lines." + (skipped > 0 ? " " + skipped + " couldn't be made: " + VoiceStatus : " They play instantly and cost nothing from now on.") : "Stopped: the voice settings changed. Press the button again for the new voice.";
                     changed();
                     return;
                 }
@@ -346,6 +377,17 @@ namespace KerbalNews
                         try { VoiceCachePut(key, pcm); } catch (Exception) { }
                         done++;
                         PrerecordStatus = "Recording... " + done + " of " + total;
+                        changed();
+                        next();
+                    }
+                    else if (!Voice.IsFatal(res) && skipped < 15)
+                    {
+                        // One bad line (a voice the account can't use, a sound the API refused) shouldn't stop the rest.
+                        skipped++;
+                        VoiceStatus = err;
+                        todo.RemoveAt(done);
+                        total--;
+                        PrerecordStatus = "Recording... " + done + " of " + total + " (skipped " + skipped + ": " + err + ")";
                         changed();
                         next();
                     }
@@ -455,12 +497,13 @@ namespace KerbalNews
             if (count) mood = "count";
             text = (text ?? "").Trim();
             if (Settings.Announcer <= 0 || text == "" || st == null) return null;
+            if (speaker == "stn") speaker = StationSpeaker(text);
             double at = playAt > 0 ? playAt : realTime;
             var sp = new Speech { Text = text, PlayAt = at, Deadline = at + maxWait, Count = count, Speaker = speaker, Mood = mood, Gap = gap, Tag = tag, Sfx = sfx };
             speech.Add(sp);
             st.LastAnnReal = Math.Max(st.LastAnnReal, realTime);
             if (!CanPlay) { sp.Ready = true; return sp; }
-            string rec = speaker == "stn" ? "ctl" : speaker;
+            string rec = speaker;
             string style = StyleOf(rec), voice = VoiceOf(rec);
             string spoken = Voice.Spoken(text, mood, style, Settings.VoiceModel);
             string key = Voice.CacheKey(voice, Settings.VoiceModel + "|" + style, spoken);
@@ -552,7 +595,7 @@ namespace KerbalNews
             if (blocked) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             speech.Remove(next);
             if (next.Pcm != null) next.Pcm = Voice.Tighten(Voice.Trim(next.Pcm, next.Count));
-            if (next.Pcm != null && OnRadio(next.Speaker)) next.Pcm = Voice.Radio(next.Pcm, next.Speaker == "ctl", next.Speaker == "stn");
+            if (next.Pcm != null && OnRadio(next.Speaker)) next.Pcm = Voice.Radio(Voice.Tighten(next.Pcm, 7, 4), next.Speaker == "ctl", next.Speaker.StartsWith("stn"));
             if (next.Sfx != "") PlaySfx(st, next.Sfx, realTime);
             double dur = Voice.Seconds(next.Pcm);
             int words = next.Text.Split(' ').Length;
@@ -569,7 +612,7 @@ namespace KerbalNews
             }
             else voiceFreeAt = realTime + (next.Count ? 0.6 : 1.5);   // captions only: a short gap so lines don't flash past
             st.Said.Add(line);
-            st.Caption = (next.Speaker == "host" || !Settings.ControllerOn ? "" : next.Speaker == "ctl" ? "FLIGHT: " : "LOOP: ") + next.Text;
+            st.Caption = (next.Speaker == "host" || !Settings.ControllerOn ? "" : next.Speaker == "ctl" ? "FLIGHT: " : next.Speaker.StartsWith("stn:") ? next.Speaker.Substring(4).ToUpperInvariant() + ": " : "LOOP: ") + next.Text;
             st.CaptionUntil = realTime + Math.Max(next.Count ? 1 : 4, Math.Max(dur + 1.5, words * 0.4));
             st.LastAnnReal = realTime;
             Record(st, realTime, "ann", "x", st.Caption, "v", line.Audio, "d", Math.Round(dur, 2));

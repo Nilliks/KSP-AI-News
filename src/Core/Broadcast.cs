@@ -88,15 +88,16 @@ namespace KerbalNews
                     bc.LastStageCall = realTime;
                     bool quiet = realTime - st.LastAnnReal > 20;
                     // The confirmation comes a beat after the event, once the data shows it.
-                    Say(st, line("c_stage"), realTime, realTime + Rand(1.1, 1.9), 6, false, "routine", "ctl");
+                    Say(st, line("s_stage"), realTime, realTime + Rand(1.1, 1.9), 6, false, "routine", "stn");
                     if (mode >= 2 && Settings.ControllerOn && quiet) Say(st, line("stage"), realTime, realTime + 2, 8, false, "routine", "host", 0.8);
                     return;
                 case "anomaly":
                     if (bc.Lost || realTime - bc.AnomalyReal < 15) return;
                     bc.AnomalyReal = realTime;
                     PlaySfx(st, "gasp", realTime);
-                    Say(st, line("c_anomaly"), realTime, realTime + Rand(0.6, 1.1), 6, false, "tense", "ctl");
-                    Say(st, line("anomaly"), realTime, realTime + 1.2, 10, false, "tense", "host", 0.8);
+                    Say(st, line("s_anomaly"), realTime, realTime + Rand(0.6, 1.1), 6, false, "tense", "stn");
+                    Say(st, line("c_anomaly_ack"), realTime, realTime + 1.11, 8, false, "tense", "ctl", 0.15);
+                    Say(st, line("anomaly"), realTime, realTime + 1.2, 12, false, "tense", "host", 0.8);
                     return;
                 case "boom":
                 {
@@ -110,7 +111,8 @@ namespace KerbalNews
                     if (st.Caption != "") { st.Caption = ""; Changed(); }
                     if (realTime - bc.AnomalyReal > 4) PlaySfx(st, "gasp", realTime);
                     double beat = Rand(1.6, 2.5);
-                    Say(st, line("c_los"), realTime, realTime + beat, 20, false, "loss", "ctl");
+                    Say(st, line("s_los"), realTime, realTime + beat, 20, false, "loss", "stn");
+                    Say(st, line("c_los_ack"), realTime, realTime + beat + 0.005, 22, false, "loss", "ctl", 0.6);
                     Say(st, line("standby"), realTime, realTime + beat + 0.01, 25, false, "tense", "host", 1.4, "", "murmur");
                     Say(st, line("boom"), realTime, realTime + beat + 0.02, 30, false, "loss", "host", 2.6);
                     SurgeTo(st, 2.2, 700);
@@ -141,8 +143,9 @@ namespace KerbalNews
                     if (lag > 5)
                         Say(st, AnnLine("lag", st, new Dictionary<string, string> { { "lag", SpokenSeconds(lag) }, { "body", body } }), realTime, realTime + 1, 10, false, "tense");
                     double at = realTime + lag + Rand(1.2, 2.2);
-                    string ctl = rule == "orbit" ? "c_orbit" : rule == "landing" ? "c_touchdown" : rule == "splash" ? "c_splash" : "c_dock";
-                    Say(st, line(ctl), realTime, at, 12, false, RuleMood(ctl), "ctl");
+                    string ctl = rule == "orbit" ? "s_orbit" : rule == "landing" ? "s_touchdown" : rule == "splash" ? "s_splash" : "s_dock";
+                    Say(st, line(ctl), realTime, at, 12, false, RuleMood(ctl), "stn");
+                    Say(st, line("c_copy"), realTime, at + 0.005, 14, false, "routine", "ctl", 0.15);
                     Say(st, line(rule), realTime, at + 0.01, 16, false, "big", "host", 0.5, "", rule == "dock" ? "applause" : rule == "orbit" ? "applause" : "cheer");
                     if (rule == "orbit") bc.Orbited = true;
                     if (rule != "dock") { bc.Outcome = rule == "orbit" ? "orbit" : rule; bc.OutcomeBody = body; bc.OutcomeReal = realTime + lag; }
@@ -192,18 +195,24 @@ namespace KerbalNews
             var bc = st.Bc;
             bool inAir = n.AtmosphereTop > 0 && n.Altitude < n.AtmosphereTop;
             bool ascent = bc.LiftoffReal > 0 && realTime - bc.LiftoffReal < 600;
-            Action<string, string> call = (rule, mood) => Say(st, AnnLine(rule, st), realTime, realTime + Rand(0.2, 0.6), 4, false, mood, "ctl");
+            Action<string, string> call = (rule, mood) =>
+            {
+                double at = realTime + Rand(0.2, 0.6);
+                Say(st, AnnLine(rule, st), realTime, at, 4, false, mood, "stn");
+                // Flight acknowledges the calls that matter; the rest just go by.
+                if (rule == "s_maxq" || rule == "s_meco" || rule == "s_anomaly") Say(st, AnnLine("c_copy", st), realTime, at + 0.005, 6, false, "routine", "ctl", 0.15);
+            };
 
-            if (!bc.Tower && ascent && bc.LiftoffReal > 0 && realTime - bc.LiftoffReal < 25 && n.Altitude - bc.LiftAlt > 70) { bc.Tower = true; call("c_tower", "routine"); }
-            if (!bc.Super && ascent && inAir && n.Mach >= 1.0) { bc.Super = true; call("c_super", "routine"); }
+            if (!bc.Tower && ascent && bc.LiftoffReal > 0 && realTime - bc.LiftoffReal < 25 && n.Altitude - bc.LiftAlt > 70) { bc.Tower = true; call("s_tower", "routine"); }
+            if (!bc.Super && ascent && inAir && n.Mach >= 1.0) { bc.Super = true; call("s_super", "routine"); }
 
             bool thrusting = n.Thrust > 0.5;
             if (thrusting) bc.PeakThrottle = Math.Max(bc.PeakThrottle, n.Throttle);
             if (ascent && inAir && n.Q > bc.QPeak) bc.QPeak = n.Q;
             if (!bc.Bucket && !bc.MaxQ && ascent && inAir && thrusting && bc.PeakThrottle > 0.5 && n.Throttle < bc.PeakThrottle - 0.15 && n.Q > 2)
-            { bc.Bucket = true; bc.BucketThrottle = n.Throttle; call("c_bucket", "routine"); }
-            if (!bc.MaxQ && ascent && inAir && bc.QPeak > 4 && n.Q < bc.QPeak * 0.9) { bc.MaxQ = true; call("c_maxq", "routine"); }
-            if (bc.Bucket && !bc.ThrottleUp && thrusting && n.Throttle > bc.BucketThrottle + 0.15) { bc.ThrottleUp = true; call("c_throttle_up", "routine"); }
+            { bc.Bucket = true; bc.BucketThrottle = n.Throttle; call("s_bucket", "routine"); }
+            if (!bc.MaxQ && ascent && inAir && bc.QPeak > 4 && n.Q < bc.QPeak * 0.9) { bc.MaxQ = true; call("s_maxq", "routine"); }
+            if (bc.Bucket && !bc.ThrottleUp && thrusting && n.Throttle > bc.BucketThrottle + 0.15) { bc.ThrottleUp = true; call("s_throttle_up", "routine"); }
 
             // Cutoff: the engines stay quiet for a moment and it wasn't the stage falling away (that has its own call).
             if (thrusting)
@@ -214,7 +223,7 @@ namespace KerbalNews
                     bc.BurnStart = realTime;
                     bool afterQuiet = bc.CutSince > 0 && realTime - bc.CutSince > 0.5;
                     if (afterQuiet && n.Altitude - bc.LiftAlt > 500 && realTime - bc.LastIgniteCall > 20 && realTime - bc.LiftoffReal > 5)
-                    { bc.LastIgniteCall = realTime; call("c_ignite", "routine"); }
+                    { bc.LastIgniteCall = realTime; call("s_ignite", "routine"); }
                 }
                 bc.CutSince = -1;
             }
@@ -228,7 +237,7 @@ namespace KerbalNews
                     if (!staged && longBurn && realTime - bc.LastCutCall > 20)
                     {
                         bc.LastCutCall = realTime;
-                        call(bc.Meco ? "c_cutoff" : "c_meco", "routine");
+                        call(bc.Meco ? "s_cutoff" : "s_meco", "routine");
                         bc.Meco = true;
                     }
                     if (staged) bc.Meco = true;   // the first stage burned out and fell away: no MECO later
@@ -247,14 +256,15 @@ namespace KerbalNews
             double t = realTime + 0.5, k = 0;
             Func<double> at = () => t + (k += 0.001);
             Say(st, AnnLine("poll", st), realTime, at(), 60, false, "routine", "host", 0, "poll");
-            Say(st, AnnLine("c_poll_open", st), realTime, at(), 60, false, "routine", "ctl", 0.7, "poll");
+            Say(st, AnnLine("c_poll_open", st), realTime, at(), 60, false, "routine", "ctl", 0.6, "poll");
             foreach (var s in PollStations)
             {
-                if (s[0] == "Crew support." && !crewed) continue;
-                Say(st, s[0], realTime, at(), 60, false, "routine", "ctl", 0.6, "poll");
-                Say(st, AnnLine("s_go", st), realTime, at(), 60, false, "routine", "stn", 0.2, "poll");
+                if (s[0] == "Capcom" && !crewed) continue;
+                // The call and the answer come quick: on a real loop there's barely a breath between them.
+                Say(st, s[1], realTime, at(), 60, false, "routine", "ctl", 0.35, "poll");
+                Say(st, s[2], realTime, at(), 60, false, "routine", "stn:" + s[0], 0.1, "poll");
             }
-            Say(st, AnnLine("c_poll_close", st), realTime, at(), 60, false, "big", "ctl", 0.7, "poll");
+            Say(st, AnnLine("c_poll_close", st), realTime, at(), 60, false, "big", "ctl", 0.4, "poll");
             Say(st, AnnLine("poll_go", st), realTime, at(), 60, false, "big", "host", 0.8, "poll");
         }
 

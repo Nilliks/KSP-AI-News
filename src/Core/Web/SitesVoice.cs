@@ -32,7 +32,7 @@ namespace KerbalNews.Web
             ctl.AddRange(voices.Where(v => v[0] != g.VoiceId).Select(v => opt(v[1], "controller/" + v[0], g.ControllerOn && g.ControllerVoiceId == v[0])));
             m["ctlOpts"] = ctl;
             m["ctlHint"] = g.ControllerOn
-                ? Engine.VoiceLabel(g.ControllerVoiceId) + " is the flight controller: a calm second voice on a crackly radio loop, with the beeps NASA used (Quindar tones) around each call. They call tower cleared, supersonic, max Q, engine cutoff, staging and orbit, and run the go/no-go poll at T-5 minutes."
+                ? Engine.VoiceLabel(g.ControllerVoiceId) + " is Flight on the radio loop, with the beeps NASA used (Quindar tones). The stations (Booster, Prop, FIDO, Guidance, Telemetry...) each have their own voice and make their calls the way a real loop does: \"Flight, Prop, throttle down.\" \"Copy.\" Flight runs the go/no-go poll at T-5 minutes."
                 : "No second voice: the commentator reads the callouts and the poll.";
             m["sfxOpts"] = new List<object> { opt("Off", "sfx-volume/0", g.SfxVolume <= 0), opt("Quiet", "sfx-volume/0.3", Math.Abs(g.SfxVolume - 0.3) < 0.01), opt("Normal", "sfx-volume/0.6", Math.Abs(g.SfxVolume - 0.6) < 0.01), opt("Loud", "sfx-volume/1", Math.Abs(g.SfxVolume - 1) < 0.01) };
             int sfxHave = NewsEngine.Sounds.Count(fx => Engine.SoundRecorded(fx[0]));

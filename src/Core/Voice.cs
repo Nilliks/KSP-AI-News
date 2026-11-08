@@ -16,6 +16,7 @@ namespace KerbalNews
         public const string DefaultVoice = "iP95p4xoKVk53GoZ742B";   // Chris
         public const string DefaultModel = "eleven_v3";
         public const string DefaultController = "pqHfZKP75CvOlQylNhV4";   // Bill
+        public const string DefaultController2 = "JBFqnCBsd6RMkjVDRZzb";  // George: a station's stand-in when Flight has its voice
 
         /// <summary>A few of ElevenLabs' stock voices that suit a launch commentator: id, name, description.</summary>
         public static readonly string[][] Voices =
@@ -50,21 +51,22 @@ namespace KerbalNews
         public static string Direction(string mood, string style)
         {
             bool hype = style == "excited";
+            // Loop cadence: flat and even, quick, a slight lift on the callsign, a short beat after it, a clipped falling end.
             if (style == "radio")
                 switch (mood)
                 {
-                    case "tense": return "[urgent but controlled, clipped radio call]";
-                    case "loss": return "[flat, quiet, controlled radio call]";
-                    case "big": return "[steady, quietly pleased radio call]";
-                    default: return "[calm, clipped mission control radio call]";
+                    case "tense": return "[flight controller on a radio loop, fast and clipped, tight but controlled, falling at the end]";
+                    case "loss": return "[flight controller on a radio loop, flat and quiet, very controlled]";
+                    case "big": return "[flight controller on a radio loop, crisp and quick, flat even tone, clipped falling end]";
+                    default: return "[flight controller on a radio loop, quick, flat and even, slight lift on the callsign, clipped falling end]";
                 }
             switch (mood)
             {
-                case "big": return hype ? "[excited, shouting over a cheering crowd]" : "[proud, rising excitement]";
-                case "tense": return hype ? "[tense, urgent]" : "[serious, steady voice]";
-                case "loss": return hype ? "[shocked, quiet]" : "[quiet, somber voice]";
-                case "count": return hype ? "[excited, building intensity]" : "[clear, firm]";
-                default: return hype ? "[energetic broadcaster voice]" : "[calm, professional broadcast voice]";
+                case "big": return hype ? "[excited, shouting over a cheering crowd]" : "[launch commentator, clear and rising, controlled excitement]";
+                case "tense": return hype ? "[tense, urgent]" : "[launch commentator, steady and serious, measured pace]";
+                case "loss": return hype ? "[shocked, quiet]" : "[launch commentator, quiet and somber, slow and careful]";
+                case "count": return hype ? "[excited, building intensity]" : "[launch commentator, crisp and firm, one beat per number]";
+                default: return hype ? "[energetic broadcaster voice]" : "[space agency launch commentator, measured, clear and matter-of-fact, brisk pace]";
             }
         }
 
@@ -286,8 +288,7 @@ namespace KerbalNews
             int n = pcm.Length / 2;
             var x = new double[n];
             for (int i = 0; i < n; i++) x[i] = S(pcm, i) / 32768.0;
-            if (station) x = Resample(x, 0.93);
-            double lo = station ? 450 : 300, hi = station ? 2500 : 3000;
+            double lo = station ? 400 : 300, hi = station ? 2700 : 3000;
             double aH = Rate / (Rate + 2 * Math.PI * lo), aL = 2 * Math.PI * hi / (Rate + 2 * Math.PI * hi);
             double hpPrev = 0, hpIn = 0, l1 = 0, l2 = 0, peak = 1e-6;
             var rng = new Random(n);
@@ -296,14 +297,18 @@ namespace KerbalNews
             {
                 double hp = aH * (hpPrev + x[i] - hpIn); hpIn = x[i]; hpPrev = hp;
                 l1 += aL * (hp - l1); l2 += aL * (l1 - l2);
-                double v = Math.Tanh(l2 * (station ? 3.2 : 2.4));
-                v += (rng.NextDouble() - 0.5) * 0.012;
+                double v = Math.Tanh(l2 * (station ? 4.0 : 3.2));   // driven hard, like a headset mic into a loop
+                v += (rng.NextDouble() - 0.5) * 0.03;
                 y[i] = v;
                 peak = Math.Max(peak, Math.Abs(v));
             }
             double g = 0.85 / peak;
             var parts = new List<double[]>();
-            if (quindar) { parts.Add(Tone(2525, 0.25, 0.22)); parts.Add(new double[Rate / 12]); }
+            // Keying on: a click and a breath of open-channel hiss before the voice.
+            var key = new double[Rate / 25];
+            for (int i = 0; i < key.Length; i++) key[i] = (i < 40 ? (i % 2 == 0 ? 0.35 : -0.3) * (1 - i / 40.0) : 0) + (rng.NextDouble() - 0.5) * 0.06;
+            if (quindar) { parts.Add(Tone(2525, 0.25, 0.22)); parts.Add(new double[Rate / 20]); }
+            parts.Add(key);
             for (int i = 0; i < y.Length; i++) y[i] *= g;
             parts.Add(y);
             // Keying off: a short burst of static, then the closing tone.
@@ -337,7 +342,10 @@ namespace KerbalNews
         /// commentator sound slow; any quiet stretch over 0.2 s is cut to 0.12 s. Works on recorded clips as they play, so
         /// nothing needs recording again.
         /// </summary>
-        public static byte[] Tighten(byte[] pcm)
+        public static byte[] Tighten(byte[] pcm) { return Tighten(pcm, 20, 12); }
+
+        /// <summary>Pauses of at least longGap 10 ms windows become keep windows.</summary>
+        public static byte[] Tighten(byte[] pcm, int longGap, int keep)
         {
             if (pcm == null || pcm.Length < Rate) return pcm;
             int n = pcm.Length / 2, win = Rate / 100;
@@ -349,7 +357,6 @@ namespace KerbalNews
                 for (int i = w * win; i < (w + 1) * win; i++) { int v = Math.Abs((int)S(pcm, i)); if (v > peak) peak = v; }
                 quiet[w] = peak < 700;
             }
-            const int longGap = 20, keep = 12;
             var o = new System.IO.MemoryStream(pcm.Length);
             int wi = 0;
             while (wi < wins)
