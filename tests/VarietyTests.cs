@@ -113,4 +113,114 @@ public static class VarietyTests
         }
         Assert(heads.Distinct().Count() >= heads.Count * 0.8, heads.Distinct().Count() + " of " + heads.Count + " headlines different");
     }
+
+    public static void TestOfflineAssistantUnderstandsShortCommands()
+    {
+        var s = new NewsState();
+        s.Profile.Name = "Kerbin Space Agency";
+        var g = new GlobalSettings { OfflineMode = true, AssistantConfirm = false };
+        var eng = new NewsEngine(s, g, null, new SimpleClock(Day));
+        double funds = 50000;
+        eng.FundsAvailable = () => funds;
+        eng.ChangeFunds = (d, why) => funds += d;
+        eng.Tick(0, 0, true);
+        eng.AssistantSend("help", 10);
+        Assert(s.AssistantChat.Last().Text.Contains("release:"), "help lists the commands");
+        eng.AssistantSend("finances", 20);
+        Assert(s.AssistantChat.Last().Role == "assistant" && s.AssistantChat.Last().Text.Length > 10, "a lookup answers: " + s.AssistantChat.Last().Text);
+        eng.AssistantSend("release: New engine test | We fired the new engine for 40 seconds today.", 30);
+        Assert(s.Releases.Any(r => r.Title == "New engine test"), "release published");
+        eng.AssistantSend("donate 2k to the Mun Valley school publicly", 40);
+        Assert(funds == 48000, "donation paid: " + funds);
+        eng.AssistantSend("post: Clear skies over the pad today.", 50);
+        Assert(s.Social.Any(p => p.Text.Contains("Clear skies")), "kerbnet post");
+        eng.AssistantSend("make it rain", 60);
+        Assert(s.AssistantChat.Last().Text.Contains("didn't catch"), "unknown asks get the help");
+        g.AssistantConfirm = true;
+        eng.AssistantSend("donate 1000 to the museum", 70);
+        Assert(funds == 48000 && s.AssistantChat.Any(m => m.Role == "proposal" && m.State == "pending"), "spending still waits for approval when that's on");
+    }
+
+    public static void TestFewerCallsOnQuietStretches()
+    {
+        // Livestream: a long coast with nothing happening sends only every third batch to the AI.
+        var t = new CoreTests.FakeTransport { Responder = r => CoreTests.AnthropicReply(r) };
+        var g = CoreTests.OnlineSettings();
+        var eng = new NewsEngine(new NewsState(), g, t, new SimpleClock(Day));
+        eng.Tick(0, 0, true);
+        eng.StreamInterval = 30;
+        eng.StartStream("v1", "Kerbal X", 0, 0);
+        eng.StreamSample(new TelemetrySample { UT = 1, Altitude = 80000 }, 1);
+        double now = 5;
+        for (int i = 0; i < 9; i++) { eng.TickStream(now, true); now += 31; }
+        Assert(t.Sent.Count <= 4, "quiet coast: " + t.Sent.Count + " calls for 9 batches");
+
+        // Kerbopedia: a reply that isn't usable is not retried every few hours.
+        var s = new NewsState();
+        var bad = new CoreTests.FakeTransport { Responder = r => r.Body.Contains("Kerbopedia") ? Text("no json") : CoreTests.AnthropicReply(r) };
+        var e2 = new NewsEngine(s, CoreTests.OnlineSettings(), bad, new SimpleClock(Day));
+        e2.SyncCrew(new CrewProfile { Name = "Jebediah Kerman", Trait = "Pilot", Level = 2 });
+        e2.Tick(0, 0, true);
+        for (int i = 0; i < 6; i++)
+        {
+            double l = 10 + i * Day;
+            e2.TrackLaunch("v" + i, CoreTests.Craft(), l);
+            e2.Ingest(CoreTests.Ev(EventTypes.Launch, l, "v" + i, "Kerbin", "Jebediah Kerman"));
+            e2.Ingest(CoreTests.Ev(EventTypes.Orbit, l + 400, "v" + i, "Kerbin", "Jebediah Kerman"));
+        }
+        for (double u = 0; u < Day * 20; u += Day * 0.1) e2.Tick(u, u, true);
+        int wiki = bad.Sent.Count(r => r.Body.Contains("Kerbopedia"));
+        Assert(wiki >= 1 && wiki <= 6, "Kerbopedia backs off after bad replies: " + wiki + " calls in 20 days");
+
+        // News: a model that keeps answering in the wrong shape stops getting retries.
+        var junk = new CoreTests.FakeTransport { Responder = r => Text("I'd love to help!") };
+        var s3 = new NewsState();
+        var e3 = new NewsEngine(s3, CoreTests.OnlineSettings(), junk, new SimpleClock(Day));
+        e3.Tick(0, 0, true);
+        for (int i = 0; i < 5; i++)
+        {
+            double l = 10 + i * Day * 2;
+            e3.TrackLaunch("v" + i, CoreTests.Craft(), l);
+            e3.Ingest(CoreTests.Ev(EventTypes.Launch, l, "v" + i, "Kerbin", "Jebediah Kerman"));
+            e3.Ingest(CoreTests.Ev(EventTypes.Orbit, l + 400, "v" + i, "Kerbin", "Jebediah Kerman"));
+        }
+        double rt = 0;
+        for (double u = 0; u < Day * 14; u += Day * 0.05) { rt += 120; e3.Tick(u, rt, true); }
+        int news = junk.Sent.Count(r => r.Body.Contains("newsroom"));
+        Assert(s3.Articles.Count > 0 && s3.Articles.All(a => a.Offline), "templates step in");
+        Assert(news <= 5 * 2, "news calls: " + news + " for 5 stories");
+    }
+
+    public static void TestStoryMailRidesInTheNewsCall()
+    {
+        var s = new NewsState();
+        s.Profile.Name = "Kerbin Space Agency";
+        var t = new CoreTests.FakeTransport { Responder = r =>
+        {
+            var rep = CoreTests.AnthropicReply(r);
+            if (!r.Body.Contains("KMAIL")) return rep;
+            var outer = Json.Parse(rep.Body);
+            string txt = Json.Str(Json.Arr(Json.Get(outer, "content"))[0], "text").Replace("```json", "").Replace("```", "").Trim();
+            txt = txt.Substring(0, txt.Length - 1) + ",\"emails\":[{\"n\":1,\"subject\":\"Congratulations from us\",\"body\":\"Dear Director, well done. Lisa Kerman\"},{\"n\":2,\"subject\":\"Second\",\"body\":\"Hello there. Bob\"},{\"n\":3,\"subject\":\"Third\",\"body\":\"Hi. Val\"},{\"n\":4,\"subject\":\"Fourth\",\"body\":\"Hey. Bill\"}]}";
+            return Text(txt);
+        } };
+        var g = CoreTests.OnlineSettings();
+        g.MailLevel = 3;
+        var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
+        eng.SyncCrew(new CrewProfile { Name = "Jebediah Kerman", Trait = "Pilot", Level = 2 });
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, 10, "v1", "Mun", "Jebediah Kerman"));
+        double rt = 0;
+        for (double u = 0; u < Day * 4; u += Day * 0.05) { rt += 60; eng.Tick(u, rt, true); }
+        Assert(t.Sent.Any(r => r.Body.Contains("KMAIL")), "the news call asks for the mail");
+        Assert(!t.Sent.Any(r => r.Body.Contains("You write emails sent to the director")), "no separate mail call");
+        Assert(s.Mail.Any(m => m.Subject == "Congratulations from us") && s.Mail.All(m => m.UT > 10), "mail arrives, after the news");
+    }
+
+    static HttpResult Text(string text)
+    {
+        var resp = new Dictionary<string, object> { { "content", new List<object> { new Dictionary<string, object> { { "type", "text" }, { "text", text } } } } };
+        return new HttpResult { Status = 200, Body = Json.Write(resp) };
+    }
 }

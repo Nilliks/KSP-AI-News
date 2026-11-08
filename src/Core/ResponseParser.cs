@@ -14,6 +14,8 @@ namespace KerbalNews
         public ForumThread Forum;
         /// <summary>A short KTV broadcast segment written in the same call.</summary>
         public TvSegment Tv;
+        /// <summary>Emails to the director written in the same call (see NewsEngine.MailForCall), or null.</summary>
+        public List<object> Emails;
     }
 
     /// <summary>Turns the model's JSON into articles, and rejects output we should not save.</summary>
@@ -104,6 +106,7 @@ namespace KerbalNews
                 return false;
             }
             var cov = new GeneratedCoverage();
+            cov.Emails = Json.Arr(Json.Get(root, "emails"));
             var wanted = new HashSet<string>(plan.Outlets.Select(o => o.OutletId));
             var seen = new HashSet<string>();
             var arts = Json.Arr(Json.Get(root, "articles")) ?? new List<object>();

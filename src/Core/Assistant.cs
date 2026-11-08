@@ -54,7 +54,7 @@ namespace KerbalNews
             }
             if (!Settings.CanCallAi)
             {
-                AssistantSay("assistant", "I can only help with that when the AI connection is on. Turn off offline mode in Settings and pick a provider.", ut);
+                AssistantOffline(text, ut);
                 return true;
             }
             int run = ++assistantRun;

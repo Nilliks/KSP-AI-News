@@ -55,6 +55,8 @@ namespace KerbalNews
         /// <summary>When the AI last wrote the prose, or -1 (the page shows template text).</summary>
         public double WrittenUT = -1;
         public double CreatedUT, UpdatedUT;
+        /// <summary>Not saved: a page the AI skipped waits until then before it is asked for again.</summary>
+        public double RetryUT;
         /// <summary>How much has happened since the prose was written (story significance added up).</summary>
         public double Pending;
         /// <summary>Dated lines of what happened, oldest first.</summary>
@@ -113,6 +115,7 @@ namespace KerbalNews
         public const double WikiRewriteAt = 60;
         public bool WikiBusy;
         double nextWikiUT = -1;
+        int wikiFailures;
 
         public static string WikiSlug(string title)
         {
@@ -303,7 +306,7 @@ namespace KerbalNews
             if (ut < nextWikiUT) return;
             nextWikiUT = ut + 0.25 * Day;
             // A page waits until the news has been quiet for a day, so it cites the coverage and one call covers a whole mission.
-            var due = State.Wiki.Values.Where(p => WikiDue(p) && (p.Requested || ut - p.UpdatedUT >= Day)).OrderByDescending(p => p.Requested).ThenByDescending(p => p.Pending).Take(3).ToList();
+            var due = State.Wiki.Values.Where(p => WikiDue(p) && (p.Requested || ut - p.UpdatedUT >= Day && ut >= p.RetryUT)).OrderByDescending(p => p.Requested).ThenByDescending(p => p.Pending).Take(5).ToList();
             if (due.Count > 0) WriteWiki(due, ut, "");
         }
 
@@ -384,12 +387,21 @@ namespace KerbalNews
             {
                 WikiBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "pages")) : null;
-                if (arr == null) { if (err != null) LastError = err; foreach (var p in pages) p.Requested = false; return; }
+                if (arr == null)
+                {
+                    // A bad reply is not retried every few hours: the pages wait a day (and longer after repeated failures).
+                    if (err != null) LastError = err;
+                    wikiFailures++;
+                    nextWikiUT = ut + Math.Min(8, Math.Pow(2, wikiFailures - 1)) * Day;
+                    foreach (var p in pages) p.Requested = false;
+                    return;
+                }
+                wikiFailures = 0;
                 foreach (var p in pages)
                 {
                     var o = arr.FirstOrDefault(x => Json.Str(x, "page", "") == p.Slug) ?? (pages.Count == 1 && arr.Count > 0 ? arr[0] : null);
                     p.Requested = false;
-                    if (o == null) continue;
+                    if (o == null) { p.RetryUT = ut + Day; continue; }   // left out of the reply: try again in a day, not in six hours
                     string lead = Json.Str(o, "lead", "").Trim();
                     var secs = (Json.Arr(Json.Get(o, "sections")) ?? new List<object>())
                         .Select(s => new WikiSection { Heading = ResponseParser.Clip(Json.Str(s, "heading", "").Trim(), 80), Text = ResponseParser.Clip(Json.Str(s, "text", "").Trim(), 3000) })

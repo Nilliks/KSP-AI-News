@@ -781,6 +781,7 @@ public static class FeatureTests
         var t = new CoreTests.FakeTransport { Responder = r => { prompts.Add(r.Body); return Reply("{\"viewers\":500,\"messages\":[{\"author\":\"a\",\"text\":\"hi\"}]}"); } };
         var g = CoreTests.OnlineSettings();
         g.StreamChatPer10Min = 120;
+        g.AiAmount = GlobalSettings.AiAll;   // every batch to the AI, so each quiet batch shows its size
         var eng = new NewsEngine(new NewsState(), g, t, new SimpleClock(21600));
         eng.Tick(0, 0, true);
         eng.StreamInterval = 30;

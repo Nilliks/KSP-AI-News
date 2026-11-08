@@ -51,6 +51,7 @@ namespace KerbalNews
         public double FillerQuietDays = 3;
         public double FillerMinGapDays = 1;
         const int MaxAttempts = 3;
+        int badReplies;   // usable-reply failures in a row (the model answering, but not in the shape asked for)
 
         public NewsEngine(NewsState state, GlobalSettings settings, IHttpTransport transport, IGameClock clock)
         {
@@ -216,7 +217,9 @@ namespace KerbalNews
 
             if (MaybeCompress(ut, realTime, allowCalls)) return;
 
-            var due = State.Stories.Where(s => s.Status == StoryStatus.Pending && s.PublishUT <= ut).OrderBy(s => s.PublishUT).FirstOrDefault();
+            // A small tip waits up to AsideHoldDays for the next big story to ride along with (it costs no call then).
+            var due = State.Stories.Where(s => s.Status == StoryStatus.Pending && s.PublishUT <= ut && !(IsAside(s) && ut < s.PublishUT + AsideHoldDays * Day && Settings.CanCallAi))
+                .OrderBy(s => s.PublishUT).FirstOrDefault();
             if (due == null)
             {
                 if (allowCalls) MaybeQueueFiller(ut);   // nothing gets queued for days skipped in a warp
@@ -294,7 +297,11 @@ namespace KerbalNews
             bool cheap = PlanTierCheap(plan);
             string model = cheap ? Settings.CheapModel : Settings.WriterModel;
             string system = PromptBuilder.System(State, Settings.ModsText);
+            var asides = AsidesFor(story, plan, ut);
+            story.Asides = asides.Count == 0 ? null : asides.GroupBy(t => t.FillerOutlet.Trim()).ToDictionary(gr => gr.Key, gr => gr.Select(t => t.Topic).ToList());
             string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan), Settings.KtvOn);
+            story.Asides = null;
+            user += MailForCall(story, ut);
             var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
@@ -310,11 +317,18 @@ namespace KerbalNews
                 if (cov != null)
                 {
                     LastError = "";
+                    badReplies = 0;
                     Finalize(story, cov, plan, ut);
+                    // The small tips that rode along are covered now: no call of their own.
+                    foreach (var t in asides.Where(t => t.Status == StoryStatus.Pending)) Finalize(t, new GeneratedCoverage(), CoveragePlan.ForTip(t), ut);
                     return;
                 }
                 LastError = err ?? "Unknown error";
-                if (story.Attempts >= MaxAttempts || IsPermanent(res))
+                // A reply that came back but couldn't be used was paid for: try once more, and after a run of them don't retry at all.
+                bool paid = res != null && res.Error == null && res.Status == 200;
+                if (paid) badReplies++;
+                int max = !paid ? MaxAttempts : badReplies >= 3 ? 1 : 2;
+                if (story.Attempts >= max || IsPermanent(res))
                 {
                     Status = "AI unavailable, used offline templates";
                     Finalize(story, OfflineWriter.Write(story, plan, State, Clock), plan, ut);
@@ -325,6 +339,33 @@ namespace KerbalNews
                     retryAfterReal = realTime + 20 * story.Attempts;
                 }
             });
+        }
+
+        /// <summary>
+        /// Small one-outlet tips (an unanswered email, a declined comment) that can ride in this story's call instead of
+        /// costing one of their own: same outlet, due within a couple of days.
+        /// </summary>
+        public double AsideHoldDays = 2;
+
+        List<Story> AsidesFor(Story story, CoveragePlan plan, double ut)
+        {
+            if (story.Kind == "tip" || story.Kind == "filler") return new List<Story>();
+            var list = State.Stories.Where(t => t != story && t.Status == StoryStatus.Pending && IsAside(t) && t.PublishUT <= ut + 2 * Day && Settings.SiteOn(t.FillerOutlet.Trim()))
+                .OrderBy(t => t.PublishUT).Take(3).ToList();
+            foreach (var t in list)
+            {
+                // An outlet that wasn't going to cover the story gets a short piece of its own: the story, plus what it learned.
+                string id = t.FillerOutlet.Trim();
+                if (!plan.Outlets.Any(o => o.OutletId == id))
+                    plan.Outlets.Add(new OutletAssignment { OutletId = id, Kind = "news", Words = 160, Comments = 3, DelayDays = Math.Max(0, (t.PublishUT - story.CreatedUT) / Day) });
+            }
+            return list;
+        }
+
+        static bool IsAside(Story t)
+        {
+            return t.Kind == "tip" && t.Significance < 30 && (t.TipKind == "" || t.TipKind == "news") && t.DealId == "" && t.ReleaseId == ""
+                && (t.FillerOutlet ?? "").Trim() != "" && !t.FillerOutlet.Contains(",");
         }
 
         static bool IsPermanent(HttpResult r)
@@ -426,7 +467,7 @@ namespace KerbalNews
             if (Status.StartsWith("Writing")) Status = "Idle";
             if (!rewritten) ConsiderTieIn(story, cov.Articles, ut);
             if (!rewritten) WikiOnStory(story, cov.Articles, ut);
-            if (!rewritten) MailOnStory(story, ut);
+            if (!rewritten) MailOnStory(story, ut, cov);
             State.Prune();
         }
 
@@ -460,7 +501,8 @@ namespace KerbalNews
             double quiet = (ut - State.LastStoryUT) / Day;
             if (FillerQuietDays <= 0) return;
             double sinceFiller = State.LastFillerUT < 0 ? double.MaxValue : (ut - State.LastFillerUT) / Day;
-            if (quiet < FillerQuietDays || sinceFiller < FillerMinGapDays) return;
+            // During a long lull, a feature every couple of days (two-thirds of the quiet-days setting), not every day.
+            if (quiet < FillerQuietDays || sinceFiller < Math.Max(FillerMinGapDays, FillerQuietDays * 2 / 3)) return;
             if (State.Stories.Any(s => s.Status == StoryStatus.Pending)) return;
             int n = State.Articles.Count(a => a.Kind == "feature" || a.Kind == "opinion");
             string outlet = null;

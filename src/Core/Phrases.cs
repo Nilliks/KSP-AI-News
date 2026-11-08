@@ -309,6 +309,14 @@ namespace KerbalNews
             { "m_hearing", new[] { "The Council's science committee requests your testimony about {topic} on {due}. Please confirm your attendance.", "The committee will hear testimony on {topic} on {due}, and asks that you attend.", "You are invited to appear before the science committee on {due} to discuss {topic}." } },
 
             // ---------------- Kerbopedia (no AI) ----------------
+            // ---------------- crew chat with the AI off ----------------
+            { "crew_away_brave", new[] { "All good up here, boss. {vessel} is flying like a dream.", "Reading you loud and clear. Say the word and we go.", "Nothing to report but a great view of {where}.", "Systems green. Honestly, I could do this all week.", "Copy that. Ready for whatever's next." } },
+            { "crew_away_calm", new[] { "Signal's a bit weak, but we're fine. Checklists done.", "Everything nominal aboard {vessel}.", "Doing the rounds now. I'll call if anything changes.", "Copy. Quiet shift so far.", "We're well. Tell the ground team thanks for the update." } },
+            { "crew_away_goofy", new[] { "Is this thing on? Hi! Space is great!", "I pressed a button and nothing exploded. Good day!", "Can someone tell me which way is up? Asking for a friend.", "Snacks are holding out. Mostly.", "Ground, the view of {where} is SO good." } },
+            { "crew_home_brave", new[] { "When's my next flight? I'm getting restless.", "Put me on the next one, boss. Any one.", "The simulators are too easy. Give me the real thing.", "Been running drills all morning. Ready when you are." } },
+            { "crew_home_calm", new[] { "Morning, boss. Going through the manuals again.", "Training's going well. Let me know when you need me.", "I'm around the astronaut complex if you need anything.", "Just finished a sim session. Learned a thing or two." } },
+            { "crew_home_goofy", new[] { "Hi boss! I found where they hide the good snacks.", "I named the training capsule. Don't ask what.", "Is it launch day? It feels like launch day.", "I only fell off the centrifuge once today!" } },
+
             { "wk_craft_lead", new[] { "{title} is a {kind} built by {agency}.", "{title} is a {kind} operated by {agency}.", "{title} is a {kind} designed and flown by {agency}.", "{title} is a {kind} in the {agency} fleet." } },
         };
     }

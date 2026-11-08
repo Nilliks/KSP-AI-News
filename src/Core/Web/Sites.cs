@@ -523,8 +523,8 @@ namespace KerbalNews.Web
             m["aiAmountHint"] = g.AiAmount == 0 ? "Templates write all the news, posts, comments, chat, world news, mail and encyclopedia pages."
                 : g.AiAmount == 1 ? "The AI writes major and historic stories. Smaller stories, world news, mail, Kerbopedia, replies and livestream chat use templates."
                 : g.AiAmount == 2 ? "The AI writes normal stories and up, world news, mail, Kerbopedia and replies. Small briefs, quiet-day features and livestream chat use templates."
-                : g.AiAmount == 3 ? "The AI writes every story, post, comment, world news, mail, Kerbopedia page and livestream chat."
-                : "Like Almost everything, plus a short AI brief even for small events that would otherwise get no story. Costs the most.";
+                : g.AiAmount == 3 ? "The AI writes every story, post, comment, world news, mail, Kerbopedia page and livestream chat. On a quiet stretch of a livestream, templates fill in between AI batches."
+                : "Like Almost everything, plus a short AI brief even for small events that would otherwise get no story, and every livestream batch from the AI. Costs the most.";
             m["mailOpts"] = new List<object> { opt("Off", "usage-mail/0", g.MailLevel == 0), opt("Less", "usage-mail/1", g.MailLevel == 1), opt("Normal", "usage-mail/2", g.MailLevel == 2), opt("More", "usage-mail/3", g.MailLevel == 3) };
             m["worldFlavor"] = g.WorldFlavor;
             m["worldRivals"] = g.WorldRivals;

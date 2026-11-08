@@ -50,6 +50,8 @@ namespace KerbalNews
         public readonly List<ChatMessage> PlayerSaid = new List<ChatMessage>();
         public double NextBatchReal;
         public int Batches;
+        /// <summary>Quiet batches in a row (nothing happened, nobody typed), for spacing out AI calls on a long coast.</summary>
+        public int QuietRun;
         /// <summary>How busy the chat is right now: drifts at random between lulls and busy stretches.</summary>
         public double Heat = 1;
         /// <summary>Excitement left over from the last big moment; it fades over the next batches.</summary>
@@ -337,7 +339,12 @@ namespace KerbalNews
             st.Hype = st.Hype * 0.45 + moments.Sum(m => MomentWeight(m));
             int n = ChatCount(st, rng, said.Count);
             double hype = st.Hype;
-            if (!Settings.AiWrites(GlobalSettings.AiAlmostAll) || !allowCalls)
+            // On a quiet stretch (no new moment, nobody typed, the excitement has died down) only every third batch goes
+            // to the AI; the ones between come from the chat templates. "Everything" sends them all.
+            bool quiet = moments.Count == 0 && said.Count == 0 && hype < 1;
+            st.QuietRun = quiet ? st.QuietRun + 1 : 0;
+            bool skipAi = quiet && st.QuietRun % 3 != 0 && !Settings.AiWrites(GlobalSettings.AiAll);
+            if (!Settings.AiWrites(GlobalSettings.AiAlmostAll) || !allowCalls || skipAi)
             {
                 PlayOut(st, Fit(OfflineWriter.StreamChat(this, st, moments, said), hype >= 2 ? n : Math.Min(n, 12), rng), null, realTime, hype);
                 return;

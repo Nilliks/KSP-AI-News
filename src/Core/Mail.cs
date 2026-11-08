@@ -126,13 +126,53 @@ namespace KerbalNews
         // ------------------------------------------------------------------ who writes in
 
         /// <summary>Called for each published story: big ones bring 1-3 emails.</summary>
-        void MailOnStory(Story story, double ut)
+        bool MailFollows(Story story)
         {
-            if (Settings.MailLevel <= 0 || !Settings.SiteOn("kmail")) return;
-            if (story.Kind != "mission" && story.Kind != "milestone") return;
+            if (Settings.MailLevel <= 0 || !Settings.SiteOn("kmail")) return false;
+            if (story.Kind != "mission" && story.Kind != "milestone") return false;
             double need = Settings.MailLevel >= 3 ? 25 : Settings.MailLevel == 2 ? 35 : 50;
-            if (story.Significance < need) return;
+            return story.Significance >= need;
+        }
+
+        void MailOnStory(Story story, double ut, GeneratedCoverage cov = null)
+        {
+            var planned = story.PlannedMail;
+            story.PlannedMail = null;
+            if (!MailFollows(story)) return;
+            if (planned != null && planned.Count > 0 && cov != null && cov.Emails != null)
+            {
+                // Written in the news call: no mail call of its own. Anything the writer left out gets the template.
+                for (int i = 0; i < planned.Count; i++)
+                {
+                    var m = planned[i];
+                    var o = cov.Emails.FirstOrDefault(x => (int)Json.Num(x, "n", -1) == i + 1) ?? (i < cov.Emails.Count ? cov.Emails[i] : null);
+                    string s = o != null ? (Json.Str(o, "subject", "") ?? "").Trim() : "", b = o != null ? (Json.Str(o, "body", "") ?? "").Trim() : "";
+                    if (s == "" || b == "") OfflineMail(m);
+                    else { m.Subject = ResponseParser.Clip(s, 140); m.Body = ResponseParser.Clip(b, 2500); }
+                    Deliver(m, ut + 0.25 * Day);
+                }
+                return;
+            }
             mailQueue.Add(new KeyValuePair<Story, double>(story, ut + 0.25 * Day));
+        }
+
+        /// <summary>
+        /// The emails a story brings, as an extra part of its news request, so the mail costs no call of its own.
+        /// Empty when the story brings none or the AI doesn't write mail at this setting.
+        /// </summary>
+        string MailForCall(Story story, double ut)
+        {
+            story.PlannedMail = null;
+            if (story.MoodApplied || !MailFollows(story) || !Settings.AiWrites(GlobalSettings.AiMost)) return "";
+            var batch = MailPlan(story, ut);
+            if (batch.Count == 0) return "";
+            story.PlannedMail = batch;
+            var u = new StringBuilder();
+            u.AppendLine();
+            u.AppendLine("KMAIL");
+            u.AppendLine("Also add a top-level field \"emails\": [{\"n\":1,\"subject\":\"...\",\"body\":\"...\"}], one per email below, in order. They are emails to the director of " + AgencyName + ", sent a few hours after this coverage. Write each the way that sender would: press brisk and professional, companies businesslike, Council offices formal, schools sweet and a bit chaotic, families personal and emotional, angry citizens rude but not hateful. 60-160 words each, signed with the sender's name. Keep every request, name, amount and date exactly as given.");
+            for (int i = 0; i < batch.Count; i++) u.AppendLine((i + 1) + ". From " + SenderLine(batch[i]) + ": " + AskText(batch[i]) + ".");
+            return u.ToString();
         }
 
         /// <summary>The requests a story brings, decided by the game (the AI only writes the words).</summary>
@@ -334,9 +374,14 @@ namespace KerbalNews
             if (mailQueue.Count > 0)
             {
                 if (mailQueue[0].Value > ut) return;
-                var st = mailQueue[0].Key;
-                mailQueue.RemoveAt(0);
-                WriteMail(MailPlan(st, ut), ut);
+                // Every story whose mail is due goes into one call.
+                var batch = new List<MailMsg>();
+                while (mailQueue.Count > 0 && mailQueue[0].Value <= ut && batch.Count < 6)
+                {
+                    batch.AddRange(MailPlan(mailQueue[0].Key, ut));
+                    mailQueue.RemoveAt(0);
+                }
+                WriteMail(batch, ut);
                 return;
             }
             if (State.MailAuto && TickAutoReply(ut)) return;
@@ -347,7 +392,21 @@ namespace KerbalNews
             if (ut - State.LastQuietMailUT < every * Day || ut - State.LastStoryUT < Day) return;
             State.LastQuietMailUT = ut;
             var q = QuietMail(ut);
-            if (q != null) WriteMail(new List<MailMsg> { q }, ut);
+            if (q == null) return;
+            var quiet = new List<MailMsg> { q };
+            // With the AI writing, the next two quiet-day letters are written in the same call and arrive on their own days later.
+            if (Settings.AiWrites(GlobalSettings.AiMost))
+                for (int k = 1; k <= 2; k++)
+                {
+                    var later = QuietMail(ut);
+                    if (later == null || quiet.Any(x => x.From == later.From)) continue;
+                    double shift = k * every * Day;
+                    later.UT = ut + shift;
+                    if (later.DueUT >= 0) later.DueUT += shift;
+                    quiet.Add(later);
+                    State.LastQuietMailUT = later.UT;
+                }
+            WriteMail(quiet, ut);
         }
 
         void MailExpire(MailMsg m, double ut)
@@ -359,7 +418,7 @@ namespace KerbalNews
                 case "interview":
                     m.Outcome = "No reply, so " + Outlets.NameOf(m.Org) + " wrote that the agency did not respond.";
                     Tie(m.Org, m.From, -2, "got no answer to an interview request", ut);
-                    Tip(m.Org, Outlets.NameOf(m.Org) + " asked " + agency + " for an interview with " + m.Kerbal + " about " + m.Topic + " and got no reply. Mention it, briefly and a little pointedly.", agency + " silent on " + m.Kerbal + " interview request", "", 18, ut + 0.2 * Day, "news");
+                    Tip(m.Org, Outlets.NameOf(m.Org) + " asked " + agency + " for an interview with " + m.Kerbal + " about " + m.Topic + " and got no reply. Mention it, briefly and a little pointedly.", agency + " silent on " + m.Kerbal + " interview request", "", 18, ut + 0.8 * Day, "news");
                     break;
                 case "statement":
                     m.Outcome = "No reply, so the story ran with \"the agency did not respond\".";

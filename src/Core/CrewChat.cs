@@ -141,10 +141,15 @@ namespace KerbalNews
             return true;
         }
 
+        /// <summary>With the AI off: a short in-character line (no real conversation), so the crew still feel present.</summary>
         string OfflineCrewReply(CrewFame c)
         {
-            if (c.RosterStatus == "assigned") return "(Static on the radio. Turn the AI on in Settings to talk to your crew.)";
-            return "(" + FirstName(c.Name) + " is out on the training grounds. Turn the AI on in Settings to talk to your crew.)";
+            var v = new Dictionary<string, string> { { "first", FirstName(c.Name) }, { "vessel", c.VesselName }, { "where", c.Where } };
+            var rng = new Random(Environment.TickCount);
+            bool away = c.RosterStatus == "assigned";
+            string mood = c.Badass || c.Courage > 0.7 ? "brave" : c.Stupidity > 0.7 ? "goofy" : "calm";
+            string line = Phrases.Rule((away ? "crew_away_" : "crew_home_") + mood, v, rng);
+            return line + " (The AI is off, so the crew can only say a line or two. Turn the AI on in Settings for a real conversation.)";
         }
 
         void CrewStep(int run, CrewFame c, double ut, int failures)

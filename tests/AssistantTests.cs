@@ -133,7 +133,7 @@ public static class AssistantTests
         Assert(eng.Execute("teleport", new Dictionary<string, object>(), 1).Contains("don't have a way"), "unknown commands are refused politely");
         var g = new GlobalSettings { OfflineMode = true };
         eng.Settings = g;
-        Assert(eng.AssistantSend("hello", 1) && s.AssistantChat.Last().Text.Contains("AI connection"), "offline explains itself");
+        Assert(eng.AssistantSend("hello", 1) && s.AssistantChat.Last().Text.Contains("The AI is off"), "offline explains itself");
         g.AssistantOn = false;
         Assert(!eng.AssistantSend("hello", 1), "off means off");
         // Sandbox: money is not tracked, so nothing is deducted but the deal is recorded.

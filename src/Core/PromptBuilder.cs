@@ -217,6 +217,9 @@ namespace KerbalNews
                 if (ties.Count > 0)
                     known += " Relationships: " + string.Join("; ", ties.Select(t => t.Name + " is " + t.Feeling + " (" + string.Join(", ", t.Notes.Skip(Math.Max(0, t.Notes.Count - 3)).ToArray()) + ")").ToArray())
                         + ". Prefer that reporter for this piece and let it colour the coverage: friendly reporters give the agency the benefit of the doubt and get quotes; those with a grudge dig harder and mention past run-ins.";
+                List<string> aside;
+                if (story.Asides != null && story.Asides.TryGetValue(o.OutletId, out aside) && aside.Count > 0)
+                    known += " ALSO, the outlet learned this directly; work it into this piece in a sentence or two: " + string.Join(" ", aside.ToArray());
                 sb.AppendFormat(Inv, "- outlet \"{0}\" ({1}): kind \"{2}\", about {3} words, {4} comments.{5}\n",
                     o.OutletId, Outlets.NameOf(o.OutletId), o.Kind, o.Words, o.Comments, known);
             }

@@ -436,7 +436,10 @@ public static class CoreTests
         Eq(1, t.Sent.Count, "filler is rate limited");
         eng.Tick(Day * 5, 6, true);
         eng.Tick(Day * 5, 7, true);
-        Eq(2, t.Sent.Count, "next filler after a day");
+        Eq(1, t.Sent.Count, "not every day in a long lull");
+        eng.Tick(Day * 5.6, 8, true);
+        eng.Tick(Day * 5.6, 9, true);
+        Eq(2, t.Sent.Count, "next filler after two days");
     }
 
     // ---------------------------------------------------------------- providers

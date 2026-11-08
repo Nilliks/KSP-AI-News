@@ -146,6 +146,10 @@ namespace KerbalNews
         public string TipKind = "";
         public string TipHeadline = "";
         public string TipBody = "";
+        /// <summary>Not saved: small tips folded into this story's call, by outlet (see NewsEngine.AsidesFor).</summary>
+        public Dictionary<string, List<string>> Asides;
+        /// <summary>Not saved: the Kmail this story brings, written in the same call as the coverage.</summary>
+        public List<MailMsg> PlannedMail;
         public string DealId = "";
         public double CreatedUT;
         public double PublishUT;
