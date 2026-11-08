@@ -31,6 +31,16 @@ namespace KerbalNews
                 if (o != null) d.Events.Add(o);
             }
             d.Events.Sort((a, b) => T(a).CompareTo(T(b)));
+            // Replays recorded before the fix started their clock when the game started, not when the stream did: only the
+            // welcome line sat at zero and the picture began minutes later. Start them at the first real content instead.
+            var first = d.Events.FirstOrDefault(e => K(e) != "chat" && K(e) != "sfx");
+            double lead = first != null ? T(first) : 0;
+            if (lead > 20 && d.Events.Where(e => T(e) < lead - 1).All(e => K(e) == "chat" || K(e) == "sfx"))
+            {
+                double shift = lead - 0.5;
+                foreach (var e in d.Events) e["t"] = Math.Max(0, T(e) - shift);
+                d.Length = Math.Max(0, d.Length - shift);
+            }
             if (d.Events.Count > 0) d.Length = Math.Max(d.Length, T(d.Events[d.Events.Count - 1]));
             return d;
         }
@@ -296,6 +306,97 @@ namespace KerbalNews
                 }
             if (to >= r.Data.Length) { r.Playing = false; Changed(); }
             else if ((int)from != (int)to) Changed();
+        }
+
+        /// <summary>The on-screen stats as they were, twice a second, so a replay can draw the same overlay as the live stream.</summary>
+        void RecordOverlay(StreamSession st, LiveNumbers n, double realTime)
+        {
+            if (st.RecFolder == "" || realTime < st.RecOverlayAt) return;
+            st.RecOverlayAt = realTime + 0.5;
+            var m = StreamOverlay.Build(st, n, CountdownLeft(realTime));
+            Record(st, realTime, "ov", "spd", m.Speed, "alt", m.Altitude, "ap", m.ShowApoapsis ? m.Apoapsis : null, "stg", m.Stage, "thr", m.Throttle,
+                "fuel", m.Fuel >= 0 ? (object)Math.Round(m.Fuel, 3) : null, "ms", string.Join("|", m.Milestones.Select(x => x.Label).ToArray()),
+                "md", string.Join("", m.Milestones.Select(x => x.Done ? "1" : "0").ToArray()));
+        }
+
+        /// <summary>The broadcast clock at a point in a replay: the countdown as it was, or the mission time.</summary>
+        static string ReplayClock(ReplayData d, double pos, out bool hold)
+        {
+            var tel = d.Last("tel", pos);
+            var clk = d.Last("clk", pos);
+            hold = false;
+            double metAt = tel != null && Json.Get(tel, "met") != null ? Json.Num(tel, "met", 0) + (pos - ReplayData.T(tel)) : double.NaN;
+            if (!double.IsNaN(metAt)) return "T+" + StreamOverlay.Hms(metAt);
+            if (clk != null) { hold = Json.Get(clk, "h") is bool && (bool)Json.Get(clk, "h"); return Json.Str(clk, "x", "ON THE PAD"); }
+            return "ON THE PAD";
+        }
+
+        public string ReplayClockNow() { bool h; return Replay == null ? "" : ReplayClock(Replay.Data, Replay.Pos, out h); }
+
+        /// <summary>The overlay for the replay's position: from the recorded overlay, or (older replays) from the telemetry.</summary>
+        public OverlayModel ReplayOverlay()
+        {
+            var r = Replay;
+            if (r == null) return null;
+            var d = r.Data;
+            double pos = r.Pos;
+            var m = new OverlayModel { Vessel = (d.Vessel ?? "").ToUpperInvariant() };
+            var cam = d.Last("cam", pos);
+            m.Camera = StreamOverlay.CameraLabel(cam != null ? Json.Str(cam, "x", "") : "");
+            bool hold;
+            m.Clock = ReplayClock(d, pos, out hold);
+            m.Hold = hold && m.Clock.StartsWith("T-");
+            var mom = d.Last("mom", pos);
+            m.Scrubbed = d.Upto("mom", pos, 1000).Any(e => Json.Str(e, "x", "").StartsWith("SCRUB")) && !d.Upto("mom", pos, 1000).Any(e => Json.Str(e, "x", "").StartsWith("liftoff"));
+            var ov = d.Last("ov", pos);
+            if (ov != null)
+            {
+                m.Speed = Json.Str(ov, "spd", "0"); m.Altitude = Json.Str(ov, "alt", "0 m");
+                string ap = Json.Str(ov, "ap", "");
+                m.ShowApoapsis = ap != ""; m.Apoapsis = ap;
+                m.Stage = Json.Str(ov, "stg", ""); m.Throttle = Json.Str(ov, "thr", "");
+                m.Fuel = Json.Get(ov, "fuel") != null ? Json.Num(ov, "fuel", -1) : -1;
+                string[] labels = Json.Str(ov, "ms", "").Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                string done = Json.Str(ov, "md", "");
+                for (int i = 0; i < labels.Length; i++) m.Milestones.Add(new OverlayMilestone { Label = labels[i], Done = i < done.Length && done[i] == '1' });
+                return m;
+            }
+            var tel = d.Last("tel", pos);
+            if (tel != null)
+            {
+                var inv = CultureInfo.InvariantCulture;
+                double alt = Json.Num(tel, "alt", 0), ap = Json.Num(tel, "ap", 0), fuel = Json.Num(tel, "fuel", -1);
+                m.Speed = Json.Num(tel, "spd", 0).ToString("N0", inv);
+                m.Altitude = Math.Abs(alt) >= 1000 ? (alt / 1000).ToString("N1", inv) + " km" : alt.ToString("N0", inv) + " m";
+                m.ShowApoapsis = Json.Get(tel, "met") != null && ap > 1000;
+                m.Apoapsis = (ap / 1000).ToString("N1", inv) + " km";
+                m.Stage = Json.Str(tel, "stg", "").ToUpperInvariant();
+                m.Fuel = fuel < 0 ? -1 : Math.Max(0, Math.Min(1, fuel / 100));
+            }
+            else { m.Speed = "0"; m.Altitude = "0 m"; }
+            return m;
+        }
+
+        bool scrubResume;
+
+        /// <summary>Dragging the seek bar: the picture follows the thumb, playback waits until it's let go.</summary>
+        public void ReplayScrub(double t)
+        {
+            var r = Replay;
+            if (r == null) return;
+            if (r.Playing) { scrubResume = true; r.Playing = false; StopVoiceNow(); }
+            r.Pos = Math.Max(0, Math.Min(r.Data.Length, t));
+        }
+
+        public void ReplayScrubEnd(double t)
+        {
+            var r = Replay;
+            if (r == null) return;
+            r.Pos = Math.Max(0, Math.Min(r.Data.Length, t));
+            r.LastReal = -1;
+            StopVoiceNow();
+            if (scrubResume) { r.Playing = true; scrubResume = false; }
+            Changed();
         }
 
         /// <summary>The frame to show at the replay's position, or 0 for none yet.</summary>

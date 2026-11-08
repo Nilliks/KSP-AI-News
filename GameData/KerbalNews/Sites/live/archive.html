@@ -16,7 +16,8 @@
         <span class="met">{{clock}}</span>{{#camera}}<span class="cam">{{camera}}</span>{{/camera}}<span class="spacer"></span>
         {{#speeds}}<a class="cbtn{{#on}} go{{/on}}" href="action:replay-speed/{{x}}">{{x}}x</a>{{/speeds}}
         <span class="muted">{{pos}} / {{len}}</span></div>
-      <div class="seek">{{#seek}}<a class="sg{{#done}} done{{/done}}" href="action:replay-seek/{{t}}"><span class="sgf">&nbsp;</span></a>{{/seek}}</div>
+      {{#hasVideo}}<div class="seek"><img class="seekbar" src="kbreplay:seek" style="width: 100%; height: 22px"></div>{{/hasVideo}}
+      {{^hasVideo}}<div class="seek">{{#seek}}<a class="sg{{#done}} done{{/done}}" href="action:replay-seek/{{t}}"><span class="sgf">&nbsp;</span></a>{{/seek}}</div>{{/hasVideo}}
       <div class="tele">{{#tele}}<div class="stat"><div class="l">{{label}}</div><div class="v">{{value}}</div></div>{{/tele}}</div>
       {{#moments.0}}<div class="moments"><h4>On stream</h4>{{#moments}}<p>{{.}}</p>{{/moments}}</div>{{/moments.0}}
     </div>

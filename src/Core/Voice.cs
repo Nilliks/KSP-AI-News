@@ -332,6 +332,43 @@ namespace KerbalNews
             return o;
         }
 
+        /// <summary>
+        /// Shortens the long pauses inside a line. v3 in particular leaves half-second gaps between phrases, which makes a
+        /// commentator sound slow; any quiet stretch over 0.2 s is cut to 0.12 s. Works on recorded clips as they play, so
+        /// nothing needs recording again.
+        /// </summary>
+        public static byte[] Tighten(byte[] pcm)
+        {
+            if (pcm == null || pcm.Length < Rate) return pcm;
+            int n = pcm.Length / 2, win = Rate / 100;
+            int wins = n / win;
+            var quiet = new bool[wins];
+            for (int w = 0; w < wins; w++)
+            {
+                int peak = 0;
+                for (int i = w * win; i < (w + 1) * win; i++) { int v = Math.Abs((int)S(pcm, i)); if (v > peak) peak = v; }
+                quiet[w] = peak < 700;
+            }
+            const int longGap = 20, keep = 12;
+            var o = new System.IO.MemoryStream(pcm.Length);
+            int wi = 0;
+            while (wi < wins)
+            {
+                int run = 0;
+                while (wi + run < wins && quiet[wi + run]) run++;
+                if (run >= longGap && wi > 0 && wi + run < wins)
+                {
+                    o.Write(pcm, wi * win * 2, keep / 2 * win * 2);
+                    o.Write(pcm, (wi + run - keep / 2) * win * 2, keep / 2 * win * 2);
+                    wi += run;
+                }
+                else if (run > 0) { o.Write(pcm, wi * win * 2, run * win * 2); wi += run; }
+                else { o.Write(pcm, wi * win * 2, win * 2); wi++; }
+            }
+            if (wins * win < n) o.Write(pcm, wins * win * 2, (n - wins * win) * 2);
+            return o.ToArray();
+        }
+
         public static double Seconds(byte[] pcm) { return pcm == null ? 0 : pcm.Length / 2.0 / Rate; }
 
         /// <summary>Name for a cached clip: the same words in the same voice are only ever paid for once.</summary>

@@ -186,7 +186,9 @@ namespace KerbalNews
         public void StreamFlight(LiveNumbers n, double realTime)
         {
             var st = Stream;
-            if (st == null || n == null || Settings.Announcer <= 0 || !st.Lifted || st.Bc.Lost) return;
+            if (st == null || n == null) return;
+            RecordOverlay(st, n, realTime);
+            if (Settings.Announcer <= 0 || !st.Lifted || st.Bc.Lost) return;
             var bc = st.Bc;
             bool inAir = n.AtmosphereTop > 0 && n.Altitude < n.AtmosphereTop;
             bool ascent = bc.LiftoffReal > 0 && realTime - bc.LiftoffReal < 600;

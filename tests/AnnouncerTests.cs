@@ -243,6 +243,7 @@ public static class AnnouncerTests
         Func<string, bool> has = w => calls.Count(c => c.ToLowerInvariant().Contains(w)) == 1;
         Assert(has("tower") && has("supersonic") && has("throttling down") && has("max q") && (has("back up") || has("full throttle")) && (has("meco") || has("main engine")) && has("ignition"), "every callout once: " + all);
         Assert(calls.Count == 7, "and nothing twice: " + all);
+        Assert(st.Rec.Count(e => (string)e["k"] == "ov") > 50, "the overlay is recorded for the replay");
         var ctlClip = rig.Played.Count;
         Assert(ctlClip >= 9, "they're heard: " + ctlClip);
     }
@@ -403,9 +404,22 @@ public static class AnnouncerTests
         var root = Html.Parse(pr.Html);
         Css.Apply(root, Css.Parse(pr.Css));
         var lay = Layout.Run(root, 1000, CommunityTests.FakeMeasure);
-        var seekRegions = lay.Regions.Where(r => r.Link >= 0 && (lay.Links[r.Link].Href + lay.Links[r.Link].Action).Contains("replay-seek")).ToList();
-        seekRegions = seekRegions.Where(r => r.H < 20).ToList();
-        Assert(seekRegions.Count == 48 && seekRegions.All(r => r.W > 3 && r.H >= 6 && r.H < 30), "the seek bar is a row of clickable blocks: " + seekRegions.Count + " " + string.Join(",", seekRegions.Take(3).Select(r => r.W + "x" + r.H).ToArray()));
+        var bar = lay.Images.FirstOrDefault(i => i.Src == "kbreplay:seek");
+        Assert(bar != null && bar.W > 300 && bar.H >= 18 && bar.H < 30, "a draggable seek bar across the video: " + (bar == null ? "none" : bar.W + "x" + bar.H));
+
+        // Dragging: the picture follows the handle without redrawing the page; letting go carries on playing from there.
+        bool redrawn = false;
+        eng.StreamChanged += () => redrawn = true;
+        eng.ReplayPlayPause();
+        if (!eng.Replay.Playing) eng.ReplayPlayPause();
+        redrawn = false;
+        eng.ReplayScrub(3);
+        eng.ReplayScrub(12);
+        Assert(!redrawn && !eng.Replay.Playing && Math.Abs(eng.Replay.Pos - 12) < 0.01, "scrubbing moves the picture, pauses, and doesn't redraw");
+        eng.ReplayScrubEnd(10);
+        Assert(redrawn && eng.Replay.Playing && Math.Abs(eng.Replay.Pos - 10) < 0.01, "letting go plays on from there");
+        var ov = eng.ReplayOverlay();
+        Assert(ov != null && ov.Vessel == "KERBAL X" && ov.Clock != "", "the replay has the live overlay: " + (ov == null ? "null" : ov.Clock));
         Assert(lay.Images.Any(i => i.Src == "kbreplay:frame" && i.W > 300), "the video is on the page");
         Assert(rig.ReplayVoice.Count >= 1, "the liftoff call plays during the replay");
         sites.Handle("replay-seek/0", new Dictionary<string, string>());
@@ -428,6 +442,41 @@ public static class AnnouncerTests
         var st2 = eng.StartStream("v1", "Kerbal X", 50, 50);
         Assert(st2.RecFolder == "" && eng.ReplayFrameDue(51) == -1, "off means off");
         Assert(eng.EndStream(60).Replay == "", "no replay in the archive");
+    }
+
+    public static void TestLongPausesAreShortened()
+    {
+        var a = PaddedPcm(0, 0.8).Bytes; var gap = new byte[(int)(Voice.Rate * 0.6) * 2]; var b = PaddedPcm(0, 0.8).Bytes;
+        var clip = a.Concat(gap).Concat(b).ToArray();
+        var t = Voice.Tighten(clip);
+        double cut = Voice.Seconds(clip) - Voice.Seconds(t);
+        Assert(cut > 0.45 && cut < 0.5, "a 0.6 s pause becomes 0.12 s: cut " + cut);
+        var shortGap = a.Concat(new byte[(int)(Voice.Rate * 0.15) * 2]).Concat(b).ToArray();
+        Assert(Voice.Tighten(shortGap).Length == shortGap.Length, "short pauses stay");
+    }
+
+    public static void TestOldReplaysSkipTheEmptyStart()
+    {
+        // Before the fix the clock started with the game: only the welcome line at zero, the picture ten minutes later.
+        var ev = new List<object>
+        {
+            new Dictionary<string, object> { { "t", 0.0 }, { "k", "chat" }, { "x", "Welcome" } },
+            new Dictionary<string, object> { { "t", 0.0 }, { "k", "sfx" }, { "x", "room" } },
+            new Dictionary<string, object> { { "t", 852.4 }, { "k", "frm" }, { "i", 1 } },
+            new Dictionary<string, object> { { "t", 852.4 }, { "k", "tel" }, { "alt", 80 } },
+            new Dictionary<string, object> { { "t", 931.1 }, { "k", "mom" }, { "x", "liftoff" } },
+            new Dictionary<string, object> { { "t", 1029.2 }, { "k", "end" } },
+        };
+        var json = Json.Write(new Dictionary<string, object> { { "vessel", "ComSat Lx" }, { "length", 1029.2 }, { "fps", 3 }, { "frames", 1 }, { "events", ev } });
+        var d = ReplayData.Parse("rec", json);
+        Assert(d.Length > 170 && d.Length < 180, "length is the stream, not the session: " + d.Length);
+        Assert(ReplayData.T(d.Events.First(e => ReplayData.K(e) == "frm")) < 1 && Math.Abs(ReplayData.T(d.Events.First(e => ReplayData.K(e) == "mom")) - 79.2) < 0.01, "everything moves up together");
+
+        // New streams start their clock with the stream, even if the page's clock hadn't moved since an older one.
+        var rig = Make(new GlobalSettings { OfflineMode = true });
+        rig.Eng.SetRealTime(900);
+        var st = rig.Eng.StartStream("v1", "Kerbal X", 0, 5);
+        Assert(st.StartReal == 900, "starts at the current time: " + st.StartReal);
     }
 
     public static void TestStreamIsInTheSaveFromTheStart()

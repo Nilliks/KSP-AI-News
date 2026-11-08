@@ -14,6 +14,7 @@ namespace KerbalNews.KSP
     public class StreamOverlayUi : MonoBehaviour
     {
         float w, h, s, next;
+        bool replay;
         TextMeshProUGUI vessel, camera, clock, clockHead, speed, alt, ap, apHead, stage, throttle, fuelText;
         GameObject live, apBox, fuelRow;
         RectTransform fuelFill, stripDone;
@@ -24,10 +25,10 @@ namespace KerbalNews.KSP
         string marksFor = "";
         static readonly Color Panel = new Color(10 / 255f, 16 / 255f, 24 / 255f, 0.72f), Head = new Color(0.62f, 0.70f, 0.78f), Sub = new Color(0.78f, 0.83f, 0.88f);
 
-        public static void Attach(GameObject video, float width, float height)
+        public static void Attach(GameObject video, float width, float height, bool replay = false)
         {
             var o = video.AddComponent<StreamOverlayUi>();
-            o.w = width; o.h = height; o.s = height / 720f;
+            o.w = width; o.h = height; o.s = height / 720f; o.replay = replay;
             o.Build();
         }
 
@@ -71,10 +72,11 @@ namespace KerbalNews.KSP
             float W = w / s;   // design width for this aspect (1280 at 16:9)
 
             // Top left: LIVE, the craft, the camera.
-            live = Box("live", root, 28, 26, 62, 28, new Color(0.83f, 0.16f, 0.16f));
-            Text(live.transform, 0, 3, 62, 24, 18, false, Color.white, TextAlignmentOptions.Top).text = "LIVE";
-            vessel = Text(root, 104, 20, 600, 30, 24, false, Color.white);
-            camera = Text(root, 104, 48, 600, 22, 15, false, new Color(0.9f, 0.93f, 0.97f));
+            live = Box("live", root, 28, 26, replay ? 92 : 62, 28, replay ? new Color(0.25f, 0.30f, 0.38f) : new Color(0.83f, 0.16f, 0.16f));
+            Text(live.transform, 0, 3, replay ? 92 : 62, 24, 18, false, Color.white, TextAlignmentOptions.Top).text = replay ? "REPLAY" : "LIVE";
+            float vx = replay ? 134 : 104;
+            vessel = Text(root, vx, 20, 600, 30, 24, false, Color.white);
+            camera = Text(root, vx, 48, 600, 22, 15, false, new Color(0.9f, 0.93f, 0.97f));
 
             // Top right: the mission clock.
             var cb = Box("clock", root, W - 28 - 230, 22, 230, 66, Panel);
@@ -132,14 +134,19 @@ namespace KerbalNews.KSP
         void Update()
         {
             if (Time.realtimeSinceStartup < next) return;
-            next = Time.realtimeSinceStartup + 0.25f;
+            next = Time.realtimeSinceStartup + (replay ? 0.1f : 0.25f);
             Refresh();
         }
 
         void Refresh()
         {
             OverlayModel m;
-            try { m = StreamDriver.Overlay(); } catch (System.Exception) { m = null; }
+            try
+            {
+                var sys = NewsSystem.Instance;
+                m = replay ? (sys != null && sys.HasGame ? sys.Engine.ReplayOverlay() : null) : StreamDriver.Overlay();
+            }
+            catch (System.Exception) { m = null; }
             foreach (var c in tops) if (c != null) c.SetActive(m != null);
             if (m == null) return;
             vessel.text = m.Vessel;

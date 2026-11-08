@@ -15,7 +15,7 @@ namespace UnityEngine.EventSystems
     public class PointerEventData : BaseEventData
     {
         public enum InputButton { Left, Right, Middle }
-        public InputButton button; public Vector2 position, delta; public bool dragging; public Camera pressEventCamera;
+        public InputButton button; public Vector2 position, delta; public bool dragging; public Camera pressEventCamera, enterEventCamera;
     }
     public interface IEventSystemHandler { }
     public interface IPointerClickHandler : IEventSystemHandler { void OnPointerClick(PointerEventData e); }
@@ -24,6 +24,8 @@ namespace UnityEngine.EventSystems
     public interface IBeginDragHandler : IEventSystemHandler { void OnBeginDrag(PointerEventData e); }
     public interface IDragHandler : IEventSystemHandler { void OnDrag(PointerEventData e); }
     public interface IEndDragHandler : IEventSystemHandler { void OnEndDrag(PointerEventData e); }
+    public interface IPointerDownHandler : IEventSystemHandler { void OnPointerDown(PointerEventData e); }
+    public interface IPointerUpHandler : IEventSystemHandler { void OnPointerUp(PointerEventData e); }
     public class UIBehaviour : MonoBehaviour { }
 }
 

@@ -161,6 +161,8 @@ namespace KerbalNews.KSP
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
+            // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
+            Engine.SetRealTime(Time.realtimeSinceStartup);
             TickReplay();
             if (HighLogic.LoadedSceneIsFlight && blackBox != null) blackBox.Update();
             try

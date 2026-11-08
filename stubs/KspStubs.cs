@@ -27,7 +27,7 @@ namespace UnityEngine
         public Vector2 anchorMin, anchorMax, pivot, anchoredPosition, sizeDelta, offsetMin, offsetMax;
         public Rect rect;
     }
-    public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } }
+    public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } public static bool ScreenPointToLocalPointInRectangle(RectTransform rt, Vector2 p, Camera c, out Vector2 local) { local = new Vector2(); return false; } }
     public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public RenderTexture targetTexture; public void Render() { } public void CopyFrom(Camera other) { } }
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
@@ -52,7 +52,7 @@ namespace UnityEngine
     public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
     public struct Vector2
     {
-        public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero; public float sqrMagnitude { get { return 0; } }
+        public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero, one; public float sqrMagnitude { get { return 0; } }
         public static Vector2 operator +(Vector2 a, Vector2 b) { return a; } public static Vector2 operator -(Vector2 a, Vector2 b) { return a; }
         public static Vector2 operator /(Vector2 a, float d) { return a; } public static Vector2 operator *(Vector2 a, float d) { return a; }
         public static implicit operator Vector3(Vector2 v) { return new Vector3(v.x, v.y, 0); }
@@ -62,6 +62,7 @@ namespace UnityEngine
     {
         public float x, y, width, height;
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
+        public float xMin { get { return x; } }
         public bool Contains(Vector2 p) { return false; }
     }
     public struct Color
@@ -78,7 +79,7 @@ namespace UnityEngine
     public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; }
-    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } }
+    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } }
     public static class Input { public static Vector3 mousePosition; public static Vector2 mouseScrollDelta; public static bool GetKeyDown(KeyCode k) { return false; } public static bool GetKey(KeyCode k) { return false; } public static bool GetMouseButtonDown(int b) { return false; } }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }

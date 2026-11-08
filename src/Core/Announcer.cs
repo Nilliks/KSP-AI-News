@@ -551,7 +551,7 @@ namespace KerbalNews
                 || !next.Count && speech.Any(s => s.Count && s.PlayAt < realTime + Math.Max(1.5, Voice.Seconds(next.Pcm) + 0.3));
             if (blocked) { if (st.Caption != "" && realTime > st.CaptionUntil) { st.Caption = ""; Changed(); } return; }
             speech.Remove(next);
-            if (next.Pcm != null) next.Pcm = Voice.Trim(next.Pcm, next.Count);
+            if (next.Pcm != null) next.Pcm = Voice.Tighten(Voice.Trim(next.Pcm, next.Count));
             if (next.Pcm != null && OnRadio(next.Speaker)) next.Pcm = Voice.Radio(next.Pcm, next.Speaker == "ctl", next.Speaker == "stn");
             if (next.Sfx != "") PlaySfx(st, next.Sfx, realTime);
             double dur = Voice.Seconds(next.Pcm);
@@ -590,7 +590,7 @@ namespace KerbalNews
             string spoken = Voice.Spoken(text, mood, style, Settings.VoiceModel);
             string key = Voice.CacheKey(voice, Settings.VoiceModel + "|" + style, spoken);
             string who = VoiceLabel(voice);
-            Func<byte[], byte[]> fx = p => radio ? Voice.Radio(Voice.Trim(p, false), true, false) : p;
+            Func<byte[], byte[]> fx = p => { p = Voice.Tighten(Voice.Trim(p, false)); return radio ? Voice.Radio(p, true, false) : p; };
             byte[] cached = null;
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
             if (cached != null && cached.Length > 0)

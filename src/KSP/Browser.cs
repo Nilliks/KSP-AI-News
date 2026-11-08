@@ -1220,9 +1220,17 @@ namespace KerbalNews.KSP
                 }
                 if (im.Src == "kbreplay:frame")
                 {
-                    // A stream replay: one texture the replay player reloads in place as it plays.
+                    // A stream replay: one texture the replay player reloads in place as it plays, with the same overlay as live.
                     ReplayStore.EnsureTexture();
                     raw.texture = ReplayStore.Texture;
+                    StreamOverlayUi.Attach(go, im.W, im.H, true);
+                    continue;
+                }
+                if (im.Src == "kbreplay:seek")
+                {
+                    raw.color = new Color(0, 0, 0, 0);
+                    raw.raycastTarget = true;
+                    SeekBar.Attach(go, im.W, im.H);
                     continue;
                 }
                 var tex = LoadImage(im.Src);
@@ -1372,7 +1380,7 @@ namespace KerbalNews.KSP
 
         public static bool ImageExists(string src)
         {
-            if (string.IsNullOrEmpty(src) || src == "kblive:frame" || src == "kbreplay:frame") return !string.IsNullOrEmpty(src);
+            if (string.IsNullOrEmpty(src) || src == "kblive:frame" || src == "kbreplay:frame" || src == "kbreplay:seek") return !string.IsNullOrEmpty(src);
             try { return File.Exists(ImagePath(src)); } catch (Exception) { return false; }
         }
 

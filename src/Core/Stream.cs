@@ -87,7 +87,7 @@ namespace KerbalNews
         public string RecFolder = "";
         public readonly List<Dictionary<string, object>> Rec = new List<Dictionary<string, object>>();
         public int RecFrames;
-        public double RecFps, RecNextFrame, RecIndexAt;
+        public double RecFps, RecNextFrame, RecIndexAt, RecOverlayAt;
         /// <summary>The stream's entry in the save, made when it starts so any save during or after the stream keeps it.</summary>
         public StreamArchive Archive;
         public double ArchiveSyncAt;
@@ -146,6 +146,8 @@ namespace KerbalNews
         public StreamSession StartStream(string vesselId, string vesselName, double ut, double realTime)
         {
             if (Stream != null) return Stream;
+            if (realTime < lastRealTime) realTime = lastRealTime;   // never start the clock in the past
+            lastRealTime = realTime;
             var crewed = Tracked(vesselId) != null && Tracked(vesselId).Craft != null && Tracked(vesselId).Craft.Crew.Count > 0;
             Stream = new StreamSession { VesselId = vesselId ?? "", VesselName = vesselName ?? "", StartUT = ut, StartReal = realTime, NextBatchReal = realTime + 3 };
             Stream.Viewers = Stream.PeakViewers = (int)((200 + State.Mood.Excitement * 60) * (crewed ? 2 : 1));
