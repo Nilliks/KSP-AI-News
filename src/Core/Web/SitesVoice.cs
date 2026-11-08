@@ -36,7 +36,7 @@ namespace KerbalNews.Web
                 {
                     { "voice", Engine.VoiceLabel(g.VoiceId) }, { "total", all.Count }, { "todo", todo.Count }, { "done", all.Count - todo.Count },
                     { "letters", todo.Sum(x => Voice.Spoken(x.Key, x.Value, g.AnnouncerStyle, g.VoiceModel).Length).ToString("N0", Inv) },
-                    { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 }, { "bank", Engine.BankName },
+                    { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 }, { "anyDone", all.Count > todo.Count }, { "bank", Engine.BankName },
                 };
             }
             m["voiceModelOpts"] = Voice.Models.Select(v => opt(v[1], "voice-model/" + v[0], g.VoiceModel == v[0])).ToList();

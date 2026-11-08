@@ -110,8 +110,8 @@
   <p class="hint">{{done}} of {{total}} common lines are recorded for {{voice}} in this model and style: the countdown, liftoff, staging, orbit and landings at Kerbin, the Mun, Minmus, Duna and Eve, holds and scrubs. Recorded lines play instantly and cost nothing, and the announcer picks them over new wording. Lines with your craft's name or live numbers are still made as they happen.</p>
   {{^allDone}}{{^busy}}<div class="row"><a class="toggle" href="action:prerecord">Record the {{todo}} missing lines now (about {{letters}} letters)</a></div>{{/busy}}{{/allDone}}
   {{#status}}<p class="hint">{{status}}</p>{{/status}}
-  {{#allDone}}<div class="row"><a class="toggle" href="action:export-voice">Ship these lines with the mod</a></div>
-  <p class="hint">Copies the recordings (not your key) into GameData/KerbalNews/Voice/{{bank}}, so players who get that folder hear the announcer without an ElevenLabs account.</p>{{/allDone}}{{/pre}}
+  {{#anyDone}}{{^busy}}<div class="row"><a class="toggle" href="action:export-voice">Ship these lines with the mod</a></div>
+  <p class="hint">Copies the {{done}} recordings (not your key) into GameData/KerbalNews/Voice/{{bank}}, so players who get that folder hear the announcer without an ElevenLabs account.</p>{{/busy}}{{/anyDone}}{{/pre}}
   {{#voiceStatus}}<p class="bad">Last voice problem: {{voiceStatus}}</p>{{/voiceStatus}}
   {{/announcerOn}}
   <h3>Replays</h3>
