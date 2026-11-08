@@ -31,6 +31,18 @@ namespace KerbalNews
         public string VoiceId = Voice.DefaultVoice;
         public string VoiceModel = Voice.DefaultModel;
         public double VoiceVolume = 0.8;
+        /// <summary>"calm" (mission control) or "excited" (sportscaster): the delivery directions and voice settings.</summary>
+        public string AnnouncerStyle = "calm";
+        /// <summary>Voices loaded from the player's ElevenLabs account: "id|name|description;..." (not secret).</summary>
+        public string FetchedVoices = "";
+        public List<string[]> FetchedVoiceList
+        {
+            get
+            {
+                return FetchedVoices.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('|')).Where(p => p.Length >= 2 && p[0] != "")
+                    .Select(p => new[] { p[0], p[1], p.Length > 2 ? p[2] : "" }).ToList();
+            }
+        }
         public const string VoiceKeyId = "voice:elevenlabs";
         public string VoiceKey { get { return Lookup(Keys, VoiceKeyId, ""); } }
         public bool VoiceOn { get { return VoiceEnabled && Announcer > 0 && VoiceKey != ""; } }
@@ -227,6 +239,8 @@ namespace KerbalNews
             settings.Add("voiceId", VoiceId);
             settings.Add("voiceModel", VoiceModel);
             settings.Add("voiceVolume", VoiceVolume);
+            settings.Add("announcerStyle", AnnouncerStyle);
+            settings.AddText("voices", FetchedVoices);
             settings.Add("replays", ReplayQuality);
             settings.Add("replayMaxGb", ReplayMaxGb);
             settings.Add("ktv", KtvOn);
@@ -302,6 +316,8 @@ namespace KerbalNews
                 g.VoiceModel = settings.Get("voiceModel", Voice.DefaultModel);
                 if (g.VoiceModel == "") g.VoiceModel = Voice.DefaultModel;
                 g.VoiceVolume = Math.Max(0, Math.Min(1, settings.GetDouble("voiceVolume", 0.8)));
+                g.AnnouncerStyle = settings.Get("announcerStyle", "calm") == "excited" ? "excited" : "calm";
+                g.FetchedVoices = settings.GetText("voices") ?? "";
                 g.ReplayQuality = Math.Max(0, Math.Min(2, settings.GetInt("replays", 1)));
                 g.ReplayMaxGb = Math.Max(1, Math.Min(50, settings.GetInt("replayMaxGb", 3)));
                 g.KtvOn = settings.GetBool("ktv", true);

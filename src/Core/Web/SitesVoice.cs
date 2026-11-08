@@ -22,8 +22,12 @@ namespace KerbalNews.Web
             bool hasKey = g.VoiceKey != "";
             m["voiceHasKey"] = hasKey;
             m["voiceSpoken"] = g.VoiceEnabled;
-            m["voiceOpts"] = Voice.Voices.Select(v => opt(v[1] + " (" + v[2] + ")", "voice/" + v[0], g.VoiceId == v[0])).ToList();
-            m["voiceCustom"] = Voice.Voices.Any(v => v[0] == g.VoiceId) ? "" : g.VoiceId;
+            var voices = AllVoices(g);
+            m["voiceOpts"] = voices.Select(v => opt(v[1] + (v[2] != "" ? " (" + v[2] + ")" : ""), "voice/" + v[0], g.VoiceId == v[0])).ToList();
+            m["voiceCustom"] = voices.Any(v => v[0] == g.VoiceId) ? "" : g.VoiceId;
+            m["voicesLoaded"] = g.FetchedVoiceList.Count > 0;
+            m["styleOpts"] = new List<object> { opt("Mission control (calm)", "announcer-style/calm", g.AnnouncerStyle != "excited"), opt("Sportscaster (excited)", "announcer-style/excited", g.AnnouncerStyle == "excited") };
+            m["directed"] = Voice.TakesDirections(g.VoiceModel);
             m["voiceModelOpts"] = Voice.Models.Select(v => opt(v[1], "voice-model/" + v[0], g.VoiceModel == v[0])).ToList();
             var cur = Voice.Models.FirstOrDefault(v => v[0] == g.VoiceModel);
             m["voiceModelHint"] = cur != null ? cur[1] + ": " + cur[2] + "." : "Model " + g.VoiceModel + ".";
@@ -39,6 +43,21 @@ namespace KerbalNews.Web
             m["replaysOn"] = g.ReplayQuality > 0;
         }
 
+        /// <summary>The stock voices, then any others loaded from the player's account.</summary>
+        static List<string[]> AllVoices(GlobalSettings g)
+        {
+            var l = Voice.Voices.Select(v => new[] { v[0], v[1], v[2] }).ToList();
+            foreach (var v in g.FetchedVoiceList) if (!l.Any(x => x[0] == v[0])) l.Add(v);
+            return l;
+        }
+
+        void PlaySample()
+        {
+            VoiceTestResult = "Getting a sample...";
+            VoiceTestOk = true;
+            Engine.VoiceTest(msg => { VoiceTestOk = msg.StartsWith("Playing"); VoiceTestResult = msg; Changed(); });
+        }
+
         ActionResult HandleVoice(string verb, string arg, IDictionary<string, string> form)
         {
             var g = Engine.Settings;
@@ -49,8 +68,16 @@ namespace KerbalNews.Web
             {
                 case "announcer": if (int.TryParse(arg, out n)) g.Announcer = Math.Max(0, Math.Min(2, n)); SaveSettings(); return r;
                 case "toggle-voice": g.VoiceEnabled = !g.VoiceEnabled; Engine.ResetVoice(); SaveSettings(); return r;
-                case "voice": if (Voice.Voices.Any(v => v[0] == arg)) { g.VoiceId = arg; Engine.ResetVoice(); SaveSettings(); } return r;
-                case "voice-model": if (Voice.Models.Any(v => v[0] == arg)) { g.VoiceModel = arg; Engine.ResetVoice(); SaveSettings(); } return r;
+                case "voice":
+                    if (AllVoices(g).Any(v => v[0] == arg)) { g.VoiceId = arg; Engine.ResetVoice(); SaveSettings(); PlaySample(); }
+                    return r;
+                case "voice-model": if (Voice.Models.Any(v => v[0] == arg)) { g.VoiceModel = arg; Engine.ResetVoice(); SaveSettings(); PlaySample(); } return r;
+                case "announcer-style": g.AnnouncerStyle = arg == "excited" ? "excited" : "calm"; SaveSettings(); PlaySample(); return r;
+                case "load-voices":
+                    VoiceTestResult = "Asking ElevenLabs for your voices...";
+                    VoiceTestOk = true;
+                    Engine.LoadVoices(msg => { VoiceTestOk = msg.StartsWith("Loaded"); VoiceTestResult = msg; if (VoiceTestOk) SaveSettings(); Changed(); });
+                    return r;
                 case "voice-volume": if (double.TryParse(arg, NumberStyles.Float, Inv, out d)) g.VoiceVolume = Math.Max(0, Math.Min(1, d)); SaveSettings(); return r;
                 case "replays": if (int.TryParse(arg, out n)) g.ReplayQuality = Math.Max(0, Math.Min(2, n)); SaveSettings(); return r;
                 case "replay-space": if (int.TryParse(arg, out n)) g.ReplayMaxGb = Math.Max(1, Math.Min(50, n)); SaveSettings(); return r;
@@ -65,9 +92,7 @@ namespace KerbalNews.Web
                     Engine.ResetVoice();
                     SaveSettings();
                     if (verb == "save-voice") { VoiceTestResult = "Saved."; VoiceTestOk = true; return r; }
-                    VoiceTestResult = "Asking ElevenLabs for a test line...";
-                    VoiceTestOk = true;
-                    Engine.VoiceTest(msg => { VoiceTestOk = msg.StartsWith("It works"); VoiceTestResult = msg; Changed(); });
+                    PlaySample();
                     return r;
                 }
             }

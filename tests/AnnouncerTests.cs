@@ -268,6 +268,41 @@ public static class AnnouncerTests
         Assert(eng.State.Streams.Count == 1 && eng.State.Streams[0] == arch && arch.EndUT == 100, "ending puts it into the new state");
     }
 
+    public static void TestVoiceSamplesDirectionsAndAccountVoices()
+    {
+        var g = VoiceSettings();
+        var rig = Make(g);
+        rig.T.Responder = r =>
+        {
+            if (r.Url.EndsWith("/voices")) return new HttpResult { Status = 200, Body = "{\"voices\":[{\"voice_id\":\"ann1\",\"name\":\"Big Tony - Sports Announcer\",\"labels\":{\"accent\":\"american\",\"use_case\":\"sports_commentary\"}}]}" };
+            rig.Spoken.Add(Json.Str(Json.Parse(r.Body), "text", ""));
+            return Pcm(2);
+        };
+        var eng = rig.Eng;
+        var dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var p = Path.Combine(dir, rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
+        sites.Now = () => 0;
+        sites.Handle("voice/onwK4e9ZLuTAKqWW03F9", new Dictionary<string, string>());
+        Assert(g.VoiceId == "onwK4e9ZLuTAKqWW03F9" && rig.Played.Count == 1 && rig.Spoken.Count == 1, "picking a voice plays a sample");
+        Assert(!rig.Spoken[0].Contains("["), "plain models get no bracket directions: " + rig.Spoken[0]);
+        sites.Handle("voice/pNInz6obpgDQGcFmaJgB", new Dictionary<string, string>());
+        sites.Handle("voice/onwK4e9ZLuTAKqWW03F9", new Dictionary<string, string>());
+        Assert(rig.Played.Count == 3 && rig.Spoken.Count == 2, "hearing a voice again is free");
+        sites.Handle("voice-model/eleven_v3", new Dictionary<string, string>());
+        Assert(rig.Spoken.Last().StartsWith("[") && rig.Spoken.Last().Contains("Liftoff"), "v3 gets a direction: " + rig.Spoken.Last());
+        sites.Handle("announcer-style/excited", new Dictionary<string, string>());
+        Assert(rig.Spoken.Last().Contains("shouting"), "the sportscaster shouts liftoff: " + rig.Spoken.Last());
+        sites.Handle("load-voices", new Dictionary<string, string>());
+        string h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("Big Tony") && h.Contains("voice/ann1") && h.Contains("sports commentary"), "account voices are listed");
+        // On a stream, the caption stays clean while the voice gets the direction.
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        Run(eng, 0, 4);
+        eng.StreamMoment("liftoff", 5);
+        Run(eng, 5, 6);
+        Assert(!st.Caption.Contains("[") && rig.Spoken.Last().Contains("[excited"), "caption: " + st.Caption + " / sent: " + rig.Spoken.Last());
+    }
+
     public static void TestVoiceSettingsSaveAndShow()
     {
         var g = new GlobalSettings { OfflineMode = true };

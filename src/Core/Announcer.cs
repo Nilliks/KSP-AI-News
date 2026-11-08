@@ -177,7 +177,11 @@ namespace KerbalNews
             if (line == "") return;
             bool urgent = rule == "liftoff" || rule == "liftoff_crew" || rule == "boom" || rule == "crew_lost" || rule == "hold" || rule == "scrub";
             if (urgent) speech.RemoveAll(s => !s.Count);   // nothing queued should hold up a liftoff or a loss
-            Say(st, line, realTime, 0, urgent ? 6 : 12);
+            string mood = rule == "boom" || rule == "crew_lost" ? "loss"
+                : rule == "hold" || rule == "scrub" || rule == "late" || rule == "anomaly" || rule == "recycle" ? "tense"
+                : rule.StartsWith("liftoff") || rule == "orbit" || rule == "landing" || rule == "splash" || rule == "dock" || rule == "milestone" || rule == "soi" ? "big"
+                : rule == "zero" || rule == "count_30" ? "count" : "routine";
+            Say(st, line, realTime, 0, urgent ? 6 : 12, false, mood);
         }
 
         static string BodyFrom(string what, string after)
@@ -190,8 +194,9 @@ namespace KerbalNews
         }
 
         /// <summary>Queues a line. playAt 0 means as soon as it's ready; maxWait is how stale it may get before it's dropped.</summary>
-        void Say(StreamSession st, string text, double realTime, double playAt, double maxWait, bool count = false)
+        void Say(StreamSession st, string text, double realTime, double playAt, double maxWait, bool count = false, string mood = "routine")
         {
+            if (count) mood = "count";
             text = (text ?? "").Trim();
             if (Settings.Announcer <= 0 || text == "" || st == null) return;
             double at = playAt > 0 ? playAt : realTime;
@@ -199,13 +204,14 @@ namespace KerbalNews
             speech.Add(sp);
             st.LastAnnReal = Math.Max(st.LastAnnReal, realTime);
             if (!VoiceReady) { sp.Ready = true; return; }
-            string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel, text);
+            string spoken = Voice.Spoken(text, mood, Settings.AnnouncerStyle, Settings.VoiceModel);
+            string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
             byte[] cached = null;
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
             if (cached != null && cached.Length > 0) { sp.Pcm = cached; sp.Ready = true; return; }
             VoiceCalls++;
             bool keep = count || text.Length <= 48 && !text.Contains(st.VesselName == "" ? "\u0001" : st.VesselName);
-            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, text), res =>
+            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
             {
                 byte[] pcm;
                 string err;
@@ -290,25 +296,63 @@ namespace KerbalNews
             Changed();
         }
 
-        /// <summary>A test line from the settings page, outside any stream.</summary>
+        public const string SampleLine = "T-minus ten seconds, and counting... Three, two, one... Liftoff! We have liftoff!";
+
+        /// <summary>
+        /// A sample of the chosen voice, model and style from the settings page (also when a voice is picked). The same sample
+        /// is saved, so listening to a voice again costs nothing.
+        /// </summary>
         public bool VoiceTest(Action<string> done)
         {
-            if (Settings.VoiceKey == "") { done("Save an ElevenLabs key first."); return false; }
+            if (Settings.VoiceKey == "") { done("Save an ElevenLabs key first, then pick a voice to hear it."); return false; }
             if (Transport == null || PlayVoice == null) { done("The voice can only play inside the game."); return false; }
+            string spoken = Voice.Spoken(SampleLine, "big", Settings.AnnouncerStyle, Settings.VoiceModel);
+            string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
+            string who = VoiceLabel(Settings.VoiceId);
+            byte[] cached = null;
+            if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
+            if (cached != null && cached.Length > 0)
+            {
+                try { PlayVoice(cached, Voice.Rate); } catch (Exception) { }
+                done("Playing " + who + ".");
+                return true;
+            }
             VoiceCalls++;
-            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, "This is " + AgencyName + " mission control. T-minus ten seconds, and counting."), res =>
+            Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
             {
                 byte[] pcm;
                 string err;
                 if (Voice.TryExtract(res, out pcm, out err))
                 {
                     VoiceBroken = false; VoiceStatus = "";
+                    if (VoiceCachePut != null) { try { VoiceCachePut(key, pcm); } catch (Exception) { } }
                     try { PlayVoice(pcm, Voice.Rate); } catch (Exception) { }
-                    done("It works. You should hear " + Voice.VoiceName(Settings.VoiceId) + " now.");
+                    done("Playing " + who + ".");
                 }
                 else { VoiceStatus = err; done(err); }
             });
             return true;
+        }
+
+        /// <summary>A voice's name, from the account's list if it was loaded, else the stock list.</summary>
+        public string VoiceLabel(string id)
+        {
+            foreach (var v in Settings.FetchedVoiceList) if (v[0] == id) return v[1];
+            return Voice.VoiceName(id);
+        }
+
+        /// <summary>Loads the voices on the player's ElevenLabs account into the settings list.</summary>
+        public void LoadVoices(Action<string> done)
+        {
+            if (Settings.VoiceKey == "" || Transport == null) { done("Save an ElevenLabs key first."); return; }
+            Transport.Send(Voice.ListVoices(Settings.VoiceKey), res =>
+            {
+                string err;
+                var list = Voice.ParseVoices(res, out err);
+                if (list == null) { done(err); return; }
+                Settings.FetchedVoices = string.Join(";", list.ToArray());
+                done("Loaded " + list.Count + " voices from your ElevenLabs account.");
+            });
         }
     }
 }

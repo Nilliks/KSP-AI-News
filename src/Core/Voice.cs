@@ -21,7 +21,15 @@ namespace KerbalNews
         {
             new[] { "pNInz6obpgDQGcFmaJgB", "Adam", "deep, steady" },
             new[] { "nPczCjzI2devNBz1zQrb", "Brian", "warm narrator" },
+            new[] { "onwK4e9ZLuTAKqWW03F9", "Daniel", "British news presenter" },
+            new[] { "pqHfZKP75CvOlQylNhV4", "Bill", "older, trustworthy" },
             new[] { "JBFqnCBsd6RMkjVDRZzb", "George", "British, calm" },
+            new[] { "cjVigY5qzO86Huf0OWal", "Eric", "smooth, confident" },
+            new[] { "iP95p4xoKVk53GoZ742B", "Chris", "casual, upbeat" },
+            new[] { "CwhRBWXzGAHq8TQ4Fs17", "Roger", "relaxed, assured" },
+            new[] { "EXAVITQu4vr4xnSDxMaL", "Sarah", "clear, professional" },
+            new[] { "XrExE9yKIg1WjnnlVkGX", "Matilda", "warm, friendly" },
+            new[] { "Xb7hH8MSUJpSbSDYk0k2", "Alice", "British, crisp" },
             new[] { "21m00Tcm4TlvDq8ikWAM", "Rachel", "clear, bright" },
         };
 
@@ -30,8 +38,74 @@ namespace KerbalNews
         {
             new[] { "eleven_flash_v2_5", "Flash", "fastest and cheapest (half a credit per letter)" },
             new[] { "eleven_turbo_v2_5", "Turbo", "a little more natural, same price as Flash" },
-            new[] { "eleven_multilingual_v2", "Multilingual v2", "best sounding, slower, a full credit per letter" },
+            new[] { "eleven_multilingual_v2", "Multilingual v2", "best sounding of the plain models, slower, a full credit per letter" },
+            new[] { "eleven_v3", "v3 (directed)", "the most expressive: it follows delivery directions, so liftoff is shouted, a loss is said quietly and holds sound tense. Slower to answer" },
         };
+
+        /// <summary>Models that act on bracketed delivery directions such as [excited] instead of reading them out.</summary>
+        public static bool TakesDirections(string model) { return (model ?? "").StartsWith("eleven_v3") || (model ?? "").StartsWith("eleven_v4"); }
+
+        /// <summary>How the announcer delivers a line: routine, big (liftoff, orbit), tense (hold, scrub), loss, count (the final ten).</summary>
+        public static string Direction(string mood, string style)
+        {
+            bool hype = style == "excited";
+            switch (mood)
+            {
+                case "big": return hype ? "[excited, shouting over a cheering crowd]" : "[proud, rising excitement]";
+                case "tense": return hype ? "[tense, urgent]" : "[serious, steady voice]";
+                case "loss": return hype ? "[shocked, quiet]" : "[quiet, somber voice]";
+                case "count": return hype ? "[excited, building intensity]" : "[clear, firm]";
+                default: return hype ? "[energetic broadcaster voice]" : "[calm, professional broadcast voice]";
+            }
+        }
+
+        /// <summary>The words as sent: with a delivery direction in front for models that take one.</summary>
+        public static string Spoken(string text, string mood, string style, string model)
+        {
+            return TakesDirections(model) ? Direction(mood, style) + " " + text : text;
+        }
+
+        /// <summary>Asks ElevenLabs for the voices on the player's account (stock voices plus any they added from the library).</summary>
+        public static HttpRequestSpec ListVoices(string key)
+        {
+            var req = new HttpRequestSpec { Url = BaseUrl + "/voices", Method = "GET", Body = null, TimeoutSeconds = 30 };
+            req.Headers["xi-api-key"] = key ?? "";
+            return req;
+        }
+
+        /// <summary>"id|name|description" for each voice in a /voices reply, or null with a reason.</summary>
+        public static List<string> ParseVoices(HttpResult res, out string error)
+        {
+            error = null;
+            if (res == null || res.Error != null || !res.Ok) { error = res == null ? "No reply" : res.Error ?? "ElevenLabs answered " + res.Status + (ErrorText(res) != "" ? ": " + ErrorText(res) : ""); return null; }
+            object root;
+            if (!Json.TryParse(res.Body, out root)) { error = "The voice list wasn't readable."; return null; }
+            var list = new List<string>();
+            foreach (var v in Json.Arr(Json.Get(root, "voices")) ?? new List<object>())
+            {
+                string id = Json.Str(v, "voice_id", ""), name = Json.Str(v, "name", "");
+                if (id == "" || name == "") continue;
+                var labels = Json.Obj(Json.Get(v, "labels"));
+                var bits = new List<string>();
+                if (labels != null)
+                    foreach (var k in new[] { "description", "descriptive", "accent", "age", "use_case", "use case" })
+                    {
+                        object o;
+                        if (labels.TryGetValue(k, out o) && o is string && (string)o != "" && !bits.Contains((string)o)) bits.Add(((string)o).Replace("_", " "));
+                    }
+                string clean = ShortName(name);
+                list.Add(id.Replace("|", "") + "|" + clean + "|" + string.Join(", ", bits.Take(3).ToArray()).Replace("|", " ").Replace(";", ","));
+            }
+            if (list.Count == 0) error = "The account has no voices.";
+            return list.Count == 0 ? null : list;
+        }
+
+        static string ShortName(string name)
+        {
+            name = name.Replace("|", " ").Replace(";", ",").Trim();
+            int dash = name.IndexOf(" - ", StringComparison.Ordinal);
+            return ResponseParser.Clip(dash > 0 ? name.Substring(0, dash) : name, 40);
+        }
 
         public static string VoiceName(string id)
         {
@@ -39,13 +113,20 @@ namespace KerbalNews
             return v != null ? v[1] : id;
         }
 
-        public static HttpRequestSpec Build(string key, string voiceId, string model, string text)
+        public static HttpRequestSpec Build(string key, string voiceId, string model, string text, string style = "calm")
         {
+            model = string.IsNullOrEmpty(model) ? DefaultModel : model;
+            bool hype = style == "excited";
+            // v3 takes its delivery from the directions in the text, and only three stability settings; the older models
+            // get a livelier, less steady read for the excited style.
+            var vs = TakesDirections(model)
+                ? new Dictionary<string, object> { { "stability", 0.5 }, { "similarity_boost", 0.75 } }
+                : new Dictionary<string, object> { { "stability", hype ? 0.3 : 0.5 }, { "similarity_boost", 0.75 }, { "style", hype ? 0.5 : 0.15 }, { "use_speaker_boost", true } };
             var body = new Dictionary<string, object>
             {
                 { "text", text ?? "" },
-                { "model_id", string.IsNullOrEmpty(model) ? DefaultModel : model },
-                { "voice_settings", new Dictionary<string, object> { { "stability", 0.45 }, { "similarity_boost", 0.75 }, { "style", 0.2 } } },
+                { "model_id", model },
+                { "voice_settings", vs },
             };
             var req = new HttpRequestSpec
             {

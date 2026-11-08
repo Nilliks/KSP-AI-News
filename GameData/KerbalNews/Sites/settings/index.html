@@ -92,12 +92,16 @@
   <p class="hint">With an ElevenLabs key the announcer speaks; without one, the lines show as captions under the video. ElevenLabs bills by the letter: a launch with big-moment calls is roughly 600 to 1,500 letters. The countdown numbers and other short stock lines are saved after the first time, so they're only paid for once.</p>
   {{#voiceHasKey}}<div class="row" style="align-items: center"><a class="toggle{{#voiceSpoken}} on{{/voiceSpoken}}" href="action:toggle-voice">Speak the lines</a><span class="hint">An ElevenLabs key is saved. <a href="action:forget-voice-key">Forget this key</a></span></div>{{/voiceHasKey}}
   <label>ElevenLabs API key</label><input name="voiceKey" type="password" placeholder="{{#voiceHasKey}}saved (type to replace){{/voiceHasKey}}{{^voiceHasKey}}sk_...{{/voiceHasKey}}">
-  <label>Voice</label>
+  <label>Voice (click one to hear a sample)</label>
   <div class="providers">{{#voiceOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceOpts}}</div>
+  {{#voiceHasKey}}<div class="row"><a class="toggle" href="action:load-voices">{{#voicesLoaded}}Reload{{/voicesLoaded}}{{^voicesLoaded}}Add{{/voicesLoaded}} the voices on my ElevenLabs account</a></div>{{/voiceHasKey}}
   <div class="row"><div><input name="voiceCustom" value="{{voiceCustom}}" placeholder="or paste any voice ID from your ElevenLabs voice library"></div></div>
+  <p class="hint">Each sample costs about 80 letters the first time and nothing after, since it is saved. Voices you add to your account in ElevenLabs' voice library (there are announcer and sports voices there) show up here with the button above.</p>
+  <label>Announcer style</label>
+  <div class="providers">{{#styleOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/styleOpts}}</div>
   <label>Voice model</label>
   <div class="providers">{{#voiceModelOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceModelOpts}}</div>
-  <p class="hint">{{voiceModelHint}}</p>
+  <p class="hint">{{voiceModelHint}}{{#directed}} Each line is sent with a delivery direction such as [excited, shouting over a cheering crowd] for liftoff or [quiet, somber voice] for a loss, which this model acts out.{{/directed}}{{^directed}} For the most announcer-like delivery pick v3: it acts on directions in the text (liftoff shouted, holds tense). The other models only use the style through their voice settings.{{/directed}}</p>
   <label>Volume</label>
   <div class="providers">{{#voiceVolumeOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceVolumeOpts}}</div>
   <div class="save row"><button class="btn" data-action="save-voice">Save</button><button class="btn" data-action="test-voice">Save and play a test line</button></div>
