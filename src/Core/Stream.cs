@@ -52,6 +52,10 @@ namespace KerbalNews
         public int Batches;
         /// <summary>Quiet batches in a row (nothing happened, nobody typed), for spacing out AI calls on a long coast.</summary>
         public int QuietRun;
+        /// <summary>Not saved: when a camera frame last went to the AI, a helper's words for the latest frame, and whether it's looking.</summary>
+        public double LastFrameReal = -1000;
+        public string CameraLook = "";
+        public bool LookBusy;
         /// <summary>How busy the chat is right now: drifts at random between lulls and busy stretches.</summary>
         public double Heat = 1;
         /// <summary>Excitement left over from the last big moment; it fades over the next batches.</summary>
@@ -350,7 +354,12 @@ namespace KerbalNews
                 return;
             }
             streamBusy = true;
-            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), PromptBuilder.StreamUser(this, st, moments, said, n, hype), Math.Min(4000, 600 + n * 45), 40, (root, err, text, res) =>
+            var frame = StreamFrameFor(st, hype, realTime, Settings.CheapModel);
+            string streamUser = PromptBuilder.StreamUser(this, st, moments, said, n, hype);
+            if (frame != null) streamUser += "\nA frame from the live camera right now is attached. Some viewers react to what they can actually see in it (the craft, the plume, the view, the colours), as people watching a real launch stream do.";
+            else if (st.CameraLook != "") { streamUser += "\nTHE CAMERA SHOWS: " + st.CameraLook + " Some viewers react to what they see."; st.CameraLook = ""; }
+            else StreamHelperLook(st, hype, realTime);
+            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
             {
                 streamBusy = false;
                 if (Stream != st) return;

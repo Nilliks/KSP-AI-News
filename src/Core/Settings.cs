@@ -18,6 +18,10 @@ namespace KerbalNews
         /// <summary>The personal assistant chat on the agency site, and whether it asks before spending money.</summary>
         public bool AssistantOn = true;
         public bool AssistantConfirm = true;
+        /// <summary>The AI looks at photos and the livestream camera (only models that can see; never offline).</summary>
+        public bool PhotoLook = true;
+        /// <summary>When the main model can't see: another provider (its key from Keys) that looks at photos. "" = none.</summary>
+        public string VisionProviderId = "";
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
         public bool KtvOn = true;
@@ -185,6 +189,8 @@ namespace KerbalNews
             settings.Add("pressPhotos", PressPhotos);
             settings.Add("assistant", AssistantOn);
             settings.Add("assistantConfirm", AssistantConfirm);
+            settings.Add("photoLook", PhotoLook);
+            settings.Add("visionProvider", VisionProviderId);
             settings.Add("crewChat", CrewChatOn);
             settings.Add("ktv", KtvOn);
             settings.Add("engineering", EngineeringOn);
@@ -247,6 +253,8 @@ namespace KerbalNews
                 g.PressPhotos = settings.GetBool("pressPhotos", true);
                 g.AssistantOn = settings.GetBool("assistant", true);
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
+                g.PhotoLook = settings.GetBool("photoLook", true);
+                g.VisionProviderId = settings.Get("visionProvider", "");
                 g.CrewChatOn = settings.GetBool("crewChat", true);
                 g.KtvOn = settings.GetBool("ktv", true);
                 g.EngineeringOn = settings.GetBool("engineering", true);

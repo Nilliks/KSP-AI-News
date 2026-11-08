@@ -34,6 +34,8 @@ namespace KerbalNews.KSP
             Engine.LocalizeTag = Names.Of;
             Engine.Digest = () => Snapshots.Digest(Engine.State);
             Engine.Bodies = GameBodies;
+            Engine.PhotoJpeg = GalleryStore.ForVision;
+            Engine.StreamFrameJpeg = GalleryStore.StreamFrame;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;

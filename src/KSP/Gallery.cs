@@ -20,9 +20,47 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>Shrinks a screenshot to at most 1600 px wide and returns JPEG bytes.</summary>
-        public static byte[] Jpeg(Texture2D src)
+        public static byte[] Jpeg(Texture2D src) { return Jpeg(src, MaxWidth, 88); }
+
+        /// <summary>A gallery photo shrunk for an AI to look at (about 512 px wide), or null.</summary>
+        public static byte[] ForVision(string file)
         {
-            int w = Math.Min(MaxWidth, src.width);
+            try
+            {
+                string path = Path.Combine(Dir, file);
+                if (!File.Exists(path)) return null;
+                var tex = new Texture2D(2, 2);
+                if (!ImageConversion.LoadImage(tex, File.ReadAllBytes(path))) { UnityEngine.Object.Destroy(tex); return null; }
+                var bytes = Jpeg(tex, 512, 75);
+                UnityEngine.Object.Destroy(tex);
+                return bytes;
+            }
+            catch (Exception) { return null; }
+        }
+
+        /// <summary>The livestream's current camera frame (640x360) as a JPEG, or null when there is none.</summary>
+        public static byte[] StreamFrame()
+        {
+            var rt = StreamDriver.Frame;
+            if (rt == null) return null;
+            var prev = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = rt;
+                var t = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                t.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                t.Apply();
+                var bytes = ImageConversion.EncodeToJPG(t, 70);
+                UnityEngine.Object.Destroy(t);
+                return bytes;
+            }
+            catch (Exception) { return null; }
+            finally { RenderTexture.active = prev; }
+        }
+
+        public static byte[] Jpeg(Texture2D src, int maxWidth, int quality)
+        {
+            int w = Math.Min(maxWidth, src.width);
             int h = Math.Max(1, (int)Math.Round(src.height * (w / (double)src.width)));
             var rt = RenderTexture.GetTemporary(w, h);
             var prev = RenderTexture.active;
@@ -33,7 +71,7 @@ namespace KerbalNews.KSP
             small.Apply();
             RenderTexture.active = prev;
             RenderTexture.ReleaseTemporary(rt);
-            var bytes = ImageConversion.EncodeToJPG(small, 88);
+            var bytes = ImageConversion.EncodeToJPG(small, quality);
             UnityEngine.Object.Destroy(small);
             return bytes;
         }

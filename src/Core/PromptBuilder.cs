@@ -259,6 +259,7 @@ namespace KerbalNews
             {
                 sb.AppendLine("Where: the agency's public photo gallery. The agency just released a photo" + (shot.Caption != "" ? " captioned \"" + shot.Caption + "\"" : "") + ".");
                 sb.AppendLine("It shows " + (shot.VesselName != "" ? "the vessel \"" + shot.VesselName + "\"" : "an agency scene") + (shot.Body != "" ? " at " + shot.Body : "") + (shot.Situation != "" ? " (" + shot.Situation.ToLowerInvariant().Replace("_", " ") + ")" : "") + ", taken " + clock.FormatDate(shot.UT) + ".");
+                if (shot.Look != "") sb.AppendLine("What the picture shows: " + shot.Look + " People react to how it looks.");
                 list = shot.Comments;
             }
             else if (a != null)

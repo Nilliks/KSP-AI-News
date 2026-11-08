@@ -16,6 +16,8 @@ namespace KerbalNews
         public TvSegment Tv;
         /// <summary>Emails to the director written in the same call (see NewsEngine.MailForCall), or null.</summary>
         public List<object> Emails;
+        /// <summary>The writer's description of an attached photo ("" when none was asked for).</summary>
+        public string PhotoLook = "";
     }
 
     /// <summary>Turns the model's JSON into articles, and rejects output we should not save.</summary>
@@ -107,6 +109,7 @@ namespace KerbalNews
             }
             var cov = new GeneratedCoverage();
             cov.Emails = Json.Arr(Json.Get(root, "emails"));
+            cov.PhotoLook = (Json.Str(root, "photo_look", "") ?? "").Trim();
             var wanted = new HashSet<string>(plan.Outlets.Select(o => o.OutletId));
             var seen = new HashSet<string>();
             var arts = Json.Arr(Json.Get(root, "articles")) ?? new List<object>();

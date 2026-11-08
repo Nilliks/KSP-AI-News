@@ -369,6 +369,10 @@ namespace KerbalNews
         public string Kind = "";
         public string Credit = "";
         public bool IsPress { get { return Source == "press"; } }
+        /// <summary>What the photo shows, from an AI that looked at it once ("" until then). Every later prompt reuses it.</summary>
+        public string Look = "";
+        /// <summary>Not saved: looks tried this session.</summary>
+        public int LookTries;
         public List<Comment> Comments = new List<Comment>();
 
         public void Save(DataNode n)
@@ -376,12 +380,13 @@ namespace KerbalNews
             n.Add("id", Id); n.Add("file", File); n.Add("ut", UT); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("body", Body); n.Add("situation", Situation);
             n.AddText("caption", Caption); n.Add("public", Public); n.Add("released", ReleasedUT);
             if (Source != "") { n.Add("source", Source); n.Add("kind", Kind); n.AddText("credit", Credit); }
+            if (Look != "") n.AddText("look", Look);
             foreach (var c in Comments) c.Save(n.AddNode("COMMENT"));
         }
 
         public static GalleryShot Load(DataNode n)
         {
-            var g = new GalleryShot { Id = n.Get("id", ""), File = n.Get("file", ""), UT = n.GetDouble("ut"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Body = n.Get("body", ""), Situation = n.Get("situation", ""), Caption = n.GetText("caption"), Public = n.GetBool("public"), ReleasedUT = n.GetDouble("released"), Source = n.Get("source", ""), Kind = n.Get("kind", ""), Credit = n.GetText("credit") };
+            var g = new GalleryShot { Id = n.Get("id", ""), File = n.Get("file", ""), UT = n.GetDouble("ut"), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), Body = n.Get("body", ""), Situation = n.Get("situation", ""), Caption = n.GetText("caption"), Public = n.GetBool("public"), ReleasedUT = n.GetDouble("released"), Source = n.Get("source", ""), Kind = n.Get("kind", ""), Credit = n.GetText("credit"), Look = n.GetText("look") };
             foreach (var cn in n.GetNodes("COMMENT")) g.Comments.Add(Comment.Load(cn));
             return g;
         }

@@ -208,6 +208,7 @@ namespace KerbalNews
             TickAnniversaries(ut);
             TickWorld(ut, allowCalls);
             TickWiki(ut, allowCalls);
+            TickLooks(ut, allowCalls);
             TickMail(ut, allowCalls);
             TickAppearances(ut);
             if (State.TieIns.Count > 0 && State.TieIns.Any(t => t.Open)) TickTieIns(ut);
@@ -302,7 +303,13 @@ namespace KerbalNews
             string user = PromptBuilder.User(story, plan, State, Digest(), Clock, ut, WantsImage(story, plan), Settings.KtvOn);
             story.Asides = null;
             user += MailForCall(story, ut);
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode);
+            // Photos: what the photo desk saw, as text; or, for a main photo not looked at yet, the picture itself for a model that can see.
+            string looks = PhotoLooks(story);
+            if (looks != "") user += "\n" + looks + "\n";
+            var mainShot = ShotByRef(ShotFor(story));
+            byte[] jpeg = mainShot != null && mainShot.Look == "" && MainSees(model) ? JpegOf(mainShot) : null;
+            if (jpeg != null) user += "\nPHOTO: the picture that runs with this story is attached. Writers may describe what it shows where it fits, and commenters may react to it. Also add a top-level field \"photo_look\": two or three plain sentences on what can actually be seen in it.\n";
+            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode, jpeg);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
@@ -310,6 +317,14 @@ namespace KerbalNews
                 inFlight = null;
                 story = FindLive(story);
                 if (story == null) return;
+                if (jpeg != null && Providers.RefusedImage(res))
+                {
+                    // The model can't take pictures after all: remember that and write it again without one.
+                    Providers.MarkBlind(preset, model);
+                    story.Attempts = Math.Max(0, story.Attempts - 1);
+                    retryAfterReal = realTime + 2;
+                    return;
+                }
                 string text, err;
                 GeneratedCoverage cov = null;
                 if (Providers.TryExtractText(preset.Kind, res, out text, out err))
@@ -318,6 +333,7 @@ namespace KerbalNews
                 {
                     LastError = "";
                     badReplies = 0;
+                    if (jpeg != null && mainShot != null && cov.PhotoLook != "" && !ResponseParser.ContainsForbidden(cov.PhotoLook)) mainShot.Look = ResponseParser.Clip(cov.PhotoLook, 600);
                     Finalize(story, cov, plan, ut);
                     // The small tips that rode along are covered now: no call of their own.
                     foreach (var t in asides.Where(t => t.Status == StoryStatus.Pending)) Finalize(t, new GeneratedCoverage(), CoveragePlan.ForTip(t), ut);

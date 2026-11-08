@@ -218,9 +218,56 @@ namespace KerbalNews
             return All.FirstOrDefault(p => p.Id == id) ?? All[0];
         }
 
+        /// <summary>
+        /// Whether a model can look at pictures, from its name (vision isn't something the APIs report).
+        /// A model that turns out blind is remembered for the session (see MarkBlind).
+        /// </summary>
+        public static bool CanSee(ProviderPreset p, string model)
+        {
+            if (p == null || string.IsNullOrEmpty(model)) return false;
+            string m = model.ToLowerInvariant();
+            if (Blind.Contains(p.Id + "|" + m)) return false;
+            switch (p.Id)
+            {
+                case "anthropic": return !m.Contains("claude-2") && !m.Contains("instant");
+                case "gemini": return !m.Contains("embedding") && !m.Contains("aqa");
+                case "openai": return !m.Contains("gpt-3.5") && !m.StartsWith("o1-mini") && !m.Contains("o3-mini") && !m.Contains("instruct");
+                case "deepseek": return false;
+                case "xai": return m.Contains("vision") || m.Contains("grok-4") || m.Contains("grok-5");
+                case "mistral": return m.Contains("pixtral") || m.Contains("medium") || m.Contains("small-3") || m.Contains("small-latest");
+            }
+            // OpenRouter, local servers and custom endpoints: go by the model's name.
+            foreach (var k in new[] { "claude", "gpt-4o", "gpt-4.1", "gpt-5", "gemini", "gemma3", "gemma-3", "llava", "vision", "-vl", "vl-", "pixtral", "llama-4", "llama4", "minicpm-v", "moondream", "qwen2.5vl", "qwen3-vl", "grok-4" })
+                if (m.Contains(k)) return true;
+            return false;
+        }
+
+        static readonly HashSet<string> Blind = new HashSet<string>();
+        /// <summary>Forget which models refused pictures (a new game session, or a test).</summary>
+        public static void ClearBlind() { Blind.Clear(); }
+
+        /// <summary>The provider refused a picture: stop sending this model any, for this session.</summary>
+        public static void MarkBlind(ProviderPreset p, string model) { if (p != null && model != null) Blind.Add(p.Id + "|" + model.ToLowerInvariant()); }
+
+        /// <summary>Whether a failed reply looks like the model refusing an image.</summary>
+        public static bool RefusedImage(HttpResult r)
+        {
+            if (r == null || r.Error != null || r.Status < 400 || r.Status >= 500) return false;
+            string b = (r.Body ?? "").ToLowerInvariant();
+            return b.Contains("image") || b.Contains("vision") || b.Contains("multimodal") || b.Contains("content type") || b.Contains("image_url");
+        }
+
         public static HttpRequestSpec Build(ProviderPreset p, string baseUrl, string apiKey, string model,
             string system, string user, int maxTokens, bool jsonMode)
         {
+            return Build(p, baseUrl, apiKey, model, system, user, maxTokens, jsonMode, null);
+        }
+
+        /// <summary>As Build, with an optional JPEG the model looks at alongside the text.</summary>
+        public static HttpRequestSpec Build(ProviderPreset p, string baseUrl, string apiKey, string model,
+            string system, string user, int maxTokens, bool jsonMode, byte[] jpeg)
+        {
+            string b64 = jpeg != null && jpeg.Length > 0 ? Convert.ToBase64String(jpeg) : null;
             var req = new HttpRequestSpec();
             string root = (string.IsNullOrEmpty(baseUrl) ? p.BaseUrl : baseUrl).TrimEnd('/');
             req.Headers["Content-Type"] = "application/json";
@@ -239,7 +286,9 @@ namespace KerbalNews
                         { "system", new List<object> { new Dictionary<string, object> {
                             { "type", "text" }, { "text", system },
                             { "cache_control", new Dictionary<string, object> { { "type", "ephemeral" } } } } } },
-                        { "messages", new List<object> { new Dictionary<string, object> { { "role", "user" }, { "content", user } } } },
+                        { "messages", new List<object> { new Dictionary<string, object> { { "role", "user" }, { "content", b64 == null ? (object)user : new List<object> {
+                            new Dictionary<string, object> { { "type", "image" }, { "source", new Dictionary<string, object> { { "type", "base64" }, { "media_type", "image/jpeg" }, { "data", b64 } } } },
+                            new Dictionary<string, object> { { "type", "text" }, { "text", user } } } } } } },
                     };
                     req.Body = Json.Write(body);
                     break;
@@ -253,7 +302,8 @@ namespace KerbalNews
                         { "stream", false },
                         { "messages", new List<object> {
                             new Dictionary<string, object> { { "role", "system" }, { "content", system } },
-                            new Dictionary<string, object> { { "role", "user" }, { "content", user } } } },
+                            b64 == null ? new Dictionary<string, object> { { "role", "user" }, { "content", user } }
+                                : new Dictionary<string, object> { { "role", "user" }, { "content", user }, { "images", new List<object> { b64 } } } } },
                         { "options", new Dictionary<string, object> { { "num_ctx", LocalContext }, { "num_predict", maxTokens } } },
                     };
                     if (jsonMode) body["format"] = "json";
@@ -271,7 +321,8 @@ namespace KerbalNews
                         { "systemInstruction", new Dictionary<string, object> { { "parts", new List<object> { new Dictionary<string, object> { { "text", system } } } } } },
                         { "contents", new List<object> { new Dictionary<string, object> {
                             { "role", "user" },
-                            { "parts", new List<object> { new Dictionary<string, object> { { "text", user } } } } } } },
+                            { "parts", b64 == null ? new List<object> { new Dictionary<string, object> { { "text", user } } }
+                                : new List<object> { new Dictionary<string, object> { { "inline_data", new Dictionary<string, object> { { "mime_type", "image/jpeg" }, { "data", b64 } } } }, new Dictionary<string, object> { { "text", user } } } } } } },
                         { "generationConfig", gen },
                     };
                     req.Body = Json.Write(body);
@@ -290,7 +341,9 @@ namespace KerbalNews
                         { "model", model },
                         { "messages", new List<object> {
                             new Dictionary<string, object> { { "role", "system" }, { "content", system } },
-                            new Dictionary<string, object> { { "role", "user" }, { "content", user } } } },
+                            new Dictionary<string, object> { { "role", "user" }, { "content", b64 == null ? (object)user : new List<object> {
+                                new Dictionary<string, object> { { "type", "text" }, { "text", user } },
+                                new Dictionary<string, object> { { "type", "image_url" }, { "image_url", new Dictionary<string, object> { { "url", "data:image/jpeg;base64," + b64 }, { "detail", "low" } } } } } } } } },
                     };
                     // OpenAI's newer models reject max_tokens; everyone else still expects it.
                     if (p.Id == "openai") body["max_completion_tokens"] = maxTokens;

@@ -15,7 +15,7 @@ public static class CoreTests
     public static int Main()
     {
         int pass = 0, fail = 0;
-        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Concat(typeof(TabloidTests).GetMethods()).Concat(typeof(PressPhotoTests).GetMethods()).Concat(typeof(StreamTests).GetMethods()).Concat(typeof(PollTests).GetMethods()).Concat(typeof(AssistantTests).GetMethods()).Concat(typeof(FeatureTests).GetMethods()).Concat(typeof(MailTests).GetMethods()).Concat(typeof(VarietyTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
+        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Concat(typeof(TabloidTests).GetMethods()).Concat(typeof(PressPhotoTests).GetMethods()).Concat(typeof(StreamTests).GetMethods()).Concat(typeof(PollTests).GetMethods()).Concat(typeof(AssistantTests).GetMethods()).Concat(typeof(FeatureTests).GetMethods()).Concat(typeof(MailTests).GetMethods()).Concat(typeof(VarietyTests).GetMethods()).Concat(typeof(VisionTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
         {
             try { m.Invoke(null, null); pass++; Console.WriteLine("PASS " + m.Name); }
             catch (Exception e)
@@ -59,7 +59,8 @@ public static class CoreTests
     public static HttpResult AnthropicReply(HttpRequestSpec req)
     {
         var body = Json.Parse(req.Body);
-        string user = Json.Str(Json.Arr(Json.Get(body, "messages"))[0], "content");
+        var content = Json.Get(Json.Arr(Json.Get(body, "messages"))[0], "content");
+        string user = content as string ?? string.Concat((Json.Arr(content) ?? new List<object>()).Select(c => Json.Str(c, "text", "")).ToArray());
         var outlets = new List<object>();
         foreach (var o in Outlets.All)
             if (user.Contains("outlet \"" + o.Id + "\""))

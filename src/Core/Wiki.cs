@@ -345,6 +345,11 @@ namespace KerbalNews
                     sb.AppendLine("Kerbal: " + (k.Trait != "" ? k.Trait : "astronaut") + ", level " + k.Level + ", " + k.Flights + " flights" + (k.Dead ? ", died " + Clock.FormatDate(k.DiedUT) + (k.DiedOn != "" ? " on " + k.DiedOn : "") : "")
                         + (k.Highlights.Count > 0 ? ". Highlights: " + string.Join("; ", k.Highlights.ToArray()) : "") + (k.Badass ? ". Known for nerves of steel." : ""));
             }
+            if (p.Kind == "craft")
+            {
+                var looks = State.Gallery.Where(g => g.Look != "" && (g.Public || g.IsPress) && g.VesselName.Equals(p.Title, StringComparison.OrdinalIgnoreCase)).OrderByDescending(g => g.UT).Take(2).Select(g => g.Look).ToList();
+                if (looks.Count > 0) sb.AppendLine("Published photos show: " + string.Join(" | ", looks.ToArray()) + " (you may describe its appearance in Design).");
+            }
             if (p.Facts.Count > 0) { sb.AppendLine("What happened:"); foreach (var f in p.Facts.Skip(Math.Max(0, p.Facts.Count - 30))) sb.AppendLine("- " + f); }
             var refs = WikiRefArticles(p);
             if (refs.Count > 0) { sb.AppendLine("Press coverage (cite as [n]):"); for (int i = 0; i < refs.Count; i++) sb.AppendLine("[" + (i + 1) + "] " + Outlets.NameOf(refs[i].Outlet) + ", " + Clock.FormatDate(refs[i].PublishedUT) + ": " + refs[i].Headline + (refs[i].Subhead != "" ? ". " + refs[i].Subhead : "")); }
