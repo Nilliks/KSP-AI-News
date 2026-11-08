@@ -86,6 +86,9 @@ namespace KerbalNews
         public readonly List<Dictionary<string, object>> Rec = new List<Dictionary<string, object>>();
         public int RecFrames;
         public double RecFps, RecNextFrame, RecIndexAt;
+        /// <summary>The stream's entry in the save, made when it starts so any save during or after the stream keeps it.</summary>
+        public StreamArchive Archive;
+        public double ArchiveSyncAt;
     }
 
     /// <summary>A finished stream, kept in the save for the archive and for the press.</summary>
@@ -147,6 +150,8 @@ namespace KerbalNews
             speech.Clear();
             voiceFreeAt = 0;
             StartRecording(Stream);
+            Stream.Archive = new StreamArchive { Id = State.NewId("ls"), VesselId = Stream.VesselId, VesselName = Stream.VesselName, StartUT = ut, EndUT = ut, Replay = Stream.RecFolder };
+            SyncArchive(Stream, ut);
             RecordChat(Stream, Stream.Chat[0], realTime);
             Say(Stream, AnnLine("open", Stream), realTime, realTime + 1.5, 15);
             Changed();
@@ -154,6 +159,23 @@ namespace KerbalNews
         }
 
         void Changed() { if (StreamChanged != null) StreamChanged(); }
+
+        /// <summary>Brings the stream's saved entry up to date, and puts it back if a load replaced the news state mid-stream.</summary>
+        StreamArchive SyncArchive(StreamSession st, double ut)
+        {
+            var a = st.Archive;
+            a.EndUT = Math.Max(a.StartUT, ut);
+            a.MaxAltitude = st.Max.Altitude; a.MaxSpeed = st.Max.Speed; a.PeakViewers = st.PeakViewers;
+            a.Moments.Clear();
+            a.Moments.AddRange(st.Moments.Take(20));
+            if (!State.Streams.Contains(a))
+            {
+                State.Streams.RemoveAll(x => x.Id == a.Id);
+                State.Streams.Add(a);
+                if (State.Streams.Count > 30) State.Streams.RemoveAt(0);
+            }
+            return a;
+        }
 
         // ------------------------------------------------------------------ launch countdown
 
@@ -366,6 +388,7 @@ namespace KerbalNews
             TickCommentary(st, realTime);
             TickVoice(st, realTime);
             TickRecording(st, realTime);
+            if (realTime >= st.ArchiveSyncAt) { st.ArchiveSyncAt = realTime + 20; SyncArchive(st, st.Last != null ? st.Last.UT : st.StartUT); }
             if (streamBusy || realTime < st.NextBatchReal || st.Last == null) return;
             LastBatchReal = realTime;
             st.NextBatchReal = realTime + StreamInterval;
@@ -553,20 +576,14 @@ namespace KerbalNews
             if (st == null) return null;
             Stream = null;
             var rng = new Random(OfflineWriter.StableHash(st.VesselId + st.StartUT.ToString("R", StreamInv)));
-            var arch = new StreamArchive
-            {
-                Id = State.NewId("ls"), VesselId = st.VesselId, VesselName = st.VesselName, StartUT = st.StartUT, EndUT = ut,
-                MaxAltitude = st.Max.Altitude, MaxSpeed = st.Max.Speed, PeakViewers = st.PeakViewers,
-            };
-            arch.Moments.AddRange(st.Moments.Take(20));
+            var arch = SyncArchive(st, ut);
             FinishRecording(st, arch);
             speech.Clear();
-            if (StreamEnded != null) { try { StreamEnded(arch); } catch (Exception) { } }
             var pool = st.Chat.Where(c => !c.System).ToList();
+            arch.Highlights.Clear();
             arch.Highlights.AddRange(pool.Where(c => c.Player).Take(5));
             arch.Highlights.AddRange(pool.Where(c => !c.Player).OrderBy(c => rng.Next()).Take(25));
-            State.Streams.Add(arch);
-            if (State.Streams.Count > 30) State.Streams.RemoveAt(0);
+            if (StreamEnded != null) { try { StreamEnded(arch); } catch (Exception) { } }
             if (st.Batches >= 2 && st.VesselId != "" && !State.IsSilent(st.VesselId))
                 Ingest(new NewsEvent
                 {

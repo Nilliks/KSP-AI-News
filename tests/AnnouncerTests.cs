@@ -252,6 +252,22 @@ public static class AnnouncerTests
         Assert(eng.EndStream(60).Replay == "", "no replay in the archive");
     }
 
+    public static void TestStreamIsInTheSaveFromTheStart()
+    {
+        var rig = Make(new GlobalSettings { OfflineMode = true });
+        var eng = rig.Eng;
+        var st = eng.StartStream("v1", "Kerbal X", 0, 0);
+        Assert(eng.State.Streams.Count == 1 && eng.State.Streams[0].Replay == st.RecFolder, "the entry exists while live, so a save mid-stream keeps it");
+        var dir = Path.Combine(Directory.GetCurrentDirectory(), "GameData/KerbalNews/Sites");
+        var sites = new Sites(eng, rel => { var p = Path.Combine(dir, rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
+        sites.Now = () => 0;
+        Assert(!sites.Render("live.kb").Html.Contains("Past streams"), "but it isn't listed as past while on air");
+        // A scene change loads the save again before the stream is ended: the entry comes back with it.
+        eng.SetState(new NewsState());
+        var arch = eng.EndStream(100);
+        Assert(eng.State.Streams.Count == 1 && eng.State.Streams[0] == arch && arch.EndUT == 100, "ending puts it into the new state");
+    }
+
     public static void TestVoiceSettingsSaveAndShow()
     {
         var g = new GlobalSettings { OfflineMode = true };

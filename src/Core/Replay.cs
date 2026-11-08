@@ -95,7 +95,7 @@ namespace KerbalNews
         /// </summary>
         public List<StreamArchive> AllStreams()
         {
-            var list = new List<StreamArchive>(State.Streams);
+            var list = State.Streams.Where(a => Stream == null || a != Stream.Archive).ToList();   // the one on air isn't a past stream yet
             if (ReplayFolders == null || LoadReplayIndex == null) return list;
             List<string> folders;
             try { folders = ReplayFolders() ?? new List<string>(); } catch (Exception) { return list; }
