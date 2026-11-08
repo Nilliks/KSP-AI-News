@@ -398,9 +398,45 @@ namespace KerbalNews
                     text = Json.Path(root, "choices.0.message.content") as string;
                     break;
             }
-            text = StripThinking(text);
+            text = StrayScript(StripThinking(text));
             if (string.IsNullOrEmpty(text)) { error = "Provider response had no text"; return false; }
             return true;
+        }
+
+        /// <summary>
+        /// Some models slip a word of Chinese, Japanese or Korean into English text ("The累计 time"), which the game's
+        /// font can't show. When such characters are only a stray few in a Latin-script reply, they are taken out.
+        /// A reply written mostly in one of those scripts is left alone.
+        /// </summary>
+        public static string StrayScript(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            int cjk = 0, latin = 0;
+            foreach (char c in text)
+            {
+                if (IsCjk(c)) cjk++;
+                else if (c < 0x250 && char.IsLetter(c)) latin++;
+            }
+            if (cjk == 0 || cjk * 3 > latin) return text;
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (!IsCjk(c)) { sb.Append(c); continue; }
+                // Keep words apart where a run sat between two letters ("The累计time" -> "The time").
+                int j = i; while (j + 1 < text.Length && IsCjk(text[j + 1])) j++;
+                bool before = sb.Length > 0 && char.IsLetterOrDigit(sb[sb.Length - 1]);
+                bool after = j + 1 < text.Length && char.IsLetterOrDigit(text[j + 1]);
+                if (before && after) sb.Append(' ');
+                i = j;
+            }
+            return sb.ToString().Replace("  ", " ").Replace(" ,", ",").Replace(" .", ".");
+        }
+
+        static bool IsCjk(char c)
+        {
+            return (c >= 0x3040 && c <= 0x30FF) || (c >= 0x3400 && c <= 0x4DBF) || (c >= 0x4E00 && c <= 0x9FFF) || (c >= 0xAC00 && c <= 0xD7AF)
+                || (c >= 0xF900 && c <= 0xFAFF) || (c >= 0xFF00 && c <= 0xFFEF && !(c >= 0xFF01 && c <= 0xFF5E)) || (c >= 0x3000 && c <= 0x303F);
         }
 
         static string Truncate(string s, int n) { return s == null ? "" : (s.Length <= n ? s : s.Substring(0, n) + "..."); }

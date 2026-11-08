@@ -169,4 +169,13 @@ public static class VisionTests
         eng.TickStream(40, true);
         Assert(bodies.Count == 2 && !bodies[1].Contains("\"type\":\"image\""), "small moments, and right after a frame: text only");
     }
+
+    public static void TestStrayChineseIsTakenOutOfEnglishText()
+    {
+        Assert(Providers.StrayScript("The\u7d2f\u8ba1 time, accumulated over multiple missions.") == "The time, accumulated over multiple missions.", Providers.StrayScript("The\u7d2f\u8ba1 time, accumulated over multiple missions."));
+        Assert(Providers.StrayScript("A \u7d2f\u8ba1 total.") == "A total.", "spaces tidied: " + Providers.StrayScript("A \u7d2f\u8ba1 total."));
+        string zh = "\u6708\u7403\u7740\u9646\u6210\u529f\u4e86\u3002\u592a\u68d2\u4e86";
+        Assert(Providers.StrayScript(zh) == zh, "a reply mostly in Chinese is left alone");
+        Assert(Providers.StrayScript("Plain English.") == "Plain English.", "untouched");
+    }
 }
