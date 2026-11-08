@@ -447,6 +447,18 @@ public static class AnnouncerTests
         Assert(eng.EndStream(60).Replay == "", "no replay in the archive");
     }
 
+    public static void TestDirectionsAreShortTagsThatAreNeverSpoken()
+    {
+        foreach (var style in new[] { "calm", "excited", "radio" })
+            foreach (var mood in new[] { "routine", "big", "tense", "loss", "count" })
+            {
+                string d = Voice.Direction(mood, style);
+                var tags = System.Text.RegularExpressions.Regex.Matches(d, @"\[([^\]]*)\]");
+                Assert(tags.Count >= 1 && tags.Cast<System.Text.RegularExpressions.Match>().All(m => System.Text.RegularExpressions.Regex.IsMatch(m.Groups[1].Value, "^[a-z]{3,10}$")),
+                    "one-word audio tags only, or v3 reads them out: " + style + "/" + mood + " = " + d);
+            }
+    }
+
     public static void TestLongPausesAreShortened()
     {
         var a = PaddedPcm(0, 0.8).Bytes; var gap = new byte[(int)(Voice.Rate * 0.6) * 2]; var b = PaddedPcm(0, 0.8).Bytes;

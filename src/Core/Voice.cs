@@ -50,23 +50,18 @@ namespace KerbalNews
         /// <summary>How the announcer delivers a line: routine, big (liftoff, orbit), tense (hold, scrub), loss, count (the final ten).</summary>
         public static string Direction(string mood, string style)
         {
+            // v3 only acts on short audio tags such as [calm] or [excited]. A longer description in brackets gets read out
+            // loud, so delivery comes from one-word tags plus the wording and punctuation of the line itself.
             bool hype = style == "excited";
-            // Loop cadence: flat and even, quick, a slight lift on the callsign, a short beat after it, a clipped falling end.
             if (style == "radio")
-                switch (mood)
-                {
-                    case "tense": return "[flight controller on a radio loop, fast and clipped, tight but controlled, falling at the end]";
-                    case "loss": return "[flight controller on a radio loop, flat and quiet, very controlled]";
-                    case "big": return "[flight controller on a radio loop, crisp and quick, flat even tone, clipped falling end]";
-                    default: return "[flight controller on a radio loop, quick, flat and even, slight lift on the callsign, clipped falling end]";
-                }
+                return mood == "tense" || mood == "loss" ? "[serious]" : "[calm]";
             switch (mood)
             {
-                case "big": return hype ? "[excited, shouting over a cheering crowd]" : "[launch commentator, clear and rising, controlled excitement]";
-                case "tense": return hype ? "[tense, urgent]" : "[launch commentator, steady and serious, measured pace]";
-                case "loss": return hype ? "[shocked, quiet]" : "[launch commentator, quiet and somber, slow and careful]";
-                case "count": return hype ? "[excited, building intensity]" : "[launch commentator, crisp and firm, one beat per number]";
-                default: return hype ? "[energetic broadcaster voice]" : "[space agency launch commentator, measured, clear and matter-of-fact, brisk pace]";
+                case "big": return hype ? "[excited] [shouting]" : "[excited]";
+                case "tense": return "[serious]";
+                case "loss": return "[sad]";
+                case "count": return hype ? "[excited]" : "[calm]";
+                default: return hype ? "[excited]" : "[calm]";
             }
         }
 

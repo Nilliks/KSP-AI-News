@@ -101,7 +101,7 @@
   <div class="providers">{{#styleOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/styleOpts}}</div>
   <label>Voice model</label>
   <div class="providers">{{#voiceModelOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceModelOpts}}</div>
-  <p class="hint">{{voiceModelHint}}{{#directed}} Each line is sent with a delivery direction such as [excited, shouting over a cheering crowd] for liftoff or [quiet, somber voice] for a loss, which this model acts out.{{/directed}}{{^directed}} For the most announcer-like delivery pick v3: it acts on directions in the text (liftoff shouted, holds tense). The other models only use the style through their voice settings.{{/directed}}</p>
+  <p class="hint">{{voiceModelHint}}{{#directed}} Each line is sent with a one-word delivery tag such as [excited] for liftoff or [sad] for a loss, which this model acts out instead of reading.{{/directed}}{{^directed}} For the most announcer-like delivery pick v3: it acts on directions in the text (liftoff shouted, holds tense). The other models only use the style through their voice settings.{{/directed}}</p>
   <label>Volume</label>
   <div class="providers">{{#voiceVolumeOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceVolumeOpts}}</div>
   <label>Flight controller on the radio loop (click one to hear a sample)</label>
