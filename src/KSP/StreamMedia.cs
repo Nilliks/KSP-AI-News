@@ -221,14 +221,63 @@ namespace KerbalNews.KSP
 
         // ---- voice cache
 
+        static string BankRoot { get { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/Voice"); } }
+        static Dictionary<string, string> bank;
+
+        /// <summary>Clips that ship with the mod: GameData/KerbalNews/Voice/&lt;voice-model-style&gt;/&lt;key&gt;.pcm, found once at startup.</summary>
+        static Dictionary<string, string> Bank
+        {
+            get
+            {
+                if (bank != null) return bank;
+                bank = new Dictionary<string, string>();
+                try
+                {
+                    if (Directory.Exists(BankRoot))
+                        foreach (var f in Directory.GetFiles(BankRoot, "*.pcm", SearchOption.AllDirectories)) bank[Path.GetFileNameWithoutExtension(f)] = f;
+                    if (bank.Count > 0) Debug.Log("[KerbalNews] " + bank.Count + " announcer lines ship with the mod");
+                }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Voice bank: " + e.Message); }
+                return bank;
+            }
+        }
+
+        /// <summary>A recorded clip: this player's cache first, then the lines that ship with the mod.</summary>
         public static byte[] CacheGet(string key)
         {
             try
             {
-                string p = Path.Combine(CacheDir, Path.GetFileName(key) + ".pcm");
-                return File.Exists(p) ? File.ReadAllBytes(p) : null;
+                string name = Path.GetFileName(key);
+                string p = Path.Combine(CacheDir, name + ".pcm");
+                if (File.Exists(p)) return File.ReadAllBytes(p);
+                string b;
+                return Bank.TryGetValue(name, out b) && File.Exists(b) ? File.ReadAllBytes(b) : null;
             }
             catch (Exception) { return null; }
+        }
+
+        /// <summary>Copies recorded clips into GameData/KerbalNews/Voice/&lt;name&gt; with an index of their words, ready to ship.</summary>
+        public static void ExportBank(string name, List<KeyValuePair<string, string>> lines)
+        {
+            try
+            {
+                string dir = Path.Combine(BankRoot, Path.GetFileName(name));
+                Directory.CreateDirectory(dir);
+                var index = new System.Text.StringBuilder();
+                int n = 0;
+                foreach (var kv in lines)
+                {
+                    string src = Path.Combine(CacheDir, Path.GetFileName(kv.Key) + ".pcm");
+                    if (!File.Exists(src)) continue;
+                    File.Copy(src, Path.Combine(dir, Path.GetFileName(kv.Key) + ".pcm"), true);
+                    index.AppendLine(kv.Key + "\t" + kv.Value);
+                    n++;
+                }
+                File.WriteAllText(Path.Combine(dir, "lines.txt"), index.ToString());
+                bank = null;
+                Debug.Log("[KerbalNews] Exported " + n + " announcer lines to " + dir);
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Voice bank export: " + e.Message); }
         }
 
         public static void CachePut(string key, byte[] pcm)

@@ -89,7 +89,7 @@
   <p class="hint">{{announcerHint}}</p>
   {{#announcerOn}}
   <h3>Announcer voice (ElevenLabs, optional, own key)</h3>
-  <p class="hint">With an ElevenLabs key the announcer speaks; without one, the lines show as captions under the video. ElevenLabs bills by the letter: a launch with big-moment calls is roughly 600 to 1,500 letters. The countdown numbers and other short stock lines are saved after the first time, so they're only paid for once.</p>
+  <p class="hint">With an ElevenLabs key the announcer speaks. Without one it still speaks the stock lines that come with the mod, and everything else shows as captions under the video. ElevenLabs bills by the letter: a launch with big-moment calls is roughly 600 to 1,500 letters. The countdown numbers and other short stock lines are saved after the first time, so they're only paid for once.</p>
   {{#voiceHasKey}}<div class="row" style="align-items: center"><a class="toggle{{#voiceSpoken}} on{{/voiceSpoken}}" href="action:toggle-voice">Speak the lines</a><span class="hint">An ElevenLabs key is saved. <a href="action:forget-voice-key">Forget this key</a></span></div>{{/voiceHasKey}}
   <label>ElevenLabs API key</label><input name="voiceKey" type="password" placeholder="{{#voiceHasKey}}saved (type to replace){{/voiceHasKey}}{{^voiceHasKey}}sk_...{{/voiceHasKey}}">
   <label>Voice (click one to hear a sample)</label>
@@ -109,7 +109,9 @@
   {{#pre}}<h3>Pre-recorded lines</h3>
   <p class="hint">{{done}} of {{total}} common lines are recorded for {{voice}} in this model and style: the countdown, liftoff, staging, orbit and landings at Kerbin, the Mun, Minmus, Duna and Eve, holds and scrubs. Recorded lines play instantly and cost nothing, and the announcer picks them over new wording. Lines with your craft's name or live numbers are still made as they happen.</p>
   {{^allDone}}{{^busy}}<div class="row"><a class="toggle" href="action:prerecord">Record the {{todo}} missing lines now (about {{letters}} letters)</a></div>{{/busy}}{{/allDone}}
-  {{#status}}<p class="hint">{{status}}</p>{{/status}}{{/pre}}
+  {{#status}}<p class="hint">{{status}}</p>{{/status}}
+  {{#allDone}}<div class="row"><a class="toggle" href="action:export-voice">Ship these lines with the mod</a></div>
+  <p class="hint">Copies the recordings (not your key) into GameData/KerbalNews/Voice/{{bank}}, so players who get that folder hear the announcer without an ElevenLabs account.</p>{{/allDone}}{{/pre}}
   {{#voiceStatus}}<p class="bad">Last voice problem: {{voiceStatus}}</p>{{/voiceStatus}}
   {{/announcerOn}}
   <h3>Replays</h3>

@@ -345,6 +345,31 @@ public static class AnnouncerTests
         Assert(st.Said.Count >= 14, "and the announcer still said everything: " + string.Join(" | ", st.Said.Select(l => l.Text).ToArray()));
     }
 
+    public static void TestShippedLinesPlayWithoutAKey()
+    {
+        // Record everything with a key, ship it, then play as a player with no key.
+        var g = VoiceSettings();
+        g.VoiceModel = Voice.DefaultModel;
+        var rig = Make(g);
+        rig.Eng.Prerecord(() => { });
+        List<KeyValuePair<string, string>> shipped = null;
+        rig.Eng.ExportVoiceBank = (name, lines) => shipped = lines;
+        int n = rig.Eng.ExportBank();
+        Assert(n > 60 && shipped.Count == n && shipped.All(x => !x.Value.Contains(rig.Eng.AgencyName)) && rig.Eng.BankName == "chris-eleven_v3-calm", "export: " + n + " " + rig.Eng.BankName);
+
+        var player = new GlobalSettings { OfflineMode = true };
+        var rig2 = Make(player);
+        foreach (var kv in shipped) rig2.Cache[kv.Key] = rig.Cache[kv.Key];
+        var st = rig2.Eng.StartStream("v1", "Kerbal X", 0, 0);
+        rig2.Eng.CountdownStart(30, 1);
+        Run(rig2.Eng, 1, 32);
+        rig2.Eng.StreamMoment("liftoff", 32);
+        Run(rig2.Eng, 32, 36);
+        Assert(rig2.Spoken.Count == 0, "no key: no calls");
+        Assert(rig2.Played.Count >= 12, "but the shipped lines are heard: " + rig2.Played.Count + " of " + string.Join(" | ", st.Said.Select(l => l.Text).ToArray()));
+        Assert(st.Said.Any(l => l.Text.StartsWith("And liftoff! We have") || l.Text.StartsWith("Liftoff! The vehicle")), "a stock liftoff line is picked");
+    }
+
     public static void TestVoiceSettingsSaveAndShow()
     {
         var g = new GlobalSettings { OfflineMode = true };

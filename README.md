@@ -50,3 +50,7 @@ The mod makes one AI call per story, covering all of that story's outlets, comme
 - `stubs`: minimal Unity/KSP API stubs used only for compile checks.
 
 Uses only stock GameEvents and patches nothing, so it works alongside other mods.
+
+## Livestream announcer voice
+
+The livestream announcer can speak through ElevenLabs (your own key, under Settings). Stock announcer lines recorded with "Ship these lines with the mod" go in `GameData/KerbalNews/Voice/<voice-model-style>/`. They play for every player, even without a key. Voice audio is generated with [ElevenLabs](https://elevenlabs.io).

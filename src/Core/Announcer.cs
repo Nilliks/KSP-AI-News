@@ -45,13 +45,15 @@ namespace KerbalNews
         bool lastWasCount;
 
         bool VoiceReady { get { return Settings.VoiceOn && !VoiceBroken && PlayVoice != null && Transport != null; } }
+        /// <summary>Recorded lines can play even without a key: the ones shipped with the mod, or saved earlier.</summary>
+        bool CanPlay { get { return Settings.Announcer > 0 && Settings.VoiceEnabled && PlayVoice != null; } }
 
         /// <summary>Settings changed (new key, voice on again): give the voice another go.</summary>
         public void ResetVoice() { VoiceBroken = false; VoiceStatus = ""; }
 
         static readonly Dictionary<string, string[]> AnnLines = new Dictionary<string, string[]>
         {
-            { "open", new[] { "Good day, and welcome to live coverage of {craft} from {agency}.", "Hello and welcome. This is {agency}, live with {craft}.", "Welcome to the {agency} broadcast. We're following {craft} today.", "This is {agency} mission coverage. {craft} is on our screens." } },
+            { "open", new[] { "Good day, and welcome to live coverage of {craft} from {agency}.", "Hello and welcome. This is {agency}, live with {craft}.", "Welcome to the {agency} broadcast. We're following {craft} today.", "This is {agency} mission coverage. {craft} is on our screens.", "Hello, and welcome to the broadcast.", "Welcome, everyone. We are live." } },
             { "count_start", new[] { "The countdown clock is running. We are at {clock}.", "And the count has begun. {clock} and counting.", "We are now counting. {clock}." } },
             { "count_min", new[] { "{clock} and counting.", "We are at {clock}. All stations report go.", "{clock}. The vehicle is looking good.", "{clock} on the countdown. Everything is proceeding normally." } },
             { "count_30", new[] { "T-minus thirty seconds.", "Thirty seconds. Guidance is internal.", "T-minus thirty seconds and counting." } },
@@ -61,8 +63,8 @@ namespace KerbalNews
             { "recycle", new[] { "We are recycling the count back to {clock}.", "The clock has been reset to {clock}. Holding there for now." } },
             { "scrub", new[] { "We have a scrub. There will be no launch today.", "That's a scrub for today. Thanks for watching, and we'll try again.", "The launch has been called off for today." } },
             { "late", new[] { "The clock has reached zero, and the vehicle is still on the pad. Stand by.", "We're past zero. No liftoff yet. The team is working the problem." } },
-            { "liftoff", new[] { "And liftoff! Liftoff of {craft}!", "Liftoff! {craft} has cleared the pad.", "We have liftoff of {craft}!", "Liftoff, and {craft} is on its way!" } },
-            { "liftoff_crew", new[] { "Liftoff! {craft} lifts off with {crew} aboard!", "And we have liftoff! {crew} are on their way!" } },
+            { "liftoff", new[] { "And liftoff! Liftoff of {craft}!", "Liftoff! {craft} has cleared the pad.", "We have liftoff of {craft}!", "Liftoff, and {craft} is on its way!", "And liftoff! We have liftoff!", "Liftoff! The vehicle has cleared the tower." } },
+            { "liftoff_crew", new[] { "Liftoff! {craft} lifts off with {crew} aboard!", "And we have liftoff! {crew} are on their way!", "And liftoff! The crew are on their way!" } },
             { "stage", new[] { "Staging confirmed.", "And we have separation.", "Separation, and the next stage is lit.", "That's staging. The vehicle is looking good.", "Clean separation." } },
             { "onboard", new[] { "We're now looking at the view from the vehicle itself.", "Here's the onboard camera.", "You're seeing the view from the vehicle now." } },
             { "orbit", new[] { "And we are in orbit around {body}! {craft} is in orbit.", "Orbit confirmed. {craft} is circling {body}.", "That's orbit! Congratulations to the whole team." } },
@@ -98,7 +100,7 @@ namespace KerbalNews
             if (extra != null) foreach (var kv in extra) v[kv.Key] = kv.Value;
             Func<string, string> fill = o => { foreach (var kv in v) o = o.Replace("{" + kv.Key + "}", kv.Value); return o.Contains("{") ? "" : o; };
             // With the voice on, prefer lines already recorded (pre-recorded or said before): they play at once and cost nothing.
-            if (VoiceReady && VoiceCacheGet != null && opts.Length > 1)
+            if (CanPlay && VoiceCacheGet != null && opts.Length > 1)
             {
                 string mood = RuleMood(rule);
                 var cached = Enumerable.Range(0, opts.Length).Where(i => i != (annLast.ContainsKey(rule + "#prev") ? annLast[rule + "#prev"] : -1))
@@ -159,6 +161,22 @@ namespace KerbalNews
             }
             add(SampleLine, "big");
             return l;
+        }
+
+        /// <summary>Host: copies recorded clips into a voice bank that ships with the mod (folder, then key and words for each).</summary>
+        public Action<string, List<KeyValuePair<string, string>>> ExportVoiceBank;
+
+        /// <summary>The bank's folder name for the current voice, model and style, e.g. chris-eleven_v3-calm.</summary>
+        public string BankName { get { return (VoiceLabel(Settings.VoiceId) + "-" + Settings.VoiceModel + "-" + Settings.AnnouncerStyle).ToLowerInvariant().Replace(" ", "_").Replace("/", "_").Replace("\\", "_"); } }
+
+        /// <summary>The recorded common lines that fit every player (not the ones with this save's agency name), for shipping.</summary>
+        public int ExportBank()
+        {
+            if (ExportVoiceBank == null) return 0;
+            var lines = CommonLines().Where(x => !x.Key.Contains(AgencyName) && IsRecorded(x.Key, x.Value))
+                .Select(x => new KeyValuePair<string, string>(VoiceKeyFor(x.Key, x.Value), x.Key)).ToList();
+            if (lines.Count > 0) ExportVoiceBank(BankName, lines);
+            return lines.Count;
         }
 
         public List<KeyValuePair<string, string>> LinesToRecord() { return CommonLines().Where(x => !IsRecorded(x.Key, x.Value)).ToList(); }
@@ -313,12 +331,13 @@ namespace KerbalNews
             var sp = new Speech { Text = text, PlayAt = at, Deadline = at + maxWait, Count = count };
             speech.Add(sp);
             st.LastAnnReal = Math.Max(st.LastAnnReal, realTime);
-            if (!VoiceReady) { sp.Ready = true; return; }
+            if (!CanPlay) { sp.Ready = true; return; }
             string spoken = Voice.Spoken(text, mood, Settings.AnnouncerStyle, Settings.VoiceModel);
             string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
             byte[] cached = null;
             if (VoiceCacheGet != null) { try { cached = VoiceCacheGet(key); } catch (Exception) { cached = null; } }
             if (cached != null && cached.Length > 0) { sp.Pcm = cached; sp.Ready = true; return; }
+            if (!VoiceReady) { sp.Ready = true; return; }   // no key: this line is a caption
             VoiceCalls++;
             bool keep = count || st.VesselName == "" || !text.Contains(st.VesselName);   // anything without the craft's name can come up again
             Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
@@ -415,8 +434,7 @@ namespace KerbalNews
         /// </summary>
         public bool VoiceTest(Action<string> done)
         {
-            if (Settings.VoiceKey == "") { done("Save an ElevenLabs key first, then pick a voice to hear it."); return false; }
-            if (Transport == null || PlayVoice == null) { done("The voice can only play inside the game."); return false; }
+            if (PlayVoice == null) { done("The voice can only play inside the game."); return false; }
             string spoken = Voice.Spoken(SampleLine, "big", Settings.AnnouncerStyle, Settings.VoiceModel);
             string key = Voice.CacheKey(Settings.VoiceId, Settings.VoiceModel + "|" + Settings.AnnouncerStyle, spoken);
             string who = VoiceLabel(Settings.VoiceId);
@@ -428,6 +446,7 @@ namespace KerbalNews
                 done("Playing " + who + ".");
                 return true;
             }
+            if (Settings.VoiceKey == "" || Transport == null) { done("No recording of " + who + " comes with the mod. Save an ElevenLabs key to hear any voice."); return false; }
             VoiceCalls++;
             Transport.Send(Voice.Build(Settings.VoiceKey, Settings.VoiceId, Settings.VoiceModel, spoken, Settings.AnnouncerStyle), res =>
             {

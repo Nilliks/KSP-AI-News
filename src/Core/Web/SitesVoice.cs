@@ -36,7 +36,7 @@ namespace KerbalNews.Web
                 {
                     { "voice", Engine.VoiceLabel(g.VoiceId) }, { "total", all.Count }, { "todo", todo.Count }, { "done", all.Count - todo.Count },
                     { "letters", todo.Sum(x => Voice.Spoken(x.Key, x.Value, g.AnnouncerStyle, g.VoiceModel).Length).ToString("N0", Inv) },
-                    { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 },
+                    { "busy", Engine.Prerecording }, { "status", Engine.PrerecordStatus }, { "allDone", todo.Count == 0 }, { "bank", Engine.BankName },
                 };
             }
             m["voiceModelOpts"] = Voice.Models.Select(v => opt(v[1], "voice-model/" + v[0], g.VoiceModel == v[0])).ToList();
@@ -87,6 +87,13 @@ namespace KerbalNews.Web
                 case "prerecord":
                     if (!Engine.Prerecord(Changed)) { VoiceTestResult = Engine.PrerecordStatus != "" ? Engine.PrerecordStatus : "Save an ElevenLabs key first."; VoiceTestOk = true; }
                     return r;
+                case "export-voice":
+                {
+                    int copied = Engine.ExportBank();
+                    VoiceTestResult = copied > 0 ? "Copied " + copied + " recorded lines into GameData/KerbalNews/Voice/" + Engine.BankName + ". Everyone who gets this folder with the mod hears them, with or without a key." : "Nothing recorded to copy yet.";
+                    VoiceTestOk = copied > 0;
+                    return r;
+                }
                 case "load-voices":
                     VoiceTestResult = "Asking ElevenLabs for your voices...";
                     VoiceTestOk = true;

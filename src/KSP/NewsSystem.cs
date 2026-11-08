@@ -57,6 +57,7 @@ namespace KerbalNews.KSP
             Engine.PlayVoice = AnnouncerAudio.Play;
             Engine.VoiceCacheGet = ReplayStore.CacheGet;
             Engine.VoiceCachePut = ReplayStore.CachePut;
+            Engine.ExportVoiceBank = ReplayStore.ExportBank;
             Engine.SaveReplayFile = ReplayStore.SaveFile;
             Engine.SaveReplayIndex = ReplayStore.SaveIndex;
             Engine.LoadReplayIndex = ReplayStore.LoadIndex;
