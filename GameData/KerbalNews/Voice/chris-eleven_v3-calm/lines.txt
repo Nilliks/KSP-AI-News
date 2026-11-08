@@ -1,0 +1,102 @@
+9f4f442b032a40b0	Ten.
+bcf71d095dc39acb	Nine.
+515a0ba64511ec74	Eight.
+f8b785ddce5c40f2	Seven.
+bf2cc231ef0f1261	Six.
+719c9e4f520cb69b	Five.
+debc6560a87ba4c7	Four.
+2313dc41760120b1	Three.
+3b14882b5b5a65f3	Two.
+3dc6a6ccc0df81f1	One.
+1ee6702c3ec04831	Hello, and welcome to the broadcast.
+0f52a338e15c72f6	Welcome, everyone. We are live.
+2bd6520ae59d8df1	The countdown clock is running. We are at T-minus 1 minute.
+0b2d9eca22ac9de8	The countdown clock is running. We are at T-minus 5 minutes.
+229ed06be534071a	The countdown clock is running. We are at T-minus 10 minutes.
+30c549a0a23e02ac	The countdown clock is running. We are at T-minus 30 minutes.
+07e795197f192313	And the count has begun. T-minus 1 minute and counting.
+c8cbee19143c91b8	And the count has begun. T-minus 5 minutes and counting.
+ca5b599f96e2ae02	And the count has begun. T-minus 10 minutes and counting.
+1e438d5f9a72d65c	And the count has begun. T-minus 30 minutes and counting.
+d9ab38d650879f0e	We are now counting. T-minus 1 minute.
+29e9d08b52a7de2d	We are now counting. T-minus 5 minutes.
+008b7ac84c576a29	We are now counting. T-minus 10 minutes.
+3e89565402c57bb3	We are now counting. T-minus 30 minutes.
+dddde484d77fb1bb	T-minus 1 minute and counting.
+6dac9a612c94a095	T-minus 2 minutes and counting.
+3e12bd19a91d8f30	T-minus 5 minutes and counting.
+3d1161e77732894a	T-minus 10 minutes and counting.
+5df1fc8ce143b8c4	T-minus 30 minutes and counting.
+73148dfbcc832ba2	We are at T-minus 1 minute. All stations report go.
+f1e4c0df048e5b8e	We are at T-minus 2 minutes. All stations report go.
+709ca4cf5e1b7ed9	We are at T-minus 5 minutes. All stations report go.
+05659a094884bfd9	We are at T-minus 10 minutes. All stations report go.
+204b84e17d328f0f	We are at T-minus 30 minutes. All stations report go.
+05d16c5cd7ec8f38	T-minus 1 minute. The vehicle is looking good.
+49c48de5502935ea	T-minus 2 minutes. The vehicle is looking good.
+d8a454d9c1744caf	T-minus 5 minutes. The vehicle is looking good.
+fdbac5c13c566d11	T-minus 10 minutes. The vehicle is looking good.
+0a36cb8214a42c63	T-minus 30 minutes. The vehicle is looking good.
+136afa91a2764dc3	T-minus 1 minute on the countdown. Everything is proceeding normally.
+5b645be5ce132529	T-minus 2 minutes on the countdown. Everything is proceeding normally.
+feb3236a45e41a02	T-minus 5 minutes on the countdown. Everything is proceeding normally.
+231c0017ed3e37a8	T-minus 10 minutes on the countdown. Everything is proceeding normally.
+65afeba08ebf80ee	T-minus 30 minutes on the countdown. Everything is proceeding normally.
+d1cdea060e035ce5	T-minus thirty seconds.
+3dd4e6c178d098d3	Thirty seconds. Guidance is internal.
+43a2fc91969a4f79	T-minus thirty seconds and counting.
+a327787cbc3f90c5	Zero.
+920bad6c2860dff4	And zero.
+1535286cea2a1d58	We are recycling the count back to T-minus 1 minute.
+21ff99d376dd6417	We are recycling the count back to T-minus 5 minutes.
+a63657a80bfdfe07	We are recycling the count back to T-minus 10 minutes.
+52b4a27d390392ad	The clock has been reset to T-minus 1 minute. Holding there for now.
+46bc81362208115a	The clock has been reset to T-minus 5 minutes. Holding there for now.
+cef36fdcf91c3d20	The clock has been reset to T-minus 10 minutes. Holding there for now.
+213ae925fa9736fe	We have a scrub. There will be no launch today.
+60926a54593074f7	That's a scrub for today. Thanks for watching, and we'll try again.
+1339973d72d58bc4	The launch has been called off for today.
+fff0fa4f8bc4d229	The clock has reached zero, and the vehicle is still on the pad. Stand by.
+82dadc2bce258816	We're past zero. No liftoff yet. The team is working the problem.
+b87be276baeed193	And liftoff! We have liftoff!
+43e9bd0dbc24f378	Liftoff! The vehicle has cleared the tower.
+3d4f91f6c3e29e03	And liftoff! The crew are on their way!
+b0b2c986ed4b956b	Staging confirmed.
+e930d7470f803c8e	And we have separation.
+1f793b5b8c1a602d	Separation, and the next stage is lit.
+d2dd116c4be31854	That's staging. The vehicle is looking good.
+f8479ae37d772524	Clean separation.
+136708e229ce5c13	We're now looking at the view from the vehicle itself.
+e4798be15479cc0e	Here's the onboard camera.
+5d85ef779a04b708	You're seeing the view from the vehicle now.
+bd7085f3f1be01f5	That's orbit! Congratulations to the whole team.
+c181d552ba679ada	We are now inside Kerbin's sphere of influence.
+9e404b52fa8f9793	We are now inside Mun's sphere of influence.
+563f4ea2bbd1a5e6	We are now inside Minmus's sphere of influence.
+a5a630f4b19619d5	We are now inside Duna's sphere of influence.
+4e1537aaf738fe2d	We are now inside Eve's sphere of influence.
+9f121a14f7ead1ee	Contact! We have touchdown on Kerbin.
+3b67c0b4a80b020d	Contact! We have touchdown on Mun.
+061d75b7b7492f5e	Contact! We have touchdown on Minmus.
+10e6a050c1de83b5	Contact! We have touchdown on Duna.
+0da5b5f6af58a677	Contact! We have touchdown on Eve.
+d0ec29e9a8e0a794	The vehicle is down on Kerbin. What a moment.
+7ba9fb830241516f	The vehicle is down on Mun. What a moment.
+d63e03ec2d1b6fe0	The vehicle is down on Minmus. What a moment.
+7d840c2e795a7cc1	The vehicle is down on Duna. What a moment.
+77b485809c017755	The vehicle is down on Eve. What a moment.
+d20a9ff8128d46b7	And splashdown. Welcome home.
+b5c5b75be434cc5a	Splashdown confirmed.
+e81f3550f8465469	Capture confirmed. We are docked.
+396f55d3d1268c21	Docking confirmed. Two vehicles, one.
+fc00409aedef8474	And we have a hard dock.
+650917ddb9f46d53	We appear to have lost the vehicle.
+6602c2d6bbdc9788	That is not what we wanted to see. We've lost the vehicle.
+c7125df1a569ad30	Obviously a major malfunction. The vehicle is gone.
+e13bdc2394f3896f	We may have an anomaly there.
+3972c018d67a6918	We saw something come off the vehicle. Stand by.
+e43bb924e56643aa	Looks like we've lost a piece of the vehicle.
+682f819f2cc64d1c	We have lost the crew. Our thoughts are with their families.
+39e2f4b5a253f6a7	This is a dark day. The crew have been lost.
+7f4f5444c3421a8a	History is being made right now.
+c26430faaa0a8231	T-minus ten seconds, and counting... Three, two, one... Liftoff! We have liftoff!
