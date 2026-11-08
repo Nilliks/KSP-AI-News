@@ -15,6 +15,7 @@
         <a class="cbtn" href="action:replay-seek/{{back}}">&laquo; 15 s</a><a class="cbtn" href="action:replay-seek/{{fwd}}">30 s &raquo;</a>
         <span class="met">{{clock}}</span>{{#camera}}<span class="cam">{{camera}}</span>{{/camera}}<span class="spacer"></span>
         {{#speeds}}<a class="cbtn{{#on}} go{{/on}}" href="action:replay-speed/{{x}}">{{x}}x</a>{{/speeds}}
+        <span class="muted">Vol</span><img src="kbstream:volume" style="width: 110px; height: 22px">
         <span class="muted">{{pos}} / {{len}}</span></div>
       {{#hasVideo}}<div class="seek"><img class="seekbar" src="kbreplay:seek" style="width: 100%; height: 22px"></div>{{/hasVideo}}
       {{^hasVideo}}<div class="seek">{{#seek}}<a class="sg{{#done}} done{{/done}}" href="action:replay-seek/{{t}}"><span class="sgf">&nbsp;</span></a>{{/seek}}</div>{{/hasVideo}}

@@ -42,7 +42,7 @@ namespace KerbalNews.KSP
                 var old = s.clip;
                 s.Stop();
                 s.clip = clip;
-                s.volume = NewsSystem.Settings != null ? (float)NewsSystem.Settings.VoiceVolume : 0.8f;
+                s.volume = Volume;
                 s.Play();
                 if (old != null) UnityEngine.Object.Destroy(old);
             }
@@ -53,12 +53,24 @@ namespace KerbalNews.KSP
         {
             if (src != null) src.Stop();
         }
+
+        static float Volume { get { var g = NewsSystem.Settings; return g != null ? (float)(g.VoiceVolume * g.StreamVolume) : 0.8f; } }
+
+        /// <summary>The player's volume slider moved: the line playing now follows it.</summary>
+        public static void ApplyVolume() { if (src != null) src.volume = Volume; }
     }
 
     /// <summary>The stream's sound bed: control-room ambience on a loop, and crowd and launch-roar effects, one source each.</summary>
     public static class StreamSounds
     {
         static readonly Dictionary<string, AudioSource> sources = new Dictionary<string, AudioSource>();
+        static readonly Dictionary<string, float> levels = new Dictionary<string, float>();
+        static float Master { get { var g = NewsSystem.Settings; return g != null ? (float)g.StreamVolume : 1f; } }
+
+        public static void ApplyVolume()
+        {
+            foreach (var kv in sources) { float l; if (kv.Value != null && levels.TryGetValue(kv.Key, out l)) kv.Value.volume = l * Master; }
+        }
         static GameObject host;
 
         static AudioSource Src(string channel)
@@ -88,7 +100,8 @@ namespace KerbalNews.KSP
                 s.Stop();
                 s.clip = clip;
                 s.loop = loop;
-                s.volume = (float)Math.Max(0, Math.Min(1, volume));
+                levels[channel] = (float)Math.Max(0, Math.Min(1, volume));
+                s.volume = levels[channel] * Master;
                 s.Play();
                 if (old != null) UnityEngine.Object.Destroy(old);
             }

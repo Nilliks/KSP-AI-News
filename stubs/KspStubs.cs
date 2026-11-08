@@ -73,13 +73,13 @@ namespace UnityEngine
         public static Color white, black, grey; public static Color Lerp(Color a, Color b, float t) { return a; }
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
-    public enum TextureFormat { ARGB32, RGB24 }
+    public enum TextureFormat { ARGB32, RGB24, RGBA32 }
     public class Texture : Object { public int width, height; }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; }
-    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } }
+    public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } public static float Sqrt(float v) { return v; } public static float Abs(float v) { return v; } }
     public static class Input { public static Vector3 mousePosition; public static Vector2 mouseScrollDelta; public static bool GetKeyDown(KeyCode k) { return false; } public static bool GetKey(KeyCode k) { return false; } public static bool GetMouseButtonDown(int b) { return false; } public static bool GetMouseButton(int b) { return false; } }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }

@@ -38,6 +38,8 @@ namespace KerbalNews
         public string ControllerVoiceId = Voice.DefaultController;
         /// <summary>Crowd, applause and control-room sound under the stream: 0 off, up to 1.</summary>
         public double SfxVolume = 0.6;
+        /// <summary>The stream player's own volume slider: scales the announcer and the sounds, live and in replays.</summary>
+        public double StreamVolume = 1;
         /// <summary>Voices loaded from the player's ElevenLabs account: "id|name|description;..." (not secret).</summary>
         public string FetchedVoices = "";
         public List<string[]> FetchedVoiceList
@@ -248,6 +250,7 @@ namespace KerbalNews
             settings.Add("controllerOn", ControllerOn);
             settings.Add("controllerVoice", ControllerVoiceId);
             settings.Add("sfxVolume", SfxVolume);
+            settings.Add("streamVolume", StreamVolume);
             settings.Add("voiceDefaults2", true);
             settings.AddText("voices", FetchedVoices);
             settings.Add("replays", ReplayQuality);
@@ -332,6 +335,7 @@ namespace KerbalNews
                 g.ControllerVoiceId = settings.Get("controllerVoice", Voice.DefaultController);
                 if (g.ControllerVoiceId == "") g.ControllerVoiceId = Voice.DefaultController;
                 g.SfxVolume = Math.Max(0, Math.Min(1, settings.GetDouble("sfxVolume", 0.6)));
+                g.StreamVolume = Math.Max(0, Math.Min(1, settings.GetDouble("streamVolume", 1)));
                 g.FetchedVoices = settings.GetText("voices") ?? "";
                 g.ReplayQuality = Math.Max(0, Math.Min(2, settings.GetInt("replays", 1)));
                 g.ReplayMaxGb = Math.Max(1, Math.Min(50, settings.GetInt("replayMaxGb", 3)));

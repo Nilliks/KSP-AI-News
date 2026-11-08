@@ -1227,6 +1227,15 @@ namespace KerbalNews.KSP
                     ReplayStore.EnsureTexture();
                     raw.texture = ReplayStore.Texture;
                     StreamOverlayUi.Attach(go, im.W, im.H, true);
+                    raw.raycastTarget = true;
+                    VideoClick.Attach(go, im.W, im.H);   // click the picture to play or pause, with a play button in the middle
+                    continue;
+                }
+                if (im.Src == "kbstream:volume")
+                {
+                    raw.color = new Color(0, 0, 0, 0);
+                    raw.raycastTarget = true;
+                    VolumeSlider.Attach(go, im.W, im.H);
                     continue;
                 }
                 if (im.Src == "kbreplay:seek")
@@ -1383,7 +1392,7 @@ namespace KerbalNews.KSP
 
         public static bool ImageExists(string src)
         {
-            if (string.IsNullOrEmpty(src) || src == "kblive:frame" || src == "kbreplay:frame" || src == "kbreplay:seek") return !string.IsNullOrEmpty(src);
+            if (string.IsNullOrEmpty(src) || src == "kblive:frame" || src == "kbreplay:frame" || src == "kbreplay:seek" || src == "kbstream:volume") return !string.IsNullOrEmpty(src);
             try { return File.Exists(ImagePath(src)); } catch (Exception) { return false; }
         }
 
