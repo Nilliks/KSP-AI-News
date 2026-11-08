@@ -53,6 +53,17 @@ namespace KerbalNews.KSP
             Engine.ArticlesPublished += OnPublished;
             Engine.MailArrived += OnMail;
             Engine.SaveImage = SaveImage;
+            // The livestream announcer's voice, and stream replays on disk.
+            Engine.PlayVoice = AnnouncerAudio.Play;
+            Engine.VoiceCacheGet = ReplayStore.CacheGet;
+            Engine.VoiceCachePut = ReplayStore.CachePut;
+            Engine.SaveReplayFile = ReplayStore.SaveFile;
+            Engine.SaveReplayIndex = ReplayStore.SaveIndex;
+            Engine.LoadReplayIndex = ReplayStore.LoadIndex;
+            Engine.PlayReplayVoice = ReplayStore.PlayVoice;
+            Engine.StopReplayVoice = AnnouncerAudio.Stop;
+            Engine.ReplayDiskUse = ReplayStore.DiskUse;
+            Engine.StreamEnded += a => ReplayStore.Prune(Settings.ReplayMaxGb, "");
             Engine.PressShotRemoved += file =>
             {
                 try { var path = System.IO.Path.Combine(GalleryStore.Dir, System.IO.Path.GetFileName(file)); if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
@@ -145,6 +156,7 @@ namespace KerbalNews.KSP
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
+            TickReplay();
             if (HighLogic.LoadedSceneIsFlight && blackBox != null) blackBox.Update();
             try
             {
@@ -166,6 +178,22 @@ namespace KerbalNews.KSP
         }
 
         float nextCrewSync, nextTick, nextEngRecord;
+
+        /// <summary>A stream replay being watched: moves it along every frame, shows its frame, and pauses it when its page closes.</summary>
+        void TickReplay()
+        {
+            var r = Engine.Replay;
+            if (r == null) return;
+            try
+            {
+                var br = Browser.Instance;
+                bool onPage = br != null && br.Showing && br.Url.StartsWith(KerbalNews.Web.Sites.LiveHost + "/a/");
+                if (!onPage) { if (r.Playing) Engine.CloseReplay(); return; }
+                Engine.TickReplay(Time.realtimeSinceStartup);
+                ReplayStore.ShowFrame(r.Data.Folder, Engine.ReplayFrameNow());
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Replay: " + e.Message); }
+        }
 
         /// <summary>Copies each kerbal's stats and whereabouts into the engine, for crew chat and profiles.</summary>
         void SyncRoster()

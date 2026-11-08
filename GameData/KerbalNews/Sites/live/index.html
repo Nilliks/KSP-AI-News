@@ -16,7 +16,8 @@
   <div class="stage">
     <div class="main">
       <img class="video" src="kblive:frame" style="width: 100%; aspect-ratio: 16/9">
-      <div class="bar"><span class="met">{{met}}</span>{{#countHold}}<span class="hold">HOLD</span>{{/countHold}}{{#countScrub}}<span class="scrub">SCRUBBED</span>{{/countScrub}}{{#camera}}<span class="cam">{{camera}}</span>{{/camera}}<span class="spacer"></span><span class="muted">peak {{peak}}</span><a class="end" href="action:stream-end">End stream</a></div>
+      {{#caption}}<div class="caption"><span class="annlabel">ANNOUNCER</span> {{caption}}</div>{{/caption}}
+      <div class="bar"><span class="met">{{met}}</span>{{#rec}}<span class="recdot">REC</span>{{/rec}}{{#countHold}}<span class="hold">HOLD</span>{{/countHold}}{{#countScrub}}<span class="scrub">SCRUBBED</span>{{/countScrub}}{{#camera}}<span class="cam">{{camera}}</span>{{/camera}}<span class="spacer"></span><span class="muted">peak {{peak}}</span><a class="end" href="action:stream-end">End stream</a></div>
       {{#countIdle}}<div class="count">Launch countdown &nbsp; <a class="cbtn" href="action:count-start/1">T-1:00</a> &nbsp; <a class="cbtn" href="action:count-start/5">T-5:00</a> &nbsp; <a class="cbtn" href="action:count-start/10">T-10:00</a> &nbsp; <a class="cbtn" href="action:count-start/30">T-30:00</a></div>{{/countIdle}}
       {{#countRunning}}<div class="count">Countdown &nbsp; <a class="cbtn warn" href="action:count-hold">Hold</a> &nbsp; <a class="cbtn" href="action:count-recycle/10">Recycle to T-10:00</a> &nbsp; <a class="cbtn bad" href="action:count-scrub">Scrub</a></div>{{/countRunning}}
       {{#countHolding}}<div class="count">Holding &nbsp; <a class="cbtn go" href="action:count-resume">Resume count</a> &nbsp; <a class="cbtn" href="action:count-recycle/1">Recycle to T-1:00</a> &nbsp; <a class="cbtn" href="action:count-recycle/5">T-5:00</a> &nbsp; <a class="cbtn" href="action:count-recycle/10">T-10:00</a> &nbsp; <a class="cbtn bad" href="action:count-scrub">Scrub</a></div>{{/countHolding}}
@@ -36,6 +37,6 @@
   </div>
 {{/live}}
 {{#archives.0}}<h3>Past streams</h3>
-  {{#archives}}<a class="arch" href="{{url}}"><b>{{vessel}}</b> <span class="muted">{{date}} &middot; {{length}} &middot; peak {{peak}} viewers &middot; max altitude {{maxAlt}}</span></a>{{/archives}}{{/archives.0}}
+  {{#archives}}<a class="arch" href="{{url}}"><b>{{vessel}}</b>{{#hasReplay}} <span class="replaytag">REPLAY</span>{{/hasReplay}} <span class="muted">{{date}} &middot; {{length}} &middot; peak {{peak}} viewers &middot; max altitude {{maxAlt}}</span></a>{{/archives}}{{/archives.0}}
 </div>
 </body></html>

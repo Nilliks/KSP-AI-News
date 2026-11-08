@@ -532,6 +532,7 @@ namespace KerbalNews.Web
             m["testResult"] = TestResult;
             m["testOk"] = TestOk;
             AddImageSettings(m, g);
+            AddVoiceSettings(m, g);
             // Merged "How much AI" section: fine-tuning folds away.
             m["showTune"] = ShowTune;
             // Pictures.

@@ -34,6 +34,8 @@ namespace KerbalNews
     {
         public int Status;
         public string Body = "";
+        /// <summary>The raw reply, for binary answers such as speech audio.</summary>
+        public byte[] Bytes;
         public string Error; // transport-level error (DNS, TLS, timeout)
         public bool Ok { get { return Error == null && Status >= 200 && Status < 300; } }
     }

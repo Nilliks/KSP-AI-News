@@ -83,6 +83,34 @@
   {{#imageTest}}<div style="width: 480px"><img src="{{imageTest}}" style="width: 100%; aspect-ratio: 3/2"></div>{{/imageTest}}
   {{#imageStatus}}<p class="hint">Last photo: {{imageStatus}}</p>{{/imageStatus}}
 
+  <h2>Livestream announcer and replays</h2>
+  <label>Announcer</label>
+  <div class="providers">{{#announcerOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/announcerOpts}}</div>
+  <p class="hint">{{announcerHint}}</p>
+  {{#announcerOn}}
+  <h3>Announcer voice (ElevenLabs, optional, own key)</h3>
+  <p class="hint">With an ElevenLabs key the announcer speaks; without one, the lines show as captions under the video. ElevenLabs bills by the letter: a launch with big-moment calls is roughly 600 to 1,500 letters. The countdown numbers and other short stock lines are saved after the first time, so they're only paid for once.</p>
+  {{#voiceHasKey}}<div class="row" style="align-items: center"><a class="toggle{{#voiceSpoken}} on{{/voiceSpoken}}" href="action:toggle-voice">Speak the lines</a><span class="hint">An ElevenLabs key is saved. <a href="action:forget-voice-key">Forget this key</a></span></div>{{/voiceHasKey}}
+  <label>ElevenLabs API key</label><input name="voiceKey" type="password" placeholder="{{#voiceHasKey}}saved (type to replace){{/voiceHasKey}}{{^voiceHasKey}}sk_...{{/voiceHasKey}}">
+  <label>Voice</label>
+  <div class="providers">{{#voiceOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceOpts}}</div>
+  <div class="row"><div><input name="voiceCustom" value="{{voiceCustom}}" placeholder="or paste any voice ID from your ElevenLabs voice library"></div></div>
+  <label>Voice model</label>
+  <div class="providers">{{#voiceModelOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceModelOpts}}</div>
+  <p class="hint">{{voiceModelHint}}</p>
+  <label>Volume</label>
+  <div class="providers">{{#voiceVolumeOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceVolumeOpts}}</div>
+  <div class="save row"><button class="btn" data-action="save-voice">Save</button><button class="btn" data-action="test-voice">Save and play a test line</button></div>
+  {{#voiceTestResult}}<p class="{{#voiceTestOk}}ok{{/voiceTestOk}}{{^voiceTestOk}}bad{{/voiceTestOk}}">{{voiceTestResult}}</p>{{/voiceTestResult}}
+  {{#voiceStatus}}<p class="bad">Last voice problem: {{voiceStatus}}</p>{{/voiceStatus}}
+  {{/announcerOn}}
+  <h3>Replays</h3>
+  <p class="hint">Each stream is saved so you can watch it again from the Past streams list on live.kb: the video, the chat, the announcer and the telemetry, in step. Replays are kept beside each save, in saves/&lt;save&gt;/KerbalNews/replays, not inside the save file itself.</p>
+  <div class="providers">{{#replayOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/replayOpts}}</div>
+  {{#replaysOn}}<label>Space for replays (the oldest are deleted past this)</label>
+  <div class="providers">{{#replaySpaceOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/replaySpaceOpts}}</div>
+  <p class="hint">Replays use {{replayUsed}} now. A ten-minute stream takes about 30 MB at Normal and 90 MB at Smooth.</p>{{/replaysOn}}
+
   <h2>Features</h2>
   <p class="hint">Turn parts of Kerbal News on or off.</p>
   <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#assistantOn}} on{{/assistantOn}}" href="action:toggle-assistant">Personal assistant (Agency site)</a>

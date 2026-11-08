@@ -24,6 +24,20 @@ namespace KerbalNews
         public string VisionProviderId = "";
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
+        /// <summary>The livestream announcer: 0 off, 1 big moments (countdown, liftoff, orbit, landings, trouble), 2 full commentary.</summary>
+        public int Announcer = 1;
+        /// <summary>The announcer speaks through ElevenLabs when a key is saved (Keys["voice:elevenlabs"]) and this is on; otherwise captions only.</summary>
+        public bool VoiceEnabled = true;
+        public string VoiceId = Voice.DefaultVoice;
+        public string VoiceModel = Voice.DefaultModel;
+        public double VoiceVolume = 0.8;
+        public const string VoiceKeyId = "voice:elevenlabs";
+        public string VoiceKey { get { return Lookup(Keys, VoiceKeyId, ""); } }
+        public bool VoiceOn { get { return VoiceEnabled && Announcer > 0 && VoiceKey != ""; } }
+        /// <summary>Stream replays: 0 off, 1 normal (a frame a second), 2 smooth (three a second). Oldest are deleted past ReplayMaxGb.</summary>
+        public int ReplayQuality = 1;
+        public int ReplayMaxGb = 3;
+        public double ReplayFps { get { return ReplayQuality >= 2 ? 3 : ReplayQuality == 1 ? 1 : 0; } }
         public bool KtvOn = true;
         public bool EngineeringOn = true;
         /// <summary>News and public outcry sometimes post a real contract (career only).</summary>
@@ -208,6 +222,13 @@ namespace KerbalNews
             settings.Add("newsDelay", NewsDelay);
             settings.Add("visionProvider", VisionProviderId);
             settings.Add("crewChat", CrewChatOn);
+            settings.Add("announcer", Announcer);
+            settings.Add("voiceOn", VoiceEnabled);
+            settings.Add("voiceId", VoiceId);
+            settings.Add("voiceModel", VoiceModel);
+            settings.Add("voiceVolume", VoiceVolume);
+            settings.Add("replays", ReplayQuality);
+            settings.Add("replayMaxGb", ReplayMaxGb);
             settings.Add("ktv", KtvOn);
             settings.Add("engineering", EngineeringOn);
             settings.Add("contractTieIns", ContractTieIns);
@@ -274,6 +295,15 @@ namespace KerbalNews
                 g.NewsDelay = Math.Max(0.2, Math.Min(4, settings.GetDouble("newsDelay", 1)));
                 g.VisionProviderId = settings.Get("visionProvider", "");
                 g.CrewChatOn = settings.GetBool("crewChat", true);
+                g.Announcer = Math.Max(0, Math.Min(2, settings.GetInt("announcer", 1)));
+                g.VoiceEnabled = settings.GetBool("voiceOn", true);
+                g.VoiceId = settings.Get("voiceId", Voice.DefaultVoice);
+                if (g.VoiceId == "") g.VoiceId = Voice.DefaultVoice;
+                g.VoiceModel = settings.Get("voiceModel", Voice.DefaultModel);
+                if (g.VoiceModel == "") g.VoiceModel = Voice.DefaultModel;
+                g.VoiceVolume = Math.Max(0, Math.Min(1, settings.GetDouble("voiceVolume", 0.8)));
+                g.ReplayQuality = Math.Max(0, Math.Min(2, settings.GetInt("replays", 1)));
+                g.ReplayMaxGb = Math.Max(1, Math.Min(50, settings.GetInt("replayMaxGb", 3)));
                 g.KtvOn = settings.GetBool("ktv", true);
                 g.EngineeringOn = settings.GetBool("engineering", true);
                 g.ContractTieIns = settings.GetBool("contractTieIns", true);

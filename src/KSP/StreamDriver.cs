@@ -19,7 +19,7 @@ namespace KerbalNews.KSP
         /// <summary>Self-test only: use the hull cameras whatever the distance.</summary>
         public static bool ForceHull;
 
-        float nextSample, nextFrame, lastBoom;
+        float nextSample, nextFrame, lastBoom, nextRecTry;
         string liftedFor = "";
         readonly System.Random rng = new System.Random();
 
@@ -133,11 +133,30 @@ namespace KerbalNews.KSP
         {
             var eng = Eng;
             var br = Browser.Instance;
-            if (eng == null || eng.Stream == null || br == null || !br.Showing || !br.Url.StartsWith(KerbalNews.Web.Sites.LiveHost)) return;
-            if (MapView.MapIsEnabled || Time.realtimeSinceStartup < nextFrame) return;
-            nextFrame = Time.realtimeSinceStartup + 0.33f;
-            try { DrawFrame(eng); }
-            catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream video: " + e.Message); nextFrame = Time.realtimeSinceStartup + 5; }
+            if (eng == null || eng.Stream == null || MapView.MapIsEnabled) return;
+            bool watching = br != null && br.Showing && br.Url.StartsWith(KerbalNews.Web.Sites.LiveHost);
+            string rec = eng.RecordingFolder;
+            if (!watching && rec == "") return;
+            float now = Time.realtimeSinceStartup;
+            bool drew = false;
+            if (watching && now >= nextFrame)
+            {
+                nextFrame = now + 0.33f;
+                try { DrawFrame(eng); drew = true; }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Stream video: " + e.Message); nextFrame = now + 5; }
+            }
+            // The replay records the broadcast whether or not anyone has the page open.
+            if (rec != "" && now >= nextRecTry)
+            {
+                int n = eng.ReplayFrameDue(now);
+                if (n <= 0) return;
+                try
+                {
+                    if (!drew && !watching) DrawFrame(eng);
+                    ReplayStore.SaveFrame(rec, n);
+                }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Replay recording: " + e.Message); nextRecTry = now + 5; }
+            }
         }
 
         // ------------------------------------------------------------------ the camera director

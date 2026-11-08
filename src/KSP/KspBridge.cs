@@ -114,6 +114,7 @@ namespace KerbalNews.KSP
                 {
                     res.Status = (int)a.Req.responseCode;
                     res.Body = a.Req.downloadHandler != null ? a.Req.downloadHandler.text ?? "" : "";
+                    res.Bytes = a.Req.downloadHandler != null ? a.Req.downloadHandler.data : null;
                     if (a.Req.isNetworkError) res.Error = a.Req.error ?? "Network error";
                 }
                 a.Req.Dispose();

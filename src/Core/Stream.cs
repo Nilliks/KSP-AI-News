@@ -76,6 +76,16 @@ namespace KerbalNews
         /// <summary>What the stats overlay has seen (liftoff time, stages at liftoff, max Q...). One clock and one stage count for the page and the overlay.</summary>
         public readonly OverlayMemory Overlay = new OverlayMemory();
         public bool Lifted { get { return Moments.Any(x => x.StartsWith("liftoff", StringComparison.Ordinal)); } }
+        /// <summary>The announcer: lines said so far, the caption under the video, and the final-count state.</summary>
+        public readonly List<AnnouncerLine> Said = new List<AnnouncerLine>();
+        public string Caption = "";
+        public double CaptionUntil, LastAnnReal = -1000;
+        public bool FinalCountQueued, FinalCountSaid;
+        /// <summary>The replay being recorded: its folder ("" = not recording), timeline, frames saved and when the next is due.</summary>
+        public string RecFolder = "";
+        public readonly List<Dictionary<string, object>> Rec = new List<Dictionary<string, object>>();
+        public int RecFrames;
+        public double RecFps, RecNextFrame, RecIndexAt;
     }
 
     /// <summary>A finished stream, kept in the save for the archive and for the press.</summary>
@@ -86,10 +96,13 @@ namespace KerbalNews
         public int PeakViewers;
         public List<string> Moments = new List<string>();
         public List<ChatMessage> Highlights = new List<ChatMessage>();
+        /// <summary>The replay's folder under PluginData/Replays/&lt;save&gt;, or "" when none was recorded.</summary>
+        public string Replay = "";
 
         public void Save(DataNode n)
         {
-            n.Add("id", Id); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("start", StartUT); n.Add("end", EndUT);
+            n.Add("id", Id);
+            if (Replay != "") n.Add("replay", Replay); n.Add("vessel", VesselId); n.AddText("vesselName", VesselName); n.Add("start", StartUT); n.Add("end", EndUT);
             n.Add("maxAlt", MaxAltitude); n.Add("maxSpeed", MaxSpeed); n.Add("peak", PeakViewers);
             foreach (var m in Moments) n.AddText("moment", m);
             foreach (var c in Highlights) { var cn = n.AddNode("CHAT"); cn.AddText("author", c.Author); cn.AddText("text", c.Text); cn.Add("agency", c.Agency); }
@@ -100,7 +113,7 @@ namespace KerbalNews
             var a = new StreamArchive
             {
                 Id = n.Get("id", ""), VesselId = n.Get("vessel", ""), VesselName = n.GetText("vesselName"), StartUT = n.GetDouble("start"), EndUT = n.GetDouble("end"),
-                MaxAltitude = n.GetDouble("maxAlt"), MaxSpeed = n.GetDouble("maxSpeed"), PeakViewers = n.GetInt("peak"),
+                MaxAltitude = n.GetDouble("maxAlt"), MaxSpeed = n.GetDouble("maxSpeed"), PeakViewers = n.GetInt("peak"), Replay = n.Get("replay", ""),
             };
             foreach (var m in n.GetAll("moment")) a.Moments.Add(TextCodec.Decode(m));
             foreach (var cn in n.GetNodes("CHAT")) a.Highlights.Add(new ChatMessage { Author = cn.GetText("author"), Text = cn.GetText("text"), Agency = cn.GetBool("agency") });
@@ -121,6 +134,8 @@ namespace KerbalNews
         public double StreamMinGap = 8;
         bool streamBusy;
         public event Action StreamChanged;
+        /// <summary>A stream ended and was archived (the host tidies old replays).</summary>
+        public event Action<StreamArchive> StreamEnded;
 
         public StreamSession StartStream(string vesselId, string vesselName, double ut, double realTime)
         {
@@ -129,6 +144,11 @@ namespace KerbalNews
             Stream = new StreamSession { VesselId = vesselId ?? "", VesselName = vesselName ?? "", StartUT = ut, StartReal = realTime, NextBatchReal = realTime + 3 };
             Stream.Viewers = Stream.PeakViewers = (int)((200 + State.Mood.Excitement * 60) * (crewed ? 2 : 1));
             Stream.Chat.Add(new ChatMessage { System = true, Text = "Welcome to the " + AgencyName + " livestream of " + vesselName + "." });
+            speech.Clear();
+            voiceFreeAt = 0;
+            StartRecording(Stream);
+            RecordChat(Stream, Stream.Chat[0], realTime);
+            Say(Stream, AnnLine("open", Stream), realTime, realTime + 1.5, 15);
             Changed();
             return Stream;
         }
@@ -173,6 +193,7 @@ namespace KerbalNews
             var st = Stream;
             if (st == null || st.Countdown != "counting") return false;
             st.CountLeft = CountdownLeft(realTime); st.CountMark = realTime; st.Countdown = "hold"; st.Holds++;
+            StopFinalCount(st);
             StreamMoment("HOLD: the countdown was stopped at " + CountClock(st.CountLeft) + (st.CountLeft < 60 ? ", in the final minute" : "") + (st.Holds > 1 ? " (hold number " + st.Holds + " today)" : ""), realTime);
             Changed();
             return true;
@@ -196,6 +217,7 @@ namespace KerbalNews
             if (st == null || (st.Countdown != "hold" && st.Countdown != "counting" && st.Countdown != "zero")) return false;
             double from = CountdownLeft(realTime);
             st.Countdown = "hold"; st.CountLeft = Math.Max(10, seconds); st.CountMark = realTime; st.Recycles++; st.ZeroLate = false;
+            StopFinalCount(st);
             StreamMoment("the countdown was recycled from " + CountClock(from) + " back to " + CountClock(st.CountLeft) + " and is holding" + (st.Recycles > 1 ? " (recycle number " + st.Recycles + ")" : ""), realTime);
             Changed();
             return true;
@@ -207,6 +229,7 @@ namespace KerbalNews
             if (st == null || st.Countdown == "" || st.Countdown == "scrubbed" || st.Countdown == "launched") return false;
             double left = CountdownLeft(realTime);
             st.Countdown = "scrubbed";
+            StopFinalCount(st);
             StreamMoment("SCRUB: the launch was called off for today at " + CountClock(left), realTime);
             Changed();
             return true;
@@ -239,7 +262,12 @@ namespace KerbalNews
         {
             double left = CountdownLeft(realTime);
             int shown = double.IsNaN(left) ? int.MinValue : (int)Math.Round(left);
-            if (shown != st.CountShown) { st.CountShown = shown; Changed(); }
+            if (shown != st.CountShown)
+            {
+                st.CountShown = shown;
+                if (!double.IsNaN(left)) Record(st, realTime, "clk", "x", CountClock(left), "h", st.Countdown == "hold");
+                Changed();
+            }
         }
 
         /// <summary>Liftoff with a countdown running: says whether it went on time, early or late.</summary>
@@ -261,6 +289,7 @@ namespace KerbalNews
             var st = Stream;
             if (st == null || name == null || st.Camera == name) return;
             st.Camera = name;
+            Record(st, realTime, "cam", "x", name);
             if (onboard && !st.WentOnboard)
             {
                 st.WentOnboard = true;
@@ -285,6 +314,7 @@ namespace KerbalNews
                 if (st.Overlay.StagesAtLiftoff < 0) st.Overlay.StagesAtLiftoff = s.Stage;
             }
             if (st.AltitudeTrace.Count > 120) st.AltitudeTrace.RemoveAt(0);
+            RecordSample(st, s, realTime);
             if (moment != null) StreamMoment(moment, realTime);
         }
 
@@ -295,6 +325,8 @@ namespace KerbalNews
             if (what == "liftoff" && st.Countdown != "" && st.Countdown != "launched") what = LiftoffWithCount(st, realTime);
             st.Moments.Add(what);
             st.NewMoments.Add(what);
+            Record(st, realTime, "mom", "x", what);
+            AnnounceMoment(st, what, realTime);
             st.NextBatchReal = Math.Min(st.NextBatchReal, Math.Max(realTime + 1, LastBatchReal + StreamMinGap));
         }
 
@@ -308,6 +340,7 @@ namespace KerbalNews
             if (st == null || text == "") return;
             var m = new ChatMessage { Author = asAgency ? AgencyName : AnonName(handle), Text = ResponseParser.Clip(text, 300), Player = true, Agency = asAgency };
             st.Chat.Add(m);
+            RecordChat(st, m, realTime);
             st.PlayerSaid.Add(m);
             st.NextBatchReal = Math.Min(st.NextBatchReal, Math.Max(realTime + 2, LastBatchReal + StreamMinGap));
             Changed();
@@ -322,12 +355,17 @@ namespace KerbalNews
             while (st.Queue.Count > 0 && st.Queue[0].Key <= realTime)
             {
                 st.Chat.Add(st.Queue[0].Value);
+                RecordChat(st, st.Queue[0].Value, realTime);
                 st.Queue.RemoveAt(0);
                 changed = true;
             }
             if (st.Chat.Count > 300) st.Chat.RemoveRange(0, st.Chat.Count - 300);
             if (changed) Changed();
             TickCountdown(st, realTime);
+            TickFinalCount(st, realTime);
+            TickCommentary(st, realTime);
+            TickVoice(st, realTime);
+            TickRecording(st, realTime);
             if (streamBusy || realTime < st.NextBatchReal || st.Last == null) return;
             LastBatchReal = realTime;
             st.NextBatchReal = realTime + StreamInterval;
@@ -359,6 +397,8 @@ namespace KerbalNews
             if (frame != null) streamUser += "\nA frame from the live camera right now is attached. Some viewers react to what they can actually see in it (the craft, the plume, the view, the colours), as people watching a real launch stream do.";
             else if (st.CameraLook != "") { streamUser += "\nTHE CAMERA SHOWS: " + st.CameraLook + " Some viewers react to what they see."; st.CameraLook = ""; }
             else StreamHelperLook(st, hype, realTime);
+            bool wantAnn = Settings.Announcer >= 2 && st.Lifted && !st.FinalCountQueued;
+            if (wantAnn) streamUser += "\nANNOUNCER: also write \"announcer\": one line (at most 25 words) the agency's professional launch commentator says next, in the calm, precise style of real launch broadcasts, about what the telemetry shows right now (altitude, speed, staging, the view). Use spoken numbers sparingly. No hype words, no chat slang. \"\" if nothing needs saying.";
             AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
             {
                 streamBusy = false;
@@ -375,6 +415,9 @@ namespace KerbalNews
                         msgs.Add(new ChatMessage { Author = ResponseParser.Clip(ResponseParser.Clean(Json.Str(m, "author", "viewer")), 30).TrimStart('@'), Text = ResponseParser.Clip(t, 240) });
                     }
                     viewers = (int)Json.Num(root, "viewers", -1);
+                    string ann = ResponseParser.Clean(Json.Str(root, "announcer", "") ?? "");
+                    if (wantAnn && ann != "" && !ResponseParser.ContainsForbidden(ann) && lastRealTime - st.LastAnnReal > 8 && !st.FinalCountQueued)
+                        Say(st, ResponseParser.Clip(ann, 220), lastRealTime, 0, 12);
                 }
                 if (msgs == null || msgs.Count == 0) { LastError = err ?? "Chat reply was empty"; msgs = Fit(OfflineWriter.StreamChat(this, st, moments, said), n, rng); }
                 PlayOut(st, msgs, viewers > 0 ? (int?)viewers : null, lastRealTime, hype);
@@ -516,6 +559,9 @@ namespace KerbalNews
                 MaxAltitude = st.Max.Altitude, MaxSpeed = st.Max.Speed, PeakViewers = st.PeakViewers,
             };
             arch.Moments.AddRange(st.Moments.Take(20));
+            FinishRecording(st, arch);
+            speech.Clear();
+            if (StreamEnded != null) { try { StreamEnded(arch); } catch (Exception) { } }
             var pool = st.Chat.Where(c => !c.System).ToList();
             arch.Highlights.AddRange(pool.Where(c => c.Player).Take(5));
             arch.Highlights.AddRange(pool.Where(c => !c.Player).OrderBy(c => rng.Next()).Take(25));

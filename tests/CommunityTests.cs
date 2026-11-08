@@ -328,7 +328,7 @@ public static class CommunityTests
     }
 
     /// <summary>Rough text metrics: 0.5em per character, greedy word wrap.</summary>
-    static void FakeMeasure(TextItem t, float maxW, out float w, out float h)
+    public static void FakeMeasure(TextItem t, float maxW, out float w, out float h)
     {
         float cw = t.FontSize * 0.5f, lineW = 0, maxLine = 0;
         int lines = 1;

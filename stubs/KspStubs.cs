@@ -34,6 +34,8 @@ namespace UnityEngine
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
     public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } public static byte[] EncodeToJPG(Texture2D t, int quality) { return null; } }
     public class Behaviour : Component { public bool enabled; }
+    public class AudioClip : Object { public static AudioClip Create(string name, int samples, int channels, int frequency, bool stream) { return new AudioClip(); } public bool SetData(float[] data, int offset) { return true; } }
+    public class AudioSource : Behaviour { public AudioClip clip; public float volume, spatialBlend; public bool playOnAwake, loop, isPlaying; public void Play() { } public void Stop() { } }
     public class MonoBehaviour : Behaviour { public Coroutine StartCoroutine(System.Collections.IEnumerator e) { return null; } }
     public class Coroutine { }
     public class YieldInstruction { }
@@ -139,7 +141,7 @@ namespace UnityEngine.Networking
 {
     public class UploadHandler : IDisposable { public void Dispose() { } }
     public class UploadHandlerRaw : UploadHandler { public UploadHandlerRaw(byte[] b) { } }
-    public class DownloadHandler : IDisposable { public string text; public void Dispose() { } }
+    public class DownloadHandler : IDisposable { public string text; public byte[] data; public void Dispose() { } }
     public class DownloadHandlerBuffer : DownloadHandler { }
     public class UnityWebRequestAsyncOperation { }
     public class UnityWebRequest : IDisposable

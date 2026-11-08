@@ -117,7 +117,7 @@ namespace KerbalNews
             return cam.ToUpperInvariant();
         }
 
-        static string Hms(double s)
+        public static string Hms(double s)
         {
             s = Math.Max(0, s);
             var t = TimeSpan.FromSeconds(Math.Floor(s));

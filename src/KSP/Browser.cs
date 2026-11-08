@@ -1120,6 +1120,13 @@ namespace KerbalNews.KSP
                     StreamOverlayUi.Attach(go, im.W, im.H);   // the broadcast's on-screen stats
                     continue;
                 }
+                if (im.Src == "kbreplay:frame")
+                {
+                    // A stream replay: one texture the replay player reloads in place as it plays.
+                    ReplayStore.EnsureTexture();
+                    raw.texture = ReplayStore.Texture;
+                    continue;
+                }
                 var tex = LoadImage(im.Src);
                 if (tex != null) raw.texture = tex;
                 else raw.color = Col("#d9d2c1", Color.grey);
@@ -1261,7 +1268,7 @@ namespace KerbalNews.KSP
 
         public static bool ImageExists(string src)
         {
-            if (string.IsNullOrEmpty(src) || src == "kblive:frame") return !string.IsNullOrEmpty(src);
+            if (string.IsNullOrEmpty(src) || src == "kblive:frame" || src == "kbreplay:frame") return !string.IsNullOrEmpty(src);
             try { return File.Exists(ImagePath(src)); } catch (Exception) { return false; }
         }
 
