@@ -102,6 +102,12 @@ namespace KerbalNews.KSP
                 && v.vesselType != VesselType.DeployedSciencePart;
         }
 
+        /// <summary>FMRS: the dropped stage being flown counts even when the game files it as debris (no probe core, only parachutes).</summary>
+        static bool Covered(Vessel v)
+        {
+            return Newsworthy(v) || v != null && v.vesselType == VesselType.Debris && StreamDriver.SideBoosterId != "" && v.persistentId.ToString() == StreamDriver.SideBoosterId;
+        }
+
         /// <summary>
         /// The press follows the active vessel even if its launch predates the mod or it was born
         /// from a docking or undocking, so start tracking it lazily.
@@ -111,7 +117,7 @@ namespace KerbalNews.KSP
             var eng = engine();
             var t = eng.Tracked(Id(v));
             if (t != null) return t;
-            if (v != FlightGlobals.ActiveVessel || !Newsworthy(v)) return null;
+            if (v != FlightGlobals.ActiveVessel || !Covered(v)) return null;
             eng.TrackLaunch(Id(v), Snapshots.Craft(v), UT);
             return eng.Tracked(Id(v));
         }
@@ -144,7 +150,7 @@ namespace KerbalNews.KSP
             Safe("situation", () =>
             {
                 var v = d.host;
-                if (!Newsworthy(v)) return;
+                if (!Covered(v)) return;
                 var from = d.from;
                 var to = d.to;
                 if (from == Vessel.Situations.PRELAUNCH) return; // launch is reported by onLaunch

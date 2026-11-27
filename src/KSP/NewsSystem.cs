@@ -39,6 +39,9 @@ namespace KerbalNews.KSP
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
+            Engine.SideVesselId = () => StreamDriver.SideBoosterId;
+            Engine.SideMainName = () => { var m = ModCompat.FmrsMainVessel(); return m != null ? Names.Of(m) : null; };
+            Engine.SideWhere = SideWhere;
             Engine.SuppressEvent = e => e != null && e.VesselId != "" && ModCompat.VesselMoverBusy(e.VesselId);
             Engine.PostContract = KnnContract.Post;
             Engine.ContractsAvailable = KnnContract.Available;
@@ -180,7 +183,8 @@ namespace KerbalNews.KSP
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
-            Engine.SetRealTime(Time.realtimeSinceStartup);
+            Engine.SetRealTime(StreamDriver.Now);
+            StreamAfterFmrs();
             TickReplay();
             if (HighLogic.LoadedSceneIsFlight && blackBox != null) blackBox.Update();
             try
@@ -202,7 +206,66 @@ namespace KerbalNews.KSP
             }
         }
 
-        float nextCrewSync, nextTick, nextEngRecord;
+        float nextCrewSync, nextTick, nextEngRecord, streamOrphanSince = -1, nextSideTrack;
+
+        /// <summary>
+        /// FMRS: a stream kept alive through a jump normally lands in a flight scene, where StreamDriver takes it up again.
+        /// If the game settles somewhere else instead (FMRS sends a recovered stage through the Space Center, then loads
+        /// the main flight within a second or two), the stream waits half a minute and then ends as it would have.
+        /// In a side flight, the dropped stage is put on the list of tracked craft, so its landing or loss is news.
+        /// </summary>
+        void StreamAfterFmrs()
+        {
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                streamOrphanSince = -1;
+                if (StreamDriver.SceneSide && Time.realtimeSinceStartup > nextSideTrack)
+                {
+                    nextSideTrack = Time.realtimeSinceStartup + 1;
+                    try { TrackSideBooster(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] FMRS booster tracking: " + e.Message); }
+                }
+                return;
+            }
+            if (Engine.Stream == null) { streamOrphanSince = -1; return; }
+            if (streamOrphanSince < 0) { streamOrphanSince = Time.realtimeSinceStartup; return; }
+            if (Time.realtimeSinceStartup - streamOrphanSince < 30) return;
+            streamOrphanSince = -1;
+            Debug.Log("[KerbalNews] The livestream ended: FMRS did not return to flight.");
+            StreamDriver.Resume();
+            Engine.EndStream(Planetarium.GetUniversalTime());
+        }
+
+        void TrackSideBooster()
+        {
+            var v = FlightGlobals.ActiveVessel;
+            if (v == null || v.persistentId.ToString() != StreamDriver.SideBoosterId) return;
+            string id = v.persistentId.ToString();
+            if (Engine.IsTracked(id)) return;
+            // It left the pad with the main vessel, so its flight is as old as the launch (a fresh entry would make its
+            // landing look like a hop off the pad, which is not news).
+            var main = ModCompat.FmrsMainVessel();
+            var mt = main != null ? Engine.Tracked(main.persistentId.ToString()) : null;
+            if (mt == null && Engine.Stream != null) mt = Engine.Tracked(Engine.Stream.VesselId);
+            double ut = Planetarium.GetUniversalTime();
+            Engine.TrackLaunch(id, Snapshots.Craft(v), mt != null ? Math.Min(mt.LaunchUT, ut - 60) : ut - 120);
+            Debug.Log("[KerbalNews] FMRS: following the dropped stage " + Names.Of(v) + "; what it does is reported after the jump back.");
+        }
+
+        /// <summary>Where the dropped stage came down, for the press: "at the space centre" or "about 42 km from the space centre".</summary>
+        static string SideWhere()
+        {
+            try
+            {
+                var v = FlightGlobals.ActiveVessel;
+                if (FlightGlobals.Vessels != null && StreamDriver.SideBoosterId != "")
+                    v = FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.persistentId.ToString() == StreamDriver.SideBoosterId) ?? v;
+                if (v == null || SpaceCenter.Instance == null || v.mainBody == null || v.mainBody != FlightGlobals.GetHomeBody()) return null;
+                double d = (v.GetWorldPos3D() - (Vector3d)SpaceCenter.Instance.transform.position).magnitude;
+                if (d < 4000) return "at the space centre";
+                return "about " + (d < 20000 ? (d / 1000).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : Math.Round(d / 1000).ToString("N0", System.Globalization.CultureInfo.InvariantCulture)) + " km from the space centre";
+            }
+            catch (Exception) { return null; }
+        }
 
         /// <summary>A stream replay being watched: moves it along every frame, shows its frame, and pauses it when its page closes.</summary>
         void TickReplay()

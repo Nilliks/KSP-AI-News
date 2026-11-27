@@ -364,6 +364,7 @@ public class ProtoVessel
 }
 
 public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public void SetVesselTarget(ITargetable t, bool o = false) { } public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
+public class SpaceCenter : UnityEngine.MonoBehaviour { public static SpaceCenter Instance; }
 public class FlightState { public List<ProtoVessel> protoVessels; }
 public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public ProtoCrewMember this[string name] { get { return null; } } public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } public Game Updated() { return this; } }
