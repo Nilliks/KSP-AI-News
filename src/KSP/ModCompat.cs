@@ -17,7 +17,7 @@ namespace KerbalNews.KSP
         static float nextCheck;
         static bool cachedSide;
 
-        static Type FindType(string fullName)
+        internal static Type FindType(string fullName)
         {
             foreach (var a in AssemblyLoader.loadedAssemblies)
             {

@@ -280,6 +280,7 @@ namespace KerbalNews.KSP
                 benignDestroy[pv.vesselID] = Time.realtimeSinceStartup;
                 string id = pv.persistentId.ToString();
                 var t = engine().Tracked(id);
+                MiningLink.NoteRecovery(pv, t);   // any ore aboard reaches the warehouse a moment later
                 if (t == null) return;
                 if (!Flag(t, "recovered")) return;
                 var e = new NewsEvent { Type = EventTypes.Recovery, UT = UT, VesselId = id, VesselName = Names.Of(pv.vesselName), Body = "Kerbin" };
@@ -303,6 +304,8 @@ namespace KerbalNews.KSP
                 e.Crew.Clear();
                 if (t.Craft != null) e.Crew.AddRange(t.Craft.Crew); // the public knows who was aboard at launch
                 e.Detail = "The vessel was destroyed" + (v.mainBody != null ? " " + DescribeWhere(v) : "") + ".";
+                string ore = MiningLink.CargoLossText(v);
+                if (ore != "") e.Detail += " " + ore;
                 engine().Ingest(e);
             });
         }

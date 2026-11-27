@@ -392,7 +392,7 @@ public static class TimeWarp { public static float CurrentRate; public static vo
 public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8, KEYBOARDINPUT = 16, ALL_SHIP_CONTROLS = 32, STAGING = 64, TIMEWARP = 128, MAP = 256, QUICKSAVE = 512, QUICKLOAD = 1024, PAUSE = 2048, MISC = 4096 }
 public static class InputLockManager { public static void SetControlLock(ControlTypes t, string id) { } public static void RemoveControlLock(string id) { } }
 
-public class GameDatabase { public static GameDatabase Instance; public UnityEngine.Texture2D GetTexture(string url, bool normal) { return null; } }
+public class GameDatabase { public static GameDatabase Instance; public ConfigNode[] GetConfigNodes(string name) { return new ConfigNode[0]; } public UnityEngine.Texture2D GetTexture(string url, bool normal) { return null; } }
 
 namespace KSP.UI.Screens
 {
