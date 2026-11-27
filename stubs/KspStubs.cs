@@ -42,7 +42,7 @@ namespace UnityEngine
     public class WaitForSeconds : YieldInstruction { public WaitForSeconds(float s) { } }
     public class WaitForEndOfFrame : YieldInstruction { }
     public static class ScreenCapture { public static void CaptureScreenshot(string file) { } public static Texture2D CaptureScreenshotAsTexture() { return null; } }
-    public enum KeyCode { F8, F9, LeftShift, RightShift, PageUp, PageDown, UpArrow, DownArrow, Home, End, Space }
+    public enum KeyCode { F6, F7, F8, F9, Insert, ScrollLock, Pause, LeftShift, RightShift, PageUp, PageDown, UpArrow, DownArrow, Home, End, Space }
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }

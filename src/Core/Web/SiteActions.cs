@@ -75,6 +75,19 @@ namespace KerbalNews.Web
                     p.WorldLore = Get(form, "world", p.WorldLore);
                     p.HouseRules = Get(form, "rules", p.HouseRules);
                     break;
+                case "gallery-key":
+                    if (arg == "off") g.GalleryKey = ""; else if (GlobalSettings.GalleryKeys.Contains(arg)) g.GalleryKey = arg;
+                    SaveSettings();
+                    break;
+                case "reset-settings":
+                    if (arg == "cancel") { ConfirmReset = false; break; }
+                    if (!ConfirmReset) { ConfirmReset = true; break; }
+                    ConfirmReset = false;
+                    g.ResetToDefaults();
+                    Engine.ResetVoice();
+                    SaveSettings();
+                    TestResult = "Every setting is back to how the mod ships. Your keys, and which service and model does each job, were kept."; TestOk = true;
+                    break;
                 case "toggle-offline": g.OfflineMode = !g.OfflineMode; SaveSettings(); break;
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;

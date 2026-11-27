@@ -207,6 +207,7 @@ namespace KerbalNews.Web
             m["unread"] = Engine.UnreadCount(now);
             m["aiOff"] = !Engine.Settings.CanCallAi;
             m["offline"] = Engine.Settings.OfflineMode;
+            m["galleryKey"] = Engine.Settings.GalleryKey != "" ? Engine.Settings.GalleryKey : "the gallery key (turned off in Settings)";
             m["providerName"] = Engine.Settings.Preset.Name + (Engine.Settings.CheapServiceId != Engine.Settings.ProviderId ? " and " + Engine.Settings.Cheap.Preset.Name : "");
             m["status"] = Engine.Status;
             m["error"] = Engine.LastError;
@@ -520,6 +521,8 @@ namespace KerbalNews.Web
             m["showTune"] = ShowTune;
             // Pictures.
             m["photoLook"] = g.PhotoLook;
+            m["galleryKeyOpts"] = new List<object> { opt("Off", "gallery-key/off", g.GalleryKey == "") }.Concat(GlobalSettings.GalleryKeys.Select(k => opt(k, "gallery-key/" + k, g.GalleryKey == k))).ToList();
+            m["confirmReset"] = ConfirmReset;
             // Features, notifications.
             m["mailAuto"] = Engine.State.MailAuto;
             m["mailPopups"] = g.MailPopups;
@@ -537,6 +540,8 @@ namespace KerbalNews.Web
         public bool ShowTune;
 
         public string TestResult = "";
+        /// <summary>"Reset to defaults" was clicked once and waits for the second click.</summary>
+        public bool ConfirmReset;
         public bool TestOk;
 
         Dictionary<string, object> TelemetryModel()

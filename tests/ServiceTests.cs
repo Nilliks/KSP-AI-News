@@ -207,4 +207,47 @@ public static class ServiceTests
         g.OfflineMode = false;
         Assert(g.LocalRoot == "http://192.168.1.20:11434", "its requests queue one at a time");
     }
+
+    public static void TestGalleryKeyResetAndThePhotoHelpersModel()
+    {
+        var g = new GlobalSettings { ProviderId = "deepseek", OfflineMode = false };
+        string err;
+        g.SetKey("deepseek", "sk-deepseek-key-0001", out err);
+        g.SetKey("gemini", "AIza-gemini-key-0002", out err);
+        var eng = new NewsEngine(new NewsState(), g, null, new SimpleClock(Day));
+        var sites = MakeSites(eng);
+
+        // The gallery key.
+        Assert(g.GalleryKey == "F8" && sites.Render("gallery.kb").Html.Contains("Press F8"), "F8 unless changed");
+        sites.Handle("gallery-key/F6", null);
+        Assert(g.GalleryKey == "F6" && sites.Render("gallery.kb").Html.Contains("Press F6") && !sites.Render("gallery.kb").Html.Contains("F8"), "the pages name the chosen key");
+        sites.Handle("gallery-key/F9", null);
+        Assert(g.GalleryKey == "F6", "a key stock KSP uses can't be picked");
+        sites.Handle("gallery-key/off", null);
+        var sn = new DataNode("S"); var kn = new DataNode("K");
+        g.Save(sn, kn);
+        Assert(g.GalleryKey == "" && GlobalSettings.Load(sn, kn).GalleryKey == "" && GlobalSettings.Load(new DataNode("S"), null).GalleryKey == "F8", "off is saved as off; a file without it means F8");
+
+        // The photo helper's model.
+        sites.Handle("job-look/gemini", null);
+        Assert(g.Looker != null && g.Looker.Model == "gemini-2.5-flash" && eng.CanLook, "the helper starts on its service's cheap model");
+        sites.Handle("job-open/look", null);
+        Assert(sites.Render("settings.kb").Html.Contains("action:job-model/look/gemini-2.5-pro"), "its models that can see are offered");
+        sites.Handle("job-model/look/gemini-2.5-pro", null);
+        g.Save(sn = new DataNode("S"), kn = new DataNode("K"));
+        Assert(g.Looker.Model == "gemini-2.5-pro" && GlobalSettings.Load(sn, kn).Looker.Model == "gemini-2.5-pro", "the pick is used and saved");
+        Assert(g.CheapModelOf("gemini") == "gemini-2.5-flash", "and it does not change Google's cheap model for writing");
+
+        // Reset: every switch and number goes back; keys and what-uses-what stay.
+        g.GalleryKey = "F7"; g.MaxTokens = 9000; g.KtvOn = false; g.AiAmount = 1; g.SitesOff.Add("kmail"); g.CheapProviderId = "gemini";
+        sites.Handle("reset-settings", null);
+        Assert(g.MaxTokens == 9000 && sites.ConfirmReset && sites.Render("settings.kb").Html.Contains("reset-settings/yes"), "the first click only asks");
+        sites.Handle("reset-settings/cancel", null);
+        Assert(!sites.ConfirmReset && g.MaxTokens == 9000, "cancel leaves everything");
+        sites.Handle("reset-settings", null);
+        sites.Handle("reset-settings/yes", null);
+        Assert(g.GalleryKey == "F8" && g.MaxTokens == 6000 && g.KtvOn && g.AiAmount == 3 && g.SiteOn("kmail"), "switches, numbers and sites are back to default");
+        Assert(g.KeyOf("deepseek") == "sk-deepseek-key-0001" && g.KeyOf("gemini") == "AIza-gemini-key-0002" && g.ProviderId == "deepseek" && g.CheapProviderId == "gemini"
+            && g.VisionProviderId == "gemini" && g.VisionModel == "gemini-2.5-pro" && !g.OfflineMode, "keys, picks and the AI switch are kept");
+    }
 }

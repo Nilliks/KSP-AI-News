@@ -175,11 +175,27 @@ namespace KerbalNews.KSP
             }
         }
 
+        string galleryKeyName;
+        KeyCode galleryKey;
+        bool galleryKeyOk;
+
+        /// <summary>The gallery screenshot key from Settings (F8 unless changed; none when turned off).</summary>
+        bool GalleryKeyDown()
+        {
+            string k = Settings.GalleryKey;
+            if (k != galleryKeyName)
+            {
+                galleryKeyName = k; galleryKeyOk = false;
+                if (!string.IsNullOrEmpty(k)) try { galleryKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), k); galleryKeyOk = true; } catch (System.Exception) { }
+            }
+            return galleryKeyOk && Input.GetKeyDown(galleryKey);
+        }
+
         void Update()
         {
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
-            if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
+            if (GalleryKeyDown()) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
             Engine.SetRealTime(Time.realtimeSinceStartup);
             TickReplay();

@@ -45,9 +45,9 @@
       <p class="hint">{{sees}}</p>
       <div class="btns"><a class="tg" href="action:job-fetch/{{id}}">Get the full model list from {{serviceName}}</a><a class="tg" href="action:job-test/{{id}}">Send one small test request</a></div>
       {{#jobResult}}<p class="msg {{#jobOk}}s-ok{{/jobOk}}{{^jobOk}}s-fail{{/jobOk}}">{{jobResult}}</p>{{/jobResult}}{{/isText}}
-      {{#isImage}}{{#serviceName}}<label class="small">Model for {{serviceName}}</label>
+      {{#pickModel}}{{#serviceName}}<label class="small">Model for {{serviceName}}</label>
       <div class="models">{{#modelPicks}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/modelPicks}}</div>
-      <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>{{/serviceName}}{{/isImage}}
+      <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>{{/serviceName}}{{/pickModel}}
       {{/open}}
     </div></div>{{/jobs}}
 
@@ -83,6 +83,9 @@
     <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
 
   <h2>Pictures</h2>
+  <label>Gallery screenshot key</label>
+  <div class="providers">{{#galleryKeyOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/galleryKeyOpts}}</div>
+  <p class="hint">Press it in any scene to put a screenshot in your gallery. These are the keys stock KSP leaves free; pick another if one of your mods uses F8.</p>
   <div class="row" style="margin-top: 8px"><a class="toggle{{#pressPhotos}} on{{/pressPhotos}}" href="action:toggle-pressphotos">Press photographers shoot your launches</a></div>
   <h3>Article photos</h3>
   <p class="hint">{{#image}}{{name}} ({{model}}) draws one press photo for the stories picked here.{{/image}}{{^image}}Off. Pick an image service for "Article photos" under What uses what to turn them on.{{/image}}</p>
@@ -168,6 +171,10 @@
   {{#isLocal}}<div class="row"><div><label>Local model context size (tokens)</label><input name="localContext" value="{{localContext}}"></div><div><label>Local model wait (seconds)</label><input name="localTimeout" value="{{localTimeout}}"></div></div>{{/isLocal}}
   <div class="save row"><button class="btn" data-action="save-settings">Save</button></div>
   <p class="hint">Max output tokens can be 1,000 to 32,000. The wait can be 20 to 900 seconds.</p>
+  <h3>Reset</h3>
+  {{^confirmReset}}<div class="row"><a class="toggle" href="action:reset-settings">Reset every setting to its default</a></div>{{/confirmReset}}
+  {{#confirmReset}}<div class="row" style="align-items: center"><span class="bad">Put every switch, slider and number on this page back?</span><a class="toggle" href="action:reset-settings/yes">Yes, reset</a><a class="toggle" href="action:reset-settings/cancel">Cancel</a></div>{{/confirmReset}}
+  <p class="hint">Your keys, which service and model does each job, and whether the AI is on are kept.</p>
   <h3>Testing tools</h3>
   <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>
   <p class="hint">Publish pending news now skips the usual wait after an event.</p>

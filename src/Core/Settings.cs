@@ -25,6 +25,12 @@ namespace KerbalNews
         public bool PhotoLook = true;
         /// <summary>When the cheap model can't see: another service that looks at photos, with that service's key. "" = none.</summary>
         public string VisionProviderId = "";
+        /// <summary>The model the photo helper uses. "" = that service's cheap model.</summary>
+        public string VisionModel = "";
+        /// <summary>The key that takes a gallery screenshot: one of GalleryKeys, or "" for none.</summary>
+        public string GalleryKey = "F8";
+        /// <summary>Keys stock KSP leaves alone (F1 to F5 and F9 to F12 are taken).</summary>
+        public static readonly string[] GalleryKeys = { "F6", "F7", "F8", "Insert", "ScrollLock", "Pause" };
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
         /// <summary>The livestream announcer: 0 off, 1 big moments (countdown, liftoff, orbit, landings, trouble), 2 full commentary.</summary>
@@ -214,6 +220,20 @@ namespace KerbalNews
             return d.TryGetValue(id, out v) && !string.IsNullOrEmpty(v) ? v : def;
         }
 
+        /// <summary>
+        /// Puts every switch, slider and number back to how the mod ships. Kept: the keys, which service and model does
+        /// each job, addresses and fetched lists, whether the AI is on, the mod list and the window's place.
+        /// </summary>
+        public void ResetToDefaults()
+        {
+            var keep = new HashSet<string> { "Keys", "Status", "ProviderId", "CheapProviderId", "VisionProviderId", "VisionModel", "OfflineMode",
+                "BaseUrls", "WriterModels", "CheapModels", "FetchedModels", "ImageProviderId", "ImageModels", "ImageBaseUrls", "FetchedVoices",
+                "Mods", "ModsScanned", "BrowserRect" };
+            var fresh = new GlobalSettings();
+            foreach (var f in typeof(GlobalSettings).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                if (!keep.Contains(f.Name) && !f.IsInitOnly && !f.IsLiteral) f.SetValue(this, f.GetValue(fresh));
+        }
+
         // ---- keys: one per service
 
         public string KeyOf(string serviceId) { return Lookup(Keys, serviceId ?? "", ""); }
@@ -324,7 +344,7 @@ namespace KerbalNews
             get
             {
                 if (VisionProviderId == "" || !Providers.All.Any(p => p.Id == VisionProviderId)) return null;
-                var r = RouteTo(VisionProviderId, CheapModelOf(VisionProviderId));
+                var r = RouteTo(VisionProviderId, VisionModel != "" ? VisionModel : CheapModelOf(VisionProviderId));
                 return r.Ready && r.Sees ? r : null;
             }
         }
@@ -391,6 +411,8 @@ namespace KerbalNews
             settings.Add("mailPopups", MailPopups);
             settings.Add("newsDelay", NewsDelay);
             settings.Add("visionProvider", VisionProviderId);
+            settings.AddText("visionModel", VisionModel);
+            settings.Add("galleryKey", GalleryKey == "" ? "off" : GalleryKey);
             settings.Add("crewChat", CrewChatOn);
             settings.Add("announcer", Announcer);
             settings.Add("voiceOn", VoiceEnabled);
@@ -472,6 +494,9 @@ namespace KerbalNews
                 g.MailPopups = settings.GetBool("mailPopups", true);
                 g.NewsDelay = Math.Max(0.2, Math.Min(4, settings.GetDouble("newsDelay", 1)));
                 g.VisionProviderId = settings.Get("visionProvider", "");
+                g.VisionModel = settings.GetText("visionModel") ?? "";
+                string gk = settings.Get("galleryKey", "F8");
+                g.GalleryKey = gk == "off" ? "" : GalleryKeys.Contains(gk) ? gk : "F8";
                 g.CrewChatOn = settings.GetBool("crewChat", true);
                 g.Announcer = Math.Max(0, Math.Min(2, settings.GetInt("announcer", 1)));
                 g.VoiceEnabled = settings.GetBool("voiceOn", true);

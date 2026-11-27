@@ -243,7 +243,7 @@ public static class VarietyTests
         Assert(h.Contains("svc-remove/deepseek") && !h.Contains("svc-remove/gemini"), "only a saved key can be removed");
         sites.Handle("job-open/look", new Dictionary<string, string>());
         h = page();
-        Assert(h.Contains("Google (Gemini) · gemini-2.5-flash (needs a key)") && !h.Contains("action:job-look/gemini"), "a helper without a key can't be picked");
+        Assert(h.Contains("Google (Gemini) (needs a key)") && !h.Contains("action:job-look/gemini"), "a helper without a key can't be picked");
 
         g.KtvOn = true;
         sites.Handle("ai-amount/0", new Dictionary<string, string>());

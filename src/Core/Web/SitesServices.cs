@@ -90,7 +90,7 @@ namespace KerbalNews.Web
             var route = writer ? g.Writer : g.Cheap;
             var m = new Dictionary<string, object>
             {
-                { "id", job }, { "isText", true }, { "isImage", false }, { "fixed", false }, { "open", OpenJob == job },
+                { "id", job }, { "isText", true }, { "pickModel", false }, { "fixed", false }, { "open", OpenJob == job },
                 { "label", writer ? "Big stories" : "Everything else" },
                 { "note", writer ? "The writer model: major stories and historic firsts, your assistant, the engineers, the science office and Kerbopedia."
                     : "The cheap model: briefs, quiet-day features, comments, the forum, mail, crew chat, livestream chat and summaries." },
@@ -117,9 +117,9 @@ namespace KerbalNews.Web
                 : helper != null ? helper.Preset.Name + " · " + helper.Model : "Nobody";
             var m = new Dictionary<string, object>
             {
-                { "id", "look" }, { "isText", false }, { "isImage", false }, { "fixed", false }, { "open", OpenJob == "look" }, { "label", "Looking at photos" },
+                { "id", "look" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "look" }, { "label", "Looking at photos" },
                 { "note", "Each photo is looked at once, and the stream camera at big moments. What was seen then feeds articles, comments, Kerbopedia and the stream chat at no extra cost." },
-                { "current", current }, { "warn", "" }, { "modelPicks", new List<object>() },
+                { "current", current }, { "warn", "" }, { "modelPicks", new List<object>() }, { "serviceName", "" },
             };
             if (g.PhotoLook && !sees && helper == null)
                 m["warn"] = cheap.Preset.Name + " · " + cheap.Model + " can't see pictures. Pick a service below that can, or photos go undescribed.";
@@ -130,9 +130,18 @@ namespace KerbalNews.Web
             {
                 chips.Add(Chip("Nobody", "job-look/nobody", g.PhotoLook && g.VisionProviderId == "", false));
                 foreach (var p in Providers.All.Where(p => p.NeedsKey && p.Id != cheap.Preset.Id && p.Kind != ApiKind.Ollama && Providers.CanSee(p, g.CheapModelOf(p.Id))))
-                    chips.Add(Chip(p.Name + " · " + g.CheapModelOf(p.Id) + (g.ServiceReady(p.Id) ? "" : " (needs a key)"), "job-look/" + p.Id, g.PhotoLook && g.VisionProviderId == p.Id, !g.ServiceReady(p.Id) && g.VisionProviderId != p.Id));
+                    chips.Add(Chip(p.Name + (g.ServiceReady(p.Id) ? "" : " (needs a key)"), "job-look/" + p.Id, g.PhotoLook && g.VisionProviderId == p.Id, !g.ServiceReady(p.Id) && g.VisionProviderId != p.Id));
             }
             m["picks"] = chips;
+            if (!sees && helper != null)
+            {
+                // The helper's own model: any of its models that can look at pictures.
+                string hid = helper.Preset.Id;
+                var models = g.ModelChoicesFor(hid).Where(x => Providers.CanSee(helper.Preset, x)).ToList();
+                if (!models.Contains(helper.Model)) models.Insert(0, helper.Model);
+                m["modelPicks"] = models.Select(x => Chip(x, "job-model/look/" + x, x == helper.Model, false)).ToList();
+                m["serviceName"] = helper.Preset.Name;
+            }
             return m;
         }
 
@@ -141,9 +150,9 @@ namespace KerbalNews.Web
             var p = g.ImagePreset;
             var m = new Dictionary<string, object>
             {
-                { "id", "images" }, { "isText", false }, { "isImage", true }, { "fixed", false }, { "open", OpenJob == "images" }, { "label", "Article photos" },
+                { "id", "images" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "images" }, { "label", "Article photos" },
                 { "note", "Optional. An image service draws one press photo for bigger stories: one image call per story that qualifies. Which stories qualify is under Pictures." },
-                { "current", p == null ? "Off" : p.Name + " · " + g.ImageModel }, { "warn", "" },
+                { "current", p == null ? "Off" : p.Name + " · " + g.ImageModel }, { "warn", "" }, { "serviceName", "" },
             };
             if (p != null && !g.ImagesOn) m["warn"] = Services.Get(Services.ForImage(p.Id)).Name + " has no key yet, so no photos are drawn. Paste one above.";
             if (OpenJob != "images") return m;
@@ -170,7 +179,7 @@ namespace KerbalNews.Web
             bool key = g.VoiceKey != "";
             var m = new Dictionary<string, object>
             {
-                { "id", "voice" }, { "isText", false }, { "isImage", false }, { "fixed", true }, { "open", false }, { "label", "Announcer voice" },
+                { "id", "voice" }, { "isText", false }, { "pickModel", false }, { "fixed", true }, { "open", false }, { "label", "Announcer voice" },
                 { "note", "The livestream announcer and the flight controller. The voices, style and volume are under Livestream announcer below." },
                 { "current", g.Announcer == 0 ? "Off" : !key ? "Stock lines and captions only" : !g.VoiceEnabled ? "Captions only (speaking is turned off)" : "ElevenLabs · " + Engine.VoiceLabel(g.VoiceId) + " (" + g.VoiceModel + ")" }, { "warn", "" },
             };
@@ -247,7 +256,7 @@ namespace KerbalNews.Web
                     if (arg == "off") g.PhotoLook = false;
                     else if (arg == "self") g.PhotoLook = true;
                     else if (arg == "nobody") { g.PhotoLook = true; g.VisionProviderId = ""; }
-                    else if (Providers.All.Any(p => p.Id == arg) && g.ServiceReady(arg)) { g.PhotoLook = true; g.VisionProviderId = arg; }
+                    else if (Providers.All.Any(p => p.Id == arg) && g.ServiceReady(arg)) { g.PhotoLook = true; if (g.VisionProviderId != arg) g.VisionModel = ""; g.VisionProviderId = arg; }
                     SaveSettings();
                     return r;
                 case "job-images":
@@ -266,6 +275,7 @@ namespace KerbalNews.Web
             if (job == "writer") g.WriterModels[g.ProviderId] = model;
             else if (job == "cheap") g.CheapModels[g.CheapProviderId != "" ? g.CheapProviderId : g.ProviderId] = model;
             else if (job == "images" && g.ImagePreset != null) g.ImageModels[g.ImagePreset.Id] = model;
+            else if (job == "look" && g.VisionProviderId != "") g.VisionModel = model;
             else return;
             JobResult = "";
             SaveSettings();
