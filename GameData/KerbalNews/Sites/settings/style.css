@@ -34,7 +34,7 @@ h3 { margin-top: 12px; font-size: 16px; color: #3d3a33; }
 .off { color: #a3201c; }
 
 .svcs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.svc { background: #ffffff; width: 418px; padding: 10px 12px; border-left: 5px solid #b9b2a2; }
+.svc { background: #ffffff; width: 385px; padding: 10px 12px; border-left: 5px solid #b9b2a2; }
 .svc.s-ok { border-left: 5px solid #2e7d32; }
 .svc.s-untested { border-left: 5px solid #c98a00; }
 .svc.s-fail { border-left: 5px solid #c62828; }
