@@ -203,6 +203,7 @@ namespace KerbalNews.Web
                     break;
                 case "mark-read":
                     Engine.MarkAllRead(Now());
+                    TestResult = "Everything is marked read."; TestOk = true;
                     break;
                 case "privacy":
                     int s2 = arg.LastIndexOf('/');

@@ -459,10 +459,10 @@ namespace KerbalNews
                 g.ProviderId = settings.Get("provider", g.ProviderId);
                 g.CheapProviderId = settings.Get("cheapProvider", "");
                 g.OfflineMode = settings.GetBool("offline", true);
-                g.MaxTokens = Math.Max(1000, settings.GetInt("maxTokens", g.MaxTokens));
+                g.MaxTokens = Math.Max(1000, Math.Min(32000, settings.GetInt("maxTokens", g.MaxTokens)));
                 g.LocalContext = Math.Max(2048, Math.Min(262144, settings.GetInt("localContext", g.LocalContext)));
                 g.LocalTimeoutSeconds = Math.Max(60, Math.Min(3600, settings.GetInt("localTimeout", g.LocalTimeoutSeconds)));
-                g.TimeoutSeconds = Math.Max(10, settings.GetInt("timeout", g.TimeoutSeconds));
+                g.TimeoutSeconds = Math.Max(20, Math.Min(900, settings.GetInt("timeout", g.TimeoutSeconds)));
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);
                 g.PressPhotos = settings.GetBool("pressPhotos", true);

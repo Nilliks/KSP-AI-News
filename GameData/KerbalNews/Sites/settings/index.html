@@ -167,7 +167,9 @@
   <div class="row"><div><label>Max output tokens</label><input name="maxTokens" value="{{maxTokens}}"></div><div><label>Wait for the AI (seconds)</label><input name="timeout" value="{{timeout}}"></div></div>
   {{#isLocal}}<div class="row"><div><label>Local model context size (tokens)</label><input name="localContext" value="{{localContext}}"></div><div><label>Local model wait (seconds)</label><input name="localTimeout" value="{{localTimeout}}"></div></div>{{/isLocal}}
   <div class="save row"><button class="btn" data-action="save-settings">Save</button></div>
+  <p class="hint">Max output tokens can be 1,000 to 32,000. The wait can be 20 to 900 seconds.</p>
   <h3>Testing tools</h3>
   <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>
   <p class="hint">Publish pending news now skips the usual wait after an event.</p>
+  {{#testResult}}<p class="{{#testOk}}ok{{/testOk}}{{^testOk}}bad{{/testOk}}">{{testResult}}</p>{{/testResult}}
 </div></body></html>

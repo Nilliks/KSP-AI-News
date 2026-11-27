@@ -493,11 +493,6 @@ namespace KerbalNews.Web
             m["tieIns"] = g.ContractTieIns;
             m["modsInContext"] = g.ModsInContext;
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };
-            string match = g.UsageMatch;
-            m["usageText"] = match == "saver" ? "Saver: fewer and shorter AI calls. Roughly half the cost of Balanced."
-                : match == "full" ? "Full: more outlets, longer pieces, livelier comments, the writer model for everything. Roughly double the cost of Balanced."
-                : match == "balanced" ? "Balanced: the default." : "Custom: your own mix of the settings below.";
-            m["usagePresets"] = new List<object> { opt("Saver", "usage/saver", match == "saver"), opt("Balanced", "usage/balanced", match == "balanced"), opt("Full", "usage/full", match == "full") };
             m["quietOpts"] = new List<object> { opt("Off", "usage-quiet/0", g.QuietDays <= 0), opt("Every 6 days", "usage-quiet/6", g.QuietDays == 6), opt("Every 3 days", "usage-quiet/3", g.QuietDays == 3), opt("Every 2 days", "usage-quiet/2", g.QuietDays == 2) };
             m["amountOpts"] = new List<object> { opt("Short", "usage-amount/0.6", Math.Abs(g.AmountScale - 0.6) < 0.01), opt("Normal", "usage-amount/1", Math.Abs(g.AmountScale - 1) < 0.01), opt("Long", "usage-amount/1.3", Math.Abs(g.AmountScale - 1.3) < 0.01) };
             m["outletOpts"] = new List<object> { opt("2", "usage-outlets/2", g.MaxOutlets == 2), opt("3", "usage-outlets/3", g.MaxOutlets == 3), opt("5", "usage-outlets/5", g.MaxOutlets == 5), opt("All", "usage-outlets/0", g.MaxOutlets == 0) };
