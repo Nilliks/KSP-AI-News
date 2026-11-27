@@ -134,7 +134,7 @@ namespace KerbalNews
                 foreach (var f in past) u.AppendLine("- " + f.Title + ": " + ResponseParser.Clip(f.Finding, 220));
             }
             if (question != "") u.AppendLine("The director asks: " + question);
-            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), Math.Min(4000, 500 + results.Count * 350), 0, (root, err, text, res) =>
+            AskJson(Settings.Writer, sb.ToString(), u.ToString(), Math.Min(4000, 500 + results.Count * 350), 0, (root, err, text, res) =>
             {
                 SciBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "findings")) : null;

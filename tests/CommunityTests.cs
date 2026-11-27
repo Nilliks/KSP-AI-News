@@ -155,7 +155,7 @@ public static class CommunityTests
         var t = new CoreTests.FakeTransport();
         var g = CoreTests.OnlineSettings();
         g.ImageProviderId = "openai";
-        g.Keys["img:openai"] = "img-key";
+        g.Keys["openai"] = "img-key";
         Assert(g.ImagesOn, "images on with a key");
         var s = new NewsState();
         var eng = new NewsEngine(s, g, t, new SimpleClock(Day));
@@ -203,12 +203,19 @@ public static class CommunityTests
         int saves = 0;
         sites.SaveSettings = () => saves++;
         Eq("kerbalnews.kb/search?q=mun%20arrow", sites.Handle("search", new Dictionary<string, string> { { "q", " mun arrow " } }).Navigate, "search");
-        sites.Handle("action:provider/openai", null);
-        sites.Handle("save-settings", new Dictionary<string, string> { { "key", "sk-test" }, { "writer", "gpt-5-mini" }, { "maxTokens", "9000" } });
-        Assert(g.ProviderId == "openai" && g.Key == "sk-test" && !g.OfflineMode && g.WriterModel == "gpt-5-mini" && g.MaxTokens == 9000 && saves >= 2, "settings form");
-        sites.Handle("action:img-provider/gemini", null);
-        sites.Handle("save-images", new Dictionary<string, string> { { "imgKey", "AIza-x" } });
-        Assert(g.ImagesOn && g.Keys["img:gemini"] == "AIza-x" && g.Key == "sk-test", "image key kept apart");
+        sites.Handle("svc-save/openai", new Dictionary<string, string> { { "key-openai", " sk-test \n" } });
+        sites.Handle("job-model/writer/gpt-5-mini", null);
+        sites.Handle("save-settings", new Dictionary<string, string> { { "maxTokens", "9000" } });
+        Assert(g.ProviderId == "openai" && g.Key == "sk-test" && !g.OfflineMode && g.WriterModel == "gpt-5-mini" && g.MaxTokens == 9000 && saves >= 2, "a first key becomes the writer and turns the AI on");
+        sites.Handle("action:job-images/gemini", null);
+        Assert(g.ImageProviderId == "", "an image service without a key can't be picked");
+        sites.Handle("svc-save/gemini", new Dictionary<string, string> { { "key-gemini", "AIza-x" } });
+        sites.Handle("action:job-images/gemini", null);
+        Assert(g.ImagesOn && g.ImageKey == "AIza-x" && g.Key == "sk-test" && g.ProviderId == "openai", "one Google key, used for pictures; the writer stays put");
+        sites.Handle("action:job-images/openai", null);
+        Assert(g.ImagesOn && g.ImageKey == "sk-test", "the OpenAI key writes and draws: no second key");
+        sites.Handle("svc-save/openai", new Dictionary<string, string> { { "key-openai", "sk two keys" } });
+        Assert(g.Key == "sk-test" && sites.Render("settings.kb").Html.Contains("An API key has no spaces in it"), "a paste with spaces is refused and the saved key kept");
 
         var art = eng.State.Articles.First();
         string target = "a:" + art.Id;

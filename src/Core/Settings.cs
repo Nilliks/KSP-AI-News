@@ -11,7 +11,10 @@ namespace KerbalNews
     /// </summary>
     public class GlobalSettings
     {
+        /// <summary>The service that writes the big stories (the writer model). Also the fallback for every other text job.</summary>
         public string ProviderId = "deepseek";
+        /// <summary>The service that does everything else (the cheap model). "" = the same one as the writer.</summary>
+        public string CheapProviderId = "";
         public bool OfflineMode = true; // no key yet: templates until the player picks a provider
         /// <summary>Press photographers take long-lens shots of launches from a separate camera.</summary>
         public bool PressPhotos = true;
@@ -20,13 +23,13 @@ namespace KerbalNews
         public bool AssistantConfirm = true;
         /// <summary>The AI looks at photos and the livestream camera (only models that can see; never offline).</summary>
         public bool PhotoLook = true;
-        /// <summary>When the main model can't see: another provider (its key from Keys) that looks at photos. "" = none.</summary>
+        /// <summary>When the cheap model can't see: another service that looks at photos, with that service's key. "" = none.</summary>
         public string VisionProviderId = "";
         /// <summary>Talking to your crew on the Kerbonauts site, and KTV segments written with each story.</summary>
         public bool CrewChatOn = true;
         /// <summary>The livestream announcer: 0 off, 1 big moments (countdown, liftoff, orbit, landings, trouble), 2 full commentary.</summary>
         public int Announcer = 1;
-        /// <summary>The announcer speaks through ElevenLabs when a key is saved (Keys["voice:elevenlabs"]) and this is on; otherwise captions only.</summary>
+        /// <summary>The announcer speaks through ElevenLabs when its key is saved and this is on; otherwise captions only.</summary>
         public bool VoiceEnabled = true;
         public string VoiceId = Voice.DefaultVoice;
         public string VoiceModel = Voice.DefaultModel;
@@ -50,8 +53,8 @@ namespace KerbalNews
                     .Select(p => new[] { p[0], p[1], p.Length > 2 ? p[2] : "" }).ToList();
             }
         }
-        public const string VoiceKeyId = "voice:elevenlabs";
-        public string VoiceKey { get { return Lookup(Keys, VoiceKeyId, ""); } }
+        public const string VoiceKeyId = Services.ElevenLabs;
+        public string VoiceKey { get { return KeyOf(VoiceKeyId); } }
         public bool VoiceOn { get { return VoiceEnabled && Announcer > 0 && VoiceKey != ""; } }
         /// <summary>Stream replays: 0 off, 1 normal (a frame a second), 2 smooth (three a second). Oldest are deleted past ReplayMaxGb.</summary>
         public int ReplayQuality = 1;
@@ -148,7 +151,13 @@ namespace KerbalNews
         public Dictionary<string, string> BaseUrls = new Dictionary<string, string>();
         public Dictionary<string, string> WriterModels = new Dictionary<string, string>();
         public Dictionary<string, string> CheapModels = new Dictionary<string, string>();
+        /// <summary>
+        /// One key per service (Services), by service id. Read with KeyOf and change with SetKey and ForgetKey, which
+        /// check a pasted key and reset the service's status.
+        /// </summary>
         public Dictionary<string, string> Keys = new Dictionary<string, string>();
+        /// <summary>What the last check said about each service's key. This session only; never saved.</summary>
+        public Dictionary<string, ServiceStatus> Status = new Dictionary<string, ServiceStatus>();
         /// <summary>Models fetched live from each provider (space-separated), kept between sessions.</summary>
         public Dictionary<string, string> FetchedModels = new Dictionary<string, string>();
         public int MaxTokens = 6000;
@@ -172,7 +181,7 @@ namespace KerbalNews
             if (id == "engineering") { EngineeringOn = on; return; }
             if (on) SitesOff.Remove(id); else SitesOff.Add(id);
         }
-        /// <summary>Image generation for article photos: "" means off. Uses its own key, stored as "img:&lt;id&gt;".</summary>
+        /// <summary>Image generation for article photos: "" means off. Uses the key of the service that preset belongs to.</summary>
         public string ImageProviderId = "";
         public Dictionary<string, string> ImageModels = new Dictionary<string, string>();
         public Dictionary<string, string> ImageBaseUrls = new Dictionary<string, string>();
@@ -188,7 +197,13 @@ namespace KerbalNews
         public ImagePreset ImagePreset { get { return ImageProviders.Get(ImageProviderId); } }
         public string ImageModel { get { var p = ImagePreset; return p == null ? "" : Lookup(ImageModels, p.Id, p.Model); } }
         public string ImageBaseUrl { get { var p = ImagePreset; return p == null ? "" : Lookup(ImageBaseUrls, p.Id, p.BaseUrl); } }
-        public string ImageKey { get { return ImageProviderId == "" ? "" : Lookup(Keys, "img:" + ImageProviderId, ""); } }
+        public string ImageKey { get { return ImageProviderId == "" ? "" : ImageKeyOf(ImageProviderId); } }
+        /// <summary>
+        /// The key an image preset uses: its service's key. A file from before keys were saved once per service may hold
+        /// a second, different key for pictures ("img:id"); that one is still used for pictures until the service's key is saved again.
+        /// </summary>
+        public string ImageKeyOf(string imageId) { return Lookup(Keys, LegacyImagePrefix + imageId, KeyOf(Services.ForImage(imageId))); }
+        const string LegacyImagePrefix = "img:";
         public bool ImagesOn { get { return ImagePreset != null && (ImageKey != "" || ImageProviderId == "custom") && ImageModel != ""; } }
 
         public ProviderPreset Preset { get { return Providers.Get(ProviderId); } }
@@ -199,23 +214,158 @@ namespace KerbalNews
             return d.TryGetValue(id, out v) && !string.IsNullOrEmpty(v) ? v : def;
         }
 
-        public string BaseUrl { get { return Lookup(BaseUrls, ProviderId, Preset.BaseUrl); } }
-        public string WriterModel { get { return Lookup(WriterModels, ProviderId, Preset.WriterModel); } }
-        public string CheapModel { get { return Lookup(CheapModels, ProviderId, Preset.CheapModel); } }
-        public string Key { get { return Lookup(Keys, ProviderId, ""); } }
+        // ---- keys: one per service
 
-        /// <summary>Suggested plus fetched models for the current provider, without duplicates.</summary>
-        public List<string> ModelChoices
+        public string KeyOf(string serviceId) { return Lookup(Keys, serviceId ?? "", ""); }
+        public bool HasKey(string serviceId) { return KeyOf(serviceId) != ""; }
+        /// <summary>The last four characters of a saved key, for "Key ends in ...".</summary>
+        public string KeyTail(string serviceId) { return Services.Tail(KeyOf(serviceId)); }
+
+        /// <summary>
+        /// Saves a pasted key for a service. A blank field keeps the saved key. False with a reason when the text
+        /// cannot be a key; nothing is changed then.
+        /// </summary>
+        public bool SetKey(string serviceId, string raw, out string error)
+        {
+            string key;
+            if (!Services.CleanKey(raw, out key, out error)) return false;
+            if (key == "" || string.IsNullOrEmpty(serviceId)) return true;
+            if (KeyOf(serviceId) != key) Status.Remove(serviceId);
+            Keys[serviceId] = key;
+            var svc = Services.Get(serviceId);
+            if (svc != null && svc.ImageId != "") Keys.Remove(LegacyImagePrefix + svc.ImageId);
+            return true;
+        }
+
+        public void ForgetKey(string serviceId)
+        {
+            if (string.IsNullOrEmpty(serviceId)) return;
+            Keys.Remove(serviceId);
+            Status.Remove(serviceId);
+            var svc = Services.Get(serviceId);
+            if (svc != null && svc.ImageId != "") Keys.Remove(LegacyImagePrefix + svc.ImageId);
+        }
+
+        /// <summary>A service is ready when it has its key, or needs none.</summary>
+        public bool ServiceReady(string serviceId)
+        {
+            var svc = Services.Get(serviceId);
+            return svc != null && (!svc.NeedsKey || HasKey(serviceId));
+        }
+
+        /// <summary>"ok", "fail", "untested" (a key nobody has checked) or "none" (no key).</summary>
+        public string StatusWord(string serviceId)
+        {
+            var svc = Services.Get(serviceId);
+            ServiceStatus st;
+            if (Status.TryGetValue(serviceId ?? "", out st)) return st.Ok ? "ok" : "fail";
+            if (svc != null && svc.NeedsKey && !HasKey(serviceId)) return "none";
+            return "untested";
+        }
+
+        /// <summary>
+        /// Secrets files from before keys were saved once per service kept the announcer's key as "voice:elevenlabs" and a
+        /// second key per company for pictures as "img:id". Each moves to its service. A picture key that differs from
+        /// the service's own key is kept as it was, so no key is lost.
+        /// </summary>
+        static void MigrateKeys(Dictionary<string, string> keys)
+        {
+            string v;
+            if (keys.TryGetValue("voice:" + Services.ElevenLabs, out v))
+            {
+                if (Lookup(keys, Services.ElevenLabs, "") == "") keys[Services.ElevenLabs] = v;
+                keys.Remove("voice:" + Services.ElevenLabs);
+            }
+            foreach (var id in keys.Keys.Where(k => k.StartsWith(LegacyImagePrefix)).ToList())
+            {
+                string svc = Services.ForImage(id.Substring(LegacyImagePrefix.Length)), key = keys[id];
+                if (svc == "" || string.IsNullOrEmpty(key)) { keys.Remove(id); continue; }
+                string own = Lookup(keys, svc, "");
+                if (own == "") keys[svc] = key;
+                if (own == "" || own == key) keys.Remove(id);
+            }
+            keys.Remove("");
+        }
+
+        // ---- what uses what: the service and model of each text job
+
+        public string BaseUrlOf(string providerId) { return Lookup(BaseUrls, providerId, Providers.Get(providerId).BaseUrl); }
+        public string WriterModelOf(string providerId) { return Lookup(WriterModels, providerId, Providers.Get(providerId).WriterModel); }
+        public string CheapModelOf(string providerId) { return Lookup(CheapModels, providerId, Providers.Get(providerId).CheapModel); }
+
+        AiRoute RouteTo(string providerId, string model)
+        {
+            var p = Providers.Get(providerId);
+            return new AiRoute { Preset = p, BaseUrl = BaseUrlOf(p.Id), Key = KeyOf(Services.ForText(p.Id)), Model = model };
+        }
+
+        /// <summary>Big stories, the assistant, the engineers: the writer model.</summary>
+        public AiRoute Writer { get { return RouteTo(ProviderId, WriterModelOf(ProviderId)); } }
+
+        /// <summary>
+        /// Everything else: the cheap model, on its own service when one is picked. A pick whose service has no key
+        /// falls back to the writer's service, so the job still runs.
+        /// </summary>
+        public AiRoute Cheap
         {
             get
             {
-                var l = new List<string>(Preset.Models);
-                foreach (var m in Lookup(FetchedModels, ProviderId, "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
-                    if (!l.Contains(m)) l.Add(m);
-                if (!l.Contains(WriterModel)) l.Insert(0, WriterModel);
-                if (!l.Contains(CheapModel)) l.Insert(0, CheapModel);
-                return l;
+                string id = CheapServiceId;
+                return RouteTo(id, CheapModelOf(id));
             }
+        }
+
+        /// <summary>
+        /// The helper that looks at photos when the cheap model can't see: the picked service with its own key and its
+        /// cheap model. Null when nobody is picked, or the pick has no key or can't see.
+        /// </summary>
+        public AiRoute Looker
+        {
+            get
+            {
+                if (VisionProviderId == "" || !Providers.All.Any(p => p.Id == VisionProviderId)) return null;
+                var r = RouteTo(VisionProviderId, CheapModelOf(VisionProviderId));
+                return r.Ready && r.Sees ? r : null;
+            }
+        }
+
+        /// <summary>The service the cheap model really runs on: the pick when it is ready, else the writer's.</summary>
+        public string CheapServiceId
+        {
+            get { return CheapProviderId != "" && CheapProviderId != ProviderId && Providers.All.Any(p => p.Id == CheapProviderId) && ServiceReady(CheapProviderId) ? CheapProviderId : ProviderId; }
+        }
+
+        public string BaseUrl { get { return BaseUrlOf(ProviderId); } }
+        public string WriterModel { get { return WriterModelOf(ProviderId); } }
+        public string CheapModel { get { return Cheap.Model; } }
+        public string Key { get { return KeyOf(Services.ForText(ProviderId)); } }
+
+        /// <summary>The addresses of the local model servers in use, for queueing their requests one at a time.</summary>
+        public string LocalRoot
+        {
+            get
+            {
+                if (!CanCallAi) return null;
+                if (Providers.IsLocal(BaseUrl)) return BaseUrl;
+                string c = Cheap.BaseUrl;
+                return Providers.IsLocal(c) ? c : null;
+            }
+        }
+
+        /// <summary>Suggested plus fetched models for the writer's provider, without duplicates.</summary>
+        public List<string> ModelChoices { get { return ModelChoicesFor(ProviderId); } }
+
+        /// <summary>Suggested plus fetched models for a provider, with the ones in use first, without duplicates.</summary>
+        public List<string> ModelChoicesFor(string providerId)
+        {
+            var p = Providers.Get(providerId);
+            var l = new List<string>(p.Models);
+            foreach (var m in Lookup(FetchedModels, p.Id, "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                if (!l.Contains(m)) l.Add(m);
+            string w = WriterModelOf(p.Id), c = CheapModelOf(p.Id);
+            if (!l.Contains(w)) l.Insert(0, w);
+            if (!l.Contains(c)) l.Insert(0, c);
+            return l;
         }
 
         public bool CanCallAi
@@ -226,6 +376,7 @@ namespace KerbalNews
         public void Save(DataNode settings, DataNode secrets)
         {
             settings.Add("provider", ProviderId);
+            settings.Add("cheapProvider", CheapProviderId);
             settings.Add("offline", OfflineMode);
             settings.Add("maxTokens", MaxTokens);
             settings.Add("timeout", TimeoutSeconds);
@@ -306,6 +457,7 @@ namespace KerbalNews
             if (settings != null)
             {
                 g.ProviderId = settings.Get("provider", g.ProviderId);
+                g.CheapProviderId = settings.Get("cheapProvider", "");
                 g.OfflineMode = settings.GetBool("offline", true);
                 g.MaxTokens = Math.Max(1000, settings.GetInt("maxTokens", g.MaxTokens));
                 g.LocalContext = Math.Max(2048, Math.Min(262144, settings.GetInt("localContext", g.LocalContext)));
@@ -390,6 +542,7 @@ namespace KerbalNews
             if (secrets != null)
                 foreach (var k in secrets.GetNodes("KEY"))
                     g.Keys[k.Get("id", "")] = k.GetText("key");
+            MigrateKeys(g.Keys);
             return g;
         }
     }

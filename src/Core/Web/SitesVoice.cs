@@ -121,12 +121,9 @@ namespace KerbalNews.Web
                 case "voice-volume": if (double.TryParse(arg, NumberStyles.Float, Inv, out d)) g.VoiceVolume = Math.Max(0, Math.Min(1, d)); SaveSettings(); return r;
                 case "replays": if (int.TryParse(arg, out n)) g.ReplayQuality = Math.Max(0, Math.Min(2, n)); SaveSettings(); return r;
                 case "replay-space": if (int.TryParse(arg, out n)) g.ReplayMaxGb = Math.Max(1, Math.Min(50, n)); SaveSettings(); return r;
-                case "forget-voice-key": g.Keys.Remove(GlobalSettings.VoiceKeyId); VoiceTestResult = "ElevenLabs key forgotten."; VoiceTestOk = true; SaveSettings(); return r;
                 case "save-voice":
                 case "test-voice":
                 {
-                    string key = Get(form, "voiceKey").Trim();
-                    if (key != "") { g.Keys[GlobalSettings.VoiceKeyId] = key; g.VoiceEnabled = true; }
                     string custom = Get(form, "voiceCustom").Trim();
                     if (custom != "") g.VoiceId = custom;
                     Engine.ResetVoice();

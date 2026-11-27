@@ -148,17 +148,18 @@ namespace KerbalNews
             communityBusy = true;
             job.Attempts++;
             CommunityStatus = "The community is typing...";
-            var preset = Settings.Preset;
+            var route = Settings.Cheap;
+            var preset = route.Preset;
             // A released photo nobody has described yet: a model that can see gets the picture itself.
             var photo = ShotOf(job.Target);
-            byte[] jpeg = photo != null && photo.Look == "" && MainSees(Settings.CheapModel) ? JpegOf(photo) : null;
+            byte[] jpeg = photo != null && photo.Look == "" && Sees(route) ? JpegOf(photo) : null;
             string cuser = PromptBuilder.Community(this, job, Clock, ut) + (jpeg != null ? "\nThe photo itself is attached: people react to what they can actually see in it." : "");
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, PromptBuilder.System(State, Settings.ModsText, CommunityOutlet(job)), cuser, Math.Min(Settings.MaxTokens, 3000), preset.JsonMode, jpeg);
+            var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model, PromptBuilder.System(State, Settings.ModsText, CommunityOutlet(job)), cuser, Math.Min(Settings.MaxTokens, 3000), preset.JsonMode, jpeg);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
                 communityBusy = false;
-                if (jpeg != null && Providers.RefusedImage(res)) { Providers.MarkBlind(preset, Settings.CheapModel); return; }   // the job stays queued and goes again without the picture
+                if (jpeg != null && Providers.RefusedImage(res)) { Providers.MarkBlind(preset, route.Model); return; }   // the job stays queued and goes again without the picture
                 // A reload may have replaced the save: only apply to a job that still exists in it.
                 var live = State.CommunityJobs.FirstOrDefault(j => j.Target == job.Target && j.CommentId == job.CommentId && j.UT == job.UT);
                 if (live == null) return;

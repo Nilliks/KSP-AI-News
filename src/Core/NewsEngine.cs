@@ -58,7 +58,7 @@ namespace KerbalNews
             State = state;
             Settings = settings;
             // Local model servers get one request at a time and a longer time limit.
-            Transport = transport is LocalQueueTransport ? transport : new LocalQueueTransport(transport, () => Settings.CanCallAi && Providers.IsLocal(Settings.BaseUrl) ? Settings.BaseUrl : null, () => Settings.LocalTimeoutSeconds);
+            Transport = transport is LocalQueueTransport ? transport : new LocalQueueTransport(transport, () => Settings.LocalRoot, () => Settings.LocalTimeoutSeconds);
             Clock = clock;
             Outlets.IsOn = id => Settings.SiteOn(id);
         }
@@ -294,9 +294,10 @@ namespace KerbalNews
             inFlight = story;
             story.Attempts++;
             Status = "Writing coverage: " + story.Title;
-            var preset = Settings.Preset;
             bool cheap = PlanTierCheap(plan);
-            string model = cheap ? Settings.CheapModel : Settings.WriterModel;
+            var route = cheap ? Settings.Cheap : Settings.Writer;
+            var preset = route.Preset;
+            string model = route.Model;
             string system = PromptBuilder.System(State, Settings.ModsText);
             var asides = AsidesFor(story, plan, ut);
             story.Asides = asides.Count == 0 ? null : asides.GroupBy(t => t.FillerOutlet.Trim()).ToDictionary(gr => gr.Key, gr => gr.Select(t => t.Topic).ToList());
@@ -307,9 +308,9 @@ namespace KerbalNews
             string looks = PhotoLooks(story);
             if (looks != "") user += "\n" + looks + "\n";
             var mainShot = ShotByRef(ShotFor(story));
-            byte[] jpeg = mainShot != null && mainShot.Look == "" && MainSees(model) ? JpegOf(mainShot) : null;
+            byte[] jpeg = mainShot != null && mainShot.Look == "" && Sees(route) ? JpegOf(mainShot) : null;
             if (jpeg != null) user += "\nPHOTO: the picture that runs with this story is attached. Writers may describe what it shows where it fits, and commenters may react to it. Also add a top-level field \"photo_look\": two or three plain sentences on what can actually be seen in it.\n";
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Settings.MaxTokens, preset.JsonMode, jpeg);
+            var req = Providers.Build(preset, route.BaseUrl, route.Key, model, system, user, Settings.MaxTokens, preset.JsonMode, jpeg);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
@@ -404,7 +405,7 @@ namespace KerbalNews
         {
             bool rewritten = story.MoodApplied;
             var rng = new Random(OfflineWriter.StableHash(story.Id));
-            string model = cov.Articles.Count > 0 && cov.Articles[0].Offline ? "offline templates" : Settings.Preset.Id + " / " + (PlanTierCheap(plan) ? Settings.CheapModel : Settings.WriterModel);
+            string model = cov.Articles.Count > 0 && cov.Articles[0].Offline ? "offline templates" : (PlanTierCheap(plan) ? Settings.Cheap : Settings.Writer).Label;
             foreach (var a in cov.Articles)
             {
                 a.Model = model;
@@ -604,13 +605,14 @@ namespace KerbalNews
             }
             if (!allowCalls) return true;
 
-            var preset = Settings.Preset;
+            var route = Settings.Cheap;
+            var preset = route.Preset;
             string system, user;
             double cut = Compressor.CutPoint(State, ut);
             string hash = Compressor.ProfileHash(State.Profile);
             if (profile) { system = Compressor.ProfileSystemPrompt(); user = Compressor.ProfileUserPrompt(State); }
             else { system = Compressor.MemorySystemPrompt(); user = Compressor.MemoryUserPrompt(State, cut, Clock); }
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel, system, user, 2000, preset.JsonMode);
+            var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model, system, user, 2000, preset.JsonMode);
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             compressing = true;
             Status = profile ? "Summarizing the agency profile" : "Compressing the news archive";
@@ -677,31 +679,44 @@ namespace KerbalNews
             return n;
         }
 
-        /// <summary>Sends a tiny request to check the key and model. Calls back with a readable result.</summary>
-        public void TestConnection(Action<bool, string> done)
+        /// <summary>Sends one tiny real request through the cheap model, to see that it answers with clean JSON. Calls back with a readable result.</summary>
+        public void TestConnection(Action<bool, string> done) { TestConnection(Settings.Cheap, done); }
+
+        /// <summary>As TestConnection, for one job's service and model.</summary>
+        public void TestConnection(AiRoute route, Action<bool, string> done)
         {
-            var preset = Settings.Preset;
-            if (preset.NeedsKey && Settings.Key == "") { done(false, "No API key entered for " + preset.Name + "."); return; }
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, Settings.CheapModel,
+            var preset = route.Preset;
+            if (!route.Ready) { done(false, "No API key saved for " + preset.Name + "."); return; }
+            var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model,
                 "You are a connectivity check. Reply with JSON only.", "Reply with this JSON object exactly: {\"ok\":true,\"headline\":\"Kerbin Daily Herald online\"}", 200, preset.JsonMode);
             req.TimeoutSeconds = Math.Min(60, Settings.TimeoutSeconds);
             Transport.Send(req, res =>
             {
                 string text, err;
-                if (!Providers.TryExtractText(preset.Kind, res, out text, out err)) { done(false, err); return; }
+                if (!Providers.TryExtractText(preset.Kind, res, out text, out err))
+                {
+                    if (res.Error == null && (res.Status == 401 || res.Status == 403)) Settings.Status[Services.ForText(preset.Id)] = new ServiceStatus { Ok = false, Message = "The key was refused (" + res.Status + "). Check that it was pasted correctly." };
+                    done(false, err);
+                    return;
+                }
+                Settings.Status[Services.ForText(preset.Id)] = new ServiceStatus { Ok = true, Message = "The key works." };
                 object root;
                 var json = ResponseParser.ExtractJson(text);
                 bool ok = json != null && Json.TryParse(json, out root) && Json.Get(root, "ok") is bool;
-                done(true, ok ? "Connected to " + preset.Name + " (" + Settings.CheapModel + ")." : "Connected, but the reply was not clean JSON: " + text.Substring(0, Math.Min(120, text.Length)));
+                done(true, ok ? "Connected to " + preset.Name + " (" + route.Model + ")." : "Connected, but the reply was not clean JSON: " + text.Substring(0, Math.Min(120, text.Length)));
             });
         }
 
-        /// <summary>Asks the provider which models this key can use, and remembers the list.</summary>
-        public void FetchModels(Action<bool, string> done)
+        /// <summary>Asks the writer's provider which models its key can use, and remembers the list.</summary>
+        public void FetchModels(Action<bool, string> done) { FetchModels(Settings.ProviderId, done); }
+
+        /// <summary>Asks a provider which models its key can use, and remembers the list.</summary>
+        public void FetchModels(string providerId, Action<bool, string> done)
         {
-            var preset = Settings.Preset;
-            if (preset.NeedsKey && Settings.Key == "") { done(false, "Enter an API key first."); return; }
-            var req = Providers.BuildListModels(preset, Settings.BaseUrl, Settings.Key);
+            var preset = Providers.Get(providerId);
+            string key = Settings.KeyOf(Services.ForText(preset.Id));
+            if (preset.NeedsKey && key == "") { done(false, "Save a key for " + preset.Name + " first."); return; }
+            var req = Providers.BuildListModels(preset, Settings.BaseUrlOf(preset.Id), key);
             string id = preset.Id;
             Transport.Send(req, res =>
             {
@@ -711,6 +726,64 @@ namespace KerbalNews
                 Settings.FetchedModels[id] = string.Join(" ", models.ToArray());
                 done(true, models.Count + " models available from " + preset.Name + ".");
             });
+        }
+
+        readonly HashSet<string> checking = new HashSet<string>();
+        readonly HashSet<string> autoChecked = new HashSet<string>();
+        /// <summary>True while a service's key check is on its way.</summary>
+        public bool Checking(string serviceId) { return checking.Contains(serviceId); }
+
+        /// <summary>
+        /// Checks one service's key (or a local server's address) with a request that costs nothing, and records the
+        /// result as the service's status. A text service's answer is its model list, which is kept too.
+        /// </summary>
+        public void CheckService(string serviceId, Action<bool, string> done)
+        {
+            var svc = Services.Get(serviceId);
+            if (svc == null) { done(false, "Unknown service."); return; }
+            if (svc.NeedsKey && !Settings.HasKey(svc.Id)) { done(false, "Save a key first."); return; }
+            var req = Services.BuildCheck(svc, Settings);
+            var q = Transport as LocalQueueTransport;
+            if (Transport == null || q != null && q.Inner == null) { done(false, "No network connection to check with."); return; }
+            if (req == null) { done(false, svc.Name + " has no free check. Its mark changes after the first picture it draws, or use \"Make a test photo\" (one real picture)."); return; }
+            if (!checking.Add(svc.Id)) return;
+            string key = Settings.KeyOf(svc.Id);
+            Transport.Send(req, res =>
+            {
+                checking.Remove(svc.Id);
+                bool ok; string msg;
+                bool told = Services.ReadCheck(svc, res, out ok, out msg);
+                // The key may have been replaced or removed while the check was out: its answer is about the old one.
+                if (Settings.KeyOf(svc.Id) != key) { done(false, "The key changed during the check."); return; }
+                if (told) Settings.Status[svc.Id] = new ServiceStatus { Ok = ok, Message = msg };
+                if (ok && svc.TextId != "")
+                {
+                    var models = Providers.ParseModelList(Providers.Get(svc.TextId).Kind, res.Body);
+                    if (models.Count > 0) Settings.FetchedModels[svc.TextId] = string.Join(" ", models.ToArray());
+                }
+                done(ok, msg);
+            });
+        }
+
+        /// <summary>
+        /// The free check of every service that has a key nobody has checked this session, and of the local servers in
+        /// use. Nothing is sent while the AI is turned off. Returns how many checks went out.
+        /// </summary>
+        public int CheckServices(Action changed)
+        {
+            if (Settings.OfflineMode) return 0;
+            int n = 0;
+            foreach (var svc in Services.All)
+            {
+                // Once per key per session: a check the network swallowed is not sent again on every page draw.
+                if (!svc.FreeCheck || Settings.Status.ContainsKey(svc.Id) || checking.Contains(svc.Id) || !autoChecked.Add(svc.Id + "|" + Settings.KeyOf(svc.Id).GetHashCode())) continue;
+                bool inUse = svc.TextId != "" && (svc.TextId == Settings.ProviderId || svc.TextId == Settings.CheapServiceId)
+                    || svc.ImageId != "" && svc.ImageId == Settings.ImageProviderId;
+                if (svc.NeedsKey ? !Settings.HasKey(svc.Id) : !inUse) continue;   // a local server nobody uses is not worth knocking on
+                n++;
+                CheckService(svc.Id, (ok, msg) => { if (changed != null) changed(); });
+            }
+            return n;
         }
 
         public void MarkAllRead(double ut)

@@ -6,27 +6,28 @@ namespace KerbalNews
     public partial class NewsEngine
     {
         /// <summary>
-        /// One JSON request to the current provider: builds it, sends it, pulls out the text, and parses the JSON
+        /// One JSON request to a job's service and model (Settings.Writer or Settings.Cheap): builds it, sends it, pulls out the text, and parses the JSON
         /// (repairing a truncated reply if it can). done gets the parsed object or null, an error, the raw text and the HTTP result.
         /// Callers keep their own retry rules.
         /// </summary>
-        void AskJson(string model, string system, string user, int maxTokens, int timeoutSeconds, Action<object, string, string, HttpResult> done)
+        void AskJson(AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, Action<object, string, string, HttpResult> done)
         {
-            AskJson(model, system, user, maxTokens, timeoutSeconds, null, done);
+            AskJson(route, system, user, maxTokens, timeoutSeconds, null, done);
         }
 
         /// <summary>As AskJson, with a picture for a model that can see. If the provider refuses it, the model is marked blind and the request goes again without it.</summary>
-        void AskJson(string model, string system, string user, int maxTokens, int timeoutSeconds, byte[] jpeg, Action<object, string, string, HttpResult> done)
+        void AskJson(AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, byte[] jpeg, Action<object, string, string, HttpResult> done)
         {
-            var preset = Settings.Preset;
-            var req = Providers.Build(preset, Settings.BaseUrl, Settings.Key, model, system, user, Math.Min(Settings.MaxTokens, maxTokens), preset.JsonMode, jpeg);
+            var preset = route.Preset;
+            string model = route.Model;
+            var req = Providers.Build(preset, route.BaseUrl, route.Key, model, system, user, Math.Min(Settings.MaxTokens, maxTokens), preset.JsonMode, jpeg);
             req.TimeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
                 if (jpeg != null && Providers.RefusedImage(res))
                 {
                     Providers.MarkBlind(preset, model);
-                    AskJson(model, system, user, maxTokens, timeoutSeconds, null, done);
+                    AskJson(route, system, user, maxTokens, timeoutSeconds, null, done);
                     return;
                 }
                 string text, err;

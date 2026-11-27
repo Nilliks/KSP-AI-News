@@ -85,6 +85,7 @@ namespace KerbalNews.KSP
             Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;
+            Sites.AutoCheckKeys = true;
             Sites.RescanMods = () => ScanMods(false);
             Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.VesselExists = id =>

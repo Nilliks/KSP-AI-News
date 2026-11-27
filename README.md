@@ -23,9 +23,9 @@ All news lives inside your save file. Reverting, quickloading or crashing rolls 
 
 1. Copy `GameData/KerbalNews` into your KSP `GameData` folder (or build it yourself, below).
 2. Start KSP and load a save. Click the newspaper button on the toolbar.
-3. Open **Settings**, pick a provider, paste your API key, and click **Test connection**. Untick *Offline mode*.
+3. Open **Settings**. Under **AI services**, paste a key on the card of the service you want (DeepSeek, Google, Anthropic, OpenAI and others; local servers such as Ollama need only an address). The key is checked at once and the card shows whether it works. The first text key turns the AI on. Under **What uses what** you can give the big stories and everything else different services and models.
 
-Your API key is stored only in `GameData/KerbalNews/PluginData/secrets.cfg`. It is never written to your save, and it is git-ignored.
+Each service's key is pasted once and used for everything that service does (text, looking at photos, article photos). Keys are stored only in `GameData/KerbalNews/PluginData/secrets.cfg`. It is never written to your save, and it is git-ignored.
 
 ## Cost
 

@@ -295,7 +295,7 @@ namespace KerbalNews
                 var f = batch[i];
                 u.AppendLine((i + 1) + ". For " + WorldOutlet(f) + " | kind: " + f.Kind + " | importance " + f.Sig + " of 5 | " + (f.Headline != "" ? "working title: " + f.Headline + " | " : "") + "facts: " + f.Text);
             }
-            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), Math.Min(4000, 300 + batch.Count * 450), 0, (root, err, text, res) =>
+            AskJson(Settings.Writer, sb.ToString(), u.ToString(), Math.Min(4000, 300 + batch.Count * 450), 0, (root, err, text, res) =>
             {
                 WorldBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "stories")) : null;
@@ -320,7 +320,7 @@ namespace KerbalNews
             {
                 Id = State.NewId("a"), Outlet = outlet, Kind = def != null ? (def.DefaultKind == "rumor" && f.Kind != "rival" ? "news" : def.DefaultKind) : "news",
                 Headline = headline, Subhead = sub, Body = body, PublishedUT = ut + (0.05 + rng.NextDouble() * 0.5) * Day,
-                Significance = 10 + f.Sig * 8, Offline = offline, Model = offline ? "offline templates" : Settings.Preset.Id + " / " + Settings.WriterModel,
+                Significance = 10 + f.Sig * 8, Offline = offline, Model = offline ? "offline templates" : Settings.Writer.Label,
             };
             if (outlet == "council") a.Kind = "statement";
             if (f.Kind == "dream") a.Kind = "feature";

@@ -309,7 +309,7 @@ namespace KerbalNews
             var recent = State.PublishedArticles(ut).Take(5).ToList();
             if (recent.Count > 0) u.AppendLine("Latest headlines: " + string.Join(" | ", recent.Select(a => a.Headline).ToArray()));
             for (int i = 0; i < batch.Count; i++) u.AppendLine((i + 1) + ". From " + SenderLine(batch[i]) + ": " + AskText(batch[i]) + ".");
-            AskJson(Settings.CheapModel, sb.ToString(), u.ToString(), Math.Min(3000, 300 + batch.Count * 350), 0, (root, err, text, res) =>
+            AskJson(Settings.Cheap, sb.ToString(), u.ToString(), Math.Min(3000, 300 + batch.Count * 350), 0, (root, err, text, res) =>
             {
                 MailBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "emails")) : null;
@@ -528,7 +528,7 @@ namespace KerbalNews
             u.AppendLine("Date: " + Clock.FormatDate(ut));
             u.AppendLine("The sender: " + SenderLine(m) + ". " + (m.Ask != "" && m.Open ? "Their request: " + AskText(m) + "." : "No open request."));
             foreach (var x in MailThread(m)) u.AppendLine((x.Outgoing ? "DIRECTOR: " : m.From.ToUpperInvariant() + ": ") + ResponseParser.Clip(x.Body, 900));
-            AskJson(Settings.CheapModel, sb.ToString(), u.ToString(), 900, 0, (root, err, raw, res) =>
+            AskJson(Settings.Cheap, sb.ToString(), u.ToString(), 900, 0, (root, err, raw, res) =>
             {
                 MailBusy = false;
                 m.Waiting = false;
@@ -698,7 +698,7 @@ namespace KerbalNews
             u.AppendLine("To: " + name + (o != null ? " (" + o.Style + ")" : kind == "sponsor" ? " (a parts company)" : ""));
             u.AppendLine("Subject: " + root.Subject);
             u.AppendLine(root.Body);
-            AskJson(Settings.CheapModel, sb.ToString(), u.ToString(), 900, 0, (r, err, raw, res) =>
+            AskJson(Settings.Cheap, sb.ToString(), u.ToString(), 900, 0, (r, err, raw, res) =>
             {
                 MailBusy = false;
                 string who = r != null && Arg(r, "from") != "" ? ResponseParser.Clip(Arg(r, "from"), 80) : name;
@@ -747,7 +747,7 @@ namespace KerbalNews
             sb.AppendLine("Reply with JSON only: {\"replies\":[{\"n\":1,\"body\":\"...\"}]}");
             var u = new StringBuilder();
             for (int i = 0; i < due.Count; i++) u.AppendLine((i + 1) + ". From " + SenderLine(due[i]) + ", subject \"" + due[i].Subject + "\": " + ResponseParser.Clip(due[i].Body, 700));
-            AskJson(Settings.CheapModel, sb.ToString(), u.ToString(), 1200, 0, (root, err, raw, res) =>
+            AskJson(Settings.Cheap, sb.ToString(), u.ToString(), 1200, 0, (root, err, raw, res) =>
             {
                 MailBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "replies")) : null;

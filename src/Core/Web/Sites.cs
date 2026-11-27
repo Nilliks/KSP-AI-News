@@ -207,7 +207,7 @@ namespace KerbalNews.Web
             m["unread"] = Engine.UnreadCount(now);
             m["aiOff"] = !Engine.Settings.CanCallAi;
             m["offline"] = Engine.Settings.OfflineMode;
-            m["providerName"] = Engine.Settings.Preset.Name;
+            m["providerName"] = Engine.Settings.Preset.Name + (Engine.Settings.CheapServiceId != Engine.Settings.ProviderId ? " and " + Engine.Settings.Cheap.Preset.Name : "");
             m["status"] = Engine.Status;
             m["error"] = Engine.LastError;
             m["pending"] = Engine.PendingCount;
@@ -473,21 +473,7 @@ namespace KerbalNews.Web
         {
             var g = Engine.Settings;
             var m = M();
-            m["providers"] = Providers.All.Select(p => (object)new Dictionary<string, object> { { "id", p.Id }, { "name", p.Name }, { "on", p.Id == g.ProviderId } }).ToList();
-            var pr = g.Preset;
-            string v;
-            m["provider"] = new Dictionary<string, object>
-            {
-                { "id", pr.Id }, { "name", pr.Name }, { "needsKey", pr.NeedsKey }, { "keyHint", pr.KeyHint }, { "hasKey", g.Key != "" },
-                { "baseUrl", g.BaseUrls.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultBaseUrl", pr.BaseUrl },
-                { "writer", g.WriterModels.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultWriter", pr.WriterModel },
-                { "cheap", g.CheapModels.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultCheap", pr.CheapModel },
-            };
-            m["writerChoices"] = g.ModelChoices.Select(x => (object)new Dictionary<string, object> { { "id", x }, { "on", x == g.WriterModel } }).ToList();
-            m["cheapChoices"] = g.ModelChoices.Select(x => (object)new Dictionary<string, object> { { "id", x }, { "on", x == g.CheapModel } }).ToList();
-            m["writerModel"] = g.WriterModel;
-            m["cheapModel"] = g.CheapModel;
-            m["fetchResult"] = FetchResult;
+            AddServiceSettings(m, g);
             m["maxTokens"] = g.MaxTokens;
             m["notify"] = g.NotifyOnPublish;
             m["warp"] = g.GenerateDuringWarp;
@@ -538,23 +524,14 @@ namespace KerbalNews.Web
             // Merged "How much AI" section: fine-tuning folds away.
             m["showTune"] = ShowTune;
             // Pictures.
-            bool sees = Providers.CanSee(g.Preset, g.CheapModel) || Providers.CanSee(g.Preset, g.WriterModel);
-            m["canSee"] = sees;
             m["photoLook"] = g.PhotoLook;
-            m["needHelper"] = g.PhotoLook && !sees;
-            var helpers = Providers.All.Where(p => p.NeedsKey && p.Id != g.ProviderId && p.Kind != ApiKind.Ollama && Providers.CanSee(p, p.CheapModel)).ToList();
-            m["visionOpts"] = new List<object> { opt("Nobody", "vision-provider/off", g.VisionProviderId == "") }
-                .Concat(helpers.Select(p => opt(p.Name + (g.Keys.ContainsKey(p.Id) && g.Keys[p.Id] != "" ? " (key saved)" : " (no key)"), "vision-provider/" + p.Id, g.VisionProviderId == p.Id))).ToList();
-            var vp = Providers.Get(g.VisionProviderId);
-            if (vp != null && !sees)
-                m["vision"] = new Dictionary<string, object> { { "name", vp.Name }, { "model", vp.CheapModel }, { "hasKey", g.Keys.ContainsKey(vp.Id) && g.Keys[vp.Id] != "" }, { "keyHint", vp.KeyHint } };
             // Features, notifications.
             m["mailAuto"] = Engine.State.MailAuto;
             m["mailPopups"] = g.MailPopups;
             m["newsDelayOpts"] = new List<object> { opt("Fast (a few hours)", "news-delay/0.35", Math.Abs(g.NewsDelay - 0.35) < 0.01), opt("Normal (about a day)", "news-delay/1", Math.Abs(g.NewsDelay - 1) < 0.01), opt("Slow (a few days)", "news-delay/2.5", Math.Abs(g.NewsDelay - 2.5) < 0.01) };
             // Advanced.
             m["timeout"] = g.TimeoutSeconds;
-            bool local = g.Preset.Kind == ApiKind.Ollama || new[] { "lmstudio", "llamacpp", "koboldcpp", "jan" }.Contains(g.Preset.Id);
+            bool local = Providers.IsLocal(g.Writer.BaseUrl) || Providers.IsLocal(g.Cheap.BaseUrl);
             m["isLocal"] = local;
             m["localContext"] = g.LocalContext;
             m["localTimeout"] = g.LocalTimeoutSeconds;
@@ -564,7 +541,6 @@ namespace KerbalNews.Web
         /// <summary>Whether the fine-tuning knobs under "How much AI" are open (this session only).</summary>
         public bool ShowTune;
 
-        public string FetchResult = "";
         public string TestResult = "";
         public bool TestOk;
 

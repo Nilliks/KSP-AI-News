@@ -158,18 +158,7 @@ namespace KerbalNews.Web
             var p = g.ImagePreset;
             m["imagesOn"] = g.ImagesOn;
             m["imageOff"] = p == null;
-            m["imageProviders"] = ImageProviders.All.Select(x => (object)new Dictionary<string, object> { { "id", x.Id }, { "name", x.Name }, { "on", p != null && p.Id == x.Id } }).ToList();
-            if (p != null)
-            {
-                string v;
-                m["image"] = new Dictionary<string, object>
-                {
-                    { "name", p.Name }, { "keyHint", p.KeyHint }, { "hasKey", g.ImageKey != "" }, { "model", g.ImageModel },
-                    { "modelOverride", g.ImageModels.TryGetValue(p.Id, out v) ? v : "" }, { "defaultModel", p.Model },
-                    { "baseUrl", g.ImageBaseUrls.TryGetValue(p.Id, out v) ? v : "" }, { "defaultBaseUrl", p.BaseUrl },
-                    { "models", p.Models.Select(x => (object)new Dictionary<string, object> { { "id", x }, { "on", x == g.ImageModel } }).ToList() },
-                };
-            }
+            if (p != null) m["image"] = new Dictionary<string, object> { { "name", p.Name }, { "model", g.ImageModel }, { "ready", g.ImagesOn } };
             m["imageTiers"] = new[] { "story", "major", "historic" }.Select(t => (object)new Dictionary<string, object>
             {
                 { "id", t }, { "on", g.ImageMinTier == t }, { "label", t == "story" ? "Every real story" : t == "major" ? "Major news" : "Historic firsts only" },
@@ -230,34 +219,22 @@ namespace KerbalNews.Web
                     if (t != null) r.Navigate = ForumHost + "/t/" + t.Id;
                     return r;
                 }
-                case "img-provider":
-                    g.ImageProviderId = arg == "off" ? "" : ImageProviders.Get(arg) != null ? arg : g.ImageProviderId;
-                    ImageTestResult = ""; ImageTestFile = "";
-                    SaveSettings();
-                    return r;
-                case "img-model":
-                    if (g.ImagePreset != null) { g.ImageModels[g.ImagePreset.Id] = arg; SaveSettings(); }
-                    return r;
                 case "img-tier":
                     if (arg == "story" || arg == "major" || arg == "historic") { g.ImageMinTier = arg; SaveSettings(); }
                     return r;
-                case "save-images":
                 case "test-image":
                 {
-                    if (g.ImagePreset != null)
-                    {
-                        string id = g.ImagePreset.Id, key = Get(form, "imgKey").Trim();
-                        if (key != "") g.Keys["img:" + id] = key;
-                        if (form.ContainsKey("imgModel")) g.ImageModels[id] = form["imgModel"].Trim();
-                        if (form.ContainsKey("imgBaseUrl")) g.ImageBaseUrls[id] = form["imgBaseUrl"].Trim();
-                        SaveSettings();
-                    }
-                    if (verb == "save-images") { ImageTestResult = "Saved."; ImageTestOk = true; return r; }
                     if (Busy) return r;
                     Busy = true;
                     ImageTestResult = "Generating a sample photo (this can take up to a minute)...";
                     ImageTestOk = true;
-                    Engine.TestImage((ok, msg, file) => { Busy = false; ImageTestOk = ok; ImageTestResult = msg; if (ok) ImageTestFile = file; Changed(); });
+                    string imgService = g.ImagePreset != null ? Services.ForImage(g.ImagePreset.Id) : "";
+                    Engine.TestImage((ok, msg, file) =>
+                    {
+                        Busy = false; ImageTestOk = ok; ImageTestResult = msg;
+                        if (ok) { ImageTestFile = file; if (imgService != "") g.Status[imgService] = new ServiceStatus { Ok = true, Message = "It drew a test photo." }; }
+                        Changed();
+                    });
                     return r;
                 }
             }

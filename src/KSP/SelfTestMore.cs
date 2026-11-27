@@ -227,10 +227,10 @@ namespace KerbalNews.KSP
             string key = "";
             try { if (File.Exists(keyFile)) { key = File.ReadAllText(keyFile).Trim(); File.Delete(keyFile); } } catch (Exception e) { Check(false, "img: read the test key: " + e.Message); }
             string oldProvider = g.ImageProviderId, oldTier = g.ImageMinTier, oldKey;
-            g.Keys.TryGetValue("img:gemini", out oldKey);
+            g.Keys.TryGetValue("gemini", out oldKey);
             if (key == "") key = oldKey ?? "";   // or the key the player saved on the Settings page
             if (key == "") { Check(false, "img: no Gemini key in Settings or selftest-imgkey.txt"); yield break; }
-            g.ImageProviderId = "gemini"; g.Keys["img:gemini"] = key; g.ImageMinTier = "brief";
+            g.ImageProviderId = "gemini"; g.Keys["gemini"] = key; g.ImageMinTier = "brief";
             key = "";
             try
             {
@@ -261,7 +261,7 @@ namespace KerbalNews.KSP
             finally
             {
                 g.ImageProviderId = oldProvider; g.ImageMinTier = oldTier;
-                if (oldKey != null) g.Keys["img:gemini"] = oldKey; else g.Keys.Remove("img:gemini");
+                if (oldKey != null) g.Keys["gemini"] = oldKey; else g.Keys.Remove("gemini");
             }
         }
 
