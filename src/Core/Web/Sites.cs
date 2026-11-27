@@ -523,6 +523,7 @@ namespace KerbalNews.Web
             m["photoLook"] = g.PhotoLook;
             m["galleryKeyOpts"] = new List<object> { opt("Off", "gallery-key/off", g.GalleryKey == "") }.Concat(GlobalSettings.GalleryKeys.Select(k => opt(k, "gallery-key/" + k, g.GalleryKey == k))).ToList();
             m["confirmReset"] = ConfirmReset;
+            AddUsage(m, g);
             // Features, notifications.
             m["mailAuto"] = Engine.State.MailAuto;
             m["mailPopups"] = g.MailPopups;
@@ -542,6 +543,41 @@ namespace KerbalNews.Web
         public string TestResult = "";
         /// <summary>"Reset to defaults" was clicked once and waits for the second click.</summary>
         public bool ConfirmReset;
+        /// <summary>Clearing the AI usage counter asks once more first (this session only).</summary>
+        public bool ConfirmUsageClear;
+
+        /// <summary>The "AI used" table: one row per service that has been called, biggest first.</summary>
+        void AddUsage(Dictionary<string, object> m, GlobalSettings g)
+        {
+            Func<string, string> name = id => { var sv = Services.Get(id); return sv != null ? sv.Name : id == "local" ? "Local server" : "Other"; };
+            var rows = g.UsageTotal.Where(kv => !kv.Value.Empty).OrderByDescending(kv => kv.Value.Calls).Select(kv =>
+            {
+                var t = kv.Value;
+                UsageStats now;
+                if (!g.UsageSession.TryGetValue(kv.Key, out now)) now = new UsageStats();
+                var extra = new List<string>();
+                if (t.Letters > 0) extra.Add(UsageMeter.Short(t.Letters) + " letters spoken");
+                if (t.Pictures > 0) extra.Add(UsageMeter.Short(t.Pictures) + (t.Pictures == 1 ? " picture" : " pictures"));
+                if (t.Failed > 0) extra.Add(UsageMeter.Short(t.Failed) + " failed");
+                var sv = Services.Get(kv.Key);
+                if (kv.Key == "local" || sv != null && sv.Local) extra.Add("free");
+                return (object)new Dictionary<string, object>
+                {
+                    { "name", name(kv.Key) },
+                    { "calls", UsageMeter.Short(t.Calls) },
+                    { "tokIn", t.InTokens > 0 ? UsageMeter.Short(t.InTokens) : "-" },
+                    { "tokOut", t.OutTokens > 0 ? UsageMeter.Short(t.OutTokens) : "-" },
+                    { "session", UsageMeter.Short(now.Calls) },
+                    { "extra", string.Join(", ", extra.ToArray()) },
+                };
+            }).ToList();
+            m["usageRows"] = rows;
+            m["usageAny"] = rows.Count > 0;
+            long sessionCalls = g.UsageSession.Values.Sum(x => x.Calls);
+            m["usageSession"] = sessionCalls == 0 ? "No AI requests since the game started." : UsageMeter.Short(sessionCalls) + (sessionCalls == 1 ? " request" : " requests") + " since the game started.";
+            m["usageSince"] = g.UsageSince != "" ? "Totals since " + g.UsageSince + "." : "";
+            m["confirmUsageClear"] = ConfirmUsageClear;
+        }
         public bool TestOk;
 
         Dictionary<string, object> TelemetryModel()

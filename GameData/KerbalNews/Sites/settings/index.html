@@ -82,6 +82,14 @@
   <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a>
     <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
 
+  <h3>AI used</h3>
+  <p class="hint">Every paid request the mod has sent, counted on this computer for all saves. Tokens are what each service's reply says it used; your bill is on the service's own site. {{usageSession}} {{usageSince}}</p>
+  {{#usageAny}}<div class="use head-use"><span class="usvc">Service</span><span class="unum">Requests</span><span class="unum">Tokens in</span><span class="unum">Tokens out</span><span class="unum">This session</span><span class="umore"></span></div>
+  {{#usageRows}}<div class="use"><span class="usvc">{{name}}</span><span class="unum">{{calls}}</span><span class="unum">{{tokIn}}</span><span class="unum">{{tokOut}}</span><span class="unum">{{session}}</span><span class="umore">{{extra}}</span></div>{{/usageRows}}
+  {{^confirmUsageClear}}<div class="btns"><a class="tg" href="action:usage-clear">Start the counter again from zero</a></div>{{/confirmUsageClear}}
+  {{#confirmUsageClear}}<div class="btns"><span class="bad">Clear every count on this table?</span><a class="tg" href="action:usage-clear/yes">Yes, clear</a><a class="tg" href="action:usage-clear/cancel">Cancel</a></div>{{/confirmUsageClear}}{{/usageAny}}
+  {{^usageAny}}<p class="hint">Nothing yet. Rows appear here after the first AI request.</p>{{/usageAny}}
+
   <h2>Pictures</h2>
   <label>Gallery screenshot key</label>
   <div class="providers">{{#galleryKeyOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/galleryKeyOpts}}</div>

@@ -58,6 +58,8 @@ namespace KerbalNews
             State = state;
             Settings = settings;
             // Local model servers get one request at a time and a longer time limit.
+            // Every paid request is counted for the Settings page; the meter never changes a request.
+            if (transport != null && !(transport is LocalQueueTransport) && !(transport is UsageMeter)) transport = new UsageMeter(transport, () => Settings);
             Transport = transport is LocalQueueTransport ? transport : new LocalQueueTransport(transport, () => Settings.LocalRoot, () => Settings.LocalTimeoutSeconds);
             Clock = clock;
             Outlets.IsOn = id => Settings.SiteOn(id);

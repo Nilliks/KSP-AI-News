@@ -88,6 +88,14 @@ namespace KerbalNews.Web
                     SaveSettings();
                     TestResult = "Every setting is back to how the mod ships. Your keys, and which service and model does each job, were kept."; TestOk = true;
                     break;
+                case "usage-clear":
+                    if (arg == "cancel") { ConfirmUsageClear = false; break; }
+                    if (arg != "yes") { ConfirmUsageClear = true; break; }
+                    ConfirmUsageClear = false;
+                    g.ClearUsage(DateTime.Now.ToString("d MMM yyyy", CultureInfo.InvariantCulture));
+                    SaveSettings();
+                    TestResult = "The AI usage counter starts again from zero."; TestOk = true;
+                    break;
                 case "toggle-offline": g.OfflineMode = !g.OfflineMode; SaveSettings(); break;
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;

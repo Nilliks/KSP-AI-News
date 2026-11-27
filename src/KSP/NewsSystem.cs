@@ -117,6 +117,11 @@ namespace KerbalNews.KSP
             Debug.Log("[KerbalNews] Kerbal News Network loaded");
         }
 
+        void OnApplicationQuit()
+        {
+            if (Instance == this && Settings != null && Settings.UsageDirty) SaveSettings();
+        }
+
         void OnDestroy()
         {
             if (Instance != this) return;
@@ -191,9 +196,13 @@ namespace KerbalNews.KSP
             return galleryKeyOk && Input.GetKeyDown(galleryKey);
         }
 
+        float lastUsageSave;
+
         void Update()
         {
             transport.Poll();
+            // The AI usage counter changes with every call; write it now and then rather than on every request.
+            if (Settings.UsageDirty && Time.realtimeSinceStartup - lastUsageSave > 60) { lastUsageSave = Time.realtimeSinceStartup; SaveSettings(); }
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (GalleryKeyDown()) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.

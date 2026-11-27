@@ -166,6 +166,34 @@ namespace KerbalNews
         public Dictionary<string, ServiceStatus> Status = new Dictionary<string, ServiceStatus>();
         /// <summary>Models fetched live from each provider (space-separated), kept between sessions.</summary>
         public Dictionary<string, string> FetchedModels = new Dictionary<string, string>();
+        // ---- What the AI has actually been used for (UsageMeter). Totals are saved here; the session count is not.
+        public Dictionary<string, UsageStats> UsageTotal = new Dictionary<string, UsageStats>();
+        public Dictionary<string, UsageStats> UsageSession = new Dictionary<string, UsageStats>();
+        /// <summary>When the totals were last cleared, as shown on the page ("" = since the counter was added).</summary>
+        public string UsageSince = "";
+        /// <summary>Set when a request was counted since the settings were last written.</summary>
+        public bool UsageDirty;
+
+        public void CountUsage(string service, UsageStats one)
+        {
+            service = string.IsNullOrEmpty(service) ? "other" : service;
+            foreach (var d in new[] { UsageTotal, UsageSession })
+            {
+                UsageStats s;
+                if (!d.TryGetValue(service, out s)) d[service] = s = new UsageStats();
+                s.AddFrom(one);
+            }
+            UsageDirty = true;
+        }
+
+        public void ClearUsage(string since)
+        {
+            UsageTotal.Clear();
+            UsageSession.Clear();
+            UsageSince = since ?? "";
+            UsageDirty = true;
+        }
+
         public int MaxTokens = 6000;
         public int TimeoutSeconds = 120;
         /// <summary>Local model servers: context window asked of Ollama (tokens), and the longer time limit per request (seconds).</summary>
@@ -228,7 +256,7 @@ namespace KerbalNews
         {
             var keep = new HashSet<string> { "Keys", "Status", "ProviderId", "CheapProviderId", "VisionProviderId", "VisionModel", "OfflineMode",
                 "BaseUrls", "WriterModels", "CheapModels", "FetchedModels", "ImageProviderId", "ImageModels", "ImageBaseUrls", "FetchedVoices",
-                "Mods", "ModsScanned", "BrowserRect" };
+                "Mods", "ModsScanned", "BrowserRect", "UsageTotal", "UsageSession", "UsageSince", "UsageDirty" };
             var fresh = new GlobalSettings();
             foreach (var f in typeof(GlobalSettings).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 if (!keep.Contains(f.Name) && !f.IsInitOnly && !f.IsLiteral) f.SetValue(this, f.GetValue(fresh));
@@ -408,6 +436,10 @@ namespace KerbalNews
             settings.Add("assistant", AssistantOn);
             settings.Add("assistantConfirm", AssistantConfirm);
             settings.Add("photoLook", PhotoLook);
+            settings.Add("usageSince", UsageSince);
+            foreach (var kv in UsageTotal)
+                if (!kv.Value.Empty) { var u = settings.AddNode("USAGE"); u.Add("service", kv.Key); kv.Value.Save(u); }
+            UsageDirty = false;
             settings.Add("mailPopups", MailPopups);
             settings.Add("newsDelay", NewsDelay);
             settings.Add("visionProvider", VisionProviderId);
@@ -488,6 +520,12 @@ namespace KerbalNews
                 g.NotifyOnPublish = settings.GetBool("notify", true);
                 g.GenerateDuringWarp = settings.GetBool("warpGeneration", false);
                 g.PressPhotos = settings.GetBool("pressPhotos", true);
+                g.UsageSince = settings.Get("usageSince", "");
+                foreach (var u in settings.GetNodes("USAGE"))
+                {
+                    string sid = u.Get("service", "");
+                    if (sid != "") g.UsageTotal[sid] = UsageStats.Load(u);
+                }
                 g.AssistantOn = settings.GetBool("assistant", true);
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
                 g.PhotoLook = settings.GetBool("photoLook", true);
