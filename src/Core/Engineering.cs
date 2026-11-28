@@ -545,7 +545,7 @@ namespace KerbalNews
 
         void EngStep(int run, EngSnapshot snap, double ut, int failures)
         {
-            AskJson(Settings.WriterModel, EngSystem(snap), EngUser(snap, ut), 1600, 0, (root, err, text, res) =>
+            AskJson("Engineering team", Settings.Writer, EngSystem(snap), EngUser(snap, ut), 1600, 0, (root, err, text, res) =>
             {
                 if (run != engRun) return;
                 if (root == null && text.Trim() != "" && !text.Contains("{")) root = new Dictionary<string, object> { { "replies", new List<object> { new Dictionary<string, object> { { "who", "linus" }, { "text", text.Trim() } } } } };

@@ -650,12 +650,11 @@ public static class AnnouncerTests
         var sites = new Sites(eng, rel => { var p = Path.Combine(dir, rel); return File.Exists(p) ? File.ReadAllText(p) : null; });
         sites.Now = () => 0;
         string h = sites.Render("settings.kb").Html;
-        Assert(!h.Contains("{{") && h.Contains("Livestream announcer and replays") && h.Contains("ElevenLabs API key") && h.Contains("Smooth (3 frames a second)"), "section renders");
-        sites.Handle("save-voice", new Dictionary<string, string> { { "voiceKey", " el-123 " }, { "voiceCustom", "myvoice42" } });
+        Assert(!h.Contains("{{") && h.Contains("Livestream announcer and replays") && h.Contains("svc-save/elevenlabs") && h.Contains("Smooth (3 frames a second)"), "section renders");
+        g.VoiceEnabled = false;
+        sites.Handle("svc-save/elevenlabs", new Dictionary<string, string> { { "key-elevenlabs", " el-123 " } });
+        sites.Handle("save-voice", new Dictionary<string, string> { { "voiceCustom", "myvoice42" } });
         Assert(g.VoiceKey == "el-123" && g.VoiceId == "myvoice42" && g.VoiceOn, "key and custom voice saved");
-        g.Keys.Remove(GlobalSettings.VoiceKeyId);
-        sites.Handle("save-settings", new Dictionary<string, string> { { "voiceKey", "el-123" } });
-        Assert(g.VoiceKey == "el-123", "any Save button keeps the voice key");
         sites.Handle("announcer/2", new Dictionary<string, string>());
         sites.Handle("voice-model/eleven_multilingual_v2", new Dictionary<string, string>());
         sites.Handle("replays/2", new Dictionary<string, string>());
@@ -666,8 +665,8 @@ public static class AnnouncerTests
         var back = GlobalSettings.Load(sn, kn);
         Assert(back.Announcer == 2 && back.VoiceKey == "el-123" && back.VoiceId == "myvoice42" && back.VoiceModel == "eleven_multilingual_v2" && back.ReplayQuality == 2 && back.ReplayMaxGb == 10, "settings round trip");
         h = sites.Render("settings.kb").Html;
-        Assert(h.Contains("forget-voice-key"), "forget the key");
-        sites.Handle("forget-voice-key", new Dictionary<string, string>());
+        Assert(h.Contains("svc-remove/elevenlabs"), "forget the key");
+        sites.Handle("svc-remove/elevenlabs", new Dictionary<string, string>());
         Assert(g.VoiceKey == "" && !g.VoiceOn, "forgotten");
     }
 }

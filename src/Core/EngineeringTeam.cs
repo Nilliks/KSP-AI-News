@@ -533,7 +533,7 @@ namespace KerbalNews
                     tokens = 1500;
                     break;
             }
-            AskJson(Settings.WriterModel, sys.ToString(), u.ToString(), tokens, 0, (root, err, text, res) =>
+            AskJson("Engineering team", Settings.Writer, sys.ToString(), u.ToString(), tokens, 0, (root, err, text, res) =>
             {
                 if (run != meetRun) return;
                 if (root == null)

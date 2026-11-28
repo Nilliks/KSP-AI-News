@@ -1,6 +1,6 @@
 <html><body>
 {{> netbar}}
-<div class="head"><div class="brandrow"><img src="Sites/logos/icon-gallery.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><h1>Gallery</h1></div><span class="hint">Press F8 in any scene to take a gallery screenshot. Shots start private.</span><span class="spacer"></span><a class="btn" href="action:import-shots">Import stock F1 screenshots</a></div>
+<div class="head"><div class="brandrow"><img src="Sites/logos/icon-gallery.png" alt="" width="32" height="32" style="width: 32px; height: 32px; flex-shrink: 0"><h1>Gallery</h1></div><span class="hint">Press {{galleryKey}} in any scene to take a gallery screenshot. Shots start private.</span><span class="spacer"></span><a class="btn" href="action:import-shots">Import stock F1 screenshots</a></div>
 <div class="wrap">
   {{#result}}<p class="result">{{result}}</p>{{/result}}
   <h2>Released to the public</h2>
@@ -13,6 +13,6 @@
   <p class="muted">Long-lens shots outside photographers took of your launches. Newspapers and Snackboard use these.</p>
   <div class="grid">{{#press}}<a class="tile" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap">{{caption}}</div><div class="meta">{{date}} &middot; {{credit}}</div></a>{{/press}}</div>
   {{^press}}<p class="muted">No press photos yet. Photographers turn up for launches.</p>{{/press}}
-  {{#empty}}<div class="empty">Your gallery is empty. Press F8 to capture the screen.</div>{{/empty}}
+  {{#empty}}<div class="empty">Your gallery is empty. Press {{galleryKey}} to capture the screen.</div>{{/empty}}
 </div>
 </body></html>

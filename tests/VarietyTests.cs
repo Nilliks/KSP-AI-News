@@ -237,11 +237,14 @@ public static class VarietyTests
         Func<string> page = () => sites.Render("settings.kb").Html;
         string h = page();
         Assert(!h.Contains("{{") && !h.Contains("Missing template"), "renders cleanly");
-        foreach (var part in new[] { "AI connection", "How much AI", "Pictures", "Features", "Websites", "Notifications and display", "Advanced" }) Assert(h.Contains(part), "section " + part);
+        foreach (var part in new[] { "AI services", "What uses what", "How much AI", "Pictures", "Features", "Websites", "Notifications and display", "Advanced" }) Assert(h.Contains(part), "section " + part);
         Assert(!h.Contains("API usage") && !h.Contains("usage/saver"), "the old preset buttons are gone");
         Assert(h.Split(new[] { "toggle-ktv" }, StringSplitOptions.None).Length == 2, "KTV switch appears once");
-        Assert(h.Contains("Who looks, since your model can't see") && h.Contains("vision-provider/gemini"), "DeepSeek can't see: pick a helper");
-        Assert(h.Contains("Forget this key"), "forget the key");
+        Assert(h.Contains("can't see pictures. Pick a service below that can"), "DeepSeek can't see: the photos job says so");
+        Assert(h.Contains("svc-remove/deepseek") && !h.Contains("svc-remove/gemini"), "only a saved key can be removed");
+        sites.Handle("job-open/look", new Dictionary<string, string>());
+        h = page();
+        Assert(h.Contains("Google (Gemini) (needs a key)") && !h.Contains("action:job-look/gemini"), "a helper without a key can't be picked");
 
         g.KtvOn = true;
         sites.Handle("ai-amount/0", new Dictionary<string, string>());
@@ -249,12 +252,16 @@ public static class VarietyTests
         sites.Handle("ai-amount/4", new Dictionary<string, string>());
         Assert(g.WriterFrom == "brief" && g.WorldNews == 3, "Everything = full knobs");
 
-        sites.Handle("vision-provider/gemini", new Dictionary<string, string>());
-        Assert(page().Contains("API key for Google (Gemini)") || page().Contains("API key for Google"), "asks for the helper's key");
-        sites.Handle("save-settings", new Dictionary<string, string> { { "visionKey", "gk" }, { "timeout", "200" } });
-        Assert(g.Keys["gemini"] == "gk" && g.TimeoutSeconds == 200 && eng.CanLook, "helper key saved and usable");
-        sites.Handle("forget-key/vision", new Dictionary<string, string>());
-        Assert(!g.Keys.ContainsKey("gemini") && !eng.CanLook, "helper key forgotten");
+        sites.Handle("job-look/gemini", new Dictionary<string, string>());
+        Assert(g.VisionProviderId == "" && !eng.CanLook, "picking a helper without a key does nothing");
+        sites.Handle("svc-save/gemini", new Dictionary<string, string> { { "key-gemini", "AIzaSyTestKey0000gk" } });
+        Assert(page().Contains("action:job-look/gemini"), "with a key the helper can be picked");
+        sites.Handle("job-look/gemini", new Dictionary<string, string>());
+        sites.Handle("save-settings", new Dictionary<string, string> { { "timeout", "200" } });
+        Assert(g.KeyOf("gemini") == "AIzaSyTestKey0000gk" && g.ProviderId == "deepseek" && g.TimeoutSeconds == 200 && eng.CanLook, "helper key saved and usable");
+        Assert(page().Contains("Key ends in ...00gk") && !page().Contains("AIzaSyTestKey"), "the page shows only the key's last four characters");
+        sites.Handle("svc-remove/gemini", new Dictionary<string, string>());
+        Assert(!g.HasKey("gemini") && !eng.CanLook, "helper key forgotten");
 
         sites.Handle("toggle-mailpopups", new Dictionary<string, string>());
         sites.Handle("news-delay/0.35", new Dictionary<string, string>());

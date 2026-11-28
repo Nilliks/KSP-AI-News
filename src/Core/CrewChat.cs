@@ -154,7 +154,7 @@ namespace KerbalNews
 
         void CrewStep(int run, CrewFame c, double ut, int failures)
         {
-            AskJson(Settings.CheapModel, CrewSystem(c), CrewUser(c, ut), 1200, 0, (root, err, text, res) =>
+            AskJson("Crew chat", Settings.Cheap, CrewSystem(c), CrewUser(c, ut), 1200, 0, (root, err, text, res) =>
             {
                 if (run != crewRun) return;
                 // A plain-text answer is still an answer.
@@ -195,7 +195,7 @@ namespace KerbalNews
             }
             string sys = "You condense a kerbal astronaut's memories of conversations with their boss. Keep promises, strong feelings, opinions and facts; drop small talk. Write in first person, at most 120 words. Reply with JSON: {\"summary\": \"...\"}.";
             string user = "Earlier summary: " + (c.MemorySummary == "" ? "(none)" : c.MemorySummary) + "\nNew notes:\n- " + string.Join("\n- ", old.ToArray());
-            AskJson(Settings.CheapModel, sys, user, 600, 0, (root, err, text, res) =>
+            AskJson("Crew chat", Settings.Cheap, sys, user, 600, 0, (root, err, text, res) =>
             {
                 if (root == null) return;
                 string sum = Json.Str(root, "summary", "").Trim();

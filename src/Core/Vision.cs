@@ -24,23 +24,20 @@ namespace KerbalNews
 
         bool VisionAllowed { get { return Settings.PhotoLook && Settings.CanCallAi && Settings.AiWrites(GlobalSettings.AiMost); } }
 
-        /// <summary>Whether this main-provider model can be sent the picture directly.</summary>
-        bool MainSees(string model) { return VisionAllowed && Providers.CanSee(Settings.Preset, model); }
+        /// <summary>Whether this job's model can be sent the picture directly.</summary>
+        bool Sees(AiRoute route) { return VisionAllowed && route.Sees; }
 
-        /// <summary>The provider that looks at a picture on its own (main cheap model if it can see, else the helper), or null.</summary>
+        /// <summary>The provider that looks at a picture on its own (the cheap model if it can see, else the helper), or null.</summary>
         ProviderPreset Looker(out string model, out string key, out string baseUrl)
         {
             model = key = baseUrl = "";
             if (!VisionAllowed) return null;
-            if (Providers.CanSee(Settings.Preset, Settings.CheapModel)) { model = Settings.CheapModel; key = Settings.Key; baseUrl = Settings.BaseUrl; return Settings.Preset; }
-            var h = Providers.Get(Settings.VisionProviderId);
-            if (h == null || h.Id == Settings.Preset.Id) return null;
-            string k;
-            key = Settings.Keys.TryGetValue(h.Id, out k) ? k : "";
-            if (h.NeedsKey && key == "") return null;
-            model = h.CheapModel;
-            if (!Providers.CanSee(h, model)) return null;
-            return h;
+            var cheap = Settings.Cheap;
+            if (cheap.Sees) { model = cheap.Model; key = cheap.Key; baseUrl = cheap.BaseUrl; return cheap.Preset; }
+            var look = Settings.Looker;
+            if (look == null) return null;
+            model = look.Model; key = look.Key; baseUrl = look.BaseUrl;
+            return look.Preset;
         }
 
         public bool CanLook { get { string m, k, b; return Looker(out m, out k, out b) != null; } }
@@ -68,7 +65,7 @@ namespace KerbalNews
             if (p == null) return;
             var wanted = new HashSet<string>(State.Stories.Where(s => s.Status == StoryStatus.Pending).Select(s => ShotFor(s)).Where(x => x != null));
             // A photo a pending story will run is left for that story's own call when the writer can see: no extra call.
-            bool writerSees = MainSees(Settings.CheapModel) && MainSees(Settings.WriterModel);
+            bool writerSees = Sees(Settings.Cheap) && Sees(Settings.Writer);
             var g = State.Gallery.Where(x => x.Look == "" && x.LookTries < 2 && x.File != "" && !(writerSees && wanted.Contains("gallery:" + x.File)) && (x.Public || x.IsPress || wanted.Contains("gallery:" + x.File)))
                 .OrderByDescending(x => wanted.Contains("gallery:" + x.File)).ThenByDescending(x => x.UT).FirstOrDefault();
             if (g == null) return;
@@ -95,6 +92,7 @@ namespace KerbalNews
         void AskWith(ProviderPreset p, string baseUrl, string key, string model, string system, string user, int maxTokens, byte[] jpeg, Action<object, string, string, HttpResult> done)
         {
             var req = Providers.Build(p, baseUrl, key, model, system, user, Math.Min(Settings.MaxTokens, maxTokens), p.JsonMode, jpeg);
+            req.Feature = "Looking at photos";
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
@@ -126,9 +124,9 @@ namespace KerbalNews
         // ------------------------------------------------------------------ livestream camera
 
         /// <summary>A frame for this chat batch: at a big moment, or every couple of minutes, when the chat model can see.</summary>
-        byte[] StreamFrameFor(StreamSession st, double hype, double realTime, string model)
+        byte[] StreamFrameFor(StreamSession st, double hype, double realTime, AiRoute route)
         {
-            if (StreamFrameJpeg == null || !MainSees(model)) return null;
+            if (StreamFrameJpeg == null || !Sees(route)) return null;
             bool big = hype >= 3;
             if (!big && realTime - st.LastFrameReal < StreamFrameGapSeconds) return null;
             if (big && realTime - st.LastFrameReal < 45) return null;
@@ -142,7 +140,7 @@ namespace KerbalNews
         void StreamHelperLook(StreamSession st, double hype, double realTime)
         {
             if (StreamFrameJpeg == null || st.LookBusy || hype < 3 || realTime - st.LastFrameReal < 45) return;
-            if (Providers.CanSee(Settings.Preset, Settings.CheapModel)) return;
+            if (Settings.Cheap.Sees) return;
             string model, key, baseUrl;
             var p = Looker(out model, out key, out baseUrl);
             if (p == null) return;
