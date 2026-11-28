@@ -1180,7 +1180,7 @@ namespace KerbalNews.KSP
             PageLayout nextLayout;
             try
             {
-                next = Sites.Render(url);
+                next = Crumb.Run("page " + url, () => Sites.Render(url));
                 if (next.Html == drawnHtml && next.Css == drawnCss)
                 {
                     page = next;
@@ -1190,7 +1190,8 @@ namespace KerbalNews.KSP
                 }
                 var root = Html.Parse(next.Html);
                 Css.Apply(root, Css.Parse(next.Css));
-                nextLayout = Layout.Run(root, lastWidth / zoom, Measure);
+                string crumb = Crumb.Enter("layout " + url);
+                try { nextLayout = Layout.Run(root, lastWidth / zoom, Measure); } finally { Crumb.Exit(crumb); }
             }
             catch (Exception) { return false; }   // the full redraw reports it
             if (!layout.SameShape(nextLayout) || drawnTexts.Count != nextLayout.Texts.Count) return false;
