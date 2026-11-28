@@ -334,44 +334,38 @@ namespace KerbalNews.KSP
             if (shot == null || !Render(shot, v, now)) { PlayerView(); return; }
             // A long lens through thick, low air can render almost pure white, and haze grows as the rocket climbs away,
             // so the picture is checked at the start of each shot and every second after. A shot nobody could watch is dropped.
-            if (shot != checkedShot || now > nextCheck)
+            // The copy of the picture comes back a frame or two after it is asked for, so the verdict is acted on then.
+            if (!grading && (shot != checkedShot || now > nextCheck))
             {
                 checkedShot = shot;
                 nextCheck = now + 1f;
-                float mean = Brightness();
-                if (mean > (shot.Ground ? 232 : 225) || mean < 10)
+                grading = true;
+                var asked = shot;
+                gradedShot = null;
+                FrameGrab.Grab(Frame, (px, w, h) => { gradedShot = asked; gradedMean = FrameGrab.Brightness(px); });
+                gradingSince = now;
+            }
+            if (grading && gradedShot == null && now - gradingSince > 3f) grading = false;   // the copy never came back: ask again
+            if (gradedShot != null)
+            {
+                grading = false;
+                var graded = gradedShot;
+                float mean = gradedMean;
+                gradedShot = null;
+                if (graded == shot && (mean > (shot.Ground ? 232 : 225) || mean < 10))
                 {
                     CutLog.Add(now.ToString("0.0") + "s skipped " + shot.Name + " (brightness " + mean.ToString("0") + ")");
                     shot.BadUntil = now + (shot.Ground ? 60 : 15);
                     Cut(eng, v, now);
-                    checkedShot = shot;
+                    checkedShot = null;   // the new shot is checked on the next frame
                     if (shot == null || !Render(shot, v, now)) PlayerView();
                 }
             }
         }
 
-        float nextCheck;
-        Shot checkedShot;
-        Texture2D probe;
-
-        /// <summary>Average brightness (0-255) of the current video frame, from a coarse grid of pixels.</summary>
-        float Brightness()
-        {
-            var prev = RenderTexture.active;
-            try
-            {
-                if (probe == null) probe = new Texture2D(FW, FH, TextureFormat.RGB24, false);
-                RenderTexture.active = Frame;
-                probe.ReadPixels(new Rect(0, 0, FW, FH), 0, 0);
-                var px = probe.GetPixels32();
-                if (px.Length == 0) return 128;
-                double sum = 0; int n = 0;
-                for (int i = 0; i < px.Length; i += 97) { sum += (px[i].r + px[i].g + px[i].b) / 3.0; n++; }
-                return (float)(sum / n);
-            }
-            catch (Exception) { return 128; }
-            finally { RenderTexture.active = prev; }
-        }
+        float nextCheck, gradingSince, gradedMean;
+        Shot checkedShot, gradedShot;
+        bool grading;
 
         void PlayerView()
         {

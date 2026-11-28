@@ -33,7 +33,7 @@ namespace UnityEngine
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
-    public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } public static byte[] EncodeToJPG(Texture2D t, int quality) { return null; } }
+    public static class ImageConversion { public static bool LoadImage(Texture2D t, byte[] data) { return true; } public static byte[] EncodeToJPG(Texture2D t, int quality) { return null; } public static byte[] EncodeArrayToJPG(System.Array a, UnityEngine.Experimental.Rendering.GraphicsFormat f, uint w, uint h, uint rowBytes = 0, int quality = 75) { return null; } }
     public class Behaviour : Component { public bool enabled; }
     public class AudioClip : Object { public static AudioClip Create(string name, int samples, int channels, int frequency, bool stream) { return new AudioClip(); } public bool SetData(float[] data, int offset) { return true; } }
     public class AudioSource : Behaviour { public AudioClip clip; public float volume, spatialBlend; public bool playOnAwake, loop, isPlaying; public void Play() { } public void Stop() { } }
@@ -76,11 +76,12 @@ namespace UnityEngine
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
     public enum TextureFormat { ARGB32, RGB24, RGBA32 }
+    public static class SystemInfo { public static bool supportsAsyncGPUReadback { get { return false; } } }
     public class Texture : Object { public int width, height; public TextureWrapMode wrapMode; public FilterMode filterMode; }
     public enum TextureWrapMode { Repeat, Clamp }
     public enum FilterMode { Point, Bilinear, Trilinear }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
-    public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
+    public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } public byte[] GetRawTextureData() { return new byte[0]; } public void LoadRawTextureData(byte[] d) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
     public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; public static int frameCount; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } public static float Sqrt(float v) { return v; } public static float Abs(float v) { return v; } }
@@ -142,6 +143,13 @@ namespace UnityEngine
     }
 }
 
+namespace UnityEngine.Experimental.Rendering { public enum GraphicsFormat { None, R8G8B8A8_SRGB, R8G8B8_SRGB } }
+namespace Unity.Collections { public struct NativeArray<T> where T : struct { public int Length { get { return 0; } } public T[] ToArray() { return new T[0]; } } }
+namespace UnityEngine.Rendering
+{
+    public struct AsyncGPUReadbackRequest { public bool hasError { get { return false; } } public Unity.Collections.NativeArray<T> GetData<T>(int layer = 0) where T : struct { return default(Unity.Collections.NativeArray<T>); } }
+    public static class AsyncGPUReadback { public static AsyncGPUReadbackRequest Request(UnityEngine.Texture src, int mip, UnityEngine.TextureFormat fmt, System.Action<AsyncGPUReadbackRequest> cb = null) { return default(AsyncGPUReadbackRequest); } }
+}
 namespace UnityEngine.Networking
 {
     public class UploadHandler : IDisposable { public void Dispose() { } }

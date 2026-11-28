@@ -220,24 +220,13 @@ namespace KerbalNews.KSP
 
         // ---- frames
 
-        static Texture2D grab;
-
-        /// <summary>The stream's current video frame, saved as the replay's next frame.</summary>
+        /// <summary>The stream's current video frame, saved as the replay's next frame without holding the game up for it.</summary>
         public static void SaveFrame(string folder, int n)
         {
             var rt = StreamDriver.Frame;
             if (rt == null) return;
-            var prev = RenderTexture.active;
-            try
-            {
-                if (grab == null) grab = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
-                RenderTexture.active = rt;
-                grab.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-                grab.Apply();
-                SaveFile(folder, NewsEngine.FrameFile(n), ImageConversion.EncodeToJPG(grab, 70));
-            }
-            catch (Exception e) { Debug.LogWarning("[KerbalNews] Replay frame: " + e.Message); }
-            finally { RenderTexture.active = prev; }
+            string path = Path.Combine(FolderPath(folder), Path.GetFileName(NewsEngine.FrameFile(n)));
+            FrameGrab.Grab(rt, (px, w, h) => FrameGrab.SaveJpg(px, w, h, 70, path));
         }
 
         /// <summary>What the replay player shows; the browser points a RawImage at it and it is reloaded in place.</summary>
