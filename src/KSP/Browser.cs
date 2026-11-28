@@ -18,7 +18,7 @@ namespace KerbalNews.KSP
     /// sharp at any resolution. Opened from the toolbar in every game scene.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
-    public class Browser : MonoBehaviour
+    public partial class Browser : MonoBehaviour
     {
         // Remembered across scenes.
         static bool visible;
@@ -146,6 +146,7 @@ namespace KerbalNews.KSP
             }
             InputLockManager.RemoveControlLock(HoverLock);
             InputLockManager.RemoveControlLock(TypeLock);
+            InputLockManager.RemoveControlLock(SelectLock);
             if (canvasGo != null) Destroy(canvasGo);
         }
 
@@ -165,11 +166,19 @@ namespace KerbalNews.KSP
         {
             if (button != null || ApplicationLauncher.Instance == null) return;
             var icon = GameDatabase.Instance.GetTexture("KerbalNews/Icons/button", false);
-            button = ApplicationLauncher.Instance.AddModApplication(Show, Hide, null, null, null, null,
+            button = ApplicationLauncher.Instance.AddModApplication(Show, ButtonOff, null, null, null, null,
                 ApplicationLauncher.AppScenes.SPACECENTER | ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW |
                 ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH | ApplicationLauncher.AppScenes.TRACKSTATION,
                 icon ?? new Texture2D(38, 38, TextureFormat.ARGB32, false));
             if (visible) button.SetTrue(false);
+        }
+
+        /// <summary>The toolbar button was clicked while lit. If the window is shrunk to the small widget, that click
+        /// brings it back (the button stays lit) instead of hiding it, so one click always opens the window.</summary>
+        void ButtonOff()
+        {
+            if (visible && minimized) { Restore(); if (button != null) button.SetTrue(false); return; }
+            Hide();
         }
 
         void RemoveButton(GameScenes s)
@@ -182,6 +191,9 @@ namespace KerbalNews.KSP
         {
             if (Sys == null || !Sys.HasGame) return;
             visible = true;
+            // Opened some other way (F8, the self-test): light the toolbar button too, or its next click would only
+            // switch it on and do nothing, and it would take a second click to close.
+            if (button != null) button.SetTrue(false);
             if (canvasGo == null) Build();
             canvasGo.SetActive(true);
             if (minimized) Restore();
@@ -194,6 +206,7 @@ namespace KerbalNews.KSP
             if (canvasGo != null) canvasGo.SetActive(false);
             InputLockManager.RemoveControlLock(HoverLock);
             InputLockManager.RemoveControlLock(TypeLock);
+            InputLockManager.RemoveControlLock(SelectLock);
         }
 
         void Close()
@@ -219,6 +232,7 @@ namespace KerbalNews.KSP
             if (Sys == null || !Sys.HasGame) { Hide(); return; }
             if (minimized) { UpdateMini(); return; }
             if (Math.Abs(scaler.scaleFactor - Scale) > 0.001f) { scaler.scaleFactor = Scale; ClampWindow(); wantRender = true; }
+            if (fullScreen) FitFullScreen();
 
             float width = viewportRt.rect.width;
             if (Math.Abs(Zoom - zoom) > 0.001f) wantRender = true;
@@ -245,6 +259,7 @@ namespace KerbalNews.KSP
 
             bool over = RectTransformUtility.RectangleContainsScreenPoint(windowRt, Input.mousePosition, null);
             ScrollInput(over && RectTransformUtility.RectangleContainsScreenPoint(viewportRt, Input.mousePosition, null), over && !typing);
+            SelectionInput(over, typing);
             if (over) InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.KSC_ALL | ControlTypes.EDITOR_SOFT_LOCK | ControlTypes.TRACKINGSTATION_ALL, HoverLock);
             else InputLockManager.RemoveControlLock(HoverLock);
             // Typing must not stage the rocket or warp time.
@@ -348,7 +363,9 @@ namespace KerbalNews.KSP
             tbImg.color = Col("#181b20", Color.black);
             var tbHover = tb.AddComponent<ClickHandler>();
             tbHover.Target = tbImg; tbHover.Normal = tbImg.color; tbHover.Hover = Col("#20242b", Color.black);
+            tbHover.OnClick = TitleClicked;   // double-click the title bar to go full screen and back
             titleDrag = tb.AddComponent<DragHandler>();
+            titleDrag.OnBegin = LeaveFullScreenByDrag;
             titleDrag.OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
             titleDrag.OnEnded = SaveWindow;
             var grip = New("Grip", tb.transform);
@@ -363,15 +380,21 @@ namespace KerbalNews.KSP
             windowTitle.raycastTarget = false;
             windowTitle.overflowMode = TextOverflowModes.Ellipsis;
             windowTitle.enableWordWrapping = false;
-            Stretch(Rt(wt), 40, 0, 86, 0);
+            Stretch(Rt(wt), 40, 0, 126, 0);
             var closeGo = MakeButton(tb.transform, "close", Close);
             var cRt = Rt(closeGo);
             cRt.anchorMin = new Vector2(1, 0.5f); cRt.anchorMax = new Vector2(1, 0.5f); cRt.pivot = new Vector2(1, 0.5f);
             cRt.anchoredPosition = new Vector2(-4, 0); cRt.sizeDelta = new Vector2(36, 24);
+            var maxGo = MakeButton(tb.transform, "maximize", ToggleFullScreen);
+            var xRt = Rt(maxGo);
+            xRt.anchorMin = new Vector2(1, 0.5f); xRt.anchorMax = new Vector2(1, 0.5f); xRt.pivot = new Vector2(1, 0.5f);
+            xRt.anchoredPosition = new Vector2(-44, 0); xRt.sizeDelta = new Vector2(36, 24);
+            fullIcon = maxGo.GetComponent<Image>().GetComponentInChildren<RawImage>();
+            UpdateFullIcon();
             var minGo = MakeButton(tb.transform, "minimize", Minimize);
             var mRt = Rt(minGo);
             mRt.anchorMin = new Vector2(1, 0.5f); mRt.anchorMax = new Vector2(1, 0.5f); mRt.pivot = new Vector2(1, 0.5f);
-            mRt.anchoredPosition = new Vector2(-44, 0); mRt.sizeDelta = new Vector2(36, 24);
+            mRt.anchoredPosition = new Vector2(-84, 0); mRt.sizeDelta = new Vector2(36, 24);
             BuildMini();
 
             // Toolbar: back, forward, reload, home, address, text size. Dragging its empty parts moves the window too.
@@ -382,6 +405,7 @@ namespace KerbalNews.KSP
             var barImg = bar.AddComponent<Image>();
             barImg.color = Col("#2f343c", Color.black);
             var barDrag = bar.AddComponent<DragHandler>();
+            barDrag.OnBegin = LeaveFullScreenByDrag;
             barDrag.OnDragged = d => { winPos += new Vector2(d.x, -d.y) / Scale; ClampWindow(); };
             barDrag.OnEnded = SaveWindow;
 
@@ -407,7 +431,7 @@ namespace KerbalNews.KSP
             // never changes the page width and re-flows the page); the horizontal one appears only when a page is wider than the window.
             var area = New("ScrollArea", win.transform);
             Stretch(Rt(area), Edge, TitleH + BarH, Edge, StatusH);   // a thin frame on the sides holds the resize edges
-            scroll = area.AddComponent<ScrollRect>();
+            scroll = area.AddComponent<PageScrollRect>();   // dragging on the page selects text instead of moving the page
             var vp = New("Viewport", area.transform);
             viewportRt = Rt(vp);
             Stretch(viewportRt, 0, 0, 0, 0);
@@ -496,6 +520,8 @@ namespace KerbalNews.KSP
         void ResizeBy(Vector2 d, int dx, int dy)
         {
             lastResizeDrag = Time.realtimeSinceStartup;
+            fullScreen = false;
+            UpdateFullIcon();
             float sw = Screen.width / Scale, sh = Screen.height / Scale;
             if (dx > 0) winSize.x = Mathf.Clamp(winSize.x + d.x, MinW, sw - winPos.x);
             if (dx < 0) { float w = Mathf.Clamp(winSize.x - d.x, MinW, winPos.x + winSize.x); winPos.x += winSize.x - w; winSize.x = w; }
@@ -508,7 +534,8 @@ namespace KerbalNews.KSP
         {
             var g = NewsSystem.Settings;
             if (g == null || Sys == null) return;
-            g.BrowserRect = new[] { winPos.x, winPos.y, winSize.x, winSize.y };
+            // Full screen isn't saved: the window comes back at its normal size next time.
+            g.BrowserRect = fullScreen ? new[] { normalPos.x, normalPos.y, normalSize.x, normalSize.y } : new[] { winPos.x, winPos.y, winSize.x, winSize.y };
             Sys.SaveSettings();
         }
 
@@ -587,6 +614,7 @@ namespace KerbalNews.KSP
             miniGo.SetActive(true);
             InputLockManager.RemoveControlLock(HoverLock);
             InputLockManager.RemoveControlLock(TypeLock);
+            InputLockManager.RemoveControlLock(SelectLock);
             nextMini = 0;
             UpdateMini();
         }
@@ -750,6 +778,11 @@ namespace KerbalNews.KSP
                 case "forward": seg(18, 10, 32, 24); seg(32, 24, 18, 38); return l;
                 case "close": seg(13, 13, 35, 35); seg(35, 13, 13, 35); return l;
                 case "minimize": seg(13, 31, 35, 31); return l;
+                case "maximize": seg(14, 14, 34, 14); seg(34, 14, 34, 34); seg(34, 34, 14, 34); seg(14, 34, 14, 14); seg(14, 16, 34, 16); return l;
+                case "unmaximize":
+                    seg(12, 19, 29, 19); seg(29, 19, 29, 36); seg(29, 36, 12, 36); seg(12, 36, 12, 19);   // the front window
+                    seg(18, 19, 18, 12); seg(18, 12, 36, 12); seg(36, 12, 36, 30); seg(36, 30, 29, 30);   // the one behind it
+                    return l;
                 case "home": seg(9, 24, 24, 10); seg(24, 10, 39, 24); seg(14, 21, 14, 38); seg(14, 38, 34, 38); seg(34, 38, 34, 21); return l;
                 case "reload":
                 {
@@ -1040,7 +1073,7 @@ namespace KerbalNews.KSP
                 scrollTargetX = Mathf.Clamp(scrollTargetX + dx, 0, MaxX);
                 smoothing = true;
             }
-            if (Input.GetMouseButtonDown(0)) smoothing = false;   // grabbing a scrollbar or dragging the page takes over
+            if (Input.GetMouseButtonDown(0)) smoothing = false;   // grabbing a scrollbar takes over
             if (!smoothing) return;
             float k = 1 - Mathf.Exp(-Time.unscaledDeltaTime * 22f);
             float ny = Mathf.Lerp(pos.y, Mathf.Clamp(scrollTargetY, 0, MaxY), k);
@@ -1177,6 +1210,7 @@ namespace KerbalNews.KSP
             linkRects.Clear();
             linkTexts.Clear();
             hoverLink = -1;
+            ClearSelectionObjects();
         }
 
         GameObject Item(string name, float x, float y, float w, float h)
@@ -1189,6 +1223,7 @@ namespace KerbalNews.KSP
 
         void Draw()
         {
+            RememberSelection();
             Clear();
             pageBg.color = Col(layout.Background, Color.white);
             float right = layout.Width;
@@ -1249,6 +1284,7 @@ namespace KerbalNews.KSP
                 if (tex != null) raw.texture = tex;
                 else raw.color = Col("#d9d2c1", Color.grey);
             }
+            selectionLayer = Item("selection", 0, 0, 0, 0).transform;   // highlights sit behind the text, above the boxes
             foreach (var t in layout.Texts)
             {
                 var go = Item("text", t.X, t.Y, Mathf.Max(t.W, t.FontSize * 2f) + 2, t.H + 2);
@@ -1297,6 +1333,7 @@ namespace KerbalNews.KSP
                     f.onSubmit.AddListener(v => SubmitFrom(me));
                 }
             }
+            RestoreSelection();
         }
 
         /// <summary>Enter in a one-line field presses the nearest button after it, like a form submit.</summary>
