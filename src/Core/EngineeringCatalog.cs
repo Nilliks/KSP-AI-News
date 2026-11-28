@@ -43,7 +43,8 @@ namespace KerbalNews
         public static readonly Topic[] Topics =
         {
             new Topic { Key = "power", Title = "POWER SOURCES (solar panels, generators, RTGs, reactors, fuel cells)", Words = new[] { "power", "electric", "solar", "panel", "rtg", "reactor", "generator", "fuel cell", "charge", " ec" },
-                Is = p => EcMade(p) > 0 && !p.Has("engine") && !p.Has("command"), Rank = EcMade },
+                // A reactor whose output the game does not expose still belongs on the list; its mass stands in for its size.
+                Is = p => (EcMade(p) > 0 || p.Modules.Any(ModKnowledge.IsReactor)) && !p.Has("engine") && !p.Has("command"), Rank = p => EcMade(p) > 0 ? EcMade(p) : p.DryMass * 10 },
             new Topic { Key = "battery", Title = "BATTERIES", Words = new[] { "power", "electric", "batter", "charge", "storage", " ec" }, Is = Battery, Rank = p => p.Max(CraftSheet.EC) },
             new Topic { Key = "engine", Title = "ENGINES", Words = new[] { "engine", "motor", "thrust", "isp", "booster", "propulsion", "twr", "delta-v", "delta v", "nuclear", "ion " },
                 Is = p => p.Has("engine"), Rank = p => p.Of("engine").Sum(m => m.N("thrust")) },
@@ -73,12 +74,15 @@ namespace KerbalNews
         {
             // Reactors, RTGs and a mod's processes are said in plain words here, so their raw module fields stay out.
             var plain = new CraftPart { Crew = p.Crew };
-            plain.Modules.AddRange(p.Modules.Where(m => !ModKnowledge.IsReactor(m) && !(IsRtg(m) && RtgPower(m) > 0) && m.Kind != "process"));
+            plain.Modules.AddRange(p.Modules.Where(m => !ModKnowledge.IsReactor(m) && !(IsRtg(m) && RtgPower(m) > 0) && m.Kind != "process" && m.Kind != "other"));
             string does = CraftSheet.Does(plain, null, true);
             int cut = does.IndexOf("mod modules:", StringComparison.Ordinal);
             if (cut >= 0) does = does.Substring(0, cut).TrimEnd(' ', ';');
             var extra = new List<string>();
-            foreach (var m in p.Modules.Where(ModKnowledge.IsReactor)) { double ec = ModKnowledge.ReactorPower(m); extra.Add(ec > 0 ? "reactor " + CraftSheet.Ec(ec) + " at full power (constant, needs radiators)" : "reactor"); }
+            // What a power source makes comes first, so a long line never loses it.
+            double made = EcMade(p);
+            if (made > 0 && !p.Has("solar")) extra.Add("makes up to " + CraftSheet.Ec(made));
+            foreach (var m in p.Modules.Where(ModKnowledge.IsReactor)) { double ec = ModKnowledge.ReactorPower(m); extra.Add(ec > 0 ? "reactor " + CraftSheet.Ec(ec) + " at full power (constant, needs radiators)" : "reactor, output not read from the game (see its info in the builder)"); }
             foreach (var m in p.Modules.Where(m => IsRtg(m) && RtgPower(m) > 0)) extra.Add("RTG " + CraftSheet.Ec(RtgPower(m)) + (m.Any("HalfLife", "halfLife") > 0 ? ", halves every " + EngMath.N(m.Any("HalfLife", "halfLife"), "0.#") + " years" : ", constant"));
             foreach (var m in p.Modules.Where(m => m.Kind == "process")) extra.Add((m.Label != "" ? m.Label : "process") + ": " + CraftSheet.RatesText(m.Rates));
             if (p.ChuteArea > 0) extra.Add(EngMath.N(p.ChuteArea) + " m² of canopy");

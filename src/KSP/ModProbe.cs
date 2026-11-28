@@ -113,7 +113,16 @@ namespace KerbalNews.KSP
             foreach (var d in defs)
             {
                 double cap = 0;
-                foreach (string name in d.Caps) { cap = c.Max(name); if (cap > 0) break; }
+                foreach (string name in d.Caps)
+                {
+                    cap = c.Max(name);
+                    // A part in the parts list has not started yet, so the mod has not given it the hidden capacity resource:
+                    // the capacity is on its process controller module instead.
+                    if (cap <= 0)
+                        foreach (var pc in c.Modules)
+                            if (pc.Name.StartsWith("ProcessController", StringComparison.Ordinal) && pc.T("resource") == name) cap += pc.N("capacity") > 0 ? pc.N("capacity") : 1;
+                    if (cap > 0) break;
+                }
                 if (cap <= 0) continue;
                 var m = new CraftModule { Name = "Process", Kind = "process", Label = d.Title };
                 foreach (var r in d.PerUnit) m.Rates.Add(new CraftRate { Res = r.Res, PerSec = r.PerSec * cap });
