@@ -20,10 +20,22 @@ namespace KerbalNews
             public Func<CraftPart, double> Rank;
         }
 
-        static double EcMade(CraftPart p)
+        static bool IsRtg(CraftModule m) { return m.Is("ModuleRadioisotopeGenerator") || m.Is("ModuleDecayingRTG") || m.Name.IndexOf("RTG", StringComparison.Ordinal) >= 0; }
+        static double RtgPower(CraftModule m) { return m.Any("BasePower", "basePower", "PowerOutput", "power"); }
+
+        /// <summary>EC per second the part can make at its best: panels in full sun at home, generators, fuel cells and
+        /// a life support mod's generator processes running, reactors at full power, RTGs when new.</summary>
+        public static double EcMade(CraftPart p)
         {
-            return p.Of("solar").Sum(m => m.N("rate")) + p.Modules.Where(m => m.Kind == "generator").Sum(m => Math.Max(0, m.Rate(CraftSheet.EC)))
-                + p.Modules.Where(ModKnowledge.IsReactor).Sum(m => ModKnowledge.ReactorPower(m));
+            double v = p.Of("solar").Sum(m => m.N("rate"));
+            foreach (var m in p.Modules)
+            {
+                if (m.Kind == "solar") continue;
+                if (ModKnowledge.IsReactor(m)) v += ModKnowledge.ReactorPower(m);
+                else if (IsRtg(m) && RtgPower(m) > 0) v += RtgPower(m);
+                else if (m.Kind == "generator" || m.Kind == "converter" || m.Kind == "process") v += Math.Max(0, m.Rate(CraftSheet.EC));
+            }
+            return v;
         }
         static bool Battery(CraftPart p) { return p.Max(CraftSheet.EC) >= 50 && !p.Has("command") && !p.Has("engine") && p.Crew == 0 && EcMade(p) <= 0; }
         static bool Cargo(CraftPart p) { return p.Res.Any(r => r.Max > 0 && r.Name != CraftSheet.EC && !CraftSheet.Hidden(r.Name)); }
@@ -59,17 +71,22 @@ namespace KerbalNews
         /// <summary>One part, one line: name, mod, mass, cost, size, and what it does.</summary>
         public static string Line(CraftPart p)
         {
-            string does = CraftSheet.Does(p, null, true);
+            // Reactors, RTGs and a mod's processes are said in plain words here, so their raw module fields stay out.
+            var plain = new CraftPart { Crew = p.Crew };
+            plain.Modules.AddRange(p.Modules.Where(m => !ModKnowledge.IsReactor(m) && !(IsRtg(m) && RtgPower(m) > 0) && m.Kind != "process"));
+            string does = CraftSheet.Does(plain, null, true);
             int cut = does.IndexOf("mod modules:", StringComparison.Ordinal);
             if (cut >= 0) does = does.Substring(0, cut).TrimEnd(' ', ';');
             var extra = new List<string>();
-            foreach (var m in p.Modules.Where(ModKnowledge.IsReactor)) { double ec = ModKnowledge.ReactorPower(m); if (ec > 0) extra.Add("reactor " + CraftSheet.Ec(ec) + " at full power"); }
+            foreach (var m in p.Modules.Where(ModKnowledge.IsReactor)) { double ec = ModKnowledge.ReactorPower(m); extra.Add(ec > 0 ? "reactor " + CraftSheet.Ec(ec) + " at full power (constant, needs radiators)" : "reactor"); }
+            foreach (var m in p.Modules.Where(m => IsRtg(m) && RtgPower(m) > 0)) extra.Add("RTG " + CraftSheet.Ec(RtgPower(m)) + (m.Any("HalfLife", "halfLife") > 0 ? ", halves every " + EngMath.N(m.Any("HalfLife", "halfLife"), "0.#") + " years" : ", constant"));
+            foreach (var m in p.Modules.Where(m => m.Kind == "process")) extra.Add((m.Label != "" ? m.Label : "process") + ": " + CraftSheet.RatesText(m.Rates));
             if (p.ChuteArea > 0) extra.Add(EngMath.N(p.ChuteArea) + " m² of canopy");
             var holds = p.Res.Where(r => r.Max > 0 && !CraftSheet.Hidden(r.Name)).Take(4).Select(r => r.Name + " " + EngMath.N(r.Max, "0.#")).ToArray();
             if (holds.Length > 0) extra.Add("holds " + string.Join(", ", holds));
-            string all = string.Join("; ", new[] { does }.Concat(extra).Where(x => x != "").ToArray());
+            string all = string.Join("; ", extra.Concat(new[] { does }).Where(x => x != "").ToArray());
             return "- " + p.Title + (p.Mod != "" && p.Mod != "stock" ? " [" + p.Mod + "]" : "") + ": " + EngMath.N(p.DryMass, "0.###") + " t, " + EngMath.N(p.Cost) + " funds"
-                + (p.Bulkhead != "" ? ", fits " + p.Bulkhead : "") + (all != "" ? "; " + ResponseParser.Clip(all, 230) : "");
+                + (p.Bulkhead != "" ? ", fits " + p.Bulkhead : "") + (all != "" ? "; " + ResponseParser.Clip(all, 280) : "");
         }
 
         /// <summary>The prompt section. <paramref name="about"/> is the question (and the one before it); the kinds of part it

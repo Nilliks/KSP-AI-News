@@ -110,6 +110,16 @@ namespace KerbalNews.KSP
                     Log("    what the team is told about unlocked parts for a power question (" + told.Length + " characters):");
                     foreach (var line in told.Split('\n').Take(40)) Log("      " + line);
                     Check(told.Contains("UNLOCKED PARTS") && told.Contains("POWER SOURCES") && told.Contains("BATTERIES"), "eng: the team is told which power parts are unlocked");
+                    // Every part that should count as a power source by its name or modules, and what the list makes of it.
+                    Log("    catalogue: " + EngineeringExtras.unread + " parts could not be read");
+                    int shownPower = 0;
+                    foreach (var cp in catalog)
+                    {
+                        string nm = (cp.Name + " " + cp.Title).ToLowerInvariant();
+                        bool looks = nm.Contains("reactor") || nm.Contains("rtg") || nm.Contains("radioisotope") || nm.Contains("nuk") || nm.Contains("fuel cell") || nm.Contains("fuelcell") || cp.Modules.Any(x => x.Kind == "process" || x.Kind == "generator" || x.Name.Contains("Reactor") || x.Name.Contains("Radioisotope"));
+                        if (!looks || shownPower++ >= 45) continue;
+                        Log("      power? " + cp.Name + " makes " + EngCatalog.EcMade(cp).ToString("0.###") + " EC/s; kinds " + string.Join(",", cp.Modules.Select(x => x.Kind + ":" + x.Name).Distinct().Take(14).ToArray()) + " || " + EngCatalog.Line(cp));
+                    }
                     Log("    for a question about no kind of part: " + sys.Engine.EngPartsText("how do I do a gravity turn?", 120).Replace("\n", " | "));
                     float t1 = Time.realtimeSinceStartup;
                     var tools = sys.Engine.EngToolReports(s, plan, checks, true);

@@ -178,6 +178,19 @@ public static class EngineeringToolsTests
         Assert(general.Contains("OX-STAT") && general.Contains("Terrier"), "a general 'what do I have' question gets the main kinds: " + general);
         Assert(EngCatalog.Text(null, "power") == "" && EngCatalog.Text(new List<CraftPart>(), "power") == "", "no list, no claim");
 
+        // Power that mods make outside the game's own generator module: reactors, RTGs, a life support mod's processes.
+        var reactor = Part("reactor-0625", "MX-0 Garnet Fission Reactor", 0.6, 30000, "NearFutureElectrical");
+        var rm = new CraftModule { Name = "ModuleSystemHeatFissionReactor", Kind = "converter" }; rm.Num["ElectricalGeneration.max"] = 60; rm.Num["MinimumThrottle"] = 25; reactor.Modules.Add(rm);
+        var rtg = Part("rtg-0625", "PB-AS-NUK Radioisotope Generator", 0.1, 20000, "NearFutureElectrical");
+        var gm = new CraftModule { Name = "ModuleRadioisotopeGenerator", Kind = "other" }; gm.Num["BasePower"] = 1.5; gm.Num["HalfLife"] = 20; rtg.Modules.Add(gm);
+        var cell = Part("FuelCell", "Fuel Cell", 0.05, 750);
+        var pm = new CraftModule { Name = "Process", Kind = "process", Label = "fuel cell" }; pm.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = 2.25 }); pm.Rates.Add(new CraftRate { Res = "Hydrogen", PerSec = -0.002 }); cell.Modules.Add(pm);
+        var more = new List<CraftPart> { panel, reactor, rtg, cell };
+        string mixed = EngCatalog.Text(more, "what should I use for power?");
+        Assert(mixed.Contains("MX-0 Garnet Fission Reactor [NearFutureElectrical]") && mixed.Contains("reactor 60.0 EC/s at full power") && !mixed.Contains("MinimumThrottle"), "a reactor is listed in plain words with its output: " + mixed);
+        Assert(mixed.Contains("RTG 1.50 EC/s, halves every 20 years") && mixed.Contains("fuel cell: uses 0.002 Hydrogen/s, makes 2.25 EC/s"), "RTGs and process fuel cells too: " + mixed);
+        Assert(mixed.IndexOf("Garnet") < mixed.IndexOf("Fuel Cell") && mixed.IndexOf("Fuel Cell [") < 0 && mixed.IndexOf("- Fuel Cell") < mixed.IndexOf("PB-AS-NUK") && mixed.IndexOf("PB-AS-NUK") < mixed.IndexOf("OX-STAT"), "ranked by what they make");
+
         var eng = new NewsEngine(new NewsState(), CoreTests.OnlineSettings(), new CoreTests.FakeTransport(), new SimpleClock(100000));
         eng.EngineeringCatalog = () => list;
         Assert(eng.EngPartsText("which engine?", 50).Contains("LV-909 Terrier") && eng.EngPartsText("which engine?", 50).Contains("60 kN"), "the engine hands the list to the prompt");

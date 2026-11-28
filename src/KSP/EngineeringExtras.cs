@@ -174,6 +174,8 @@ namespace KerbalNews.KSP
         static List<CraftPart> building;
         static string pendingKey = "";
         static int pendingAt;
+        /// <summary>Parts the catalogue could not read (no prefab, or the read threw).</summary>
+        public static int unread;
 
         /// <summary>Every part the player can pick in the builder right now: unlocked (and bought, where the save asks for that),
         /// not hidden. The key changes when that set does.</summary>
@@ -216,9 +218,10 @@ namespace KerbalNews.KSP
                     try
                     {
                         var prefab = CraftReader.Get(ap, "partPrefab") as Part;
-                        if (prefab != null && prefab.Modules != null) c = CraftReader.ReadLoose(prefab);
+                        if (prefab != null && prefab.Modules != null) { c = CraftReader.ReadLoose(prefab); ModProbe.AddProcesses(c); }
+                        else unread++;
                     }
-                    catch { }
+                    catch (Exception e) { unread++; if (unread <= 3) Debug.LogWarning("[KerbalNews] Catalogue could not read " + ap.name + ": " + e.Message); }
                     readParts[ap.name] = c;
                 }
                 if (c != null) building.Add(c);

@@ -78,6 +78,49 @@ namespace KerbalNews.KSP
                 }
         }
 
+        class ProcessDef { public string Title = ""; public List<string> Caps = new List<string>(); public List<CraftRate> PerUnit = new List<CraftRate>(); }
+        static List<ProcessDef> defs;
+
+        /// <summary>For a part read on its own (the catalogue of unlocked parts): what a life support mod's background
+        /// processes on that part use and make when running flat out, as a module of kind "process". On a craft the
+        /// same thing is worked out for the whole vessel in <see cref="Kerbalism"/>.</summary>
+        public static void AddProcesses(CraftPart c)
+        {
+            if (c == null) return;
+            if (defs == null)
+            {
+                defs = new List<ProcessDef>();
+                try
+                {
+                    var processes = CraftReader.Static(CraftReader.FindType("KERBALISM.Profile"), "processes") as IEnumerable;
+                    if (processes != null)
+                        foreach (var p in processes)
+                        {
+                            if (p == null) continue;
+                            var d = new ProcessDef { Title = CraftReader.Clean(CraftReader.Str(p, "title")) };
+                            if (d.Title == "") d.Title = CraftReader.Str(p, "name");
+                            var mods = CraftReader.Get(p, "modifiers") as IEnumerable;
+                            if (mods != null) foreach (var m in mods) { string name = m as string; if (!string.IsNullOrEmpty(name)) d.Caps.Add(name); }
+                            var one = new CraftProcess { Capacity = 1 };
+                            Rates(CraftReader.Get(p, "inputs"), one, -1);
+                            Rates(CraftReader.Get(p, "outputs"), one, 1);
+                            d.PerUnit = one.Rates;
+                            if (d.Caps.Count > 0 && d.PerUnit.Count > 0) defs.Add(d);
+                        }
+                }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Process definitions: " + e.Message); }
+            }
+            foreach (var d in defs)
+            {
+                double cap = 0;
+                foreach (string name in d.Caps) { cap = c.Max(name); if (cap > 0) break; }
+                if (cap <= 0) continue;
+                var m = new CraftModule { Name = "Process", Kind = "process", Label = d.Title };
+                foreach (var r in d.PerUnit) m.Rates.Add(new CraftRate { Res = r.Res, PerSec = r.PerSec * cap });
+                c.Modules.Add(m);
+            }
+        }
+
         static void Rates(object dict, CraftProcess cp, int sign)
         {
             var d = dict as IDictionary;
