@@ -80,38 +80,40 @@ public static class MissionWatchTests
         eng.Tick(30 * Day, 4, true);
         Assert(s.Articles.Count(x => x.Tags.Contains("mission watch")) == 1, "quiet between marks");
         eng.Tick(41 * Day, 5, true);
+        Assert(s.Articles.Any(x => x.Tags.Contains("mission watch") && x.Headline == "Duna Express is 99 days from Duna"), "the next mark gets its piece: " + string.Join(" | ", s.Articles.Where(x => x.Tags.Contains("mission watch")).Select(x => x.Headline).ToArray()));
+        eng.ScanTransits(95 * Day);
         w = s.WorldPending.Single(f => f.Kind == "watch");
-        Assert(w.Key == "watch:Duna:v1:100", "next mark: " + w.Key);
+        Assert(w.Key == "watch:Duna:v1:50", "next mark: " + w.Key);
         transit[0] = Probe(138.0);
-        eng.ScanTransits(41.5 * Day);
+        eng.ScanTransits(95.5 * Day);
         Assert(s.WorldPending.Single(f => f.Kind == "watch").Due == 138.0 * Day, "a waiting piece follows a course correction");
 
         // When the game can't be read, a waiting piece stays; when the path no longer leads there, it goes.
         readable = false;
-        eng.ScanTransits(41.6 * Day);
+        eng.ScanTransits(95.6 * Day);
         Assert(s.WorldPending.Any(f => f.Kind == "watch"), "not readable: leave it alone");
         readable = true;
         transit.Clear();
-        eng.ScanTransits(41.7 * Day);
+        eng.ScanTransits(95.7 * Day);
         Assert(!s.WorldPending.Any(f => f.Kind == "watch"), "no encounter any more: nothing to count down to");
 
         // A piece that would run after the arrival is dropped instead.
-        transit.Add(Probe(60, "v2", "Late One", "Eve"));
-        eng.ScanTransits(57.5 * Day);
+        transit.Add(Probe(100, "v2", "Late One", "Eve"));
+        eng.ScanTransits(97.5 * Day);
         Assert(s.WorldPending.Any(f => f.Key == "watch:Eve:v2:5"), "final approach queued");
         transit.Clear(); readable = false;
-        Assert(eng.PickWorld(58.5 * Day).All(f => f.Kind != "watch") && !s.WorldPending.Any(f => f.Kind == "watch"), "too close to arrival: the arrival story takes over");
+        Assert(eng.PickWorld(98.5 * Day).All(f => f.Kind != "watch") && !s.WorldPending.Any(f => f.Kind == "watch"), "too close to arrival: the arrival story takes over");
         readable = true;
 
         // Final approach wording, saved and loaded with its date.
-        transit.Add(Probe(108, "v1"));
-        eng.ScanTransits(100 * Day);
+        transit.Add(Probe(109, "v1"));
+        eng.ScanTransits(101 * Day);
         w = s.WorldPending.Single(f => f.Kind == "watch");
         Assert(w.Key == "watch:Duna:v1:10" && w.Headline.Contains("final approach") && w.Sig == 3, "final approach: " + w.Headline);
         var n = new DataNode("KERBALNEWS"); s.Save(n);
         var back = NewsState.Load(n);
-        Assert(back.WorldPending.Single(f => f.Kind == "watch").Due == 108 * Day && back.WorldSeen.ContainsKey("watch:Duna:v1:200"), "the countdown survives a save");
-        var picked = eng.PickWorld(101 * Day).Single(f => f.Kind == "watch");
+        Assert(back.WorldPending.Single(f => f.Kind == "watch").Due == 109 * Day && back.WorldSeen.ContainsKey("watch:Duna:v1:200"), "the countdown survives a save");
+        var picked = eng.PickWorld(102 * Day).Single(f => f.Kind == "watch");
         Assert(picked.Headline == "Duna Express on final approach: 7 days to Duna", "resolved headline: " + picked.Headline);
     }
 
