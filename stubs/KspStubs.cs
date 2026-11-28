@@ -42,11 +42,11 @@ namespace UnityEngine
     public class WaitForSeconds : YieldInstruction { public WaitForSeconds(float s) { } }
     public class WaitForEndOfFrame : YieldInstruction { }
     public static class ScreenCapture { public static void CaptureScreenshot(string file) { } public static Texture2D CaptureScreenshotAsTexture() { return null; } }
-    public enum KeyCode { F8, F9, LeftShift, RightShift, PageUp, PageDown, UpArrow, DownArrow, Home, End, Space }
+    public enum KeyCode { F8, F9, LeftShift, RightShift, PageUp, PageDown, UpArrow, DownArrow, Home, End, Space, Escape }
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
-    public class Transform : Component { public Vector3 position, localScale; public Vector3 up, right, forward; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public class Transform : Component { public Vector3 position, localScale; public Vector3 up, right, forward; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } public void SetAsLastSibling() { } }
     public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); } public static Quaternion operator *(Quaternion a, Quaternion b) { return a; } }
     public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
@@ -63,6 +63,7 @@ namespace UnityEngine
         public float x, y, width, height;
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
         public float xMin { get { return x; } }
+        public Vector2 size { get { return new Vector2(width, height); } }
         public bool Contains(Vector2 p) { return false; }
     }
     public struct Color
@@ -74,11 +75,13 @@ namespace UnityEngine
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
     public enum TextureFormat { ARGB32, RGB24, RGBA32 }
-    public class Texture : Object { public int width, height; }
+    public class Texture : Object { public int width, height; public TextureWrapMode wrapMode; public FilterMode filterMode; }
+    public enum TextureWrapMode { Repeat, Clamp }
+    public enum FilterMode { Point, Bilinear, Trilinear }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
-    public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; }
+    public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; public static int frameCount; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } public static float Sqrt(float v) { return v; } public static float Abs(float v) { return v; } }
     public static class Input { public static Vector3 mousePosition; public static Vector2 mouseScrollDelta; public static bool GetKeyDown(KeyCode k) { return false; } public static bool GetKey(KeyCode k) { return false; } public static bool GetMouseButtonDown(int b) { return false; } public static bool GetMouseButton(int b) { return false; } public static bool GetKey(string k) { return false; } public static bool GetKeyDown(string k) { return false; } }
     public static class Screen { public static int width, height; }

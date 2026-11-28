@@ -11,12 +11,12 @@
   {{^needsKey}}<p class="hint">No key needed for {{name}}.</p>{{/needsKey}}
   <label>Writer model (big stories): <span class="current">{{writerModel}}</span></label>
   <div class="models">{{#writerChoices}}<a class="prov{{#on}} on{{/on}}" href="action:writer/{{id}}">{{id}}</a>{{/writerChoices}}</div>
-  <div class="row"><div><input name="writer" value="{{writer}}" placeholder="or type any model name, e.g. {{defaultWriter}}"></div></div>
+  <div class="row"><div><input name="writer" spellcheck="false" value="{{writer}}" placeholder="or type any model name, e.g. {{defaultWriter}}"></div></div>
   <label>Cheap model (briefs, quiet-day features, summaries): <span class="current">{{cheapModel}}</span></label>
   <div class="models">{{#cheapChoices}}<a class="prov{{#on}} on{{/on}}" href="action:cheap/{{id}}">{{id}}</a>{{/cheapChoices}}</div>
-  <div class="row"><div><input name="cheap" value="{{cheap}}" placeholder="or type any model name, e.g. {{defaultCheap}}"></div></div>
+  <div class="row"><div><input name="cheap" spellcheck="false" value="{{cheap}}" placeholder="or type any model name, e.g. {{defaultCheap}}"></div></div>
   <div class="row" style="align-items: center; margin-top: 6px"><a class="toggle" href="action:fetch-models">Get the full model list from {{name}}</a><span class="hint">{{fetchResult}}</span></div>
-  <label>Endpoint</label><input name="baseUrl" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
+  <label>Endpoint</label><input name="baseUrl" spellcheck="false" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
   <p class="hint">Click a model to use it, or type any exact model name and Save. An empty field means the default.</p>
   {{/provider}}
   <p class="hint">Can these models see pictures? <b>{{#canSee}}Yes{{/canSee}}{{^canSee}}No{{/canSee}}</b></p>
@@ -73,8 +73,8 @@
   <p class="hint">{{#hasKey}}A key is saved.{{/hasKey}}{{^hasKey}}No key saved yet. It can be the same key as your writer if it is the same company.{{/hasKey}}</p>
   <label>Image model: <span class="current">{{model}}</span></label>
   <div class="models">{{#models}}<a class="prov{{#on}} on{{/on}}" href="action:img-model/{{id}}">{{id}}</a>{{/models}}</div>
-  <div class="row"><div><input name="imgModel" value="{{modelOverride}}" placeholder="or type any model name, e.g. {{defaultModel}}"></div></div>
-  <label>Endpoint</label><input name="imgBaseUrl" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
+  <div class="row"><div><input name="imgModel" spellcheck="false" value="{{modelOverride}}" placeholder="or type any model name, e.g. {{defaultModel}}"></div></div>
+  <label>Endpoint</label><input name="imgBaseUrl" spellcheck="false" value="{{baseUrl}}" placeholder="{{defaultBaseUrl}}">
   {{/image}}
   <label>Which stories get a photo</label>
   <div class="providers">{{#imageTiers}}<a class="prov{{#on}} on{{/on}}" href="action:img-tier/{{id}}">{{label}}</a>{{/imageTiers}}</div>
@@ -95,7 +95,7 @@
   <label>Voice (click one to hear a sample)</label>
   <div class="providers">{{#voiceOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/voiceOpts}}</div>
   {{#voiceHasKey}}<div class="row"><a class="toggle" href="action:load-voices">{{#voicesLoaded}}Reload{{/voicesLoaded}}{{^voicesLoaded}}Add{{/voicesLoaded}} the voices on my ElevenLabs account</a></div>{{/voiceHasKey}}
-  <div class="row"><div><input name="voiceCustom" value="{{voiceCustom}}" placeholder="or paste any voice ID from your ElevenLabs voice library"></div></div>
+  <div class="row"><div><input name="voiceCustom" spellcheck="false" value="{{voiceCustom}}" placeholder="or paste any voice ID from your ElevenLabs voice library"></div></div>
   <p class="hint">Each sample costs about 80 letters the first time and nothing after, since it is saved. Voices you add to your account in ElevenLabs' voice library (there are announcer and sports voices there) show up here with the button above.</p>
   <label>Announcer style</label>
   <div class="providers">{{#styleOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/styleOpts}}</div>
@@ -146,7 +146,8 @@
 
   <h2>Notifications and display</h2>
   <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#notify}} on{{/notify}}" href="action:toggle-notify">Message when news is published</a>
-    <a class="toggle{{#mailPopups}} on{{/mailPopups}}" href="action:toggle-mailpopups">Pop-up when new Kmail arrives</a></div>
+    <a class="toggle{{#mailPopups}} on{{/mailPopups}}" href="action:toggle-mailpopups">Pop-up when new Kmail arrives</a>
+    <a class="toggle{{#spellCheck}} on{{/spellCheck}}" href="action:toggle-spellcheck">Spell check while typing</a></div>
   <label>How soon news comes out after an event</label>
   <div class="providers">{{#newsDelayOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/newsDelayOpts}}</div>
   <div class="row" style="align-items: center; margin-top: 8px"><span>Whole window size (toolbar, frame and page): <b>{{scale}}</b>. The A− and A+ buttons in the toolbar zoom only the page.</span>
@@ -154,8 +155,8 @@
   <p class="hint">Telemetry: choose per craft whether the public gets its telemetry and specs, or only what can be seen from the ground. <a href="telemetry.kb">Open telemetry sharing</a></p>
 
   <h2>Advanced</h2>
-  <div class="row"><div><label>Max output tokens</label><input name="maxTokens" value="{{maxTokens}}"></div><div><label>Wait for the AI (seconds)</label><input name="timeout" value="{{timeout}}"></div></div>
-  {{#isLocal}}<div class="row"><div><label>Local model context size (tokens)</label><input name="localContext" value="{{localContext}}"></div><div><label>Local model wait (seconds)</label><input name="localTimeout" value="{{localTimeout}}"></div></div>{{/isLocal}}
+  <div class="row"><div><label>Max output tokens</label><input name="maxTokens" spellcheck="false" value="{{maxTokens}}"></div><div><label>Wait for the AI (seconds)</label><input name="timeout" spellcheck="false" value="{{timeout}}"></div></div>
+  {{#isLocal}}<div class="row"><div><label>Local model context size (tokens)</label><input name="localContext" spellcheck="false" value="{{localContext}}"></div><div><label>Local model wait (seconds)</label><input name="localTimeout" spellcheck="false" value="{{localTimeout}}"></div></div>{{/isLocal}}
   <div class="save row"><button class="btn" data-action="save-settings">Save</button></div>
   <h3>Testing tools</h3>
   <div class="row"><a class="toggle" href="action:publish-now">Publish pending news now</a><a class="toggle" href="action:mark-read">Mark everything read</a></div>

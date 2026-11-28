@@ -109,6 +109,7 @@ namespace KerbalNews.KSP
             foreach (var f in fields.Values)
                 if (f != null && RectTransformUtility.RectangleContainsScreenPoint((RectTransform)f.transform, mouse, null)) return false;
             if (hBar != null && hBar.gameObject.activeSelf && RectTransformUtility.RectangleContainsScreenPoint((RectTransform)hBar.transform, mouse, null)) return false;
+            if (spellMenu != null && RectTransformUtility.RectangleContainsScreenPoint(Rt(spellMenu), mouse, null)) return false;
             Vector2 p;
             if (!PagePoint(mouse, out p)) return false;
             foreach (var im in layout.Images)

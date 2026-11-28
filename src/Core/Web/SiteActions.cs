@@ -91,6 +91,7 @@ namespace KerbalNews.Web
                 case "toggle-photolook": g.PhotoLook = !g.PhotoLook; SaveSettings(); break;
                 case "vision-provider": g.VisionProviderId = arg == "off" ? "" : arg; SaveSettings(); break;
                 case "toggle-mailpopups": g.MailPopups = !g.MailPopups; SaveSettings(); break;
+                case "toggle-spellcheck": g.SpellCheck = !g.SpellCheck; SaveSettings(); break;
                 case "toggle-mail-auto": Engine.State.MailAuto = !Engine.State.MailAuto; break;
                 case "news-delay":
                 {
