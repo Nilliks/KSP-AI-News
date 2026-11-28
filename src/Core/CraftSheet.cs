@@ -497,10 +497,15 @@ namespace KerbalNews
             return r;
         }
 
+        /// <summary>The most copies of one part a fix may suggest. A panel that is folded or in shade makes almost nothing,
+        /// so "how many more of these" can come out in the millions; past this the advice changes instead.</summary>
+        public const int MaxFixParts = 60;
+
         /// <summary>What the power rating becomes with some copies of a part added or removed.</summary>
         string Then(string partName, int delta, EngBody home, EngBody there, int crew)
         {
-            if (Trial) return "";
+            // A fix of hundreds of parts is not a real fix, and copying that many parts froze the game once.
+            if (Trial || delta > MaxFixParts || delta < -MaxFixParts) return "";
             try { return ", then: " + EngTools.With(this, partName, delta).Power(home, there, null, crew).Rating; } catch { return ""; }
         }
 
@@ -515,7 +520,9 @@ namespace KerbalNews
                 if (panel != null)
                 {
                     double one = panel.Of("solar").Sum(m => m.N("rate")) * sunScale;
-                    if (one > 0) { int k = (int)Math.Ceiling(need / one); r.Fixes.Add(new SheetLine("Add " + k + " more " + panel.Title, "+" + Ec(k * one) + at + Then(panel.Name, k, home, there, crew)) { Fix = true }); }
+                    double kd = one > 0 ? Math.Ceiling(need / one) : double.PositiveInfinity;
+                    if (kd >= 1 && kd <= MaxFixParts) { int k = (int)kd; r.Fixes.Add(new SheetLine("Add " + k + " more " + panel.Title, "+" + Ec(k * one) + at + Then(panel.Name, k, home, there, crew)) { Fix = true }); }
+                    else if (kd > MaxFixParts) r.Fixes.Add(new SheetLine(panel.Title + " makes almost nothing" + at + " as it is (folded, shaded or too far from the sun), so more of them will not close the gap. Extend the panels, or add another power source making at least", Ec(need) + at) { Fix = true });
                 }
                 else r.Fixes.Add(new SheetLine("Add a power source making at least", Ec(worst * 1.2) + at) { Fix = true });
                 if (sunScale < 0.15 && r.SolarHome > 0) r.Fixes.Add(new SheetLine("Sunlight" + at + " is " + N(sunScale * 100, "0.#") + "% of home. An RTG or reactor is the better source this far out.", "") { Fix = true });
@@ -524,7 +531,9 @@ namespace KerbalNews
             {
                 double want = r.ShadowNeed * 1.3;
                 var bat = Parts.Where(p => p.Max(EC) > 0 && !p.Has("command")).GroupBy(p => p.Name).OrderByDescending(g => g.Count()).Select(g => g.First()).FirstOrDefault();
-                if (bat != null) { int k = (int)Math.Ceiling((want - r.Battery) / bat.Max(EC)); if (k > 0) r.Fixes.Add(new SheetLine("Add " + k + " more " + bat.Title, "shadow needs " + N(r.ShadowNeed) + " of " + N(r.Battery + k * bat.Max(EC)) + " EC" + Then(bat.Name, k, home, there, crew)) { Fix = true }); }
+                double bk = bat != null ? Math.Ceiling((want - r.Battery) / bat.Max(EC)) : 0;
+                if (bat != null && bk > MaxFixParts) r.Fixes.Add(new SheetLine("Add batteries to reach", N(want) + " EC") { Fix = true });
+                else if (bat != null) { int k = (int)bk; if (k > 0) r.Fixes.Add(new SheetLine("Add " + k + " more " + bat.Title, "shadow needs " + N(r.ShadowNeed) + " of " + N(r.Battery + k * bat.Max(EC)) + " EC" + Then(bat.Name, k, home, there, crew)) { Fix = true }); }
                 else r.Fixes.Add(new SheetLine("Add batteries to reach", N(want) + " EC") { Fix = true });
             }
             if (r.Rating == "oversized" && panel != null)

@@ -66,6 +66,7 @@ namespace KerbalNews
             copy.Parts.AddRange(sheet.Parts);
             var like = sheet.Parts.FirstOrDefault(p => p.Name == partName);
             if (like == null) return copy;
+            delta = Math.Max(-500, Math.Min(500, delta));
             if (delta > 0) for (int i = 0; i < delta; i++) copy.Parts.Add(like);
             else for (int i = 0; i < -delta; i++) { int at = copy.Parts.FindLastIndex(p => p.Name == partName); if (at >= 0) copy.Parts.RemoveAt(at); }
             return copy;

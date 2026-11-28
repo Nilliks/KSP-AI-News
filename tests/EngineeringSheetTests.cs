@@ -110,6 +110,16 @@ public static class EngineeringSheetTests
         Assert(duna.Rating.StartsWith("short") && duna.There.Any(l => l.Bad), "short at Duna with the scanner on: " + duna.Rating);
         Assert(duna.ShadowSeconds > 300 && duna.ShadowSeconds < 1500 && duna.ShadowNeed > 0, "time in Duna's shadow: " + duna.ShadowSeconds);
         Assert(duna.Fixes.Any(f => f.Text.StartsWith("Add ") && f.Text.Contains("OX-STAT")), "the fix names the panel already on the craft: " + string.Join(" / ", duna.Fixes.Select(f => f.Text).ToArray()));
+
+        // A panel that makes almost nothing (folded on the pad) must not turn into "add millions of panels":
+        // trying that fix copied the part that many times and froze the game.
+        var dark = Probe();
+        foreach (var m in dark.Parts.SelectMany(x => x.Of("solar"))) m.Num["rate"] = 1e-9;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var dim = dark.Power(bodies[1], bodies[4], bodies);
+        Assert(sw.ElapsedMilliseconds < 500, "a near-dead panel is judged at once: " + sw.ElapsedMilliseconds + " ms");
+        Assert(!dim.Fixes.Any(f => f.Text.StartsWith("Add ") && f.Text.Contains("OX-STAT")) && dim.Fixes.Any(f => f.Text.Contains("makes almost nothing")), "the advice changes instead: " + string.Join(" / ", dim.Fixes.Select(f => f.Text).ToArray()));
+        Assert(EngTools.With(dark, dark.Parts.First(x => x.Has("solar")).Name, 2000000).Parts.Count < dark.Parts.Count + 501, "a trial never copies more than a few hundred parts");
         string text = CraftSheet.PowerText(duna);
         Assert(text.Contains("POWER BUDGET") && text.Contains("rating: short") && text.Contains("at Duna") && text.Contains("Fix:"), "power text for the AI");
 
