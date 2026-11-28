@@ -361,6 +361,7 @@ namespace KerbalNews.KSP
             var groundUsed = StreamDriver.CutLog.Where(c => !c.Contains("Hull camera") && !c.Contains(" skipped ")).Select(c => c.Substring(c.IndexOf(' ') + 1, c.IndexOf(" (") - c.IndexOf(' ') - 1)).Distinct().ToList();
             Check(StreamDriver.CutLog.Count(c => !c.Contains(" skipped ")) >= 4, "flight: the stream cut between cameras " + StreamDriver.CutLog.Count(c => !c.Contains(" skipped ")) + " times");
             Check(groundUsed.Count >= 2, "flight: at least two ground cameras used: " + string.Join(", ", groundUsed.ToArray()));
+            Check(StreamDriver.CutLog.Any(c => c.Contains("Pad camera") && c.Contains("held for")), "flight: the wide pad camera was held for liftoff");
             Check(st != null && st.Camera != "", "flight: camera name on the stream page: " + (st != null ? st.Camera : ""));
             // Hull cameras: forced on for a few seconds, whatever the distance, so they are seen even on a short flight.
             StreamDriver.ForceHull = true;
@@ -625,6 +626,15 @@ namespace KerbalNews.KSP
 
         void Finish(bool quit)
         {
+            try
+            {
+                // How the speed fixes behaved in this run (not pass or fail: a short run may not use them all).
+                var br = Browser.Instance;
+                Log("  frame copies: " + FrameGrab.State);
+                if (br != null) Log("  page refreshes: " + br.SoftSkipped + " skipped (nothing changed), " + br.SoftPatched + " changed words only, " + br.SoftRebuilt + " rebuilt");
+                Log("  pictures: " + Browser.ImagesCached + " decoded in memory (" + (Browser.ImageBytesCached / (1024 * 1024)) + " MB), " + Browser.ImagesFreed + " freed");
+            }
+            catch (Exception e) { Log("  speed notes failed: " + e.Message); }
             Log(failures == 0 ? "ALL PASSED" : failures + " FAILED");
             try { File.WriteAllLines(Path.Combine(outDir, "results.txt"), log.ToArray()); }
             catch (Exception e) { Debug.LogError("[KerbalNews] Self-test results: " + e.Message); }

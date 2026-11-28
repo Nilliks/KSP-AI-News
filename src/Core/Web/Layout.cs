@@ -102,6 +102,52 @@ namespace KerbalNews.Web
         public List<LinkTarget> Links = new List<LinkTarget>();
         public List<Region> Regions = new List<Region>();
 
+        /// <summary>
+        /// True when the other layout is this one with only the wording changed: every box, picture, text box, link and
+        /// paragraph sits in the same place with the same style. A page that refreshes itself (the live stream, the
+        /// engineering desk) can then swap the changed words in place instead of being torn down and built again.
+        /// </summary>
+        public bool SameShape(PageLayout o)
+        {
+            if (o == null || Width != o.Width || Height != o.Height || Background != o.Background) return false;
+            if (Rects.Count != o.Rects.Count || Texts.Count != o.Texts.Count || Images.Count != o.Images.Count
+                || Inputs.Count != o.Inputs.Count || Links.Count != o.Links.Count || Regions.Count != o.Regions.Count) return false;
+            for (int i = 0; i < Rects.Count; i++)
+            {
+                RectItem a = Rects[i], b = o.Rects[i];
+                if (a.X != b.X || a.Y != b.Y || a.W != b.W || a.H != b.H || a.Color != b.Color || a.HoverColor != b.HoverColor || a.Link != b.Link) return false;
+            }
+            for (int i = 0; i < Images.Count; i++)
+            {
+                ImageItem a = Images[i], b = o.Images[i];
+                if (a.X != b.X || a.Y != b.Y || a.W != b.W || a.H != b.H || a.Src != b.Src) return false;
+            }
+            for (int i = 0; i < Inputs.Count; i++)
+            {
+                InputItem a = Inputs[i], b = o.Inputs[i];
+                if (a.X != b.X || a.Y != b.Y || a.W != b.W || a.H != b.H || a.Name != b.Name || a.Value != b.Value || a.Placeholder != b.Placeholder
+                    || a.Multiline != b.Multiline || a.Password != b.Password || a.FontSize != b.FontSize || a.Family != b.Family || a.Color != b.Color) return false;
+            }
+            for (int i = 0; i < Links.Count; i++)
+            {
+                LinkTarget a = Links[i], b = o.Links[i];
+                if (a.Href != b.Href || a.Action != b.Action || a.Title != b.Title) return false;
+            }
+            for (int i = 0; i < Regions.Count; i++)
+            {
+                Region a = Regions[i], b = o.Regions[i];
+                if (a.X != b.X || a.Y != b.Y || a.W != b.W || a.H != b.H || a.Link != b.Link) return false;
+            }
+            for (int i = 0; i < Texts.Count; i++)
+            {
+                TextItem a = Texts[i], b = o.Texts[i];
+                if (a.X != b.X || a.Y != b.Y || a.W != b.W || a.H != b.H || a.FontSize != b.FontSize || a.LineHeight != b.LineHeight
+                    || a.Family != b.Family || a.Align != b.Align || a.Color != b.Color || a.Bold != b.Bold || a.Italic != b.Italic) return false;
+                if (!a.LinkIds.SequenceEqual(b.LinkIds)) return false;
+            }
+            return true;
+        }
+
         /// <summary>The innermost clickable block at a point, or -1.</summary>
         public int RegionAt(float x, float y)
         {

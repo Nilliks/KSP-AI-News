@@ -361,6 +361,20 @@ public static class CommunityTests
         return Layout.Run(root, width, FakeMeasure);
     }
 
+    /// <summary>A live page whose numbers tick over keeps its shape, so only the words are swapped; anything that moves does not.</summary>
+    public static void TestLayoutSameShape()
+    {
+        string css = "body { font-size: 20px; } .row { display: flex; gap: 10px; } .a { width: 200px; background: #00ff00; } .b { width: 200px; }";
+        Func<string, string, PageLayout> page = (alt, extra) => Lay("<body><div class=\"row\"><div class=\"a\">Altitude</div><div class=\"b\">" + alt + "</div></div><p>See <a href=\"herald.kb\">the story</a></p>" + extra + "</body>", css);
+        var one = page("12 km", "");
+        Assert(one.SameShape(page("12 km", "")), "the same page twice has the same shape");
+        Assert(one.SameShape(page("13 km", "")), "a number that ticks over keeps the shape");
+        Assert(!one.SameShape(page("13 km", "<p>a new chat line</p>")), "a new paragraph is a new shape");
+        Assert(!one.SameShape(page("13 km and climbing fast, well past the first stage burnout", "")), "words that wrap onto a second line are a new shape");
+        Assert(!one.SameShape(Lay("<body><div class=\"row\"><div class=\"a\">Altitude</div><div class=\"b\">12 km</div></div><p>See <a href=\"observer.kb\">the story</a></p></body>", css)), "a link that goes somewhere else is a new shape");
+        Assert(!one.SameShape(null), "nothing to compare with is a new shape");
+    }
+
     public static void TestLayoutBoxes()
     {
         var l = Lay("<body><div class=\"row\"><div class=\"a\">left</div><div class=\"b\">grow</div><div class=\"c\">x</div></div><p>Hello <a href=\"herald.kb\">link</a> there</p><button data-action=\"go\">Go</button></body>",

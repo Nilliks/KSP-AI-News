@@ -114,30 +114,46 @@ namespace KerbalNews.KSP
             // Let the fireball grow before the shutter fires.
             if (kind == "explosion") yield return new WaitForSeconds(0.25f);
             yield return new WaitForEndOfFrame();
+            // The picture is rendered and copied here; turning it into a JPEG and writing the file happen on a worker
+            // thread, and the shot is filed once the file exists. Everything about the craft is noted now: after an
+            // explosion it may be gone a moment later.
+            Texture2D tex = null;
+            FrameGrab.JpgJob job = null;
+            string file = null, credit = null, id = null, name = null, body = null, situation = null;
+            double ut = 0;
+            NewsEngine eng = null;
             try
             {
-                var eng = Eng;
+                eng = Eng;
                 if (eng != null && v != null && v.mainBody != null)
                 {
-                    string credit;
-                    var tex = Compose(v, kind, point, out credit);
+                    tex = Compose(v, kind, point, out credit);
                     if (tex != null)
                     {
-                        try
-                        {
-                            Directory.CreateDirectory(GalleryStore.Dir);
-                            string file = "press-" + v.persistentId + "-" + kind + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jpg";
-                            File.WriteAllBytes(Path.Combine(GalleryStore.Dir, file), GalleryStore.Jpeg(tex));
-                            eng.AddPressShot(file, Planetarium.GetUniversalTime(), v.persistentId.ToString(), Names.Of(v), v.mainBody.bodyName, v.situation.ToString(), kind, credit);
-                            if (kind != "ascent")
-                                ScreenMessages.PostScreenMessage("Kerbal News: a press photographer got a shot of " + Names.Of(v) + " (" + kind + ")", 3f, ScreenMessageStyle.UPPER_RIGHT);
-                        }
-                        finally { Destroy(tex); }
+                        Directory.CreateDirectory(GalleryStore.Dir);
+                        file = "press-" + v.persistentId + "-" + kind + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jpg";
+                        id = v.persistentId.ToString(); name = Names.Of(v); body = v.mainBody.bodyName; situation = v.situation.ToString();
+                        ut = Planetarium.GetUniversalTime();
+                        if (tex.width <= GalleryStore.MaxWidth) job = FrameGrab.SaveRgbJpg(tex, 88, Path.Combine(GalleryStore.Dir, file));
                     }
                 }
             }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Press photo failed: " + e); if (tex != null) Destroy(tex); tex = null; }
+            float waitUntil = Time.realtimeSinceStartup + 10;
+            while (tex != null && job != null && !job.Done && Time.realtimeSinceStartup < waitUntil) yield return null;
+            try
+            {
+                if (tex != null)
+                {
+                    // No worker-thread encoder here (or it failed): encode and write the old way.
+                    if (job == null || !job.Done || !job.Ok) File.WriteAllBytes(Path.Combine(GalleryStore.Dir, file), GalleryStore.Jpeg(tex));
+                    eng.AddPressShot(file, ut, id, name, body, situation, kind, credit);
+                    if (kind != "ascent")
+                        ScreenMessages.PostScreenMessage("Kerbal News: a press photographer got a shot of " + name + " (" + kind + ")", 3f, ScreenMessageStyle.UPPER_RIGHT);
+                }
+            }
             catch (Exception e) { Debug.LogWarning("[KerbalNews] Press photo failed: " + e); }
-            finally { busy = false; }
+            finally { if (tex != null) Destroy(tex); busy = false; }
         }
 
         // ------------------------------------------------------------------ framing
