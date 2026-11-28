@@ -1061,7 +1061,7 @@ namespace KerbalNews.KSP
                 float r0 = Time.realtimeSinceStartup;
                 page = Crumb.Run("page " + url, () => Sites.Render(url));
                 float built = Time.realtimeSinceStartup - r0;
-                if (built > 0.5f) Debug.LogWarning("[KerbalNews] Slow page: " + url + " took " + built.ToString("0.0") + " s to build");
+                if (built > 0.5f) Debug.LogWarning("[KerbalNews] Slow page: " + url + " took " + built.ToString("0.0") + " s to build (" + Sites.LastPageTiming + "; the rest is gathering the page's data)");
                 string crumb = Crumb.Enter("layout " + url);
                 var root = Html.Parse(page.Html);
                 Css.Apply(root, Css.Parse(page.Css));

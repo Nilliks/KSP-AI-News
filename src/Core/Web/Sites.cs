@@ -155,14 +155,22 @@ namespace KerbalNews.Web
             };
         }
 
+        public string LastPageTiming = "";
+
         PageResult Page(string url, string site, string file, Dictionary<string, object> model, string title, bool live)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             string tpl = read(site + "/" + file);
+            long readMs = sw.ElapsedMilliseconds;
             if (tpl == null) return new PageResult { Url = url, Title = title, Html = "<body><h1>Missing template</h1><p>Sites/" + Html.Escape(site + "/" + file) + " was not found. Reinstall the mod.</p></body>", Css = "body { padding: 20px; background: #ffffff; }" };
             Func<string, string> partials = name => read("_shared/" + name + ".html") ?? read(site + "/" + name + ".html") ?? "";
             AddCommon(model, url);
+            long commonMs = sw.ElapsedMilliseconds;
             string html = Template.Render(tpl, model, partials);
+            long renderMs = sw.ElapsedMilliseconds;
             string css = (read("_shared/base.css") ?? "") + "\n" + (read(site + "/style.css") ?? "");
+            // Where a slow page spent its time after its data was gathered; the browser adds this to its slow-page line.
+            LastPageTiming = "template file " + readMs + " ms, shared bar " + (commonMs - readMs) + " ms, filling the template " + (renderMs - commonMs) + " ms, styles " + (sw.ElapsedMilliseconds - renderMs) + " ms, " + html.Length + " characters";
             return new PageResult { Url = url, Title = title, Html = html, Css = css, Live = live };
         }
 
