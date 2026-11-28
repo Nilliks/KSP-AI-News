@@ -551,6 +551,7 @@ namespace KerbalNews.Web
             // Features, notifications.
             m["mailAuto"] = Engine.State.MailAuto;
             m["mailPopups"] = g.MailPopups;
+            m["spellCheck"] = g.SpellCheck;
             m["newsDelayOpts"] = new List<object> { opt("Fast (a few hours)", "news-delay/0.35", Math.Abs(g.NewsDelay - 0.35) < 0.01), opt("Normal (about a day)", "news-delay/1", Math.Abs(g.NewsDelay - 1) < 0.01), opt("Slow (a few days)", "news-delay/2.5", Math.Abs(g.NewsDelay - 2.5) < 0.01) };
             // Advanced.
             m["timeout"] = g.TimeoutSeconds;

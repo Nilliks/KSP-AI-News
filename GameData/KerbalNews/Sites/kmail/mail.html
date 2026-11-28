@@ -12,7 +12,7 @@
   {{#mailStatus}}<div class="status">{{mailStatus}}</div>{{/mailStatus}}
   {{#open}}<div class="quick">
     <button class="primary" data-action="mail-quick/{{id}}/accept">{{acceptLabel}}</button>
-    {{#canOther}}<input name="kerbal" placeholder="or another kerbal"><button data-action="mail-quick/{{id}}/other">Offer them instead</button>{{/canOther}}
+    {{#canOther}}<input name="kerbal" spellcheck="false" placeholder="or another kerbal"><button data-action="mail-quick/{{id}}/other">Offer them instead</button>{{/canOther}}
     <button data-action="mail-quick/{{id}}/decline">Politely decline</button>
     <button data-action="mail-assist/{{id}}">Ask {{assistantFirst}} to reply</button>
   </div>{{/open}}

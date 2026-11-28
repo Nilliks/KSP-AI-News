@@ -204,6 +204,7 @@ namespace KerbalNews.KSP
         void Hide()
         {
             visible = false;
+            CloseSpellMenu();
             if (canvasGo != null) canvasGo.SetActive(false);
             InputLockManager.RemoveControlLock(HoverLock);
             InputLockManager.RemoveControlLock(TypeLock);
@@ -251,7 +252,7 @@ namespace KerbalNews.KSP
             // Never rebuild the page under a mouse button that's held down: the button being clicked would be destroyed
             // between press and release and the click lost. Live pages redraw every second, so this ate clicks on Hold.
             bool pressing = Input.GetMouseButton(0);
-            if (dirty && !typing && !pressing) { dirty = false; wantRender = true; }
+            if (dirty && !typing && !pressing && !SpellMenuOpen) { dirty = false; wantRender = true; }
             if (wantRender && width > 10) { wantRender = false; Render(true); }
 
             foreach (var f in fields.Values.Concat(chromeFields)) ResetFieldScroll(f);
@@ -262,6 +263,7 @@ namespace KerbalNews.KSP
             bool over = RectTransformUtility.RectangleContainsScreenPoint(windowRt, Input.mousePosition, null);
             ScrollInput(over && RectTransformUtility.RectangleContainsScreenPoint(viewportRt, Input.mousePosition, null), over && !typing);
             SelectionInput(over, typing);
+            SpellingUpdate();
             if (over) InputLockManager.SetControlLock(ControlTypes.CAMERACONTROLS | ControlTypes.KSC_ALL | ControlTypes.EDITOR_SOFT_LOCK | ControlTypes.TRACKINGSTATION_ALL, HoverLock);
             else InputLockManager.RemoveControlLock(HoverLock);
             // Typing must not stage the rocket or warp time.
@@ -1225,6 +1227,7 @@ namespace KerbalNews.KSP
 
         void Clear()
         {
+            CloseSpellMenu();
             foreach (var go in pageObjects) if (go != null) Destroy(go);
             pageObjects.Clear();
             drawnTexts.Clear();
@@ -1350,6 +1353,7 @@ namespace KerbalNews.KSP
                 f.text = inp.Value ?? "";
                 f.MoveTextStart(false);
                 if (inp.Name != "") fields[inp.Name] = f; else unnamedFields.Add(f);
+                AttachSpelling(f, inp);
                 if (!inp.Multiline)
                 {
                     var me = inp;

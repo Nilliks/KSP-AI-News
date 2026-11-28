@@ -78,6 +78,8 @@ namespace KerbalNews.Web
         public float X, Y, W, H;
         public string Name = "", Value = "", Placeholder = "";
         public bool Multiline, Password;
+        /// <summary>Misspelled words get a red underline (off with spellcheck="false", and always off for passwords).</summary>
+        public bool SpellCheck = true;
         public float FontSize = 16;
         public string Family = "sans", Color = "#111111FF";
         public float PadX = 6, PadY = 6;
@@ -262,6 +264,7 @@ namespace KerbalNews.Web
                 X = x, Y = y, W = w, H = h,
                 Name = n.Attr("name"), Value = multi ? n.InnerText() : n.Attr("value"), Placeholder = n.Attr("placeholder"),
                 Multiline = multi, Password = n.Attr("type") == "password",
+                SpellCheck = n.Attr("type") != "password" && n.Attr("spellcheck").ToLowerInvariant() != "false",
                 FontSize = st.FontSize, Family = st.Get("font-family", "sans"), Color = st.Color("color") ?? "#111111FF",
             });
             return h;

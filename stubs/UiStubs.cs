@@ -34,7 +34,7 @@ namespace UnityEngine.UI
     public class Graphic : EventSystems.UIBehaviour { public Color color; public bool raycastTarget; public RectTransform rectTransform; }
     public class MaskableGraphic : Graphic { }
     public class Image : MaskableGraphic { }
-    public class RawImage : MaskableGraphic { public Texture texture; }
+    public class RawImage : MaskableGraphic { public Texture texture; public Rect uvRect; }
     public class RectMask2D : EventSystems.UIBehaviour { }
     public class GraphicRaycaster : EventSystems.UIBehaviour { }
     public class CanvasScaler : EventSystems.UIBehaviour { public enum ScaleMode { ConstantPixelSize, ScaleWithScreenSize, ConstantPhysicalSize } public ScaleMode uiScaleMode; public float scaleFactor; }
@@ -60,7 +60,7 @@ namespace TMPro
     public static class TMP_Settings { public static TMP_FontAsset defaultFontAsset; }
     public struct TMP_LinkInfo { public string GetLinkID() { return ""; } }
     public struct TMP_LineInfo { public float ascender, descender, maxAdvance, width; public int firstCharacterIndex, lastCharacterIndex; }
-    public struct TMP_CharacterInfo { public char character; public float origin, xAdvance, ascender, descender; public int lineNumber; public bool isVisible; }
+    public struct TMP_CharacterInfo { public char character; public int index; public float origin, xAdvance, ascender, descender, baseLine; public Vector3 bottomLeft, topRight; public int lineNumber; public bool isVisible; }
     public class TMP_TextInfo { public int linkCount, lineCount, characterCount; public TMP_LinkInfo[] linkInfo; public TMP_LineInfo[] lineInfo; public TMP_CharacterInfo[] characterInfo; }
     public class TMP_Text : UnityEngine.UI.MaskableGraphic
     {
@@ -81,7 +81,8 @@ namespace TMPro
         public class SubmitEvent : UnityEngine.Events.UnityEvent<string> { }
         public RectTransform textViewport; public TMP_Text textComponent; public UnityEngine.UI.Graphic placeholder;
         public TMP_FontAsset fontAsset; public float pointSize; public bool richText, customCaretColor, isFocused; public Color caretColor; public int caretWidth; public float caretBlinkRate;
-        public LineType lineType; public ContentType contentType; public string text;
+        public LineType lineType; public ContentType contentType; public string text; public int caretPosition; public bool onFocusSelectAll;
+        public void ActivateInputField() { }
         public SubmitEvent onSubmit = new SubmitEvent();
         public void MoveTextStart(bool shift) { }
     }
