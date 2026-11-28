@@ -100,6 +100,8 @@ namespace KerbalNews.KSP
             if (!inp.SpellCheck || inp.Password || f == null) return;
             var g = NewsSystem.Settings;
             if (g != null && !g.SpellCheck) return;
+            // Settings boxes hold keys, model names, addresses and numbers: nothing there to spell check.
+            if (url != null && url.StartsWith("settings.kb")) return;
             var sf = f.gameObject.AddComponent<SpellField>();
             sf.Owner = this;
             sf.Key = inp.Name != "" ? url + "#" + inp.Name : null;
