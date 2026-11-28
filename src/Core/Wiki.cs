@@ -388,7 +388,7 @@ namespace KerbalNews
             u.AppendLine("Date: " + Clock.FormatDate(ut));
             if (instruction != "") u.AppendLine("THE DIRECTOR ASKS: " + instruction);
             foreach (var p in pages) { u.AppendLine(); u.Append(WikiFactsText(p)); }
-            AskJson(Settings.WriterModel, sb.ToString(), u.ToString(), Math.Min(4000, 300 + pages.Count * 900), 0, (root, err, text, res) =>
+            AskJson("Kerbopedia", Settings.Writer, sb.ToString(), u.ToString(), Math.Min(4000, 300 + pages.Count * 900), 0, (root, err, text, res) =>
             {
                 WikiBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "pages")) : null;

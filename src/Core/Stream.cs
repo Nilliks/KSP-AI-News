@@ -489,7 +489,7 @@ namespace KerbalNews
                 return;
             }
             streamBusy = true;
-            var frame = StreamFrameFor(st, hype, realTime, Settings.CheapModel);
+            var frame = StreamFrameFor(st, hype, realTime, Settings.Cheap);
             string streamUser = PromptBuilder.StreamUser(this, st, moments, said, n, hype);
             if (st.OnBooster) frame = null;   // no extra picture calls for the detour
             if (frame != null) streamUser += "\nA frame from the live camera right now is attached. Some viewers react to what they can actually see in it (the craft, the plume, the view, the colours), as people watching a real launch stream do.";
@@ -497,7 +497,7 @@ namespace KerbalNews
             else StreamHelperLook(st, hype, realTime);
             bool wantAnn = Settings.Announcer >= 2 && st.Lifted && !st.FinalCountQueued;
             if (wantAnn) streamUser += "\nANNOUNCER: also write \"announcer\": one line (at most 25 words) the agency's professional launch commentator says next, in the calm, precise style of real launch broadcasts, about what the telemetry shows right now (altitude, speed, staging, the view). Use spoken numbers sparingly. No hype words, no chat slang. \"\" if nothing needs saying.";
-            AskJson(Settings.CheapModel, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
+            AskJson("Livestream chat", Settings.Cheap, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
             {
                 streamBusy = false;
                 if (Stream != st) return;

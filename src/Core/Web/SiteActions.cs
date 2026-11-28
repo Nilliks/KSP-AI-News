@@ -76,21 +76,33 @@ namespace KerbalNews.Web
                     p.WorldLore = Get(form, "world", p.WorldLore);
                     p.HouseRules = Get(form, "rules", p.HouseRules);
                     break;
-                case "provider":
-                    if (Providers.All.Any(x => x.Id == arg)) { g.ProviderId = arg; TestResult = ""; FetchResult = ""; SaveSettings(); }
+                case "gallery-key":
+                    if (arg == "off") g.GalleryKey = ""; else if (GlobalSettings.GalleryKeys.Contains(arg)) g.GalleryKey = arg;
+                    SaveSettings();
                     break;
-                case "writer":
-                    g.WriterModels[g.ProviderId] = arg; SaveSettings();
+                case "usage-clear":
+                    if (arg == "cancel") { ConfirmUsageClear = false; break; }
+                    if (arg != "yes") { ConfirmUsageClear = true; break; }
+                    ConfirmUsageClear = false;
+                    {
+                        string since = DateTime.Now.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                        g.UsageAll.Clear(since); g.UsageSession.Clear(since); State.Usage.Clear(since);
+                    }
+                    SaveSettings();
                     break;
-                case "cheap":
-                    g.CheapModels[g.ProviderId] = arg; SaveSettings();
+                case "reset-settings":
+                    if (arg == "cancel") { ConfirmReset = false; break; }
+                    if (!ConfirmReset) { ConfirmReset = true; break; }
+                    ConfirmReset = false;
+                    g.ResetToDefaults();
+                    Engine.ResetVoice();
+                    SaveSettings();
+                    TestResult = "Every setting is back to how the mod ships. Your keys, and which service and model does each job, were kept."; TestOk = true;
                     break;
                 case "toggle-offline": g.OfflineMode = !g.OfflineMode; SaveSettings(); break;
                 case "toggle-notify": g.NotifyOnPublish = !g.NotifyOnPublish; SaveSettings(); break;
                 case "toggle-warp": g.GenerateDuringWarp = !g.GenerateDuringWarp; SaveSettings(); break;
                 case "toggle-tune": ShowTune = !ShowTune; break;
-                case "toggle-photolook": g.PhotoLook = !g.PhotoLook; SaveSettings(); break;
-                case "vision-provider": g.VisionProviderId = arg == "off" ? "" : arg; SaveSettings(); break;
                 case "toggle-mailpopups": g.MailPopups = !g.MailPopups; SaveSettings(); break;
                 case "toggle-spellcheck": g.SpellCheck = !g.SpellCheck; SaveSettings(); break;
                 case "toggle-mail-auto": Engine.State.MailAuto = !Engine.State.MailAuto; break;
@@ -101,11 +113,6 @@ namespace KerbalNews.Web
                     SaveSettings();
                     break;
                 }
-                case "forget-key":
-                    g.Keys.Remove(arg == "vision" ? g.VisionProviderId : g.ProviderId);
-                    TestResult = "Key forgotten."; TestOk = true;
-                    SaveSettings();
-                    break;
                 case "toggle-pressphotos": g.PressPhotos = !g.PressPhotos; SaveSettings(); break;
                 case "usage": g.ApplyUsage(arg); SaveSettings(); break;
                 case "usage-quiet":
@@ -242,25 +249,9 @@ namespace KerbalNews.Web
                     SaveSettings();
                     break;
                 case "save-settings":
-                case "test-connection":
                     ApplySettingsForm(g, form);
                     SaveSettings();
-                    if (verb == "save-settings") { TestResult = "Saved."; TestOk = true; }
-                    else if (!Busy)
-                    {
-                        Busy = true;
-                        TestResult = "Testing " + g.Preset.Name + " with " + g.WriterModel + "...";
-                        TestOk = true;
-                        Engine.TestConnection((ok, msg) => { Busy = false; TestOk = ok; TestResult = msg; Changed(); });
-                    }
-                    break;
-                case "fetch-models":
-                    if (!Busy)
-                    {
-                        Busy = true;
-                        FetchResult = "Asking " + g.Preset.Name + "...";
-                        Engine.FetchModels((ok, msg) => { Busy = false; FetchResult = msg; if (ok) SaveSettings(); Changed(); });
-                    }
+                    TestResult = "Saved."; TestOk = true;
                     break;
                 case "publish-now":
                     TestResult = Engine.SkipDelay(Now()) + " stories moved up. They will be written on the next tick.";
@@ -268,6 +259,7 @@ namespace KerbalNews.Web
                     break;
                 case "mark-read":
                     Engine.MarkAllRead(Now());
+                    TestResult = "Everything is marked read."; TestOk = true;
                     break;
                 case "privacy":
                     int s2 = arg.LastIndexOf('/');
@@ -283,7 +275,7 @@ namespace KerbalNews.Web
                     State.SilentByDefault = arg == "silent";
                     break;
                 default:
-                    var cr = HandleCommunity(verb, arg, form) ?? HandlePress(verb, arg, form) ?? HandleLive(verb, arg, form) ?? HandleScience(verb, arg, form) ?? HandleVoice(verb, arg, form);
+                    var cr = HandleServices(verb, arg, form) ?? HandleCommunity(verb, arg, form) ?? HandlePress(verb, arg, form) ?? HandleLive(verb, arg, form) ?? HandleScience(verb, arg, form) ?? HandleVoice(verb, arg, form);
                     if (cr != null) return cr;
                     r.Refresh = false;
                     break;
@@ -293,26 +285,12 @@ namespace KerbalNews.Web
 
         static void ApplySettingsForm(GlobalSettings g, IDictionary<string, string> form)
         {
-            string id = g.ProviderId;
-            string key = Get(form, "key").Trim();
-            if (key != "")
-            {
-                g.Keys[id] = key;
-                g.OfflineMode = false;   // pasting a key means "use AI"
-            }
-            if (form.ContainsKey("writer")) g.WriterModels[id] = form["writer"].Trim();
-            if (form.ContainsKey("cheap")) g.CheapModels[id] = form["cheap"].Trim();
-            if (form.ContainsKey("baseUrl")) g.BaseUrls[id] = form["baseUrl"].Trim();
+            // The Advanced numbers. Keys, addresses and models are saved by their own cards and jobs (SitesServices).
             int mt;
             if (int.TryParse(Get(form, "maxTokens").Trim(), NumberStyles.Integer, Inv, out mt)) g.MaxTokens = Math.Max(1000, Math.Min(32000, mt));
             if (int.TryParse(Get(form, "timeout").Trim(), NumberStyles.Integer, Inv, out mt)) g.TimeoutSeconds = Math.Max(20, Math.Min(900, mt));
             if (int.TryParse(Get(form, "localContext").Trim(), NumberStyles.Integer, Inv, out mt)) g.LocalContext = Math.Max(2048, Math.Min(262144, mt));
             if (int.TryParse(Get(form, "localTimeout").Trim(), NumberStyles.Integer, Inv, out mt)) g.LocalTimeoutSeconds = Math.Max(60, Math.Min(3600, mt));
-            string vkey = Get(form, "visionKey").Trim();
-            if (vkey != "" && g.VisionProviderId != "") g.Keys[g.VisionProviderId] = vkey;
-            // Any Save on the page keeps a pasted ElevenLabs key, not only the one in the announcer section.
-            string voiceKey = Get(form, "voiceKey").Trim();
-            if (voiceKey != "") { g.Keys[GlobalSettings.VoiceKeyId] = voiceKey; g.VoiceEnabled = true; }
         }
 
         static string Get(IDictionary<string, string> form, string k, string def = "")

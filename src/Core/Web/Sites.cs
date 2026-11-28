@@ -41,6 +41,8 @@ namespace KerbalNews.Web
         {
             Engine = engine;
             read = readFile;
+            // The price list that ships with the mod, for models the saved (fresher) list does not have.
+            try { Pricing.Load(readFile("settings/prices.txt"), true); } catch (Exception) { }
         }
 
         NewsState State { get { return Engine.State; } }
@@ -215,7 +217,8 @@ namespace KerbalNews.Web
             m["unread"] = Engine.UnreadCount(now);
             m["aiOff"] = !Engine.Settings.CanCallAi;
             m["offline"] = Engine.Settings.OfflineMode;
-            m["providerName"] = Engine.Settings.Preset.Name;
+            m["galleryKey"] = Engine.Settings.GalleryKey != "" ? Engine.Settings.GalleryKey : "the gallery key (turned off in Settings)";
+            m["providerName"] = Engine.Settings.Preset.Name + (Engine.Settings.CheapServiceId != Engine.Settings.ProviderId ? " and " + Engine.Settings.Cheap.Preset.Name : "");
             m["status"] = Engine.Status;
             m["error"] = Engine.LastError;
             m["pending"] = Engine.PendingCount;
@@ -481,21 +484,8 @@ namespace KerbalNews.Web
         {
             var g = Engine.Settings;
             var m = M();
-            m["providers"] = Providers.All.Select(p => (object)new Dictionary<string, object> { { "id", p.Id }, { "name", p.Name }, { "on", p.Id == g.ProviderId } }).ToList();
-            var pr = g.Preset;
-            string v;
-            m["provider"] = new Dictionary<string, object>
-            {
-                { "id", pr.Id }, { "name", pr.Name }, { "needsKey", pr.NeedsKey }, { "keyHint", pr.KeyHint }, { "hasKey", g.Key != "" },
-                { "baseUrl", g.BaseUrls.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultBaseUrl", pr.BaseUrl },
-                { "writer", g.WriterModels.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultWriter", pr.WriterModel },
-                { "cheap", g.CheapModels.TryGetValue(pr.Id, out v) ? v : "" }, { "defaultCheap", pr.CheapModel },
-            };
-            m["writerChoices"] = g.ModelChoices.Select(x => (object)new Dictionary<string, object> { { "id", x }, { "on", x == g.WriterModel } }).ToList();
-            m["cheapChoices"] = g.ModelChoices.Select(x => (object)new Dictionary<string, object> { { "id", x }, { "on", x == g.CheapModel } }).ToList();
-            m["writerModel"] = g.WriterModel;
-            m["cheapModel"] = g.CheapModel;
-            m["fetchResult"] = FetchResult;
+            AddServiceSettings(m, g);
+            AddUsage(m, g);
             m["maxTokens"] = g.MaxTokens;
             m["notify"] = g.NotifyOnPublish;
             m["warp"] = g.GenerateDuringWarp;
@@ -515,11 +505,6 @@ namespace KerbalNews.Web
             m["tieIns"] = g.ContractTieIns;
             m["modsInContext"] = g.ModsInContext;
             Func<string, string, bool, object> opt = (label, action, on) => new Dictionary<string, object> { { "label", label }, { "action", action }, { "on", on } };
-            string match = g.UsageMatch;
-            m["usageText"] = match == "saver" ? "Saver: fewer and shorter AI calls. Roughly half the cost of Balanced."
-                : match == "full" ? "Full: more outlets, longer pieces, livelier comments, the writer model for everything. Roughly double the cost of Balanced."
-                : match == "balanced" ? "Balanced: the default." : "Custom: your own mix of the settings below.";
-            m["usagePresets"] = new List<object> { opt("Saver", "usage/saver", match == "saver"), opt("Balanced", "usage/balanced", match == "balanced"), opt("Full", "usage/full", match == "full") };
             m["quietOpts"] = new List<object> { opt("Off", "usage-quiet/0", g.QuietDays <= 0), opt("Every 6 days", "usage-quiet/6", g.QuietDays == 6), opt("Every 3 days", "usage-quiet/3", g.QuietDays == 3), opt("Every 2 days", "usage-quiet/2", g.QuietDays == 2) };
             m["amountOpts"] = new List<object> { opt("Short", "usage-amount/0.6", Math.Abs(g.AmountScale - 0.6) < 0.01), opt("Normal", "usage-amount/1", Math.Abs(g.AmountScale - 1) < 0.01), opt("Long", "usage-amount/1.3", Math.Abs(g.AmountScale - 1.3) < 0.01) };
             m["outletOpts"] = new List<object> { opt("2", "usage-outlets/2", g.MaxOutlets == 2), opt("3", "usage-outlets/3", g.MaxOutlets == 3), opt("5", "usage-outlets/5", g.MaxOutlets == 5), opt("All", "usage-outlets/0", g.MaxOutlets == 0) };
@@ -546,16 +531,9 @@ namespace KerbalNews.Web
             // Merged "How much AI" section: fine-tuning folds away.
             m["showTune"] = ShowTune;
             // Pictures.
-            bool sees = Providers.CanSee(g.Preset, g.CheapModel) || Providers.CanSee(g.Preset, g.WriterModel);
-            m["canSee"] = sees;
             m["photoLook"] = g.PhotoLook;
-            m["needHelper"] = g.PhotoLook && !sees;
-            var helpers = Providers.All.Where(p => p.NeedsKey && p.Id != g.ProviderId && p.Kind != ApiKind.Ollama && Providers.CanSee(p, p.CheapModel)).ToList();
-            m["visionOpts"] = new List<object> { opt("Nobody", "vision-provider/off", g.VisionProviderId == "") }
-                .Concat(helpers.Select(p => opt(p.Name + (g.Keys.ContainsKey(p.Id) && g.Keys[p.Id] != "" ? " (key saved)" : " (no key)"), "vision-provider/" + p.Id, g.VisionProviderId == p.Id))).ToList();
-            var vp = Providers.Get(g.VisionProviderId);
-            if (vp != null && !sees)
-                m["vision"] = new Dictionary<string, object> { { "name", vp.Name }, { "model", vp.CheapModel }, { "hasKey", g.Keys.ContainsKey(vp.Id) && g.Keys[vp.Id] != "" }, { "keyHint", vp.KeyHint } };
+            m["galleryKeyOpts"] = new List<object> { opt("Off", "gallery-key/off", g.GalleryKey == "") }.Concat(GlobalSettings.GalleryKeys.Select(k => opt(k, "gallery-key/" + k, g.GalleryKey == k))).ToList();
+            m["confirmReset"] = ConfirmReset;
             // Features, notifications.
             m["mailAuto"] = Engine.State.MailAuto;
             m["mailPopups"] = g.MailPopups;
@@ -563,7 +541,7 @@ namespace KerbalNews.Web
             m["newsDelayOpts"] = new List<object> { opt("Fast (a few hours)", "news-delay/0.35", Math.Abs(g.NewsDelay - 0.35) < 0.01), opt("Normal (about a day)", "news-delay/1", Math.Abs(g.NewsDelay - 1) < 0.01), opt("Slow (a few days)", "news-delay/2.5", Math.Abs(g.NewsDelay - 2.5) < 0.01) };
             // Advanced.
             m["timeout"] = g.TimeoutSeconds;
-            bool local = g.Preset.Kind == ApiKind.Ollama || new[] { "lmstudio", "llamacpp", "koboldcpp", "jan" }.Contains(g.Preset.Id);
+            bool local = Providers.IsLocal(g.Writer.BaseUrl) || Providers.IsLocal(g.Cheap.BaseUrl);
             m["isLocal"] = local;
             m["localContext"] = g.LocalContext;
             m["localTimeout"] = g.LocalTimeoutSeconds;
@@ -573,8 +551,9 @@ namespace KerbalNews.Web
         /// <summary>Whether the fine-tuning knobs under "How much AI" are open (this session only).</summary>
         public bool ShowTune;
 
-        public string FetchResult = "";
         public string TestResult = "";
+        /// <summary>"Reset to defaults" was clicked once and waits for the second click.</summary>
+        public bool ConfirmReset;
         public bool TestOk;
 
         Dictionary<string, object> TelemetryModel()
