@@ -30,6 +30,8 @@ namespace KerbalNews
         public int TimeoutSeconds = 120;
         /// <summary>For the spending count: the feature that asked, and the text provider and model asked (see UsageMeter).</summary>
         public string Feature = "", ProviderId = "", Model = "";
+        /// <summary>For a request no text provider built (a picture): the service it goes to.</summary>
+        public string Service = "";
     }
 
     public class HttpResult

@@ -87,12 +87,12 @@ namespace KerbalNews
         /// <summary>
         /// Adds one request to the three running counts: this game session, this save, and everything on this computer.
         /// </summary>
-        public void CountUsage(string feature, UsageStats one)
+        public void CountUsage(string feature, string service, UsageStats one)
         {
             if (string.IsNullOrEmpty(feature)) feature = UsageMeter.Other;
-            Settings.UsageSession.Count(feature, one);
-            Settings.UsageAll.Count(feature, one);
-            if (State != null) State.Usage.Count(feature, one);
+            Settings.UsageSession.Count(feature, service, one);
+            Settings.UsageAll.Count(feature, service, one);
+            if (State != null) State.Usage.Count(feature, service, one);
             Settings.UsageDirty = true;
         }
 

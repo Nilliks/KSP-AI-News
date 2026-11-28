@@ -41,15 +41,20 @@ namespace KerbalNews
     public class UsageBook
     {
         public Dictionary<string, UsageStats> By = new Dictionary<string, UsageStats>();
+        /// <summary>The same requests counted per service ("deepseek", "elevenlabs"), for the tokens each one was sent and wrote.</summary>
+        public Dictionary<string, UsageStats> ByService = new Dictionary<string, UsageStats>();
         public double PlaySeconds;
         public long Launches;
         /// <summary>When the count was last started from zero, as shown on the page ("" = since counting began).</summary>
         public string Since = "";
 
-        public void Count(string feature, UsageStats one)
+        public void Count(string feature, string service, UsageStats one)
         {
             UsageStats s;
             if (!By.TryGetValue(feature, out s)) By[feature] = s = new UsageStats();
+            s.AddFrom(one);
+            if (string.IsNullOrEmpty(service)) service = "other";
+            if (!ByService.TryGetValue(service, out s)) ByService[service] = s = new UsageStats();
             s.AddFrom(one);
         }
 
@@ -57,7 +62,7 @@ namespace KerbalNews
 
         public UsageStats Total { get { var t = new UsageStats(); foreach (var s in By.Values) t.AddFrom(s); return t; } }
 
-        public void Clear(string since) { By.Clear(); PlaySeconds = 0; Launches = 0; Since = since ?? ""; }
+        public void Clear(string since) { By.Clear(); ByService.Clear(); PlaySeconds = 0; Launches = 0; Since = since ?? ""; }
 
         public void Save(DataNode n)
         {
@@ -69,6 +74,13 @@ namespace KerbalNews
                 if (kv.Value.Calls == 0) continue;
                 var f = n.AddNode("FEATURE");
                 f.AddText("name", kv.Key);
+                kv.Value.Save(f);
+            }
+            foreach (var kv in ByService)
+            {
+                if (kv.Value.Calls == 0) continue;
+                var f = n.AddNode("SERVICE");
+                f.Add("id", kv.Key);
                 kv.Value.Save(f);
             }
         }
@@ -85,6 +97,11 @@ namespace KerbalNews
                 string name = f.GetText("name");
                 if (name != "") b.By[name] = UsageStats.Load(f);
             }
+            foreach (var f in n.GetNodes("SERVICE"))
+            {
+                string id = f.Get("id", "");
+                if (id != "") b.ByService[id] = UsageStats.Load(f);
+            }
             return b;
         }
     }
@@ -97,11 +114,11 @@ namespace KerbalNews
     public class UsageMeter : IHttpTransport
     {
         readonly IHttpTransport inner;
-        readonly Action<string, UsageStats> count;
+        readonly Action<string, string, UsageStats> count;
 
         public const string VoiceFeature = "Announcer voice", PictureFeature = "Article photos", Other = "Other";
 
-        public UsageMeter(IHttpTransport inner, Action<string, UsageStats> count) { this.inner = inner; this.count = count; }
+        public UsageMeter(IHttpTransport inner, Action<string, string, UsageStats> count) { this.inner = inner; this.count = count; }
 
         public IHttpTransport Inner { get { return inner; } }
 
@@ -110,7 +127,7 @@ namespace KerbalNews
             if (request == null || request.Method != "POST") { inner.Send(request, done); return; }
             inner.Send(request, res =>
             {
-                try { count(FeatureFor(request), Measure(request, res)); }
+                try { count(FeatureFor(request), ServiceFor(request), Measure(request, res)); }
                 catch (Exception) { }   // counting must never break a request
                 done(res);
             });
@@ -122,6 +139,15 @@ namespace KerbalNews
             if (IsVoice(r.Url)) return VoiceFeature;
             if (IsPicture(r.Url)) return PictureFeature;
             return Other;
+        }
+
+        /// <summary>Which service a request goes to: the text provider that built it, ElevenLabs, or the image service in use.</summary>
+        static string ServiceFor(HttpRequestSpec r)
+        {
+            if (!string.IsNullOrEmpty(r.ProviderId)) return r.ProviderId;
+            if (IsVoice(r.Url)) return Services.ElevenLabs;
+            if (!string.IsNullOrEmpty(r.Service)) return r.Service;
+            return "other";
         }
 
         public static UsageStats Measure(HttpRequestSpec r, HttpResult res)

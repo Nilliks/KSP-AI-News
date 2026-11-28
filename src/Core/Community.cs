@@ -238,6 +238,7 @@ namespace KerbalNews
             var story = imageQueue.Dequeue();
             var preset = Settings.ImagePreset;
             var req = ImageProviders.Build(preset, Settings.ImageBaseUrl, Settings.ImageModel, Settings.ImageKey, story.ImagePrompt);
+            req.Feature = UsageMeter.PictureFeature; req.Service = Services.ForImage(preset.Id);
             imageBusy = true;
             ImageStatus = "Developing a press photo...";
             Transport.Send(req, res =>
@@ -265,6 +266,7 @@ namespace KerbalNews
             if (!Settings.ImagesOn) { done(false, "Enter an API key and model for " + preset.Name + " first.", ""); return; }
             var req = ImageProviders.Build(preset, Settings.ImageBaseUrl, Settings.ImageModel, Settings.ImageKey,
                 "A tall white rocket stands on the launch pad at dawn, steam venting, with a small crowd of kerbals watching from behind a fence in the foreground.");
+            req.Feature = UsageMeter.PictureFeature; req.Service = Services.ForImage(preset.Id);
             Transport.Send(req, res =>
             {
                 byte[] bytes;

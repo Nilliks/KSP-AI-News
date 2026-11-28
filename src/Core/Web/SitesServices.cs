@@ -63,6 +63,20 @@ namespace KerbalNews.Web
             m["usageRows"] = rows;
             m["usageAny"] = rows.Count > 0;
             m["usageRates"] = new[] { Rate("This session", g.UsageSession), Rate("This save", State.Usage), Rate("All time", g.UsageAll) }.Where(x => x != "").Select(x => (object)new Dictionary<string, object> { { "text", x } }).ToList();
+            Func<string, string> svcName = id => { var sv = Services.Get(id); return sv != null ? sv.Name : "Other"; };
+            Func<long, string> num = n => n > 0 ? UsageMeter.Short(n) : "-";
+            m["usageServices"] = g.UsageAll.ByService.Where(kv => kv.Value.Calls > 0).OrderByDescending(kv => kv.Value.Calls).Select(kv =>
+            {
+                var u = kv.Value;
+                var sv = Services.Get(kv.Key);
+                var note = new List<string>();
+                if (u.Letters > 0) note.Add(UsageMeter.Short(u.Letters) + " letters spoken");
+                if (u.Pictures > 0) note.Add(UsageMeter.Short(u.Pictures) + (u.Pictures == 1 ? " picture" : " pictures"));
+                if (u.Failed > 0) note.Add(UsageMeter.Short(u.Failed) + " failed");
+                if (sv != null && sv.Local) note.Add("free");
+                return (object)new Dictionary<string, object> { { "name", svcName(kv.Key) }, { "calls", UsageMeter.Short(u.Calls) }, { "tokIn", num(u.InTokens) }, { "tokOut", num(u.OutTokens) },
+                    { "cost", u.Cost > 0 ? Spent(u) : "-" }, { "note", string.Join(", ", note.ToArray()) } };
+            }).ToList();
             var t = g.UsageAll.Total;
             var extra = new List<string>();
             if (t.Letters > 0) extra.Add(UsageMeter.Short(t.Letters) + " letters spoken by ElevenLabs");

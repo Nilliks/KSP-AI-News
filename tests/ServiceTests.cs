@@ -268,6 +268,8 @@ public static class ServiceTests
         Assert(Math.Abs(g.UsageAll.PlaySeconds - 1800) < 1 && state.Usage.Launches == 2, "play time and launches are counted; a long gap is not play");
         string h = sites.Render("settings.kb").Html;
         Assert(h.Contains("Test requests") && h.Contains("$0.20 · 3") && h.Contains("All time: $0.20 for 3 requests over 0.5 hours of play and 2 launches. About $0.40 an hour of play, $0.10 a launch."), "the page shows the totals and what they come to per hour and per launch");
+        var ds = g.UsageAll.ByService["deepseek"];
+        Assert(ds.Calls == 3 && ds.InTokens == 200000 && ds.OutTokens == 100000 && h.Contains("Service (all time)") && h.Contains(">200,000<") && h.Contains(">DeepSeek<"), "requests and tokens are also shown per service");
         Assert(h.Contains("1 request on a model with no listed price") && h.Contains("1 request failed and cost nothing."), "what is not in the dollars is said");
 
         DataNode sn, kn;
@@ -276,6 +278,7 @@ public static class ServiceTests
         var saved = new DataNode("N"); state.Save(saved);
         var state2 = NewsState.Load(saved);
         Assert(Math.Abs(g2.UsageAll.Total.Cost - 0.2) < 1e-9 && g2.UsageAll.Launches == 2 && g2.UsageSession.Total.Calls == 0, "the all-time count is saved with the settings; the session count is not");
+        Assert(g2.UsageAll.ByService["deepseek"].InTokens == 200000, "the per-service count is saved too");
         Assert(state2.Usage.Total.Calls == 3 && Math.Abs(state2.Usage.PlaySeconds - 1800) < 1, "this save's count is saved with the save");
         g.ResetToDefaults();
         Assert(g.UsageAll.Total.Calls == 3, "resetting the settings keeps the count");

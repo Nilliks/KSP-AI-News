@@ -92,6 +92,8 @@
   {{#usageAny}}<div class="use head-use"><span class="usvc">Feature</span><span class="unum">This session</span><span class="unum">This save</span><span class="unum">All time</span></div>
   {{#usageRows}}<div class="use{{#total}} total-use{{/total}}"><span class="usvc">{{name}}</span><span class="unum">{{session}}</span><span class="unum">{{save}}</span><span class="unum">{{all}}</span></div>{{/usageRows}}
   {{#usageRates}}<p class="rate">{{text}}</p>{{/usageRates}}
+  <div class="use head-use"><span class="usvc">Service (all time)</span><span class="unum2">Requests</span><span class="unum2">Tokens in</span><span class="unum2">Tokens out</span><span class="unum2">Cost</span><span class="umore"></span></div>
+  {{#usageServices}}<div class="use"><span class="usvc">{{name}}</span><span class="unum2">{{calls}}</span><span class="unum2">{{tokIn}}</span><span class="unum2">{{tokOut}}</span><span class="unum2">{{cost}}</span><span class="umore">{{note}}</span></div>{{/usageServices}}
   {{#usageExtra}}<p class="hint">{{usageExtra}} {{usageFailed}}</p>{{/usageExtra}}{{^usageExtra}}{{#usageFailed}}<p class="hint">{{usageFailed}}</p>{{/usageFailed}}{{/usageExtra}}
   {{^confirmUsageClear}}<div class="btns"><a class="tg" href="action:usage-clear">Start the count again from zero</a></div>{{/confirmUsageClear}}
   {{#confirmUsageClear}}<div class="btns"><span class="bad">Clear every count, in this save too?</span><a class="tg" href="action:usage-clear/yes">Yes, clear</a><a class="tg" href="action:usage-clear/cancel">Cancel</a></div>{{/confirmUsageClear}}{{/usageAny}}

@@ -75,3 +75,5 @@ h3 { margin-top: 12px; font-size: 16px; color: #3d3a33; }
 .usvc { width: 220px; }
 .unum { width: 170px; text-align: right; font-family: mono; }
 .rate { margin-top: 6px; font-size: 14px; }
+.unum2 { width: 100px; text-align: right; font-family: mono; }
+.umore { flex: 1; font-size: 12px; color: #6b665c; }
