@@ -203,6 +203,10 @@ namespace KerbalNews.KSP
         float shotUntil, lostSince = -1, liftoffAt = -1;
         int hullParts;
         double trackStart;
+        // Liftoff belongs to the wide pad camera: it is cut to in the last seconds of the count (or when the engines
+        // light on the pad) and held until the rocket climbs out of its frame, so the takeoff itself is always seen.
+        bool padHold, sawOnGround;
+        const float PadHoldAfterLiftoff = 12f;
 
         void DrawFrame(NewsEngine eng)
         {
@@ -211,8 +215,22 @@ namespace KerbalNews.KSP
             if (v == null) { PlayerView(); return; }
             float now = Time.realtimeSinceStartup;
             string id = v.persistentId.ToString();
-            if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; trackStart = 0; }
-            if (liftoffAt < 0 && liftedFor == id) liftoffAt = now;
+            if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; trackStart = 0; padHold = false; sawOnGround = false; }
+            bool onGround = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || v.situation == Vessel.Situations.SPLASHED;
+            if (onGround) sawOnGround = true;
+            // Checked every frame here: the telemetry only looks for liftoff every 3 s, which is too late for the camera.
+            if (liftoffAt < 0 && (liftedFor == id || (sawOnGround && !onGround)))
+            {
+                liftoffAt = now;
+                if (sawOnGround && !HoldPad(eng, v, now, "liftoff") && padHold) { padHold = false; shotUntil = now; }
+            }
+            else if (liftoffAt < 0 && onGround)
+            {
+                double left = eng.CountdownLeft(now);
+                bool soon = (!double.IsNaN(left) && left <= 10) || EnginesLit(v);
+                if (soon && !padHold) HoldPad(eng, v, now, double.IsNaN(left) || left > 10 ? "engines lit" : "final count");
+                else if (!soon && padHold) { padHold = false; shotUntil = now + 4f; }   // a hold, scrub or shutdown on the pad
+            }
             if (v.parts != null && v.parts.Count != hullParts) { hullParts = v.parts.Count; hullCams.Clear(); }   // staged or broke up
             if (hullCams.Count == 0) SetUpHull(v);
             RetryTrackers(v, now);
@@ -264,6 +282,31 @@ namespace KerbalNews.KSP
             finally { RenderTexture.active = prev; }
         }
 
+        static bool EnginesLit(Vessel v)
+        {
+            try { return v.FindPartModulesImplementing<ModuleEngines>().Any(e => e.EngineIgnited && !e.flameout && e.finalThrust > 0.1f); }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>Cuts to the wide pad camera (or the closest thing to it that can see the rocket) and holds it for liftoff.</summary>
+        bool HoldPad(NewsEngine eng, Vessel v, float now, string why)
+        {
+            var pick = groundCams.FirstOrDefault(c => c.Name == "Pad camera" && Usable(c, v))
+                ?? groundCams.FirstOrDefault(c => c.Fixed && Usable(c, v))
+                ?? groundCams.FirstOrDefault(c => !c.Fixed && Usable(c, v));
+            if (pick == null) return false;
+            padHold = true;
+            lostSince = -1;
+            shotUntil = liftoffAt < 0 ? float.MaxValue : liftoffAt + PadHoldAfterLiftoff;
+            if (pick != shot)
+            {
+                shot = pick;
+                eng.StreamCamera(shot.Name, false, now);
+                CutLog.Add(now.ToString("0.0") + "s " + shot.Name + " (held for " + why + ", alt " + v.altitude.ToString("0") + " m)");
+            }
+            return true;
+        }
+
         void PlayerView()
         {
             var main = Camera.allCameras.FirstOrDefault(c => c != null && c.name == "Camera 00");
@@ -275,6 +318,7 @@ namespace KerbalNews.KSP
         /// <summary>Chooses the next camera: ground cameras first, hull cameras more and more as the rocket gets far away.</summary>
         void Cut(NewsEngine eng, Vessel v, float now)
         {
+            padHold = false;
             var ground = NearHome(v) ? groundCams.Where(c => c != shot && Usable(c, v)).ToList() : new System.Collections.Generic.List<Shot>();
             var hull = hullCams.Where(c => c != shot && Usable(c, v)).ToList();
             // Distance to the nearest tracker: the pad cameras sit right under the climb, so they would say "close" forever.
@@ -287,6 +331,8 @@ namespace KerbalNews.KSP
             double away = far - trackStart;
             double hullOdds = v.situation == Vessel.Situations.PRELAUNCH || v.situation == Vessel.Situations.LANDED || justLifted ? 0.05
                 : Math.Max(0.1, Math.Min(1, (away - 1500) / 5000));
+            // For the first seconds of the climb the broadcast stays on the ground cameras whenever one can see the rocket.
+            if (justLifted) hullOdds = 0;
             if (ground.Count == 0) hullOdds = 1;
             if (hull.Count == 0) hullOdds = 0;
             Shot next = null;
