@@ -26,8 +26,16 @@ a:hover { color: #123e80; }
 .dim { color: #4a5568; }
 .small { font-size: 12px; }
 .none { padding: 30px 18px; color: #4a5568; }
-.row { display: flex; align-items: center; gap: 14px; padding: 11px 18px; border-bottom: 1px solid #eef1f5; color: #4a5568; }
+.row { display: flex; align-items: center; border-bottom: 1px solid #eef1f5; color: #4a5568; }
 .row:hover { background: #f5f8fc; }
+.rlink { flex: 1; display: flex; align-items: center; gap: 14px; padding: 11px 6px 11px 18px; color: #4a5568; }
+.row.unread .rlink { color: #1c2430; }
+.del { padding: 11px 18px 11px 10px; font-size: 12px; color: #8a94a3; }
+.del:hover { color: #7a1616; }
+.danger { color: #7a1616; }
+.tnote { padding: 8px 18px; font-size: 12px; color: #4a5568; background: #fafbfd; border-bottom: 1px solid #eef1f5; }
+.tools { display: flex; align-items: center; gap: 12px; }
+.tools button { padding: 6px 14px; font-size: 13px; }
 .row.unread { color: #1c2430; }
 .dot { width: 9px; height: 9px; background: #2b6fd6; }
 .nodot { width: 9px; }

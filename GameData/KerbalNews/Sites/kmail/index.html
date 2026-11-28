@@ -3,15 +3,16 @@
 <div class="main">
 {{> side}}
 <div class="list">
-  <div class="lhead"><b>{{title}}</b><span class="dim">{{today}}</span><div class="grow"></div>{{#busy}}<span class="dim">New mail is on its way...</span>{{/busy}}{{#unreadTotal}}<a href="action:mail-read">Mark all read</a>{{/unreadTotal}}<a href="action:mail-assist/inbox">Ask {{assistantFirst}} to sum up my inbox</a></div>
-  {{#empty}}<div class="none">No mail here yet. Outlets, sponsors, the Council and the public write in after your big moments.</div>{{/empty}}
-  {{#rows}}<a class="row{{#unread}} unread{{/unread}}" href="{{url}}">
+  <div class="lhead"><b>{{title}}</b><span class="dim">{{today}}</span><div class="grow"></div>{{#busy}}<span class="dim">New mail is on its way...</span>{{/busy}}{{#unreadTotal}}<a href="action:mail-read">Mark all read</a>{{/unreadTotal}}{{#trashFull}}<a class="danger" href="action:mail-empty-trash">Empty trash</a>{{/trashFull}}{{^trash}}<a href="action:mail-assist/inbox">Ask {{assistantFirst}} to sum up my inbox</a>{{/trash}}</div>
+  {{#trashFull}}<div class="tnote">Emptying the trash deletes these for good. Any request here that still wants an answer counts as ignored.</div>{{/trashFull}}
+  {{#empty}}<div class="none">{{emptyText}}</div>{{/empty}}
+  {{#rows}}<div class="row{{#unread}} unread{{/unread}}"><a class="rlink" href="{{url}}">
     {{#unread}}<span class="dot"></span>{{/unread}}{{^unread}}<span class="nodot"></span>{{/unread}}
     <span class="from">{{from}}</span>
     {{#badge}}<span class="badge {{badgeClass}}">{{badge}}</span>{{/badge}}
     <span class="subj"><span class="st">{{subject}}</span> <span class="snip">{{snippet}}</span></span>
     <span class="time">{{time}}</span>
-  </a>{{/rows}}
+  </a><a class="del" href="{{delUrl}}">{{delLabel}}</a></div>{{/rows}}
 </div>
 </div>
 </body></html>
