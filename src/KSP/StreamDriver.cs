@@ -7,7 +7,9 @@ namespace KerbalNews.KSP
     /// <summary>
     /// Feeds the livestream in flight: telemetry every few seconds, staging and explosions as moments, and a small
     /// video feed cut like a real launch broadcast: cameras on the ground first, then cameras on the rocket's hull.
-    /// Leaving flight ends the stream.
+    /// Leaving flight ends the stream, except when FMRS (Flight Manager for Reusable Stages) is the one reloading the
+    /// scene: its jump to a dropped booster and back is a save load, and the broadcast carries on through both. While
+    /// FMRS flies the booster the broadcast follows it; back on the main flight it returns to the main vessel.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class StreamDriver : MonoBehaviour
@@ -19,6 +21,36 @@ namespace KerbalNews.KSP
         /// <summary>Self-test only: use the hull cameras whatever the distance.</summary>
         public static bool ForceHull;
 
+        // ---- FMRS hand-over. The stream lives in the engine, which outlives the scene; this driver is rebuilt by every load.
+        /// <summary>True when the scene now loading was ordered by FMRS and the stream should survive it.</summary>
+        static bool keep;
+        static bool paused;
+        static float pausedAt, clockOffset;
+        /// <summary>The stream's clock: real seconds, minus the time spent on FMRS's loading screens, so the chat, the
+        /// countdown, the announcer and the replay carry on from where they stopped instead of jumping ahead.</summary>
+        public static float Now { get { return (paused ? pausedAt : Time.realtimeSinceStartup) - clockOffset; } }
+        /// <summary>FMRS's "switched to a dropped stage" flag as it was when this flight scene started.</summary>
+        public static bool SceneSide { get; private set; }
+        /// <summary>The dropped stage FMRS put the player on in this scene (persistentId), or "".</summary>
+        public static string SideBoosterId { get; private set; }
+        /// <summary>For the self-test: how many scene loads a stream has been carried through.</summary>
+        public static int Handovers { get; private set; }
+
+        static StreamDriver() { SideBoosterId = ""; }
+
+        /// <summary>Starts the stream clock again after a hand-over (or after one that never came back).</summary>
+        public static void Resume()
+        {
+            if (paused) { clockOffset += Time.realtimeSinceStartup - pausedAt; paused = false; }
+            keep = false;
+        }
+
+        bool latched;
+        int frames;
+        Vessel focus;
+        float downSince = -1;
+        bool oldLiftoff;
+
         float nextSample, nextFrame, lastBoom, nextRecTry, nextFlight;
         string liftedFor = "";
         readonly System.Random rng = new System.Random();
@@ -29,14 +61,36 @@ namespace KerbalNews.KSP
         {
             GameEvents.onStageActivate.Add(OnStage);
             GameEvents.onPartDie.Add(OnPartDie);
+            GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);
+        }
+
+        /// <summary>
+        /// A scene load is starting. If FMRS ordered it (a jump to a dropped stage, between stages, or back to the main
+        /// vessel, which can go by way of the Space Center when the stage was recovered), the stream is kept and its clock
+        /// stops until the next flight scene is up. Any other load ends the stream as before.
+        /// </summary>
+        void OnSceneRequested(GameScenes to)
+        {
+            keep = false;
+            var eng = Eng;
+            if (eng == null || eng.Stream == null || !ModCompat.FmrsInstalled) return;
+            if (!SceneSide && !ModCompat.FmrsSwitchedRaw()) return;
+            if (to != GameScenes.FLIGHT && to != GameScenes.SPACECENTER && to != GameScenes.TRACKSTATION) return;
+            keep = true;
+            Handovers++;
+            if (!paused) { pausedAt = Time.realtimeSinceStartup; paused = true; }
+            Debug.Log("[KerbalNews] FMRS is switching vessels: the livestream carries on through the load.");
         }
 
         void OnDestroy()
         {
             GameEvents.onStageActivate.Remove(OnStage);
             GameEvents.onPartDie.Remove(OnPartDie);
+            GameEvents.onGameSceneLoadRequested.Remove(OnSceneRequested);
+            SceneSide = false;
+            SideBoosterId = "";
             var eng = Eng;
-            if (eng != null && eng.Stream != null) eng.EndStream(Planetarium.GetUniversalTime());
+            if (eng != null && eng.Stream != null && !keep) eng.EndStream(Planetarium.GetUniversalTime());
             if (Frame != null) { Frame.Release(); Destroy(Frame); Frame = null; }
         }
 
@@ -46,17 +100,14 @@ namespace KerbalNews.KSP
         {
             var eng = Eng;
             if (eng == null || eng.Stream == null) return null;
-            string id = eng.Stream.VesselId;
-            var v = FlightGlobals.ActiveVessel;
-            if (v == null || v.persistentId.ToString() != id)
-                v = FlightGlobals.Vessels == null ? null : FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.loaded && x.persistentId.ToString() == id);
+            var v = Find(eng.Stream);
             var n = v != null ? Numbers(v) : new LiveNumbers();
             if (v == null && eng.Stream.Last != null)
             {
                 var t = eng.Stream.Last;
                 n.UT = t.UT; n.Altitude = t.Altitude; n.Speed = t.Speed; n.Apoapsis = t.Apoapsis; n.Periapsis = t.Periapsis; n.Stage = t.Stage; n.FuelPct = t.FuelPct; n.Situation = t.Situation;
             }
-            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Time.realtimeSinceStartup));
+            return StreamOverlay.Build(eng.Stream, n, eng.CountdownLeft(Now));
         }
 
         /// <summary>The craft's numbers this instant: for the overlay and the flight controller's callouts.</summary>
@@ -91,43 +142,70 @@ namespace KerbalNews.KSP
         Vessel Streamed()
         {
             var eng = Eng;
-            if (eng == null || eng.Stream == null) return null;
-            string id = eng.Stream.VesselId;
+            return eng == null || eng.Stream == null ? null : Find(eng.Stream);
+        }
+
+        /// <summary>The vessel on screen: the one the stream is about, or the dropped booster while FMRS is flying it.</summary>
+        static Vessel Find(StreamSession st)
+        {
+            string id = st.OnBooster ? st.FocusId : st.VesselId;
             var v = FlightGlobals.ActiveVessel;
             if (v != null && v.persistentId.ToString() == id) return v;
-            return FlightGlobals.Vessels == null ? null : FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.loaded && x.persistentId.ToString() == id);
+            var found = FlightGlobals.Vessels == null ? null : FlightGlobals.Vessels.FirstOrDefault(x => x != null && x.loaded && x.persistentId.ToString() == id);
+            // A booster that broke up: stay with whatever the player is left looking at.
+            return found == null && st.OnBooster ? v : found;
         }
 
         void OnStage(int stage)
         {
             var eng = Eng;
-            if (eng == null || eng.Stream == null || Streamed() != FlightGlobals.ActiveVessel) return;
-            eng.StreamMoment("stage " + stage + " activated", Time.realtimeSinceStartup);
+            if (eng == null || eng.Stream == null || eng.Stream.OnBooster || Streamed() != FlightGlobals.ActiveVessel) return;
+            eng.StreamMoment("stage " + stage + " activated", Now);
         }
 
         void OnPartDie(Part p)
         {
             var eng = Eng;
             if (eng == null || eng.Stream == null || p == null || p.vessel == null) return;
+            if (eng.Stream.OnBooster || SceneSide)
+            {
+                // Only the booster is real in a side flight. Losing its root part is losing the booster.
+                if (focus != null && p.vessel == focus && p == focus.rootPart) eng.StreamBoosterEnd("lost", "", Now);
+                return;
+            }
             if (p.vessel.persistentId.ToString() != eng.Stream.VesselId) return;
-            if (Time.realtimeSinceStartup - lastBoom < 6) return;
-            lastBoom = Time.realtimeSinceStartup;
-            eng.StreamMoment("a part of the vessel exploded", Time.realtimeSinceStartup);
+            if (Now - lastBoom < 6) return;
+            lastBoom = Now;
+            eng.StreamMoment("a part of the vessel exploded", Now);
         }
 
         void Update()
         {
+            if (!latched)
+            {
+                // Give the scene (and FMRS, which settles its flag in its own Start) a few frames before reading anything.
+                if (!FlightGlobals.ready || FlightGlobals.ActiveVessel == null || ++frames < 10) return;
+                latched = true;
+                SceneSide = ModCompat.FmrsInstalled && ModCompat.FmrsSwitchedRaw();
+                SideBoosterId = SceneSide ? FlightGlobals.ActiveVessel.persistentId.ToString() : "";
+                bool carried = paused;
+                Resume();
+                if (carried && Eng != null && Eng.Stream != null) Debug.Log("[KerbalNews] Livestream carried through the FMRS load; now on " + (SceneSide ? "the dropped stage " : "the main vessel ") + Names.Of(FlightGlobals.ActiveVessel) + ".");
+            }
             var eng = Eng;
-            if (eng == null || eng.Stream == null || ModCompat.InFmrsSideFlight()) return;
-            float now = Time.realtimeSinceStartup;
+            if (eng == null || eng.Stream == null) return;
+            float now = Now;
             eng.SetRealTime(now);
+            FollowFmrs(eng, now);
             var v = Streamed();
             if (v != null && now > nextSample)
             {
                 nextSample = now + 3f;
                 // Liftoff is when the craft actually leaves the ground, not when the first stage fires.
                 string vid = v.persistentId.ToString();
-                if (liftedFor != vid && v.situation == Vessel.Situations.FLYING && v.srfSpeed > 3)
+                // A stream carried through an FMRS jump has had its liftoff: the booster, or the main vessel met again, is not a launch.
+                if (liftedFor != vid && (eng.Stream.Lifted || eng.Stream.OnBooster)) { liftedFor = vid; oldLiftoff = true; }
+                else if (liftedFor != vid && v.situation == Vessel.Situations.FLYING && v.srfSpeed > 3)
                 {
                     liftedFor = vid;
                     eng.StreamMoment("liftoff", now);
@@ -147,15 +225,46 @@ namespace KerbalNews.KSP
             eng.TickStream(now, !eng.WarpHold && TimeWarp.CurrentRate <= 1.01f);   // the stream chat waits out a time warp too
         }
 
+        /// <summary>
+        /// FMRS: in a side flight the broadcast follows the dropped stage the player is flying and calls its landing or
+        /// loss; back on the main flight it returns to the main vessel.
+        /// </summary>
+        void FollowFmrs(NewsEngine eng, float now)
+        {
+            var st = eng.Stream;
+            if (!SceneSide)
+            {
+                if (st.OnBooster) { eng.StreamFocusMain(now); focus = null; nextSample = 0; }
+                return;
+            }
+            var av = FlightGlobals.ActiveVessel;
+            if (av != null && st.BoosterEnd != "lost" && av.persistentId.ToString() != st.VesselId && av.persistentId.ToString() != st.FocusId)
+            {
+                focus = av;
+                downSince = -1;
+                eng.StreamFocusBooster(av.persistentId.ToString(), Names.Of(av), now);
+                nextSample = 0;
+            }
+            if (!st.OnBooster || st.BoosterEnd != "") return;
+            if (focus == null && av != null && av.persistentId.ToString() == st.FocusId) focus = av;
+            if (focus == null) { eng.StreamBoosterEnd("lost", "", now); return; }   // Unity null: the vessel is gone
+            bool down = focus.situation == Vessel.Situations.LANDED || focus.situation == Vessel.Situations.SPLASHED;
+            if (!down || focus.srfSpeed > 1.5) { downSince = -1; return; }
+            if (downSince < 0) { downSince = now; return; }
+            // Standing still for a couple of seconds: not a bounce, and not about to tip over the moment it touches.
+            if (now - downSince > 2.5f)
+                eng.StreamBoosterEnd(focus.situation == Vessel.Situations.SPLASHED ? "splashed" : "landed", focus.mainBody != null ? focus.mainBody.bodyName : "", now);
+        }
+
         void LateUpdate()
         {
             var eng = Eng;
             var br = Browser.Instance;
-            if (eng == null || eng.Stream == null || MapView.MapIsEnabled) return;
+            if (eng == null || eng.Stream == null || !latched || MapView.MapIsEnabled) return;
             bool watching = br != null && br.Showing && br.Url.StartsWith(KerbalNews.Web.Sites.LiveHost);
             string rec = eng.RecordingFolder;
             if (!watching && rec == "") return;
-            float now = Time.realtimeSinceStartup;
+            float now = Now;
             bool drew = false;
             if (watching && now >= nextFrame)
             {
@@ -209,10 +318,10 @@ namespace KerbalNews.KSP
             if (Frame == null) { Frame = new RenderTexture(FW, FH, 24); Frame.Create(); }
             var v = Streamed();
             if (v == null) { PlayerView(); return; }
-            float now = Time.realtimeSinceStartup;
+            float now = Now;
             string id = v.persistentId.ToString();
             if (camsFor != id) { camsFor = id; SetUpGround(v); hullCams.Clear(); shot = null; liftoffAt = -1; trackStart = 0; }
-            if (liftoffAt < 0 && liftedFor == id) liftoffAt = now;
+            if (liftoffAt < 0 && liftedFor == id) liftoffAt = oldLiftoff ? now - 1000 : now;
             if (v.parts != null && v.parts.Count != hullParts) { hullParts = v.parts.Count; hullCams.Clear(); }   // staged or broke up
             if (hullCams.Count == 0) SetUpHull(v);
             RetryTrackers(v, now);
@@ -316,7 +425,7 @@ namespace KerbalNews.KSP
         /// <summary>True while this camera can actually see the rocket.</summary>
         bool Usable(Shot s, Vessel v)
         {
-            if (s.BadUntil > Time.realtimeSinceStartup) return false;
+            if (s.BadUntil > Now) return false;
             if (!s.Ground) return s.Part != null && s.Part.vessel == v && v.parts != null && v.parts.Contains(s.Part);
             if (!NearHome(v)) return false;
             Vector3d center; float size;

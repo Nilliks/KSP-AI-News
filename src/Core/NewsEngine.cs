@@ -84,7 +84,7 @@ namespace KerbalNews
         /// <summary>Record an event. Returns the story it joined.</summary>
         public Story Ingest(NewsEvent e)
         {
-            if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream)
+            if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream && !Stream.OnBooster && !InSide())
                 StreamMoment(StreamMomentText(e), lastRealTime);
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;
             if (HoldForSide(e)) return null;
@@ -186,7 +186,7 @@ namespace KerbalNews
             StreamInterval = Settings.StreamSeconds;
             bool side = InSide();
             if (side) allowCalls = false;   // FMRS side timeline: nothing done here survives
-            else FlushSide();
+            else FlushSide(ut);
             allowCalls = WarpGate(ut, realTime, allowCalls);
             if (State.LastStoryUT < 0) State.LastStoryUT = ut;
             if (State.LastMoodDecayUT < 0) State.LastMoodDecayUT = ut;

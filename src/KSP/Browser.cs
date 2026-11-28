@@ -613,7 +613,7 @@ namespace KerbalNews.KSP
             var st = e.Stream;
             if (st != null)
             {
-                double left = e.CountdownLeft(Time.realtimeSinceStartup);
+                double left = e.CountdownLeft(StreamDriver.Now);
                 string clock;
                 if (st.Countdown == "hold") clock = "<color=#f2cc60><b>HOLD</b></color>  " + NewsEngine.CountClock(left);
                 else if (st.Countdown == "scrubbed") clock = "<color=#ff7b72><b>SCRUBBED</b></color>";
