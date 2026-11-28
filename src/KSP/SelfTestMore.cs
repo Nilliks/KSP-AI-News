@@ -540,8 +540,13 @@ namespace KerbalNews.KSP
             foreach (var f in facts.Take(25)) Log("  world fact [" + f.Kind + " " + f.Sig + "] " + f.Key + ": " + f.Headline + " | " + f.Text);
             Check(!WorldScanner.LastLog.Any(l => l.Contains("failed")), "world: every reader ran without errors");
             var transits = TransitScanner.Scan(now);
-            Log("  mission watch: " + (transits == null ? "the game could not be read here" : TransitScanner.LastLog));
-            Check(transits != null && !TransitScanner.LastLog.Contains("failed"), "mission watch: craft in transit were read without errors");
+            // Outside a game (the main menu) there is nothing to read; the flight part of the test checks it again.
+            if (transits == null) Log("  mission watch: not checked here (no game scene)");
+            else
+            {
+                Log("  mission watch: " + TransitScanner.LastLog);
+                Check(!TransitScanner.LastLog.Contains("failed"), "mission watch: craft in transit were read without errors");
+            }
             int before = eng.State.Articles.Count;
             foreach (var f in facts.Where(f => f.Sig < 4).Take(3)) eng.State.WorldPending.Add(f);
             if (eng.State.WorldPending.Count == 0)

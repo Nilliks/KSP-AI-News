@@ -398,6 +398,9 @@ namespace KerbalNews.KSP
             Log("  world (flight): scan found " + wf.Count + " facts" + (WorldScanner.LastLog.Count > 0 ? " (" + string.Join("; ", WorldScanner.LastLog.ToArray()) + ")" : ""));
             foreach (var f in wf.Take(25)) Log("  world fact (flight) [" + f.Kind + " " + f.Sig + "] " + f.Key + ": " + f.Headline + " | " + f.Text);
             Check(!WorldScanner.LastLog.Any(l => l.Contains("failed")), "world (flight): every reader ran without errors");
+            var transits = TransitScanner.Scan(Planetarium.GetUniversalTime());
+            Log("  mission watch (flight): " + (transits == null ? "the game could not be read" : TransitScanner.LastLog));
+            Check(transits != null && !TransitScanner.LastLog.Contains("failed"), "mission watch (flight): craft in transit were read without errors");
             PressCamera.IgnoreDaylight = false;
             if (modeEng) { yield return CrashCheck(sys, v); yield return SaveCheck(sys); }
         }
