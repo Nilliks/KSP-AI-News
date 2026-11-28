@@ -155,4 +155,69 @@ public static class MailTests
         Assert(funds == 21000, "approved: " + funds);
         Assert(s.Mail.Any(m => m.Thread == "e6" && m.Outgoing && m.ByAssistant), "the school got its answer, signed by the assistant");
     }
+
+    public static void TestKmailDeleteTrashAndRestore()
+    {
+        var g = new GlobalSettings { OfflineMode = true };
+        var eng = Landed(g, null);
+        var s = eng.State;
+        double now = Day * 3.5;
+        var ask = new MailMsg { Id = "e910", Thread = "e910", Kind = "press", Org = "observer", From = "Lisa Kerman", FromAddr = "l.kerman@observer.kb", Ask = "statement", Topic = "the Mun landing", Subject = "Request for comment", Body = "Comment?", UT = now - 1, DueUT = now + 0.2 * Day, Status = "open" };
+        var fan = new MailMsg { Id = "e911", Thread = "e911", Kind = "fan", From = "Minmus Hill Primary", FromAddr = "office@minmushill.kb", Subject = "Hello rockets", Body = "We love rockets!", UT = now - 1 };
+        s.Mail.Add(ask); s.Mail.Add(fan);
+        var sites = MakeSites(eng, () => now);
+        int unread = eng.UnreadMail(now);
+        var inbox = sites.Render("kmail.kb").Html;
+        Assert(inbox.Contains("action:mail-delete/e911") && inbox.Contains("Trash"), "a delete link on each inbox row and a Trash folder");
+        Assert(sites.Render(Sites.MailUrl(fan)).Html.Contains("mail-delete/e911/open"), "a delete button on the open email");
+
+        // Delete from the open email: back to the inbox, gone from it, in Trash, unread count drops.
+        fan.Read = false;
+        unread = eng.UnreadMail(now);
+        var r = sites.Handle("mail-delete/e911/open", new Dictionary<string, string>());
+        Assert(fan.Deleted && r.Navigate == "kmail.kb", "deleted and back to the inbox");
+        Assert(eng.UnreadMail(now) == unread - 1, "unread count updates");
+        var shown = sites.Render("kmail.kb").Html;
+        Assert(shown.Contains("to Trash"), "a notice says it was moved to Trash");
+        Assert(!shown.Contains(Sites.MailUrl(fan) + "\"") && !sites.Render("kmail.kb/all").Html.Contains(Sites.MailUrl(fan) + "\""), "not in the inbox or All mail");
+        var trash = sites.Render("kmail.kb/trash").Html;
+        Assert(trash.Contains("Hello rockets") && trash.Contains("mail-restore/e911") && trash.Contains("Empty trash"), "in Trash with Restore");
+        var opened = sites.Render(Sites.MailUrl(fan)).Html;
+        Assert(opened.Contains("Restore to inbox") && opened.Contains("Back to Trash"), "a trashed email can still be opened and restored");
+
+        // Restore.
+        sites.Handle("mail-restore/e911", new Dictionary<string, string>());
+        Assert(!fan.Deleted && sites.Render("kmail.kb").Html.Contains("Hello rockets"), "restored to the inbox");
+
+        // Deleting an open request is not an answer: it counts as ignored when the deadline passes.
+        sites.Handle("mail-delete/e910", new Dictionary<string, string>());
+        Assert(ask.Deleted && ask.Status == "open", "still open after delete");
+        Assert(sites.Render("kmail.kb/trash").Html.Contains("counts as ignoring"), "the notice says what deleting means");
+        Assert(!sites.Render("kmail.kb/needs").Html.Contains("Request for comment"), "not in Needs a reply");
+        Assert(eng.MailLookup("", "", now).Contains("in Trash"), "the assistant knows it's in Trash");
+        int tips = s.Stories.Count;
+        eng.Tick(now + 0.5 * Day, 4, true);
+        Assert(ask.Status == "expired" && ask.Outcome.Contains("did not respond") && s.Stories.Count > tips, "deleting counted as ignoring: " + ask.Status);
+        Assert(ask.Deleted, "an expired request stays in Trash");
+
+        // Saved and loaded.
+        var back = NewsState.Load(Snap(s));
+        Assert(back.Mail.Single(m => m.Id == "e910").Deleted && !back.Mail.Single(m => m.Id == "e911").Deleted, "deletion is saved");
+
+        // A new reply in a trashed conversation brings it back.
+        fan.Deleted = true;
+        s.Mail.Add(new MailMsg { Id = "e912", Thread = "e911", Kind = "fan", From = "Minmus Hill Primary", Subject = "Re: Hello rockets", Body = "Us again!", UT = now + 0.6 * Day });
+        eng.Tick(now + 0.7 * Day, 5, true);
+        Assert(!fan.Deleted, "new mail in a trashed thread returns to the inbox");
+
+        // Emptying the trash removes it for good; an unanswered request is settled as ignored first.
+        var ask2 = new MailMsg { Id = "e920", Thread = "e920", Kind = "family", From = "Gwendolyn Kerman", FromAddr = "g.kerman@mail.kb", Ask = "update", Kerbal = "Jebediah Kerman", Topic = "away", Subject = "Any news?", Body = "How is he?", UT = now, DueUT = now + 3 * Day, Status = "open", Deleted = true };
+        s.Mail.Add(ask2);
+        double t2 = now + 0.8 * Day;
+        var sites2 = MakeSites(eng, () => t2);
+        sites2.Handle("mail-empty-trash", new Dictionary<string, string>());
+        Assert(!s.Mail.Any(m => m.Id == "e910" || m.Id == "e920" || m.Thread == "e920"), "trash emptied");
+        Assert(ask2.Status == "expired", "the unanswered request counted as ignored");
+        Assert(s.Mail.Any(m => m.Id == "e911"), "mail outside the trash is kept");
+    }
 }

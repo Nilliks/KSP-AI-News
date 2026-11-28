@@ -40,6 +40,7 @@ namespace KerbalNews.Web
             switch (verb)
             {
                 case "mail-search": case "mail-reply": case "mail-send": case "mail-quick": case "mail-assist": case "mail-auto": case "mail-read":
+                case "mail-delete": case "mail-restore": case "mail-empty-trash":
                     KmailAction(verb, arg, form, r);
                     break;
                 case "wiki-search":
@@ -91,6 +92,7 @@ namespace KerbalNews.Web
                 case "toggle-photolook": g.PhotoLook = !g.PhotoLook; SaveSettings(); break;
                 case "vision-provider": g.VisionProviderId = arg == "off" ? "" : arg; SaveSettings(); break;
                 case "toggle-mailpopups": g.MailPopups = !g.MailPopups; SaveSettings(); break;
+                case "toggle-spellcheck": g.SpellCheck = !g.SpellCheck; SaveSettings(); break;
                 case "toggle-mail-auto": Engine.State.MailAuto = !Engine.State.MailAuto; break;
                 case "news-delay":
                 {

@@ -92,6 +92,15 @@ namespace KerbalNews
         public StreamArchive Archive;
         public double ArchiveSyncAt;
         public readonly BroadcastState Bc = new BroadcastState();
+        /// <summary>FMRS: the dropped booster the broadcast is following for now ("" = the vessel the stream is about).
+        /// The stream stays the main vessel's: VesselId and VesselName never change.</summary>
+        public string FocusId = "", FocusName = "";
+        public bool OnBooster { get { return FocusId != ""; } }
+        /// <summary>How this booster's flight ended while on screen: "", "landed", "splashed" or "lost".</summary>
+        public string BoosterEnd = "";
+        public int BoosterVisits;
+        /// <summary>The main vessel's telemetry when the broadcast left it, put back when it returns.</summary>
+        public TelemetrySample MainLast;
     }
 
     /// <summary>A finished stream, kept in the save for the archive and for the press.</summary>
@@ -168,6 +177,58 @@ namespace KerbalNews
         }
 
         void Changed() { if (StreamChanged != null) StreamChanged(); }
+
+        // ------------------------------------------------------------------ FMRS: following a dropped booster
+
+        /// <summary>
+        /// FMRS jumped to a dropped stage. The broadcast follows it, as a real one cuts to the booster for its landing:
+        /// telemetry, cameras and chat are the booster's until StreamFocusMain. The launch callouts stay quiet meanwhile.
+        /// </summary>
+        public void StreamFocusBooster(string id, string name, double realTime)
+        {
+            var st = Stream;
+            if (st == null || string.IsNullOrEmpty(id) || id == st.VesselId || st.FocusId == id) return;
+            bool first = !st.OnBooster;
+            if (first) st.MainLast = st.Last;
+            st.FocusId = id;
+            st.FocusName = string.IsNullOrEmpty(name) ? "the booster" : name;
+            st.BoosterEnd = "";
+            st.Previous = null;
+            st.Camera = "";
+            if (first)
+            {
+                st.BoosterVisits++;
+                StreamMoment("booster cam: the broadcast switched to " + st.FocusName + ", the booster dropped by " + st.VesselName + ", as it flies back to land", realTime);
+            }
+            Changed();
+        }
+
+        /// <summary>The booster on screen came down or was lost. what: "landed", "splashed" or "lost". Once per booster.</summary>
+        public void StreamBoosterEnd(string what, string body, double realTime)
+        {
+            var st = Stream;
+            if (st == null || !st.OnBooster || st.BoosterEnd != "") return;
+            st.BoosterEnd = what ?? "";
+            string where = string.IsNullOrEmpty(body) ? "" : " on " + body;
+            if (what == "landed") StreamMoment("booster touchdown: " + st.FocusName + " landed" + where + " and is standing", realTime);
+            else if (what == "splashed") StreamMoment("booster splashdown: " + st.FocusName + " came down in the water", realTime);
+            else if (what == "lost") StreamMoment("booster lost: " + st.FocusName + " was destroyed on its way back (the main vessel " + st.VesselName + " is fine)", realTime);
+        }
+
+        /// <summary>FMRS jumped back to the main vessel: the broadcast returns to it.</summary>
+        public void StreamFocusMain(double realTime)
+        {
+            var st = Stream;
+            if (st == null || !st.OnBooster) return;
+            string end = st.BoosterEnd == "landed" ? " after the booster landed" : st.BoosterEnd == "splashed" ? " after the booster splashed down" : st.BoosterEnd == "lost" ? " after the booster was lost" : "";
+            st.FocusId = ""; st.FocusName = ""; st.BoosterEnd = "";
+            st.Last = st.MainLast ?? st.Last;
+            st.MainLast = null;
+            st.Previous = null;
+            st.Camera = "";
+            StreamMoment("booster coverage over: the broadcast returned to " + st.VesselName + end, realTime);
+            Changed();
+        }
 
         /// <summary>Brings the stream's saved entry up to date, and puts it back if a load replaced the news state mid-stream.</summary>
         StreamArchive SyncArchive(StreamSession st, double ut)
@@ -336,10 +397,13 @@ namespace KerbalNews
             if (st == null || s == null) return;
             st.Previous = st.Last;
             st.Last = s;
-            st.Max.Altitude = Math.Max(st.Max.Altitude, s.Altitude);
-            st.Max.Speed = Math.Max(st.Max.Speed, s.Speed);
+            if (!st.OnBooster)
+            {
+                st.Max.Altitude = Math.Max(st.Max.Altitude, s.Altitude);
+                st.Max.Speed = Math.Max(st.Max.Speed, s.Speed);
+            }
             st.AltitudeTrace.Add(s.Altitude);
-            if (st.Lifted)
+            if (st.Lifted && !st.OnBooster)
             {
                 if (st.Overlay.LiftoffUT < 0) st.Overlay.LiftoffUT = s.UT;
                 if (st.Overlay.StagesAtLiftoff < 0) st.Overlay.StagesAtLiftoff = s.Stage;
@@ -427,6 +491,7 @@ namespace KerbalNews
             streamBusy = true;
             var frame = StreamFrameFor(st, hype, realTime, Settings.CheapModel);
             string streamUser = PromptBuilder.StreamUser(this, st, moments, said, n, hype);
+            if (st.OnBooster) frame = null;   // no extra picture calls for the detour
             if (frame != null) streamUser += "\nA frame from the live camera right now is attached. Some viewers react to what they can actually see in it (the craft, the plume, the view, the colours), as people watching a real launch stream do.";
             else if (st.CameraLook != "") { streamUser += "\nTHE CAMERA SHOWS: " + st.CameraLook + " Some viewers react to what they see."; st.CameraLook = ""; }
             else StreamHelperLook(st, hype, realTime);
@@ -483,6 +548,8 @@ namespace KerbalNews
         public static double MomentWeight(string m)
         {
             m = (m ?? "").ToLowerInvariant();
+            if (m.StartsWith("booster"))
+                return m.StartsWith("booster touchdown") ? 4 : m.StartsWith("booster lost") ? 4 : m.StartsWith("booster splashdown") ? 3 : m.StartsWith("booster cam") ? 2.5 : 1.5;
             if (m.Contains("crew lost")) return 5;
             if (m.StartsWith("scrub")) return 3.5;
             if (m.Contains("final countdown")) return 3.5;
@@ -585,6 +652,7 @@ namespace KerbalNews
             Stream = null;
             var rng = new Random(OfflineWriter.StableHash(st.VesselId + st.StartUT.ToString("R", StreamInv)));
             var arch = SyncArchive(st, ut);
+            HoldArchiveForSide(arch);
             FinishRecording(st, arch);
             speech.Clear();
             fetches.Clear();

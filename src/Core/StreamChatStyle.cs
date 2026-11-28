@@ -199,6 +199,11 @@ namespace KerbalNews
         /// Offline chat: a few lines that answer what just happened, mixed with the usual drifting crowd. Each line may be
         /// roughed up the way people actually type.
         /// </summary>
+        static readonly string[] BoosterCamLines = { "BOOSTER CAM", "oh we get the booster landing too??", "booster cam lets go", "here comes the booster", "the booster is coming BACK?", "this is my favourite part", "come on booster", "stick the landing", "nervous for the booster", "it's falling so fast", "landing burn when", "no way it lands", "legs legs legs", "two streams for the price of one" };
+        static readonly string[] BoosterDownLines = { "IT LANDED", "BOOSTER IS DOWN", "THE BOOSTER LANDED!!!", "no way", "stuck it", "that never gets old", "reusable!!", "perfect", "LETS GOOOO", "it's just standing there", "they're going to fly that again", "clean", "that was smooth", "GG booster", "incredible", "ok that was actually sick" };
+        static readonly string[] BoosterLostLines = { "F", "rip booster", "noooo the booster", "booster go boom", "so close", "at least the main one is fine", "o7 booster", "that's a new crater", "well. they tried", "rapid unscheduled disassembly", "next time", "expensive firework" };
+        static readonly string[] BoosterBackLines = { "back to the main show", "ok where is the upper stage now", "back to the rocket", "what did we miss", "and we're back", "how's the main vehicle doing" };
+
         public static List<ChatMessage> Lines(StreamSession st, List<string> moments, int n, Random rng, string vesselName)
         {
             var outList = new List<ChatMessage>();
@@ -207,7 +212,11 @@ namespace KerbalNews
             foreach (var m in moments)
             {
                 string ml = (m ?? "").ToLowerInvariant();
-                string[] pool = ml.StartsWith("scrub") ? ScrubLines
+                string[] pool = ml.StartsWith("booster cam") ? BoosterCamLines
+                    : ml.StartsWith("booster touchdown") || ml.StartsWith("booster splashdown") ? BoosterDownLines
+                    : ml.StartsWith("booster lost") ? BoosterLostLines
+                    : ml.StartsWith("booster coverage over") ? BoosterBackLines
+                    : ml.StartsWith("scrub") ? ScrubLines
                     : ml.StartsWith("hold") ? HoldLines
                     : ml.Contains("countdown resumed") ? ResumeLines
                     : ml.Contains("recycled") ? RecycleLines

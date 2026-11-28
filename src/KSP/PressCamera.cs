@@ -330,7 +330,7 @@ namespace KerbalNews.KSP
             var prev = RenderTexture.active;
             try
             {
-                if (!RenderInto(rt, pos, Quaternion.LookRotation((Vector3)dir, up), vfov)) return null;
+                if (!RenderInto(rt, pos, Quaternion.LookRotation((Vector3)dir, up), vfov, true)) return null;
                 RenderTexture.active = rt;
                 tex = new Texture2D(W, H, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
@@ -350,24 +350,39 @@ namespace KerbalNews.KSP
         /// game's own: moving those, even for one render, upsets effects that remember the last frame (anti-aliasing,
         /// motion blur, sky mods) and makes the player's view flicker between the two shots. False if no camera was found.
         /// </summary>
-        public static bool RenderInto(RenderTexture rt, Vector3d pos, Quaternion rot, float vfov)
+        public static bool RenderInto(RenderTexture rt, Vector3d pos, Quaternion rot, float vfov, bool warmUp = false)
         {
             var cams = Camera.allCameras.Where(c => c != null && CameraNames.Contains(c.name)).OrderBy(c => c.depth).ToList();
             if (cams.Count == 0) return false;
-            foreach (var src in cams)
+            // Scatterer's ocean starts from the camera's depth texture (_CameraDepthTexture) to know where solid things
+            // stand in front of the water. A camera only makes that texture if asked to; ours weren't, so the ocean read
+            // the one the player's camera had just made and left a hole in the shape of the craft as the player sees it:
+            // a flat, sky-coloured ghost, bigger than the craft in the photo and centred in the frame. See RenderTwin.
+            if (warmUp)
             {
-                var c = Twin(src);
-                if (c == null) continue;
-                c.CopyFrom(src);   // culling layers, clear flags, clip planes; this also copies the transform, so set ours after
-                if (src.name == "Camera ScaledSpace") c.transform.position = (Vector3)ScaledSpace.LocalToScaledSpace(pos);
-                else if (src.name != "GalaxyCamera") c.transform.position = (Vector3)pos;
-                c.transform.rotation = rot;
-                c.fieldOfView = vfov;
-                c.targetTexture = rt;
-                c.Render();
-                c.targetTexture = null;
+                // Press photos also draw the flight cameras once first, so anything an effect keeps from a camera's
+                // previous render (a frame-late depth copy, a history buffer) comes from this view and not the stream's.
+                foreach (var src in cams)
+                    if (src.name == "Camera 01" || src.name == "Camera 00") RenderTwin(src, rt, pos, rot, vfov);
             }
+            foreach (var src in cams) RenderTwin(src, rt, pos, rot, vfov);
             return true;
+        }
+
+        static void RenderTwin(Camera src, RenderTexture rt, Vector3d pos, Quaternion rot, float vfov)
+        {
+            var c = Twin(src);
+            if (c == null) return;
+            c.CopyFrom(src);   // culling layers, clear flags, clip planes; this also copies the transform, so set ours after
+            // Our own depth texture, so depth-reading effects (Scatterer's ocean, screen-space scattering) see this view.
+            if (src.name == "Camera 01" || src.name == "Camera 00") c.depthTextureMode = src.depthTextureMode | DepthTextureMode.Depth;
+            if (src.name == "Camera ScaledSpace") c.transform.position = (Vector3)ScaledSpace.LocalToScaledSpace(pos);
+            else if (src.name != "GalaxyCamera") c.transform.position = (Vector3)pos;
+            c.transform.rotation = rot;
+            c.fieldOfView = vfov;
+            c.targetTexture = rt;
+            c.Render();
+            c.targetTexture = null;
         }
 
         static readonly Dictionary<string, Camera> twins = new Dictionary<string, Camera>();

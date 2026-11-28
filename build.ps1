@@ -48,7 +48,7 @@ Write-Host "Built $out"
 
 if ($Install) {
     $dest = Join-Path $KspDir "GameData\KerbalNews"
-    foreach ($sub in "Plugins","Icons","Sites") {
+    foreach ($sub in "Plugins","Icons","Sites","Dictionary") {
         New-Item -ItemType Directory -Force -Path (Join-Path $dest $sub) | Out-Null
         Copy-Item -Force -Recurse (Join-Path $root "GameData\KerbalNews\$sub\*") (Join-Path $dest $sub)
     }
