@@ -262,6 +262,7 @@ namespace KerbalNews.KSP
             EngSnapshot s = null;
             try { s = EngineeringCapture.Snapshot(); } catch (Exception e) { Check(false, "eng: flight snapshot threw " + e); yield break; }
             LogSnap("flight", s);
+            try { if (s.Sheet != null) foreach (var line in s.Sheet.StagingIssues(s.Stages)) Log("    flight staging: " + line); } catch (Exception e) { Log("    flight staging threw " + e.Message); }
             Check(s.Scene == "flight" && s.Body == "Kerbin" && s.Parts > 5 && s.Speed > 10, "eng: flight data (" + s.Situation + ", " + s.Altitude.ToString("0") + " m, " + s.Speed.ToString("0") + " m/s)");
             Check(s.DeltaVReady && s.Stages.Count > 0 && s.TotalDvActual > 100, "eng: flight delta-v by stage (" + s.Stages.Count + " stages, " + s.TotalDvActual.ToString("0") + " m/s actual)");
 
