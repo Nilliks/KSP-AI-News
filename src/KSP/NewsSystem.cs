@@ -37,6 +37,7 @@ namespace KerbalNews.KSP
             Engine.PhotoJpeg = GalleryStore.ForVision;
             Engine.StreamFrameJpeg = GalleryStore.StreamFrame;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
+            Engine.Transits = ut => HasGame ? TransitScanner.Scan(ut) : null;
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.EngineeringCatalog = EngineeringExtras.Catalog;
             Engine.EngineeringLocked = EngineeringExtras.Locked;

@@ -296,6 +296,7 @@ namespace KerbalNews
             { "w_base", new[] { "It is a quiet kind of success: no launch, no fireworks, just the work going on day after day.", "Nobody cheers for a day of routine, but it is what a working program looks like." } },
             { "w_probe", new[] { "Far from home, it is a reminder of how big the system is, and how long the agency's machines keep working.", "Engineers still check on it every day.", "Its signal takes a while to come home, but it still comes." } },
             { "w_market", new[] { "Traders say off-world ore is still a young market, and prices can swing on a single cargo.", "Analysts say the exchange is getting used to metal that comes from the sky.", "Buyers on Kerbin say they will take all the agency can bring home." } },
+            { "w_watch", new[] { "Flight controllers say the long cruise is the quiet part of any mission. The busy days come at the end.", "Until then the flight team checks on it every day, and so will we.", "The countdown is on.", "Space fans have already marked the date." } },
             { "w_mod", new[] { "Mission planners say they take space weather seriously, and crews have shelter plans.", "Forecasters will keep watching the Sun." } },
 
             // ---------------- Kmail (no AI) ----------------

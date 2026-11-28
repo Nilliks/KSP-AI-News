@@ -24,15 +24,18 @@ namespace KerbalNews
         /// <summary>1 small, 3 notable, 5 huge.</summary>
         public int Sig = 1;
         public double UT;
+        /// <summary>Mission watch pieces: when the craft arrives. The time left is filled in when the piece is written.</summary>
+        public double Due;
 
         public void Save(DataNode n)
         {
             n.AddText("key", Key); n.Add("kind", Kind); n.AddText("headline", Headline); n.AddText("text", Text); n.Add("body", Body); n.Add("sig", Sig); n.Add("ut", UT);
+            if (Due > 0) n.Add("due", Due);
         }
 
         public static WorldFact Load(DataNode n)
         {
-            return new WorldFact { Key = n.GetText("key"), Kind = n.Get("kind", ""), Headline = n.GetText("headline"), Text = n.GetText("text"), Body = n.Get("body", ""), Sig = n.GetInt("sig", 1), UT = n.GetDouble("ut") };
+            return new WorldFact { Key = n.GetText("key"), Kind = n.Get("kind", ""), Headline = n.GetText("headline"), Text = n.GetText("text"), Body = n.Get("body", ""), Sig = n.GetInt("sig", 1), UT = n.GetDouble("ut"), Due = n.GetDouble("due") };
         }
     }
 
@@ -66,6 +69,7 @@ namespace KerbalNews
             { "rival", new[] { "observer", "kraken", "herald" } },
             { "market", new[] { "herald", "observer" } },
             { "dream", new[] { "munmonthly", "science", "observer", "herald" } },
+            { "watch", new[] { "observer", "science", "herald", "munmonthly" } },
         };
 
         public string WorldOutlet(WorldFact f)
@@ -76,6 +80,12 @@ namespace KerbalNews
             int h = Math.Abs(OfflineWriter.StableHash(f.Key));
             if (f.Kind == "rival" && h % 3 == 0 && Settings.SiteOn("kraken")) return "kraken";
             if (f.Sig >= 4 && Settings.SiteOn("herald") && h % 2 == 0) return "herald";
+            if (f.Kind == "watch")
+            {
+                // A countdown is followed by more than one newsroom: each mark lands at a different desk.
+                var on = desks.Where(d => Settings.SiteOn(d)).ToList();
+                return on.Count > 0 ? on[h % on.Count] : null;
+            }
             foreach (var d in desks) if (Settings.SiteOn(d)) return d;
             return null;
         }
@@ -155,6 +165,7 @@ namespace KerbalNews
                 State.WorldPending.Add(f);
             }
             State.WorldBaselined = true;
+            ScanTransits(ut);
             // Old news is no news.
             State.WorldPending.RemoveAll(f => ut - f.UT > 20 * Day);
             if (State.WorldPending.Count > 40) State.WorldPending = State.WorldPending.OrderByDescending(f => f.Sig).ThenByDescending(f => f.UT).Take(40).ToList();
@@ -166,11 +177,12 @@ namespace KerbalNews
         public List<WorldFact> PickWorld(double ut)
         {
             int n = WorldBatch;
-            var pool = State.WorldPending.Where(f => WorldOutlet(f) != null).OrderByDescending(f => f.Sig).ThenByDescending(f => f.UT).ToList();
+            var held = WatchHeldBack(ut);
+            var pool = State.WorldPending.Where(f => WorldOutlet(f) != null && !held.Contains(f)).OrderByDescending(f => f.Sig).ThenByDescending(f => f.UT).ToList();
             var pick = new List<WorldFact>();
             foreach (var f in pool) if (pick.Count < n && !pick.Any(p => p.Kind == f.Kind)) pick.Add(f);
             foreach (var f in pool) if (pick.Count < n && !pick.Contains(f)) pick.Add(f);
-            foreach (var f in pick) State.WorldPending.Remove(f);
+            foreach (var f in pick) { State.WorldPending.Remove(f); WatchResolve(f, ut); }
             // Now and then a speculative piece about somewhere the agency hasn't been yet. It rides along in the same call.
             var dream = Dream(ut, new Random(OfflineWriter.StableHash("dream" + Math.Floor(ut / Day))));
             if (dream != null && WorldOutlet(dream) != null) pick.Add(dream);
@@ -282,6 +294,8 @@ namespace KerbalNews
             sb.AppendLine("- Use ONLY the facts given for each item. Do not invent missions, discoveries, numbers, names or dates. You may explain what the facts mean and add general background.");
             sb.AppendLine("- Never say " + AgencyName + " did something that is not in the facts.");
             sb.AppendLine("- Items marked SPECULATIVE are dreaming pieces: imagine and reason about what such a trip would take (rockets, windows, years, risks, cost) using real spaceflight thinking and the facts given, but never claim the agency plans it.");
+            if (batch.Any(f => f.Kind == "watch"))
+                sb.AppendLine("- Items of kind watch are MISSION WATCH countdown pieces about one of " + AgencyName + "'s own craft, in flight right now toward another world. Write them the way the press follows a real spacecraft's long cruise: the days left, the expected date, how far it has come, why the arrival matters. Never say what will happen on arrival, and never describe the arrival as having happened.");
             sb.AppendLine("- Rival space programs (" + string.Join(", ", Rivals) + ") only ever work in orbit around Kerbin. They never fly beyond Kerbin orbit, never beat the agency to anything, and stay small next to it. Keep them vague: no specs, no dates.");
             sb.AppendLine("- Write in each outlet's own voice. 80-220 words per story. Short paragraphs separated by blank lines. Kerbal names end in Kerman. Everyone in this world is a kerbal: say kerbal spaceflight, never human.");
             sb.AppendLine("OUTLETS:");
@@ -325,6 +339,7 @@ namespace KerbalNews
             };
             if (outlet == "council") a.Kind = "statement";
             if (f.Kind == "dream") a.Kind = "feature";
+            WatchPublished(f, ut);
             a.Tags.Add("world");
             a.Tags.Add(WorldTag(f.Kind));
             if (f.Body != "" && f.Body != "Kerbin") a.Tags.Add(f.Body);
@@ -347,6 +362,7 @@ namespace KerbalNews
                 case "probe": return "deep space";
                 case "mod": return "space weather";
                 case "dream": return "what if";
+                case "watch": return "mission watch";
                 case "rival": return "rival programs";
                 case "market": return "markets";
                 default: return kind;
@@ -358,14 +374,16 @@ namespace KerbalNews
         static string OfflineWorldSub(WorldFact f)
         {
             if (f.Kind == "dream") return "No one has announced a trip. But it is fun to work out what one would take.";
-            int i = f.Text.IndexOf(". ", StringComparison.Ordinal);
-            return i > 0 ? f.Text.Substring(0, i + 1) : f.Text;
+            string text = f.Kind == "watch" ? WatchOffline(f.Text) : f.Text;
+            int i = text.IndexOf(". ", StringComparison.Ordinal);
+            return i > 0 ? text.Substring(0, i + 1) : text;
         }
 
         static string OfflineWorldBody(WorldFact f)
         {
             if (f.Kind == "dream") return "Kerbals have always looked up and wondered. " + DreamOffline(f.Text) + "\n\nNobody at the agency has announced any such plan. But a few years ago, the trips it makes today sounded like dreams too.";
             string tail = Phrases.Rule("w_" + f.Kind, null, new Random(OfflineWriter.StableHash(f.Key)));
+            if (f.Kind == "watch") return WatchOffline(f.Text) + (tail != "" ? "\n\n" + tail : "");
             return f.Text + (tail != "" ? "\n\n" + tail : "");
         }
 

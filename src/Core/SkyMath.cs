@@ -47,6 +47,50 @@ namespace KerbalNews
         static double Wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 
         /// <summary>
+        /// The first time after t0 that two moving points come within radius of each other, or NaN if they don't before t1.
+        /// Steps are sized by how far apart they are and the fastest they could close (vmax), so a far-off pair costs a handful
+        /// of samples and an encounter is not stepped over. NaN too when they start inside (that is not an arrival), and when
+        /// the first point strays farther than leaveRadius from the origin (it has left its parent, the path no longer holds).
+        /// </summary>
+        public static double FirstWithin(Func<double, double[]> a, Func<double, double[]> b, double radius, double vmax, double t0, double t1, double leaveRadius = double.MaxValue)
+        {
+            if (radius <= 0 || vmax <= 0 || !(t1 > t0)) return double.NaN;
+            double minStep = Math.Max(1, radius / vmax / 2);
+            double t = t0, prev = t0;
+            for (int i = 0; i < 6000 && t <= t1; i++)
+            {
+                var pa = a(t);
+                double d = Len(Sub(pa, b(t)));
+                if (double.IsNaN(d) || Len(pa) > leaveRadius) return double.NaN;
+                if (d <= radius)
+                {
+                    if (i == 0) return double.NaN;
+                    // Between prev (outside) and t (inside): close in on the crossing.
+                    double lo = prev, hi = t;
+                    for (int k = 0; k < 40 && hi - lo > 1; k++)
+                    {
+                        double mid = (lo + hi) / 2;
+                        if (Len(Sub(a(mid), b(mid))) <= radius) hi = mid; else lo = mid;
+                    }
+                    return hi;
+                }
+                prev = t;
+                t += Math.Max(minStep, (d - radius) / vmax);
+            }
+            return double.NaN;
+        }
+
+        /// <summary>Closest distance to the center of a body for something at relative position r moving at relative velocity v (mu: the body's gravitational parameter).</summary>
+        public static double PeriapsisRadius(double[] r, double[] v, double mu)
+        {
+            double rl = Len(r), h = Len(Cross(r, v));
+            if (rl <= 0 || mu <= 0) return double.NaN;
+            double energy = Dot(v, v) / 2 - mu / rl;
+            double ecc = Math.Sqrt(Math.Max(0, 1 + 2 * energy * h * h / (mu * mu)));
+            return h * h / (mu * (1 + ecc));
+        }
+
+        /// <summary>
         /// Seen from the planet's center: is the moon in front of the star (solar eclipse) or in the planet's shadow (lunar eclipse)?
         /// Returns "solar", "lunar" or "". Positions are relative to the planet.
         /// </summary>
