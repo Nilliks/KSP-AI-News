@@ -12,7 +12,7 @@ namespace UnityEngine
     public class Collider : Component { }
     public class Object { public string name; public static void Destroy(Object o) { } public static void DontDestroyOnLoad(Object o) { } public static T Instantiate<T>(T o) where T : Object { return o; } }
     public class Font : Object { public static Font CreateDynamicFontFromOSFont(string[] names, int size) { return null; } }
-    public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } public T GetComponentInParent<T>() { return default(T); } }
+    public class Component : Object { public Transform transform; public GameObject gameObject; public T GetComponent<T>() { return default(T); } public T GetComponentInParent<T>() { return default(T); } public T GetComponentInChildren<T>() { return default(T); } }
     public sealed class GameObject : Object
     {
         public GameObject(string name, params Type[] components) { }
@@ -28,7 +28,8 @@ namespace UnityEngine
         public Rect rect;
     }
     public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } public static bool ScreenPointToLocalPointInRectangle(RectTransform rt, Vector2 p, Camera c, out Vector2 local) { local = new Vector2(); return false; } }
-    public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public RenderTexture targetTexture; public void Render() { } public void CopyFrom(Camera other) { } }
+    [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2, MotionVectors = 4 }
+    public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public DepthTextureMode depthTextureMode; public RenderTexture targetTexture; public void Render() { } public void CopyFrom(Camera other) { } }
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
@@ -46,7 +47,7 @@ namespace UnityEngine
     public class RenderTexture : Texture { public RenderTexture(int w, int h, int d) { } public void Release() { } public bool Create() { return true; } public static RenderTexture active; public static RenderTexture GetTemporary(int w, int h) { return null; } public static void ReleaseTemporary(RenderTexture t) { } }
     public static class Graphics { public static void Blit(Texture src, RenderTexture dst) { } }
     public static class Application { public static void Quit() { } }
-    public class Transform : Component { public Vector3 position, localScale; public Vector3 up, right, forward; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } }
+    public class Transform : Component { public Vector3 position, localScale; public Vector3 up, right, forward; public Quaternion rotation; public void SetParent(Transform p, bool worldPositionStays) { } public void SetAsLastSibling() { } }
     public struct Quaternion { public static Quaternion LookRotation(Vector3 f, Vector3 u) { return new Quaternion(); } public static Quaternion Euler(float x, float y, float z) { return new Quaternion(); } public static Quaternion operator *(Quaternion a, Quaternion b) { return a; } }
     public struct Bounds { public Vector3 size, max, min, center; }
     public struct Vector3 { public float magnitude { get { return 0; } } public float x, y, z; public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; } public static Vector3 up; public static float Dot(Vector3 a, Vector3 b) { return 0; } }
@@ -63,6 +64,7 @@ namespace UnityEngine
         public float x, y, width, height;
         public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
         public float xMin { get { return x; } }
+        public Vector2 size { get { return new Vector2(width, height); } }
         public bool Contains(Vector2 p) { return false; }
     }
     public struct Color
@@ -74,13 +76,15 @@ namespace UnityEngine
     }
     public static class ColorUtility { public static bool TryParseHtmlString(string s, out Color c) { c = new Color(); return true; } public static string ToHtmlStringRGB(Color c) { return ""; } }
     public enum TextureFormat { ARGB32, RGB24, RGBA32 }
-    public class Texture : Object { public int width, height; }
+    public class Texture : Object { public int width, height; public TextureWrapMode wrapMode; public FilterMode filterMode; }
+    public enum TextureWrapMode { Repeat, Clamp }
+    public enum FilterMode { Point, Bilinear, Trilinear }
     public struct Color32 { public byte r, g, b, a; public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; } }
     public class Texture2D : Texture { public Texture2D(int w, int h) { } public Texture2D(int w, int h, TextureFormat f, bool mip) { } public void SetPixel(int x, int y, Color c) { } public void SetPixels32(Color32[] c) { } public Color32[] GetPixels32() { return new Color32[0]; } public void Apply() { } public void ReadPixels(Rect r, int x, int y) { } }
     public static class Debug { public static void Log(object o) { } public static void LogWarning(object o) { } public static void LogError(object o) { } }
-    public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; }
+    public static class Time { public static float realtimeSinceStartup, deltaTime, unscaledDeltaTime, timeScale; public static int frameCount; }
     public static class Mathf { public static float Clamp(float v, float a, float b) { return v; } public static int Clamp(int v, int a, int b) { return v; } public static int RoundToInt(float f) { return 0; } public static float Max(float a, float b) { return a; } public static float Min(float a, float b) { return a; } public static float Ceil(float f) { return f; } public static float Exp(float f) { return f; } public static float Lerp(float a, float b, float t) { return a; } public static float Clamp01(float v) { return v; } public static float Sqrt(float v) { return v; } public static float Abs(float v) { return v; } }
-    public static class Input { public static Vector3 mousePosition; public static Vector2 mouseScrollDelta; public static bool GetKeyDown(KeyCode k) { return false; } public static bool GetKey(KeyCode k) { return false; } public static bool GetMouseButtonDown(int b) { return false; } public static bool GetMouseButton(int b) { return false; } }
+    public static class Input { public static Vector3 mousePosition; public static Vector2 mouseScrollDelta; public static bool GetKeyDown(KeyCode k) { return false; } public static bool GetKey(KeyCode k) { return false; } public static bool GetMouseButtonDown(int b) { return false; } public static bool GetMouseButton(int b) { return false; } public static bool GetKey(string k) { return false; } public static bool GetKeyDown(string k) { return false; } }
     public static class Screen { public static int width, height; }
     public enum FontStyle { Normal, Bold, Italic }
     public class RectOffset { public RectOffset(int l, int r, int t, int b) { } }
@@ -364,6 +368,7 @@ public class ProtoVessel
 }
 
 public class FlightGlobals { public static FlightGlobals fetch; public ITargetable VesselTarget; public void SetVesselTarget(ITargetable t, bool o = false) { } public static List<Vessel> Vessels; public static List<CelestialBody> Bodies; public static Vessel ActiveVessel; public static bool ready; public static CelestialBody GetHomeBody() { return null; } }
+public class SpaceCenter : UnityEngine.MonoBehaviour { public static SpaceCenter Instance; }
 public class FlightState { public List<ProtoVessel> protoVessels; }
 public class KerbalRoster { public IEnumerable<ProtoCrewMember> Crew; public ProtoCrewMember this[string name] { get { return null; } } public static KerbalRoster GenerateInitialCrewRoster(Game.Modes m) { return null; } }
 public class Game { public enum Modes { SANDBOX, CAREER, SCIENCE_SANDBOX } public FlightState flightState; public KerbalRoster CrewRoster; public Modes Mode; public string Title, flagURL; public GameParameters Parameters; public GameScenes startScene; public System.Collections.Generic.List<object> scenarios; public void Start() { } public Game Updated() { return this; } }
@@ -389,10 +394,10 @@ public static class GameSettings { public static float UI_SCALE = 1; }
 public static class TimeWarp { public static float CurrentRate; public static void SetRate(int i, bool instant, bool msg = true) { } }
 
 [Flags]
-public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8, KEYBOARDINPUT = 16, ALL_SHIP_CONTROLS = 32, STAGING = 64, TIMEWARP = 128, MAP = 256, QUICKSAVE = 512, QUICKLOAD = 1024, PAUSE = 2048, MISC = 4096 }
+public enum ControlTypes : ulong { None = 0, CAMERACONTROLS = 1, KSC_ALL = 2, EDITOR_SOFT_LOCK = 4, TRACKINGSTATION_ALL = 8, KEYBOARDINPUT = 16, ALL_SHIP_CONTROLS = 32, STAGING = 64, TIMEWARP = 128, MAP = 256, QUICKSAVE = 512, QUICKLOAD = 1024, PAUSE = 2048, MISC = 4096, CAMERAMODES = 8192 }
 public static class InputLockManager { public static void SetControlLock(ControlTypes t, string id) { } public static void RemoveControlLock(string id) { } }
 
-public class GameDatabase { public static GameDatabase Instance; public UnityEngine.Texture2D GetTexture(string url, bool normal) { return null; } }
+public class GameDatabase { public static GameDatabase Instance; public ConfigNode[] GetConfigNodes(string name) { return new ConfigNode[0]; } public UnityEngine.Texture2D GetTexture(string url, bool normal) { return null; } }
 
 namespace KSP.UI.Screens
 {

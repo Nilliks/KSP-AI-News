@@ -6,7 +6,7 @@ using KerbalNews;
 using KerbalNews.Web;
 
 /// <summary>Tests for the in-game browser's HTML, CSS and template engines and the site pages.</summary>
-public static class WebTests
+public static partial class WebTests
 {
     const double Day = 21600;
     static void Assert(bool c, string m) { if (!c) throw new Exception("Assertion failed: " + m); }

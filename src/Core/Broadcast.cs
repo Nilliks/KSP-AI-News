@@ -191,7 +191,7 @@ namespace KerbalNews
             var st = Stream;
             if (st == null || n == null) return;
             RecordOverlay(st, n, realTime);
-            if (Settings.Announcer <= 0 || !st.Lifted || st.Bc.Lost) return;
+            if (Settings.Announcer <= 0 || !st.Lifted || st.Bc.Lost || st.OnBooster) return;
             var bc = st.Bc;
             bool inAir = n.AtmosphereTop > 0 && n.Altitude < n.AtmosphereTop;
             bool ascent = bc.LiftoffReal > 0 && realTime - bc.LiftoffReal < 600;
@@ -281,7 +281,7 @@ namespace KerbalNews
                 if (left < 45 || !Settings.ControllerOn) bc.PollDone = true;   // one voice polling itself would sound silly
                 else if (left <= 300 && realTime - st.CountMark >= 3) StartPoll(st, realTime);
             }
-            if (!bc.RecapSaid && speech.Count == 0 && realTime > voiceFreeAt + 2)
+            if (!bc.RecapSaid && !st.OnBooster && speech.Count == 0 && realTime > voiceFreeAt + 2)
             {
                 bool lostDone = bc.Outcome == "lost" && realTime - bc.LostReal > 14;
                 bool down = (bc.Outcome == "landing" || bc.Outcome == "splash") && bc.OutcomeReal > 0 && realTime - bc.OutcomeReal > 20

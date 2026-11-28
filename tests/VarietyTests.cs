@@ -92,6 +92,7 @@ public static class VarietyTests
 
     public static void TestOfflineCoverageVariesAndCommentsDontRepeat()
     {
+        Phrases.ForgetRecent();   // start like a fresh game session, whatever tests ran before
         var heads = new List<string>();
         for (int run = 0; run < 6; run++)
         {

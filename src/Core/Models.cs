@@ -21,6 +21,8 @@ namespace KerbalNews
         public const string ContractAccepted = "contractAccepted";
         public const string PressRelease = "pressRelease";
         public const string Livestream = "livestream";
+        /// <summary>Something from the KSP Mining mod: ore brought home, a drill or smelter starting, a big sale. Detail holds the facts.</summary>
+        public const string Mining = "mining";
     }
 
     /// <summary>One thing that happened in the save, captured the moment it happened.</summary>
@@ -33,6 +35,10 @@ namespace KerbalNews
         public string Body = "";
         public string Situation = "";
         public string Detail = "";
+        /// <summary>A short headline for events that bring their own (mining). Empty otherwise.</summary>
+        public string Title = "";
+        /// <summary>A fixed 0-100 size for events whose importance is worked out where they are made (mining). 0: use the usual model.</summary>
+        public double Weight;
         public List<string> Crew = new List<string>();
         public bool Crewed { get { return Crew.Count > 0; } }
         /// <summary>0-100, set by the significance model when the event is ingested.</summary>
@@ -49,6 +55,8 @@ namespace KerbalNews
             n.AddText("detail", Detail);
             foreach (var c in Crew) n.AddText("crew", c);
             n.Add("significance", Significance);
+            if (Title != "") n.AddText("title", Title);
+            if (Weight > 0) n.Add("weight", Weight);
         }
 
         public static NewsEvent Load(DataNode n)
@@ -63,6 +71,8 @@ namespace KerbalNews
                 Situation = n.Get("situation", ""),
                 Detail = n.GetText("detail"),
                 Significance = n.GetDouble("significance"),
+                Title = n.GetText("title"),
+                Weight = n.GetDouble("weight"),
             };
             foreach (var c in n.GetAll("crew")) e.Crew.Add(TextCodec.Decode(c));
             return e;

@@ -95,7 +95,7 @@ namespace KerbalNews
                 Bias = "Curious and precise. Excited by new data, skeptical of hype.",
                 Covers = "Science results, exploration of new bodies, records, theoretical debate.",
                 MinSignificance = 60, MinSignificanceFailure = 80, DelayDays = 2.0, DefaultKind = "expert",
-                OnlyFor = new List<string> { EventTypes.Soi, EventTypes.Landing, EventTypes.Milestone, EventTypes.Orbit, EventTypes.CrewKilled, EventTypes.Docking },
+                OnlyFor = new List<string> { EventTypes.Soi, EventTypes.Landing, EventTypes.Milestone, EventTypes.Orbit, EventTypes.CrewKilled, EventTypes.Docking, EventTypes.Mining },
             },
             new OutletDef
             {

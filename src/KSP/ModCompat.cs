@@ -8,7 +8,9 @@ namespace KerbalNews.KSP
     /// <summary>
     /// Soft links to other mods, found by reflection so KNN works with or without them.
     /// FMRS: FMRS.FMRS_Core.Instance (an IFMRS) has Active and SwitchedToDropped; while switched to a dropped stage
-    /// the game is a side timeline that FMRS will throw away.
+    /// the game is a side timeline that FMRS will throw away. FMRS sets SwitchedToDropped about a second BEFORE it loads
+    /// the other save (FlightDriver.StartAndFocusVessel, a full flight-scene reload), so for that second the flag already
+    /// describes the scene that is coming. StreamDriver.SceneSide is the flag as it was when this scene started.
     /// </summary>
     static class ModCompat
     {
@@ -17,7 +19,7 @@ namespace KerbalNews.KSP
         static float nextCheck;
         static bool cachedSide;
 
-        static Type FindType(string fullName)
+        internal static Type FindType(string fullName)
         {
             foreach (var a in AssemblyLoader.loadedAssemblies)
             {
@@ -56,6 +58,42 @@ namespace KerbalNews.KSP
             }
             catch { cachedSide = false; }
             return cachedSide;
+        }
+
+        /// <summary>FMRS's flag this instant, uncached and in any scene: true once a jump to a dropped stage has been ordered.</summary>
+        public static bool FmrsSwitchedRaw()
+        {
+            Look();
+            if (fmrsInstance == null) return false;
+            try
+            {
+                var inst = fmrsInstance.GetValue(null, null);
+                return inst != null && Bool(inst, "SwitchedToDropped");
+            }
+            catch { return false; }
+        }
+
+        /// <summary>The vessel FMRS calls the main mission, when it is in the current scene. Null without FMRS.</summary>
+        public static Vessel FmrsMainVessel()
+        {
+            Look();
+            if (fmrsInstance == null || FlightGlobals.Vessels == null) return null;
+            try
+            {
+                var inst = fmrsInstance.GetValue(null, null);
+                if (inst == null) return null;
+                object id = null;
+                for (var t = inst.GetType(); t != null && id == null; t = t.BaseType)
+                {
+                    var f = t.GetField("_SAVE_Main_Vessel", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                    if (f != null) id = f.GetValue(inst);
+                }
+                if (!(id is Guid)) return null;
+                var g = (Guid)id;
+                foreach (var v in FlightGlobals.Vessels) if (v != null && v.id == g) return v;
+            }
+            catch { }
+            return null;
         }
 
         // ------------------------------------------------------------------ VesselMover

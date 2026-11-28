@@ -57,7 +57,7 @@ namespace KerbalNews.Web
 
         Dictionary<string, object> KmailFrame(Dictionary<string, object> m, string folder, double now)
         {
-            var roots = Engine.VisibleMail(now).Where(x => x.IsRoot).ToList();
+            var roots = Engine.VisibleMail(now).Where(x => x.IsRoot && !x.Deleted).ToList();
             Func<MailMsg, bool> unread = r => Engine.MailThread(r).Any(x => !x.Read && !x.Outgoing && x.UT <= now);
             Func<string, string, string, int, object> f = (id, name, link, count) => new Dictionary<string, object>
             {
@@ -70,6 +70,7 @@ namespace KerbalNews.Web
                 f("sent", "Sent", "sent", 0),
                 f("assistant", "Handled by assistant", "assistant", 0),
                 f("all", "All mail", "all", 0),
+                f("trash", "Trash", "trash", 0),
             };
             m["labels"] = MailLabels.Select(l => (object)new Dictionary<string, object> { { "name", l[1] }, { "url", KmailHost + "/label/" + l[0] }, { "on", folder == "label/" + l[0] } }).ToList();
             m["me"] = Engine.DirectorAddr;
@@ -123,7 +124,8 @@ namespace KerbalNews.Web
         Dictionary<string, object> KmailList(string folder, string q, double now)
         {
             var m = KmailFrame(M(), folder, now);
-            var roots = Engine.VisibleMail(now).Where(x => x.IsRoot).ToList();
+            bool trash = folder == "trash";
+            var roots = Engine.VisibleMail(now).Where(x => x.IsRoot && x.Deleted == trash).ToList();
             IEnumerable<MailMsg> pick;
             string title;
             switch (folder)
@@ -132,6 +134,7 @@ namespace KerbalNews.Web
                 case "sent": pick = roots.Where(r => Engine.MailThread(r).Any(x => x.Outgoing && !x.ByAssistant)); title = "Sent"; break;
                 case "assistant": pick = roots.Where(r => Engine.MailThread(r).Any(x => x.ByAssistant)); title = "Handled by assistant"; break;
                 case "all": pick = roots; title = "All mail"; break;
+                case "trash": pick = roots; title = "Trash"; break;
                 case "search":
                     pick = roots.Where(r => q != "" && Engine.MailThread(r).Any(x => x.UT <= now && (x.Subject + " " + x.Body + " " + x.From + " " + x.To).IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0));
                     title = "Search results for \"" + q + "\""; break;
@@ -160,6 +163,7 @@ namespace KerbalNews.Web
                     { "url", MailUrl(r) }, { "from", who }, { "subject", r.Subject }, { "unread", unread },
                     { "snippet", ResponseParser.Clip(last.Body.Replace("\n", " ").Replace("  ", " "), 90) + (last.Body.Length > 90 ? "..." : "") },
                     { "time", MailTime(last.UT, now) },
+                    { "delUrl", "action:mail-" + (trash ? "restore/" : "delete/") + r.Id }, { "delLabel", trash ? "Restore" : "Delete" },
                 };
                 MailBadge(r, row, now);
                 rows.Add(row);
@@ -169,7 +173,10 @@ namespace KerbalNews.Web
             m["title"] = title;
             m["today"] = Date(now);
             m["q"] = q;
-            m["unreadTotal"] = Engine.UnreadMail(now);
+            m["unreadTotal"] = trash ? 0 : Engine.UnreadMail(now);
+            m["trash"] = trash;
+            m["trashFull"] = trash && rows.Count > 0;
+            m["emptyText"] = trash ? "Trash is empty. Deleted mail waits here until you empty it, so you can still restore it." : "No mail here yet. Outlets, sponsors, the Council and the public write in after your big moments.";
             return m;
         }
 
@@ -179,6 +186,9 @@ namespace KerbalNews.Web
             var thread = Engine.MailThread(r).Where(x => x.UT <= now).ToList();
             foreach (var x in thread) x.Read = true;
             m["id"] = r.Id;
+            m["deleted"] = r.Deleted;
+            m["backUrl"] = KmailHost + (r.Deleted ? "/trash" : "");
+            m["backText"] = r.Deleted ? "Back to Trash" : "Back to inbox";
             m["subject"] = r.Subject;
             m["label"] = MailKindLabel(r.Kind);
             m["msgs"] = thread.Select(x => (object)new Dictionary<string, object>
@@ -201,7 +211,7 @@ namespace KerbalNews.Web
             string st = r.Status != "" && r.Status != "open" ? Engine.MailStatusText(r, now) : "";
             m["mailStatus"] = st.Length > 0 ? char.ToUpperInvariant(st[0]) + st.Substring(1) : "";
             m["due"] = r.Open && r.DueUT >= 0 ? "Reply by " + Date(r.DueUT) : "";
-            m["ifIgnored"] = r.Open && r.Status == "open" ? IfIgnored(r) : "";
+            m["ifIgnored"] = r.Open && r.Status == "open" ? IfIgnored(r) + (r.Deleted ? " Deleting it counts the same as not answering." : "") : "";
             m["yesDoes"] = r.Open ? YesDoes(r) : "";
             var lastIn = thread.LastOrDefault(x => !x.Outgoing);
             m["replyTo"] = lastIn != null ? lastIn.From : r.To;
@@ -320,7 +330,20 @@ namespace KerbalNews.Web
                     mailNotice = State.MailAuto ? NewsEngine.AssistantName + " will answer routine mail (fan letters, citizens, simple press questions). Anything with a request still comes to you." : "You'll answer all mail yourself.";
                     break;
                 case "mail-read":
-                    foreach (var m in Engine.VisibleMail(now)) m.Read = true;
+                    foreach (var m in Engine.VisibleMail(now)) if (!Engine.InTrash(m)) m.Read = true;
+                    break;
+                case "mail-delete":
+                    mailNotice = Engine.MailDelete(id, now);
+                    // From the open email ("mail-delete/<id>/open"), go back to the inbox; from a list, stay on it.
+                    if (what == "open") r.Navigate = KmailHost;
+                    break;
+                case "mail-restore":
+                    mailNotice = Engine.MailRestore(id, now);
+                    if (what == "open") r.Navigate = MailUrl(Engine.FindMail(id, now) ?? new MailMsg { Id = id });
+                    break;
+                case "mail-empty-trash":
+                    mailNotice = Engine.MailEmptyTrash(now);
+                    r.Navigate = KmailHost + "/trash";
                     break;
             }
         }

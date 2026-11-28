@@ -17,6 +17,7 @@ All news lives inside your save file. Reverting, quickloading or crashing rolls 
 - **Universe tracker:** satellites, stations, bases, crew in space and debris per body over time.
 - **Every major AI provider:** DeepSeek (default), Claude, ChatGPT, Gemini, Grok, Mistral, OpenRouter, Ollama, LM Studio and any OpenAI-compatible endpoint. **Offline templates** need no key at all.
 - **Context compression:** older news and lore are folded into a running archive summary, so prompts stay short in long careers.
+- **Spell check while typing:** misspelled words in the browser's text boxes get a red wavy underline; right-click one for suggestions, *Add to dictionary* or *Ignore*. Fully offline (no AI calls), and it knows the game's planets, parts, kerbals, craft, outlets and installed mods. Turn it off under Settings.
 - **Model comparison:** each article records which model wrote it, and *Rewrite with current model* regenerates a story so you can compare models.
 
 ## Install
@@ -51,6 +52,12 @@ The mod makes one AI call per story, covering all of that story's outlets, comme
 
 Uses only stock GameEvents and patches nothing, so it works alongside other mods.
 
+**KSP Mining:** if the KSP Mining mod is installed, the press also covers it: the first ore brought home from another world, the first cargo of each ore, first drills and first cast bars, record hauls, big sales that move the KERBEX price, and weekly price swings. Small items ride along in the background news roundup and cost no AI call of their own. The link is read-only (it never changes funds or anything in KSP Mining) and does nothing when that mod is absent.
+
 ## Livestream announcer voice
 
 The livestream announcer can speak through ElevenLabs (your own key, under Settings). Stock announcer lines recorded with "Ship these lines with the mod" go in `GameData/KerbalNews/Voice/<voice-model-style>/`. They play for every player, even without a key. Voice audio is generated with [ElevenLabs](https://elevenlabs.io).
+
+## Spell check word list
+
+The spell checker's English word list (`GameData/KerbalNews/Dictionary/en.txt`) is built from [SCOWL](http://wordlist.aspell.net/) (Spell Checker Oriented Word Lists, size 60, American and British spellings) by Kevin Atkinson and contributors; its copyright and permission notice is in `GameData/KerbalNews/Dictionary/SCOWL-Copyright.txt`. KSP words live in `kerbal.txt` next to it, and words you add in game go to `PluginData/spelling-words.txt`.

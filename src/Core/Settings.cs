@@ -126,6 +126,8 @@ namespace KerbalNews
 
         /// <summary>Kmail pop-ups in flight, separate from the news message.</summary>
         public bool MailPopups = true;
+        /// <summary>Red underlines under misspelled words in the browser's text boxes (offline, no AI).</summary>
+        public bool SpellCheck = true;
         /// <summary>How soon news comes out after an event: 0.35 fast, 1 normal, 2.5 slow (times the outlet's usual delay).</summary>
         public double NewsDelay = 1;
 
@@ -414,6 +416,7 @@ namespace KerbalNews
             settings.Add("assistantConfirm", AssistantConfirm);
             settings.Add("photoLook", PhotoLook);
             settings.Add("mailPopups", MailPopups);
+            settings.Add("spellCheck", SpellCheck);
             settings.Add("newsDelay", NewsDelay);
             settings.Add("visionProvider", VisionProviderId);
             settings.AddText("visionModel", VisionModel);
@@ -500,6 +503,7 @@ namespace KerbalNews
                 g.AssistantConfirm = settings.GetBool("assistantConfirm", true);
                 g.PhotoLook = settings.GetBool("photoLook", true);
                 g.MailPopups = settings.GetBool("mailPopups", true);
+                g.SpellCheck = settings.GetBool("spellCheck", true);
                 g.NewsDelay = Math.Max(0.2, Math.Min(4, settings.GetDouble("newsDelay", 1)));
                 g.VisionProviderId = settings.Get("visionProvider", "");
                 g.VisionModel = settings.GetText("visionModel") ?? "";

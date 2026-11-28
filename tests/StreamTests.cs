@@ -24,6 +24,94 @@ public static class StreamTests
 
     static TelemetrySample Sample(double ut, double alt) { return new TelemetrySample { UT = ut, Altitude = alt, Speed = alt / 10, Apoapsis = alt * 2, Periapsis = -500000, Stage = 3, FuelPct = 70, G = 1.8, Situation = "FLYING", Body = "Kerbin" }; }
 
+    // FMRS: the stream outlives the save loads, follows the dropped booster, and what the booster did is news on the main save.
+    public static void TestStreamFollowsFmrsBoosterAndItsLandingIsReported()
+    {
+        var main = new NewsState();
+        var g = new GlobalSettings { OfflineMode = true, Announcer = 1 };
+        var eng = new NewsEngine(main, g, null, new SimpleClock(21600));
+        eng.Tick(0, 0, true);
+        eng.TrackLaunch("v1", CoreTests.Craft(), 10);
+        var st = eng.StartStream("v1", "Heron", 10, 100);
+        eng.StreamSample(Sample(12, 100), 101);
+        eng.StreamMoment("liftoff", 102);
+        eng.StreamSample(Sample(160, 42000), 150);
+        double maxAlt = st.Max.Altitude;
+        int said = st.Said.Count;
+
+        // FMRS loads the separation save (an older copy of the news) and flags the side timeline.
+        bool side = true;
+        string booster = "b7";
+        eng.SideTimeline = () => side;
+        eng.SideVesselId = () => side ? booster : null;
+        eng.SideMainName = () => "Heron";
+        eng.SideWhere = () => "at the space centre";
+        var sideState = new NewsState();
+        eng.SetState(sideState);
+        Assert(eng.Stream == st, "the stream survives the load of the side save");
+        eng.TrackLaunch(booster, CoreTests.Craft(), 10);
+        eng.StreamFocusBooster(booster, "Heron Booster", 160);
+        Assert(st.OnBooster && st.VesselId == "v1" && st.Moments.Last().StartsWith("booster cam"), "the broadcast cut to the booster and is still Heron's stream");
+        eng.StreamFocusBooster(booster, "Heron Booster", 161);
+        Assert(st.Moments.Count(m => m.StartsWith("booster cam")) == 1, "said once");
+        eng.StreamSample(Sample(170, 90000), 165);
+        Assert(st.Max.Altitude == maxAlt, "the booster's numbers do not count as the main vessel's records");
+        eng.StreamMoment("liftoff", 166);
+        // The main vessel's ghost in the side save blows up: not real, not on stream, not news.
+        eng.Ingest(CoreTests.Ev(EventTypes.Failure, 175, "v1", "Kerbin"));
+        Assert(!st.Bc.Lost && !st.Moments.Any(m => m.Contains("destroyed")) && eng.SideCarryCount == 0, "the ghost of the main vessel is ignored");
+        for (int k = 0; k < 40; k++) eng.TickStream(166 + k, true);
+        Assert(st.Chat.Count > 3, "chat keeps going on the booster");
+        eng.StreamBoosterEnd("landed", "Kerbin", 210);
+        eng.StreamBoosterEnd("lost", "", 211);
+        Assert(st.BoosterEnd == "landed" && st.Moments.Count(m => m.StartsWith("booster touchdown")) == 1 && !st.Moments.Any(m => m.StartsWith("booster lost")), "landing called once");
+        Assert(st.Said.Count > said && st.Said.Any(a => a.Text.ToLowerInvariant().Contains("booster")), "the commentator covers the booster");
+        Assert(!st.Bc.Lost && st.Bc.Outcome == "" && !st.Bc.RecapSaid, "the booster's landing is not the mission's outcome");
+        var land = CoreTests.Ev(EventTypes.Landing, 400, booster, "Kerbin");
+        land.VesselName = "Heron Booster";
+        eng.Ingest(land);
+        eng.Ingest(CoreTests.Ev(EventTypes.Landing, 401, booster, "Kerbin"));
+        for (int k = 0; k < 5; k++) eng.Tick(400 + k, 220 + k, true);
+        Assert(sideState.Stories.Count == 0 && eng.SideCarryCount == 1, "nothing is written in the side save; the landing is carried");
+
+        // FMRS loads the main save again, at an earlier game time than the landing.
+        side = false;
+        eng.SetState(main);
+        eng.StreamFocusMain(230);
+        Assert(!st.OnBooster && st.Last.Altitude == 42000 && st.Moments.Last().Contains("returned to Heron after the booster landed"), "back on the main vessel with its own telemetry: " + st.Moments.Last());
+        eng.Tick(170, 231, true);
+        Assert(eng.SideCarryCount == 0, "flushed");
+        var story = main.Stories.FirstOrDefault(x => x.Events.Any(e => e.Type == EventTypes.Landing && e.VesselId == booster));
+        Assert(story != null, "the booster landing is a story on the main save");
+        var ev = story.Events.First(e => e.VesselId == booster);
+        Assert(ev.Detail.Contains("dropped by Heron") && ev.Detail.Contains("at the space centre") && ev.UT <= 170, "the press is told what it was and where it landed: " + ev.Detail + " @" + ev.UT);
+        Assert(main.Tracked.ContainsKey(booster), "the booster is a tracked craft on the main save");
+        Assert(main.Streams.Contains(st.Archive) || main.Streams.Any(a => a.Id == st.Archive.Id), "the stream's entry is in the main save");
+        eng.StreamSample(Sample(175, 60000), 240);
+        var arch = eng.EndStream(300);
+        Assert(arch.Moments.Any(m => m.StartsWith("booster touchdown")) && main.Streams.Any(a => a.Id == arch.Id), "archive keeps the booster landing");
+
+        // A booster that crashes is news too; a stream ended during the side flight keeps its archive.
+        var st2 = eng.StartStream("v1", "Heron", 500, 400);
+        eng.StreamSample(Sample(501, 100), 401);
+        eng.StreamMoment("liftoff", 402);
+        for (int k = 0; k < 70; k++) eng.TickStream(402 + k, true);
+        side = true; booster = "b8";
+        eng.SetState(new NewsState());
+        eng.TrackLaunch(booster, CoreTests.Craft(), 500);
+        eng.StreamFocusBooster(booster, "Heron Booster", 480);
+        eng.StreamBoosterEnd("lost", "", 490);
+        Assert(st2.Moments.Any(m => m.StartsWith("booster lost")) && !st2.Bc.Lost, "booster lost on stream, mission not lost");
+        eng.Ingest(CoreTests.Ev(EventTypes.Failure, 700, booster, "Kerbin"));
+        var a2 = eng.EndStream(710);
+        side = false;
+        eng.SetState(main);
+        eng.Tick(600, 500, true);
+        Assert(main.Stories.Any(x => x.Events.Any(e => e.Type == EventTypes.Failure && e.VesselId == booster && e.Detail.Contains("main vessel was not affected"))), "the failed landing is reported");
+        Assert(main.Streams.Any(a => a.Id == a2.Id), "a stream ended in the side flight is kept");
+        Assert(!main.Stories.Any(x => x.Events.Any(e => e.Type == EventTypes.Failure && e.VesselId == "v1")), "no story about the main vessel being lost");
+    }
+
     public static void TestLivestreamOffline()
     {
         var s = new NewsState();
