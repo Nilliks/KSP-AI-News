@@ -643,13 +643,18 @@ namespace KerbalNews
                 }
             }
             if (dv != null && dv.Count > 0)
+            {
+                // In flight the stage that is burning right now reads 0 in the game's own readout, so it is not judged.
+                int burning = Flying && engines.Count > 0 ? engines.Max(p => p.Stage) : int.MinValue;
                 foreach (var k in engines.Select(p => p.Stage).Distinct().OrderByDescending(x => x))
                 {
+                    if (k == burning) continue;
                     var st = dv.FirstOrDefault(x => x.Stage == k);
                     bool laterAlso = dv.Any(x => x.Stage < k && x.DvVac > 1);
                     if ((st == null || st.DvVac < 1) && !r.Any(x => x.Contains("none aboard")) && engines.Where(e => e.Stage == k).All(e => e.DropStage < k))
                         r.Add("! The engines in stage " + k + " show no delta-v: they have no fuel they can reach" + (laterAlso ? ", or a later stage is using the same tanks" : "") + ". Check fuel lines and crossfeed.");
                 }
+            }
 
             // Dead weight: engines that burn out and are never dropped while later engines exist.
             foreach (var g in engines.Where(e => e.DropStage < 0 && e.Modules.Any(m => m.Kind == "engine" && m.N("locked") > 0) && engines.Any(o => o.Stage < e.Stage)).GroupBy(p => p.Title))

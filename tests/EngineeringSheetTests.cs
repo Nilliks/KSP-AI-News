@@ -189,6 +189,10 @@ public static class EngineeringSheetTests
         var nofuel = Rocket().StagingIssues(new List<EngStage> { new EngStage { Stage = 2, DvVac = 1900 } });
         Assert(nofuel.Any(x => x.Contains("stage 1 show no delta-v")), "a stage the game gives no delta-v: " + string.Join(" / ", nofuel.ToArray()));
 
+        var burningNow = Rocket(); burningNow.Flying = true;
+        var inFlight = burningNow.StagingIssues(new List<EngStage> { new EngStage { Stage = 2, DvVac = 0 }, new EngStage { Stage = 1, DvVac = 900 } });
+        Assert(!inFlight.Any(x => x.Contains("show no delta-v")), "in flight the stage that is burning is not called out for reading 0: " + string.Join(" / ", inFlight.ToArray()));
+
         var clamped = Rocket();
         var c = Part("launchClamp1", "TT18-A Launch Stability Enhancer", 3, 5); c.Modules.Add(Mod("clamp", true)); c.Surface = true; clamped.Parts.Add(c); clamped.Prepare();
         Assert(clamped.StagingIssues(dv).Any(x => x.Contains("Launch clamps release in stage 3, before the engines ignite")), "clamps released before ignition");
