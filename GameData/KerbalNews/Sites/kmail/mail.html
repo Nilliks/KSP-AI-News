@@ -3,7 +3,7 @@
 <div class="main">
 {{> side}}
 <div class="read">
-  <a class="back" href="kmail.kb">Back to inbox</a>
+  <div class="tools"><a class="back" href="{{backUrl}}">{{backText}}</a><div class="grow"></div>{{^deleted}}<button data-action="mail-delete/{{id}}/open">Delete</button>{{/deleted}}{{#deleted}}<span class="dim small">In Trash</span><button data-action="mail-restore/{{id}}/open">Restore to inbox</button>{{/deleted}}</div>
   <div class="shead"><span class="subject">{{subject}}</span>{{#label}}<span class="badge plain">{{label}}</span>{{/label}}</div>
   {{#msgs}}<div class="msg{{#out}} mine{{/out}}">
     <div class="mhead"><span class="avatar{{#out}} me{{/out}}">{{initials}}</span><div class="mwho"><span><b>{{from}}</b> <span class="dim">&lt;{{addr}}&gt;</span></span><span class="dim small">to {{to}} · {{when}}</span></div></div>

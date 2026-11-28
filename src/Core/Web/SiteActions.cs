@@ -40,6 +40,7 @@ namespace KerbalNews.Web
             switch (verb)
             {
                 case "mail-search": case "mail-reply": case "mail-send": case "mail-quick": case "mail-assist": case "mail-auto": case "mail-read":
+                case "mail-delete": case "mail-restore": case "mail-empty-trash":
                     KmailAction(verb, arg, form, r);
                     break;
                 case "wiki-search":

@@ -17,6 +17,9 @@ namespace KerbalNews
         static readonly Queue<string> recent = new Queue<string>();
         static readonly HashSet<string> recentSet = new HashSet<string>();
 
+        /// <summary>Forgets the recent lines (a fresh game session). Tests use it so one test's draws don't depend on the ones before it.</summary>
+        public static void ForgetRecent() { recent.Clear(); recentSet.Clear(); }
+
         public static string Expand(string pattern, Dictionary<string, string> v, Random rng, int depth = 0)
         {
             if (string.IsNullOrEmpty(pattern) || depth > 12) return pattern ?? "";
