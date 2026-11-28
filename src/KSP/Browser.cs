@@ -55,7 +55,7 @@ namespace KerbalNews.KSP
         readonly Dictionary<int, List<KeyValuePair<Image, RectItem>>> linkRects = new Dictionary<int, List<KeyValuePair<Image, RectItem>>>();
         readonly Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>> linkTexts = new Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>>();
         int hoverLink = -1;
-        bool dirty, wantRender;
+        bool dirty, wantRender, softRender;
         float nextEngRender;
         float lastWidth, nextStatus;
         string renderedUrl;
@@ -252,8 +252,12 @@ namespace KerbalNews.KSP
             // Never rebuild the page under a mouse button that's held down: the button being clicked would be destroyed
             // between press and release and the click lost. Live pages redraw every second, so this ate clicks on Hold.
             bool pressing = Input.GetMouseButton(0);
-            if (dirty && !typing && !pressing && !SpellMenuOpen) { dirty = false; wantRender = true; }
-            if (wantRender && width > 10) { wantRender = false; Render(true); }
+            // A page refreshing itself (news arrived, a live page's clock) is a soft redraw: it is only torn down and rebuilt
+            // when its shape changed. Anything the player did (navigate, resize, zoom) is a full one.
+            if (dirty && !typing && !pressing && !SpellMenuOpen) { dirty = false; softRender = true; }
+            if (wantRender && width > 10) { wantRender = false; softRender = false; Render(true); }
+            else if (softRender && width > 10) { softRender = false; Render(true, false, true, true); }
+            LoadWaitingImages();
 
             foreach (var f in fields.Values.Concat(chromeFields)) ResetFieldScroll(f);
             HideOffscreenFields();
@@ -1108,9 +1112,15 @@ namespace KerbalNews.KSP
 
         /// <summary>Renders the current URL. keepScroll keeps the reader's place (live refresh, actions);
         /// restoreScroll returns to where they were on that page (back/forward). keepForm keeps typed text.</summary>
-        void Render(bool keepScroll, bool restoreScroll = false, bool keepForm = true)
+        string drawnHtml, drawnCss;
+        /// <summary>How the last soft redraws went, for the self-test and the log: skipped (nothing changed), patched (only words changed), rebuilt.</summary>
+        public int SoftSkipped, SoftPatched, SoftRebuilt;
+
+        void Render(bool keepScroll, bool restoreScroll = false, bool keepForm = true, bool soft = false)
         {
             if (Sites == null || contentRt == null) return;
+            if (soft && renderedUrl == url && TrySoftRender()) return;
+            if (soft) SoftRebuilt++;
             float y = smoothing ? scrollTargetY : contentRt.anchoredPosition.y, x0 = smoothing ? scrollTargetX : -contentRt.anchoredPosition.x;
             var typed = keepForm && renderedUrl == url ? fields.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value.text) : null;
             try
@@ -1137,6 +1147,7 @@ namespace KerbalNews.KSP
                 layout = new PageLayout { Width = lastWidth, Height = 200 };
                 layout.Texts.Add(new TextItem { X = 20, Y = 20, W = lastWidth - 40, H = 160, FontSize = 16, Runs = { new Run { Text = "This page could not be drawn: " + e.Message } } });
             }
+            drawnHtml = page.Html; drawnCss = page.Css;
             Draw();
             if (typed != null)
                 foreach (var kv in typed)
@@ -1152,6 +1163,57 @@ namespace KerbalNews.KSP
             contentRt.anchoredPosition = new Vector2(-tx, Mathf.Clamp(target, 0, max));
             renderedUrl = url;
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// A page refreshing itself. If it comes out exactly as it is on screen, nothing is done. If only words changed
+        /// (a clock, telemetry numbers) and every box is where it was, the changed words are swapped in place. Returns
+        /// false when the page has a new shape and must be rebuilt. Rebuilding destroys and recreates every object on
+        /// the page, which on a live page used to happen every second.
+        /// </summary>
+        bool TrySoftRender()
+        {
+            if (layout == null || drawnHtml == null) return false;
+            float width = viewportRt.rect.width;
+            if (Math.Abs(width - lastWidth) > 1f || Math.Abs(Zoom - zoom) > 0.001f) return false;
+            PageResult next;
+            PageLayout nextLayout;
+            try
+            {
+                next = Sites.Render(url);
+                if (next.Html == drawnHtml && next.Css == drawnCss)
+                {
+                    page = next;
+                    SoftSkipped++;
+                    UpdateStatus();
+                    return true;
+                }
+                var root = Html.Parse(next.Html);
+                Css.Apply(root, Css.Parse(next.Css));
+                nextLayout = Layout.Run(root, lastWidth / zoom, Measure);
+            }
+            catch (Exception) { return false; }   // the full redraw reports it
+            if (!layout.SameShape(nextLayout) || drawnTexts.Count != nextLayout.Texts.Count) return false;
+
+            bool changed = false;
+            linkTexts.Clear();
+            for (int i = 0; i < drawnTexts.Count; i++)
+            {
+                var tmp = drawnTexts[i].Key;
+                var t = nextLayout.Texts[i];
+                drawnTexts[i] = new KeyValuePair<TextMeshProUGUI, TextItem>(tmp, t);
+                foreach (var id in t.LinkIds) Add(linkTexts, id, new KeyValuePair<TextMeshProUGUI, TextItem>(tmp, t));
+                if (tmp == null) continue;
+                string rich = t.Build(hoverLink);
+                if (tmp.text != rich) { tmp.text = rich; ForgetMesh(tmp); changed = true; }
+            }
+            page = next;
+            layout = nextLayout;
+            drawnHtml = next.Html; drawnCss = next.Css;
+            if (changed) RedrawSelection();
+            SoftPatched++;
+            UpdateStatus();
+            return true;
         }
 
         readonly Dictionary<string, Vector2> measureCache = new Dictionary<string, Vector2>();
@@ -1233,6 +1295,8 @@ namespace KerbalNews.KSP
         {
             CloseSpellMenu();
             foreach (var go in pageObjects) if (go != null) Destroy(go);
+            waitingImages.Clear();
+            onPage.Clear();
             pageObjects.Clear();
             drawnTexts.Clear();
             fields.Clear();
@@ -1255,6 +1319,7 @@ namespace KerbalNews.KSP
         {
             RememberSelection();
             Clear();
+            imageClock.Reset(); imageClock.Start();
             pageBg.color = Col(layout.Background, Color.white);
             float right = layout.Width;
             foreach (var r in layout.Rects) right = Mathf.Max(right, r.X + r.W);
@@ -1310,9 +1375,14 @@ namespace KerbalNews.KSP
                     SeekBar.Attach(go, im.W, im.H);
                     continue;
                 }
-                var tex = LoadImage(im.Src);
+                var tex = CachedImageFor(im.Src);
+                if (tex == null && imageClock.ElapsedMilliseconds < DrawImageMs) tex = LoadImage(im.Src);
                 if (tex != null) raw.texture = tex;
-                else raw.color = Col("#d9d2c1", Color.grey);
+                else
+                {
+                    raw.color = Col("#d9d2c1", Color.grey);
+                    if (ImageExists(im.Src)) waitingImages.Add(new KeyValuePair<RawImage, string>(raw, im.Src));
+                }
             }
             selectionLayer = Item("selection", 0, 0, 0, 0).transform;   // highlights sit behind the text, above the boxes
             foreach (var t in layout.Texts)
@@ -1447,7 +1517,6 @@ namespace KerbalNews.KSP
 
         // ------------------------------------------------------------------ images
 
-        static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
 
         /// <summary>Where an image src lives on disk: kbimg: (AI images), kbshot: (the gallery) or a path under GameData/KerbalNews.</summary>
         public static string ImagePath(string src)
@@ -1464,24 +1533,97 @@ namespace KerbalNews.KSP
             try { return File.Exists(ImagePath(src)); } catch (Exception) { return false; }
         }
 
+        // Decoded pictures are kept so a page that is redrawn doesn't read them from disk again. They are native memory the
+        // game never frees by itself, so the ones used longest ago are destroyed once the cache passes its budget (a
+        // 1600x900 press photo is nearly 6 MB decoded). Pictures on the page being shown are never dropped.
+        class CachedImage { public Texture2D Tex; public long Bytes; public int Used; }
+        static readonly Dictionary<string, CachedImage> textures = new Dictionary<string, CachedImage>();
+        static readonly HashSet<string> onPage = new HashSet<string>();
+        static int useClock;
+        static long cachedBytes;
+        const long ImageBudgetBytes = 96L * 1024 * 1024;
+        const int ImageBudgetCount = 120;
+        /// <summary>Decoded pictures held right now, and how many have been freed since the game started (for the self-test and the log).</summary>
+        public static int ImagesCached { get { return textures.Count; } }
+        public static long ImageBytesCached { get { return cachedBytes; } }
+        public static int ImagesFreed { get; private set; }
+
+        static Texture2D CachedImageFor(string src)
+        {
+            CachedImage c;
+            if (string.IsNullOrEmpty(src) || !textures.TryGetValue(src, out c)) return null;
+            if (c.Tex == null) { cachedBytes -= c.Bytes; textures.Remove(src); return null; }   // destroyed by a scene change
+            c.Used = ++useClock;
+            onPage.Add(src);
+            return c.Tex;
+        }
+
         static Texture2D LoadImage(string src)
         {
             if (string.IsNullOrEmpty(src)) return null;
-            Texture2D tex;
-            if (textures.TryGetValue(src, out tex)) return tex;
+            var tex = CachedImageFor(src);
+            if (tex != null) return tex;
             string path = ImagePath(src);
             try
             {
                 if (File.Exists(path))
                 {
                     tex = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-                    if (!ImageConversion.LoadImage(tex, File.ReadAllBytes(path))) tex = null;
+                    if (!ImageConversion.LoadImage(tex, File.ReadAllBytes(path))) { Destroy(tex); tex = null; }
                 }
             }
-            catch (Exception e) { Debug.LogWarning("[KerbalNews] Could not load image " + path + ": " + e.Message); tex = null; }
-            if (textures.Count > 60) textures.Clear();
-            textures[src] = tex;
+            catch (Exception e)
+            {
+                Debug.LogWarning("[KerbalNews] Could not load image " + path + ": " + e.Message);
+                if (tex != null) Destroy(tex);
+                tex = null;
+            }
+            if (tex == null) return null;   // a picture that isn't there yet is looked for again next time
+            var c = new CachedImage { Tex = tex, Bytes = (long)tex.width * tex.height * 4, Used = ++useClock };
+            textures[src] = c;
+            cachedBytes += c.Bytes;
+            onPage.Add(src);
+            TrimImages();
             return tex;
+        }
+
+        static void TrimImages()
+        {
+            while (cachedBytes > ImageBudgetBytes || textures.Count > ImageBudgetCount)
+            {
+                string oldest = null; int used = int.MaxValue;
+                foreach (var kv in textures)
+                    if (kv.Value.Used < used && !onPage.Contains(kv.Key)) { used = kv.Value.Used; oldest = kv.Key; }
+                if (oldest == null) return;   // everything left is on the page being shown
+                var c = textures[oldest];
+                textures.Remove(oldest);
+                cachedBytes -= c.Bytes;
+                if (c.Tex != null) Destroy(c.Tex);
+                ImagesFreed++;
+            }
+        }
+
+        // Decoding a picture takes a few milliseconds and can only be done on the game's own thread. A page full of new
+        // pictures used to decode them all in one frame; now a page gets a short allowance while it is drawn and the
+        // rest arrive over the next frames, each one filling its grey box as it lands.
+        readonly List<KeyValuePair<RawImage, string>> waitingImages = new List<KeyValuePair<RawImage, string>>();
+        readonly System.Diagnostics.Stopwatch imageClock = new System.Diagnostics.Stopwatch();
+        const long DrawImageMs = 12, FrameImageMs = 6;
+        public int ImagesWaiting { get { return waitingImages.Count; } }
+
+        void LoadWaitingImages()
+        {
+            if (waitingImages.Count == 0) return;
+            imageClock.Reset(); imageClock.Start();
+            int done = 0;
+            while (done < waitingImages.Count && (done == 0 || imageClock.ElapsedMilliseconds < FrameImageMs))
+            {
+                var w = waitingImages[done++];
+                if (w.Key == null) continue;   // its page was redrawn meanwhile
+                var tex = LoadImage(w.Value);
+                if (tex != null) { w.Key.texture = tex; w.Key.color = Color.white; }
+            }
+            waitingImages.RemoveRange(0, done);
         }
     }
 
