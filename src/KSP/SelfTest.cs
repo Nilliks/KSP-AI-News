@@ -124,6 +124,19 @@ namespace KerbalNews.KSP
 
             br.Open("settings.kb");
             yield return new WaitForSeconds(0.3f);
+            // "What uses what" sits below the service cards: open a job and its model drop-down, and photograph it.
+            br.Act("action:job-open/writer", null);
+            br.Act("action:job-models/writer", null);
+            foreach (var at in new[] { 0.08f, 0.16f, 0.24f })
+            {
+                yield return new WaitForSeconds(0.3f);
+                br.ScrollTo(at);
+                yield return new WaitForSeconds(0.2f);
+                yield return Shot("settings-what-uses-what-" + (int)(at * 100));
+            }
+            br.Act("action:job-open/writer", null);
+            yield return new WaitForSeconds(0.3f);
+            br.ScrollTo(0);
             float scaleBefore = Browser.Scale, zoomBefore = g.PageZoom;
             var winBefore = br.WindowSize;
             br.Act("action:zoom/+", null);
