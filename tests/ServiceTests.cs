@@ -169,6 +169,57 @@ public static class ServiceTests
         Assert(eng2.CheckServices(null) == 0 && t.Sent.Count == sent, "nothing is asked while the AI is turned off");
     }
 
+    public static void TestCostEstimatesComeFromARefreshedPriceList()
+    {
+        Pricing.Clear();
+        var t = new CoreTests.FakeTransport();
+        var g = new GlobalSettings { ProviderId = "deepseek", OfflineMode = false };
+        g.Keys["deepseek"] = "sk-deepseek-key1";
+        var eng = new NewsEngine(new NewsState(), g, t, new SimpleClock(Day));
+        eng.Today = () => "2030-01-02";
+        var sites = MakeSites(eng);
+        Assert(Pricing.Count > 100 && Pricing.AsOf != "", "a price list ships with the mod");
+
+        int saved = 0;
+        Assert(eng.RefreshPrices(() => saved++) && t.Sent[t.Sent.Count - 1].Url == Pricing.Url && t.Sent[t.Sent.Count - 1].Headers.Count == 0, "the price list is fetched at game start, with no key");
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 200, Body = "{\"sample_spec\":{\"mode\":\"chat\"},"
+            + "\"deepseek/deepseek-chat\":{\"litellm_provider\":\"deepseek\",\"mode\":\"chat\",\"input_cost_per_token\":1e-06,\"output_cost_per_token\":2e-06},"
+            + "\"deepseek/deepseek-embed\":{\"litellm_provider\":\"deepseek\",\"mode\":\"embedding\",\"input_cost_per_token\":1e-06,\"output_cost_per_token\":0},"
+            + "\"someone-else/model\":{\"litellm_provider\":\"bedrock\",\"mode\":\"chat\",\"input_cost_per_token\":1e-06,\"output_cost_per_token\":2e-06}}" });
+        double a, b;
+        Assert(saved == 1 && Pricing.AsOf == "2030-01-02" && Pricing.TryGet(Providers.Get("deepseek"), "deepseek-chat", out a, out b) && a == 1 && b == 2, "new prices replace the old ones and are saved");
+        Assert(Pricing.TryGet(Providers.Get("deepseek"), "deepseek-chat-2030-01-01", out a, out b) && a == 1, "a dated name takes the price of the name it starts with");
+        Assert(!Pricing.TryGet(Providers.Get("deepseek"), "deepseek-embed", out a, out b) && !Pricing.TryGet(Providers.Get("deepseek"), "no-such-model", out a, out b), "models that don't write, and unknown ones, have no price");
+        Assert(!eng.RefreshPrices(null), "once per game start");
+        var eng2 = new NewsEngine(new NewsState(), g, t, new SimpleClock(Day));
+        eng2.Today = () => "2030-01-02";
+        Assert(!eng2.RefreshPrices(null), "and not again on a day it was already read");
+        eng2.Today = () => "2030-01-03";
+        g.OfflineMode = true;
+        Assert(!eng2.RefreshPrices(null), "nothing is fetched while the AI is turned off");
+        g.OfflineMode = false;
+
+        // 6000 in and 3500 out at $1 and $2 per million: $0.013.
+        g.WriterModels["deepseek"] = "deepseek-chat";
+        string h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("About $0.01 a big story ($1.00 in, $2.00 out per million tokens)."), "the job shows what a big story costs");
+        sites.Handle("job-open/writer", null);
+        sites.Handle("job-models/writer", null);
+        h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("about $0.01 a big story") && h.Contains("as of 2030-01-02"), "each model in the drop-down carries its estimate, and the page says how fresh the prices are");
+        Assert(Pricing.Line(Providers.Get("ollama"), "qwen2.5:14b", Pricing.BigStory, "a big story").StartsWith("free"), "a local model is free");
+
+        DataNode sn, kn;
+        g.Save(sn = new DataNode("S"), kn = new DataNode("K"));
+        Pricing.Clear();
+        GlobalSettings.Load(sn, kn);
+        Assert(Pricing.AsOf == "2030-01-02" && Pricing.TryGet(Providers.Get("deepseek"), "deepseek-chat", out a, out b) && a == 1, "prices are kept between sessions");
+
+        Assert(Pricing.ReadOpenRouter("{\"data\":[{\"id\":\"lab/model-x\",\"pricing\":{\"prompt\":\"0.000003\",\"completion\":\"0.000015\"}}]}") == 1
+            && Pricing.TryGet(Providers.Get("openrouter"), "lab/model-x", out a, out b) && Math.Abs(a - 3) < 1e-9 && Math.Abs(b - 15) < 1e-9, "OpenRouter's own list gives its prices");
+        Pricing.Clear();
+    }
+
     public static void TestEachJobUsesTheServicePickedForIt()
     {
         var t = new CoreTests.FakeTransport();

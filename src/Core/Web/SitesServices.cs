@@ -97,15 +97,16 @@ namespace KerbalNews.Web
                 { "note", writer ? "The writer model: major stories and historic firsts, your assistant, the engineers, the science office and Kerbopedia."
                     : "The cheap model: briefs, quiet-day features, comments, the forum, mail, crew chat, livestream chat and summaries." },
                 { "current", route.Preset.Name + " · " + route.Model }, { "warn", "" },
-                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false }, { "cost", "" }, { "pricesAsOf", Pricing.AsOf },
             };
+            m["cost"] = Sentence(Pricing.Line(route.Preset, route.Model, writer ? Pricing.BigStory : Pricing.Routine, writer ? "a big story" : "a routine request"));
             if (!route.Ready) m["warn"] = route.Preset.Name + " has no key yet. Paste one above, or pick another service.";
             else if (!writer && pick != route.Preset.Id) m["warn"] = Providers.Get(pick).Name + " has no key, so " + route.Preset.Name + " does this job for now.";
             if (OpenJob != job) return m;
             m["picks"] = Providers.All.Where(p => p.Id == pick || !Services.Get(p.Id).Minor || g.ServiceReady(p.Id))
                 .Select(p => Chip(p.Name + (g.ServiceReady(p.Id) ? "" : " (needs a key)"), "job-service/" + job + "/" + p.Id, p.Id == pick, !g.ServiceReady(p.Id) && p.Id != pick)).ToList();
             string model = writer ? g.WriterModelOf(pick) : g.CheapModelOf(pick);
-            ModelMenu(m, job, g.ModelChoicesFor(pick), model);
+            ModelMenu(m, job, g.ModelChoicesFor(pick), model, Providers.Get(pick), writer ? Pricing.BigStory : Pricing.Routine, writer ? "a big story" : "a routine request");
             m["serviceName"] = Providers.Get(pick).Name;
             m["sees"] = Providers.CanSee(Providers.Get(pick), model) ? "This model can look at pictures." : "This model cannot look at pictures.";
             return m;
@@ -115,7 +116,9 @@ namespace KerbalNews.Web
         /// The model drop-down of a job: closed it shows the model in use; open it lists the service's models. A long
         /// list of "maker/model" names (OpenRouter's hundreds) is cut down by picking the maker first.
         /// </summary>
-        void ModelMenu(Dictionary<string, object> m, string job, List<string> models, string current)
+        static string Sentence(string s) { return string.IsNullOrEmpty(s) ? "" : char.ToUpperInvariant(s[0]) + s.Substring(1) + "."; }
+
+        void ModelMenu(Dictionary<string, object> m, string job, List<string> models, string current, ProviderPreset preset, int[] size, string what)
         {
             m["modelNow"] = current;
             bool open = OpenModels == job;
@@ -132,7 +135,8 @@ namespace KerbalNews.Web
                 m["groups"] = makers.Select(x => Chip(x, "job-group/" + job + "/" + x, x == pick, false)).ToList();
                 shown = models.Where(x => maker(x) == pick);
             }
-            m["modelPicks"] = shown.Select(x => Chip(x, "job-model/" + job + "/" + x, x == current, false)).ToList();
+            m["modelPicks"] = shown.Select(x => (object)new Dictionary<string, object> { { "label", x }, { "action", "job-model/" + job + "/" + x }, { "on", x == current },
+                { "price", preset == null ? "" : Pricing.Line(preset, x, size, what) } }).ToList();
         }
 
         object LookJob(GlobalSettings g)
@@ -147,8 +151,10 @@ namespace KerbalNews.Web
                 { "id", "look" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "look" }, { "label", "Looking at photos" },
                 { "note", "Each photo is looked at once, and the stream camera at big moments. What was seen then feeds articles, comments, Kerbopedia and the stream chat at no extra cost." },
                 { "current", current }, { "warn", "" }, { "modelPicks", new List<object>() }, { "serviceName", "" },
-                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false }, { "cost", "" }, { "pricesAsOf", Pricing.AsOf },
             };
+            var looker = !g.PhotoLook ? null : sees ? cheap : helper;
+            if (looker != null) m["cost"] = Sentence(Pricing.Line(looker.Preset, looker.Model, Pricing.PhotoLook, "a photo"));
             if (g.PhotoLook && !sees && helper == null)
                 m["warn"] = cheap.Preset.Name + " · " + cheap.Model + " can't see pictures. Pick a service below that can, or photos go undescribed.";
             if (OpenJob != "look") return m;
@@ -167,7 +173,7 @@ namespace KerbalNews.Web
                 string hid = helper.Preset.Id;
                 var models = g.ModelChoicesFor(hid).Where(x => Providers.CanSee(helper.Preset, x)).ToList();
                 if (!models.Contains(helper.Model)) models.Insert(0, helper.Model);
-                ModelMenu(m, "look", models, helper.Model);
+                ModelMenu(m, "look", models, helper.Model, helper.Preset, Pricing.PhotoLook, "a photo");
                 m["serviceName"] = helper.Preset.Name;
             }
             return m;
@@ -181,7 +187,7 @@ namespace KerbalNews.Web
                 { "id", "images" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "images" }, { "label", "Article photos" },
                 { "note", "Optional. An image service draws one press photo for bigger stories: one image call per story that qualifies. Which stories qualify is under Pictures." },
                 { "current", p == null ? "Off" : p.Name + " · " + g.ImageModel }, { "warn", "" }, { "serviceName", "" },
-                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false }, { "cost", "" }, { "pricesAsOf", Pricing.AsOf },
             };
             if (p != null && !g.ImagesOn) m["warn"] = Services.Get(Services.ForImage(p.Id)).Name + " has no key yet, so no photos are drawn. Paste one above.";
             if (OpenJob != "images") return m;
@@ -197,7 +203,7 @@ namespace KerbalNews.Web
             {
                 var models = new List<string>(p.Models);
                 if (g.ImageModel != "" && !models.Contains(g.ImageModel)) models.Insert(0, g.ImageModel);
-                ModelMenu(m, "images", models, g.ImageModel);
+                ModelMenu(m, "images", models, g.ImageModel, null, null, "");
                 m["serviceName"] = p.Name;
             }
             return m;
@@ -210,7 +216,7 @@ namespace KerbalNews.Web
             {
                 { "id", "voice" }, { "isText", false }, { "pickModel", false }, { "fixed", true }, { "open", false }, { "label", "Announcer voice" },
                 { "note", "The livestream announcer and the flight controller. The voices, style and volume are under Livestream announcer below." },
-                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false }, { "cost", "" }, { "pricesAsOf", Pricing.AsOf },
                 { "current", g.Announcer == 0 ? "Off" : !key ? "Stock lines and captions only" : !g.VoiceEnabled ? "Captions only (speaking is turned off)" : "ElevenLabs · " + Engine.VoiceLabel(g.VoiceId) + " (" + g.VoiceModel + ")" }, { "warn", "" },
             };
             if (g.Announcer > 0 && !key) m["warn"] = "With an ElevenLabs key above, the announcer speaks every line. Without one it speaks the stock lines that come with the mod.";
@@ -272,6 +278,7 @@ namespace KerbalNews.Web
                     string pid = arg == "writer" ? g.ProviderId : (g.CheapProviderId != "" ? g.CheapProviderId : g.ProviderId);
                     Busy = true; JobOk = true;
                     JobResult = "Asking " + Providers.Get(pid).Name + "...";
+                    Engine.RefreshPrices(() => { SaveSettings(); Changed(); }, true);
                     Engine.FetchModels(pid, (ok, msg) => { Busy = false; JobOk = ok; JobResult = msg; if (ok) SaveSettings(); Changed(); });
                     return r;
                 }

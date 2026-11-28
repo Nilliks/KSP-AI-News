@@ -469,6 +469,7 @@ namespace KerbalNews
                 n.AddText("cheap", Lookup(CheapModels, p.Id, ""));
                 n.AddText("fetched", Lookup(FetchedModels, p.Id, ""));
             }
+            if (Pricing.Count > 0) settings.AddText("prices", Pricing.Serialize());
             foreach (var kv in Keys)
                 if (!string.IsNullOrEmpty(kv.Value)) { var k = secrets.AddNode("KEY"); k.Add("id", kv.Key); k.AddText("key", kv.Value); }
         }
@@ -554,6 +555,7 @@ namespace KerbalNews
                     g.ImageModels[id] = n.GetText("model");
                     g.ImageBaseUrls[id] = n.GetText("baseUrl");
                 }
+                Pricing.Load(settings.GetText("prices"));
                 foreach (var n in settings.GetNodes("PROVIDER"))
                 {
                     string id = n.Get("id", "");

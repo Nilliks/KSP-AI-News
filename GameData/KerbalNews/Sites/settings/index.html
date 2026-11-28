@@ -35,6 +35,7 @@
   <p class="hint">Each job picks a service and a model. Only services with a key can be picked. Changes save at once.</p>
   {{#jobs}}<div class="job"><div class="what"><b>{{label}}</b><p class="hint">{{note}}</p></div>
     <div class="pick"><span class="current">{{current}}</span>{{^fixed}} &nbsp;<a href="action:job-open/{{id}}">{{#open}}Close{{/open}}{{^open}}Change{{/open}}</a>{{/fixed}}
+      {{#cost}}<p class="hint">{{cost}}</p>{{/cost}}
       {{#warn}}<p class="msg s-fail">{{warn}}</p>{{/warn}}
       {{#open}}
       <label class="small">Service</label>
@@ -42,15 +43,15 @@
       {{#isText}}<label class="small">Model for {{serviceName}}</label>
       <div class="dd"><span class="current">{{modelNow}}</span> &nbsp;<a href="action:job-models/{{id}}">{{#listOpen}}Close the list{{/listOpen}}{{^listOpen}}Choose another{{/listOpen}}</a></div>
       {{#listOpen}}<div class="ddlist">{{#hasGroups}}<p class="hint">Made by</p><div class="providers">{{#groups}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/groups}}</div>{{/hasGroups}}
-        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a></div>{{/modelPicks}}</div>{{/listOpen}}
+        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a>{{#price}} <span class="price">{{price}}</span>{{/price}}</div>{{/modelPicks}}</div>{{/listOpen}}
       <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>
-      <p class="hint">{{sees}} The list comes from {{serviceName}} itself and is refreshed every time the game starts, so new models show up on their own.</p>
+      <p class="hint">{{sees}} The list comes from {{serviceName}} itself and is refreshed every time the game starts, so new models show up on their own. Costs are estimates: public list prices{{#pricesAsOf}} as of {{pricesAsOf}}{{/pricesAsOf}}, refreshed when the game starts, times a typical request. Your real bill depends on how much you fly.</p>
       <div class="btns"><a class="tg" href="action:job-fetch/{{id}}">Refresh the list now</a><a class="tg" href="action:job-test/{{id}}">Send one small test request</a></div>
       {{#jobResult}}<p class="msg {{#jobOk}}s-ok{{/jobOk}}{{^jobOk}}s-fail{{/jobOk}}">{{jobResult}}</p>{{/jobResult}}{{/isText}}
       {{#pickModel}}{{#serviceName}}<label class="small">Model for {{serviceName}}</label>
       <div class="dd"><span class="current">{{modelNow}}</span> &nbsp;<a href="action:job-models/{{id}}">{{#listOpen}}Close the list{{/listOpen}}{{^listOpen}}Choose another{{/listOpen}}</a></div>
       {{#listOpen}}<div class="ddlist">{{#hasGroups}}<p class="hint">Made by</p><div class="providers">{{#groups}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/groups}}</div>{{/hasGroups}}
-        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a></div>{{/modelPicks}}</div>{{/listOpen}}
+        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a>{{#price}} <span class="price">{{price}}</span>{{/price}}</div>{{/modelPicks}}</div>{{/listOpen}}
       <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>{{/serviceName}}{{/pickModel}}
       {{/open}}
     </div></div>{{/jobs}}

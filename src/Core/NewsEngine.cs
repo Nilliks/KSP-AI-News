@@ -721,11 +721,35 @@ namespace KerbalNews
             Transport.Send(req, res =>
             {
                 if (!res.Ok) { done(false, res.Error ?? ("HTTP " + res.Status + " listing models")); return; }
+                if (id == "openrouter") Pricing.ReadOpenRouter(res.Body);
                 var models = Providers.ParseModelList(preset.Kind, res.Body);
                 if (models.Count == 0) { done(false, "The provider returned no models."); return; }
                 Settings.FetchedModels[id] = string.Join(" ", models.ToArray());
                 done(true, models.Count + " models available from " + preset.Name + ".");
             });
+        }
+
+        bool pricesAsked;
+        /// <summary>Today's date for the price list ("2026-11-28"). Tests set it.</summary>
+        public Func<string> Today = () => DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// Fetches the public price list behind the cost estimates in Settings: once per game start, and not again on a
+        /// day it was already read. Needs no key and is not an AI call, but nothing is sent while the AI is turned off.
+        /// </summary>
+        public bool RefreshPrices(Action changed, bool force = false)
+        {
+            if (Settings.OfflineMode || Transport == null) return false;
+            var q = Transport as LocalQueueTransport;
+            if (q != null && q.Inner == null) return false;
+            string today = Today();
+            if (!force && (pricesAsked || Pricing.AsOf == today)) return false;
+            pricesAsked = true;
+            Transport.Send(new HttpRequestSpec { Url = Pricing.Url, Method = "GET", Body = null, TimeoutSeconds = 30 }, res =>
+            {
+                if (res.Ok && Pricing.ReadLiteLlm(res.Body, today) > 0 && changed != null) changed();
+            });
+            return true;
         }
 
         readonly HashSet<string> checking = new HashSet<string>();
@@ -760,6 +784,7 @@ namespace KerbalNews
                 {
                     var models = Providers.ParseModelList(Providers.Get(svc.TextId).Kind, res.Body);
                     if (models.Count > 0) Settings.FetchedModels[svc.TextId] = string.Join(" ", models.ToArray());
+                    if (svc.TextId == "openrouter") Pricing.ReadOpenRouter(res.Body);
                 }
                 done(ok, msg);
             });

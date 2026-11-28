@@ -41,6 +41,8 @@ namespace KerbalNews.Web
         {
             Engine = engine;
             read = readFile;
+            // The price list that ships with the mod, for models the saved (fresher) list does not have.
+            try { Pricing.Load(readFile("settings/prices.txt"), true); } catch (Exception) { }
         }
 
         NewsState State { get { return Engine.State; } }
