@@ -190,6 +190,7 @@ namespace KerbalNews.KSP
                 nextTick = Time.realtimeSinceStartup + 0.25f;
                 bool warping = TimeWarp.CurrentRate > 1.01f;
                 Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping);
+                MiningLink.Update(Engine, Planetarium.GetUniversalTime(), clock.DaySeconds);
                 if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
                 // A few seconds of flight data for the engineering team, so a crash can be investigated afterwards.
                 if (HighLogic.LoadedSceneIsFlight && Settings.EngineeringOn && FlightGlobals.ActiveVessel != null && Time.realtimeSinceStartup > nextEngRecord)

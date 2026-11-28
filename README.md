@@ -51,6 +51,8 @@ The mod makes one AI call per story, covering all of that story's outlets, comme
 
 Uses only stock GameEvents and patches nothing, so it works alongside other mods.
 
+**KSP Mining:** if the KSP Mining mod is installed, the press also covers it: the first ore brought home from another world, the first cargo of each ore, first drills and first cast bars, record hauls, big sales that move the KERBEX price, and weekly price swings. Small items ride along in the background news roundup and cost no AI call of their own. The link is read-only (it never changes funds or anything in KSP Mining) and does nothing when that mod is absent.
+
 ## Livestream announcer voice
 
 The livestream announcer can speak through ElevenLabs (your own key, under Settings). Stock announcer lines recorded with "Ship these lines with the mod" go in `GameData/KerbalNews/Voice/<voice-model-style>/`. They play for every player, even without a key. Voice audio is generated with [ElevenLabs](https://elevenlabs.io).

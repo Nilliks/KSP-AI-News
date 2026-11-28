@@ -64,6 +64,7 @@ namespace KerbalNews
             { "politics", new[] { "herald", "council", "kscwatch" } },
             { "culture", new[] { "munmonthly", "inquirer", "herald" } },
             { "rival", new[] { "observer", "kraken", "herald" } },
+            { "market", new[] { "herald", "observer" } },
             { "dream", new[] { "munmonthly", "science", "observer", "herald" } },
         };
 
@@ -347,6 +348,7 @@ namespace KerbalNews
                 case "mod": return "space weather";
                 case "dream": return "what if";
                 case "rival": return "rival programs";
+                case "market": return "markets";
                 default: return kind;
             }
         }

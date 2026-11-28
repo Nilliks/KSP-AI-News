@@ -96,6 +96,7 @@ namespace KerbalNews.KSP
             yield return WorldCheck(sys, br, now);
             yield return WikiCheck(sys, br, now);
             yield return KmailCheck(sys, br, now);
+            MiningCheck(sys, now);
             // Act() fills the form fields of the page on screen, so go back to the article first.
             yield return Go(Sites.ArticleUrl(top));
 
@@ -168,6 +169,29 @@ namespace KerbalNews.KSP
         /// In-flight check in a throwaway sandbox save (never the player's): launch the stock Kerbal X, go live,
         /// stage, and check the press photos, the stream chat and its video. Writes into saves/KerbalNewsSelfTest only.
         /// </summary>
+        /// <summary>The KSP Mining link: passes without that mod; with it, the catalog must read and a sample first cargo must make news.</summary>
+        void MiningCheck(NewsSystem sys, double now)
+        {
+            try
+            {
+                string report;
+                var cat = MiningLink.SelfCheck(out report);
+                Check(cat == null || cat.Ores.Count > 0, "KSP Mining link: " + report);
+                if (cat == null || cat.Ores.Count == 0) return;
+                var memo = new Dictionary<string, string>();   // a scratch memo: the test save's own is left alone
+                MiningNews.Baseline(memo, cat, new string[0], 0);
+                var ore = cat.Ores.OrderBy(o => o.Tier).First();
+                var cargo = new List<MiningCargo> { new MiningCargo { Resource = ore.Raw, Tonnes = 12.4, Value = 12.4 * ore.RawValue } };
+                var item = MiningNews.Recovery(memo, cat, "Selftest Hauler", cargo, ore.Bodies, now);
+                Check(item != null && item.Magnitude == 5 && item.Text.Contains(cat.Name(ore.Raw)), "KSP Mining: a first cargo of " + cat.Name(ore.Raw) + " reads: " + (item != null ? item.Headline : "nothing"));
+                var story = sys.Engine.ReportMining(item, "", "Selftest Hauler", null, now);
+                Check(story != null && story.Significance >= 80, "KSP Mining: the first ore home is a historic story (" + (story != null ? story.Significance.ToString("0") : "none") + ")");
+                var again = MiningNews.Recovery(memo, cat, "Selftest Hauler", cargo, ore.Bodies, now + 1);
+                Check(again != null && again.Magnitude == 1, "KSP Mining: the next cargo is routine");
+            }
+            catch (Exception e) { Check(false, "KSP Mining link: " + e); }
+        }
+
         IEnumerator FlightCheck(NewsSystem sys, Browser br)
         {
             // The browser added at the main menu lives on this persistent object; drop it so flight has only one.

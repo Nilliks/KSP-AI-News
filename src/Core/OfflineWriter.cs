@@ -218,6 +218,8 @@ namespace KerbalNews
         {
             if (s.Kind == "filler") return Phrases.Fresh(outlet == "kraken" ? "hl_filler_kraken" : "hl_filler", v, r);
             if (e == null) return v["agency"] + " news update";
+            // Mining news brings its own headline, built from the exchange's numbers.
+            if (e.Type == EventTypes.Mining && e.Title != "") return outlet == "kraken" ? e.Title.ToUpperInvariant() + "!" : e.Title;
             bool loss = e.Type == EventTypes.CrewKilled, fail = loss || e.Type == EventTypes.Failure;
             string rule;
             switch (outlet)
@@ -252,6 +254,7 @@ namespace KerbalNews
                 case EventTypes.Milestone: return agency + " celebrates its " + e.Detail + (e.VesselName != "" ? " with " + e.VesselName : "");
                 case EventTypes.ContractDone: return agency + " completes contract: " + e.Detail;
                 case EventTypes.ContractFailed: return agency + " misses contract deadline: " + e.Detail;
+                case EventTypes.Mining: return e.Title != "" ? e.Title : agency + " mining update";
                 default: return agency + " update: " + vessel;
             }
         }
@@ -260,6 +263,7 @@ namespace KerbalNews
         {
             if (s.Kind == "filler") return Phrases.Rule("filler_mid", v, r);
             if (e == null) return "";
+            if (e.Type == EventTypes.Mining) { int dot = e.Detail.IndexOf(". ", StringComparison.Ordinal); return dot > 0 ? e.Detail.Substring(0, dot + 1) : e.Detail; }
             if (e.Type == EventTypes.CrewKilled) return Phrases.Rule("sub_loss", v, r);
             if (e.Type == EventTypes.Failure) return e.Crewed ? "The crew's status is the first question on everyone's mind." : Phrases.Rule("sub_fail", v, r).Replace("The crew's status is the first question on everyone's mind.", "No crew were aboard.");
             var sv = new Dictionary<string, string>(v);
@@ -284,6 +288,14 @@ namespace KerbalNews
                 var d = state.DigestHistory.LastOrDefault();
                 if (d != null)
                     sb.AppendFormat(Inv, "By the latest public count the agency has {0} satellites and {1} stations in operation, with {2} tracked pieces of debris and {3} kerbonauts currently in space.", d.Satellites, d.Stations, d.Debris, d.CrewInSpace);
+                return sb.ToString().Trim();
+            }
+            if (lead != null && lead.Type == EventTypes.Mining)
+            {
+                // A business story, not a flight story: the facts, then what the market makes of it.
+                foreach (var e in s.Events.OrderBy(x => x.UT))
+                    sb.Append(e.Type == EventTypes.Mining ? e.Detail + "\n\n" : clock.FormatDate(e.UT) + ": " + (s.Silent ? PromptBuilder.DescribeSilent(e) : PromptBuilder.Describe(e)) + "\n\n");
+                sb.Append(Phrases.Rule("w_market", v, r));
                 return sb.ToString().Trim();
             }
             bool loss = lead != null && lead.Type == EventTypes.CrewKilled, fail = loss || lead != null && lead.Type == EventTypes.Failure;

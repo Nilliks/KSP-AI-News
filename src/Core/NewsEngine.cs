@@ -149,6 +149,9 @@ namespace KerbalNews
                 case EventTypes.Splashdown:
                 case EventTypes.Landing:
                     return e.Body == "Kerbin";
+                case EventTypes.Mining:
+                    // Cargo unloaded at the Space Center and sales on a public exchange cannot be kept quiet; a drill on the Mun can.
+                    return e.Situation == "recovery" || e.Situation == "sale" || e.Situation == "earnings";
                 default:
                     return false;
             }

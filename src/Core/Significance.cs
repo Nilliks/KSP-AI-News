@@ -67,6 +67,7 @@ namespace KerbalNews
                 case EventTypes.Orbit: case EventTypes.Soi: case EventTypes.Landing: case EventTypes.Splashdown:
                     return e.Type + ":" + e.Body + ":" + (e.Crewed ? "crewed" : "uncrewed");
                 case EventTypes.Milestone: return "milestone:" + e.Detail;
+                case EventTypes.Mining: return "mining:" + e.Situation;
                 default: return e.Type;
             }
         }
@@ -79,6 +80,8 @@ namespace KerbalNews
 
         public static double Score(NewsEvent e, double timesSeen)
         {
+            // Mining events come with their size already worked out (firsts, records and big sales are judged where they are found).
+            if (e.Type == EventTypes.Mining && e.Weight > 0) return Math.Max(0, Math.Min(100, e.Weight));
             double b;
             if (!BaseByType.TryGetValue(e.Type ?? "", out b)) b = 15;
             if (e.Type == EventTypes.Milestone) b = MilestoneBase(e.Detail);

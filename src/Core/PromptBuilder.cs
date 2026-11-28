@@ -468,6 +468,7 @@ namespace KerbalNews
                 case EventTypes.ContractDone: return "The agency completed a contract: " + e.Detail + ".";
                 case EventTypes.ContractFailed: return "The agency failed a contract: " + e.Detail + ".";
                 case EventTypes.ContractAccepted: return "The agency accepted a contract: " + e.Detail + ".";
+                case EventTypes.Mining: return "Mining and ore market news (all figures are exact, from the exchange): " + e.Detail;
                 default: return e.Type + ": " + v + " " + e.Detail;
             }
         }
