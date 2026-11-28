@@ -129,6 +129,46 @@ public static class ServiceTests
         Assert(t.Sent.Count == sent, "nothing is checked while the AI is turned off");
     }
 
+    public static void TestModelListsRefreshAtStartAndTheDropDown()
+    {
+        var t = new CoreTests.FakeTransport();
+        var g = new GlobalSettings { ProviderId = "openrouter", OfflineMode = false };
+        g.Keys["openrouter"] = "sk-or-key-000001";
+        g.FetchedModels["openrouter"] = "old/model-1";
+        var eng = new NewsEngine(new NewsState(), g, t, new SimpleClock(Day));
+        var sites = MakeSites(eng);
+
+        // What the game does once when it starts.
+        int saved = 0;
+        Assert(eng.CheckServices(() => saved++) == 1 && t.Sent[t.Sent.Count - 1].Url == "https://openrouter.ai/api/v1/models", "the service with a key is asked for its model list");
+        var ids = new List<string>();
+        for (int i = 0; i < 20; i++) { ids.Add("openai/gpt-" + i); ids.Add("google/gemini-" + i); }
+        ids.Add("newlab/brand-new-model");
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 200, Body = "{\"data\":[" + string.Join(",", ids.Select(x => "{\"id\":\"" + x + "\"}").ToArray()) + "]}" });
+        Assert(saved == 1 && g.FetchedModels["openrouter"].Contains("newlab/brand-new-model") && !g.FetchedModels["openrouter"].Contains("old/model-1"), "the fresh list replaces the old one and is saved");
+        Assert(eng.CheckServices(null) == 0, "once per game start");
+
+        sites.Handle("job-open/writer", null);
+        string h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("action:job-models/writer") && !h.Contains("action:job-model/writer/"), "the drop-down is closed until asked for");
+        sites.Handle("job-models/writer", null);
+        h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("action:job-group/writer/newlab") && h.Contains("action:job-group/writer/openai"), "a long list is cut down by maker");
+        Assert(h.Contains("action:job-model/writer/anthropic/claude-opus") || h.Contains("action:job-model/writer/anthropic/"), "the maker of the model in use is shown first");
+        Assert(!h.Contains("action:job-model/writer/newlab/brand-new-model"), "other makers' models stay folded away");
+        sites.Handle("job-group/writer/newlab", null);
+        h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("action:job-model/writer/newlab/brand-new-model") && !h.Contains("action:job-model/writer/openai/gpt-1\""), "picking a maker shows its models");
+        sites.Handle("job-model/writer/newlab/brand-new-model", null);
+        h = sites.Render("settings.kb").Html;
+        Assert(g.Writer.Model == "newlab/brand-new-model" && !h.Contains("action:job-model/writer/"), "picking a model uses it and closes the list");
+
+        g.OfflineMode = true; g.Status.Clear();
+        var eng2 = new NewsEngine(new NewsState(), g, t, new SimpleClock(Day));
+        int sent = t.Sent.Count;
+        Assert(eng2.CheckServices(null) == 0 && t.Sent.Count == sent, "nothing is asked while the AI is turned off");
+    }
+
     public static void TestEachJobUsesTheServicePickedForIt()
     {
         var t = new CoreTests.FakeTransport();
@@ -232,6 +272,7 @@ public static class ServiceTests
         sites.Handle("job-look/gemini", null);
         Assert(g.Looker != null && g.Looker.Model == "gemini-2.5-flash" && eng.CanLook, "the helper starts on its service's cheap model");
         sites.Handle("job-open/look", null);
+        sites.Handle("job-models/look", null);
         Assert(sites.Render("settings.kb").Html.Contains("action:job-model/look/gemini-2.5-pro"), "its models that can see are offered");
         sites.Handle("job-model/look/gemini-2.5-pro", null);
         g.Save(sn = new DataNode("S"), kn = new DataNode("K"));

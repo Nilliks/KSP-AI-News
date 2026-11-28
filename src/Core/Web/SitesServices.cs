@@ -13,6 +13,8 @@ namespace KerbalNews.Web
         /// <summary>Which folds are open, which job is being changed, and what a bad paste was told. This session only.</summary>
         public bool ShowMoreServices, ShowLocalServices;
         public string OpenJob = "", OpenService = "";
+        /// <summary>The job whose model drop-down is open, and the maker picked in a long list ("openai" of "openai/gpt-5").</summary>
+        public string OpenModels = "", ModelGroup = "";
         readonly Dictionary<string, string> keyErrors = new Dictionary<string, string>();
         /// <summary>What "Get the full list" or "Send a test request" under a job said.</summary>
         public string JobResult = "";
@@ -95,6 +97,7 @@ namespace KerbalNews.Web
                 { "note", writer ? "The writer model: major stories and historic firsts, your assistant, the engineers, the science office and Kerbopedia."
                     : "The cheap model: briefs, quiet-day features, comments, the forum, mail, crew chat, livestream chat and summaries." },
                 { "current", route.Preset.Name + " · " + route.Model }, { "warn", "" },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
             };
             if (!route.Ready) m["warn"] = route.Preset.Name + " has no key yet. Paste one above, or pick another service.";
             else if (!writer && pick != route.Preset.Id) m["warn"] = Providers.Get(pick).Name + " has no key, so " + route.Preset.Name + " does this job for now.";
@@ -102,10 +105,34 @@ namespace KerbalNews.Web
             m["picks"] = Providers.All.Where(p => p.Id == pick || !Services.Get(p.Id).Minor || g.ServiceReady(p.Id))
                 .Select(p => Chip(p.Name + (g.ServiceReady(p.Id) ? "" : " (needs a key)"), "job-service/" + job + "/" + p.Id, p.Id == pick, !g.ServiceReady(p.Id) && p.Id != pick)).ToList();
             string model = writer ? g.WriterModelOf(pick) : g.CheapModelOf(pick);
-            m["modelPicks"] = g.ModelChoicesFor(pick).Select(x => Chip(x, "job-model/" + job + "/" + x, x == model, false)).ToList();
+            ModelMenu(m, job, g.ModelChoicesFor(pick), model);
             m["serviceName"] = Providers.Get(pick).Name;
             m["sees"] = Providers.CanSee(Providers.Get(pick), model) ? "This model can look at pictures." : "This model cannot look at pictures.";
             return m;
+        }
+
+        /// <summary>
+        /// The model drop-down of a job: closed it shows the model in use; open it lists the service's models. A long
+        /// list of "maker/model" names (OpenRouter's hundreds) is cut down by picking the maker first.
+        /// </summary>
+        void ModelMenu(Dictionary<string, object> m, string job, List<string> models, string current)
+        {
+            m["modelNow"] = current;
+            bool open = OpenModels == job;
+            m["listOpen"] = open;
+            m["modelPicks"] = new List<object>();
+            if (!open) return;
+            IEnumerable<string> shown = models;
+            if (models.Count > 24 && models.Count(x => x.Contains("/")) * 2 > models.Count)
+            {
+                Func<string, string> maker = x => x.Contains("/") ? x.Substring(0, x.IndexOf('/')) : "other";
+                var makers = models.Select(maker).Distinct().OrderBy(x => x == "other" ? "~" : x, StringComparer.OrdinalIgnoreCase).ToList();
+                string pick = makers.Contains(ModelGroup) ? ModelGroup : maker(current);
+                m["hasGroups"] = true;
+                m["groups"] = makers.Select(x => Chip(x, "job-group/" + job + "/" + x, x == pick, false)).ToList();
+                shown = models.Where(x => maker(x) == pick);
+            }
+            m["modelPicks"] = shown.Select(x => Chip(x, "job-model/" + job + "/" + x, x == current, false)).ToList();
         }
 
         object LookJob(GlobalSettings g)
@@ -120,6 +147,7 @@ namespace KerbalNews.Web
                 { "id", "look" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "look" }, { "label", "Looking at photos" },
                 { "note", "Each photo is looked at once, and the stream camera at big moments. What was seen then feeds articles, comments, Kerbopedia and the stream chat at no extra cost." },
                 { "current", current }, { "warn", "" }, { "modelPicks", new List<object>() }, { "serviceName", "" },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
             };
             if (g.PhotoLook && !sees && helper == null)
                 m["warn"] = cheap.Preset.Name + " · " + cheap.Model + " can't see pictures. Pick a service below that can, or photos go undescribed.";
@@ -139,7 +167,7 @@ namespace KerbalNews.Web
                 string hid = helper.Preset.Id;
                 var models = g.ModelChoicesFor(hid).Where(x => Providers.CanSee(helper.Preset, x)).ToList();
                 if (!models.Contains(helper.Model)) models.Insert(0, helper.Model);
-                m["modelPicks"] = models.Select(x => Chip(x, "job-model/look/" + x, x == helper.Model, false)).ToList();
+                ModelMenu(m, "look", models, helper.Model);
                 m["serviceName"] = helper.Preset.Name;
             }
             return m;
@@ -153,6 +181,7 @@ namespace KerbalNews.Web
                 { "id", "images" }, { "isText", false }, { "pickModel", true }, { "fixed", false }, { "open", OpenJob == "images" }, { "label", "Article photos" },
                 { "note", "Optional. An image service draws one press photo for bigger stories: one image call per story that qualifies. Which stories qualify is under Pictures." },
                 { "current", p == null ? "Off" : p.Name + " · " + g.ImageModel }, { "warn", "" }, { "serviceName", "" },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
             };
             if (p != null && !g.ImagesOn) m["warn"] = Services.Get(Services.ForImage(p.Id)).Name + " has no key yet, so no photos are drawn. Paste one above.";
             if (OpenJob != "images") return m;
@@ -168,7 +197,7 @@ namespace KerbalNews.Web
             {
                 var models = new List<string>(p.Models);
                 if (g.ImageModel != "" && !models.Contains(g.ImageModel)) models.Insert(0, g.ImageModel);
-                m["modelPicks"] = models.Select(x => Chip(x, "job-model/images/" + x, x == g.ImageModel, false)).ToList();
+                ModelMenu(m, "images", models, g.ImageModel);
                 m["serviceName"] = p.Name;
             }
             return m;
@@ -181,6 +210,7 @@ namespace KerbalNews.Web
             {
                 { "id", "voice" }, { "isText", false }, { "pickModel", false }, { "fixed", true }, { "open", false }, { "label", "Announcer voice" },
                 { "note", "The livestream announcer and the flight controller. The voices, style and volume are under Livestream announcer below." },
+                { "modelNow", "" }, { "listOpen", false }, { "hasGroups", false },
                 { "current", g.Announcer == 0 ? "Off" : !key ? "Stock lines and captions only" : !g.VoiceEnabled ? "Captions only (speaking is turned off)" : "ElevenLabs · " + Engine.VoiceLabel(g.VoiceId) + " (" + g.VoiceModel + ")" }, { "warn", "" },
             };
             if (g.Announcer > 0 && !key) m["warn"] = "With an ElevenLabs key above, the announcer speaks every line. Without one it speaks the stock lines that come with the mod.";
@@ -224,12 +254,14 @@ namespace KerbalNews.Web
                     if (arg == Services.ElevenLabs) Engine.ResetVoice();
                     SaveSettings();
                     return r;
-                case "job-open": OpenJob = OpenJob == arg ? "" : arg; JobResult = ""; return r;
+                case "job-open": OpenJob = OpenJob == arg ? "" : arg; OpenModels = ""; JobResult = ""; return r;
+                case "job-models": OpenModels = OpenModels == arg ? "" : arg; ModelGroup = ""; return r;
+                case "job-group": ModelGroup = b; return r;
                 case "job-service":
                     if (!TextJobs.Contains(a) || !Providers.All.Any(p => p.Id == b) || !g.ServiceReady(b)) return r;
                     if (a == "writer") g.ProviderId = b; else g.CheapProviderId = b == g.ProviderId ? "" : b;
                     if (g.CheapProviderId == g.ProviderId) g.CheapProviderId = "";
-                    JobResult = ""; TestResult = "";
+                    JobResult = ""; TestResult = ""; OpenModels = "";
                     SaveSettings();
                     return r;
                 case "job-model": SetJobModel(g, a, b); return r;
@@ -277,7 +309,7 @@ namespace KerbalNews.Web
             else if (job == "images" && g.ImagePreset != null) g.ImageModels[g.ImagePreset.Id] = model;
             else if (job == "look" && g.VisionProviderId != "") g.VisionModel = model;
             else return;
-            JobResult = "";
+            JobResult = ""; OpenModels = "";
             SaveSettings();
         }
 

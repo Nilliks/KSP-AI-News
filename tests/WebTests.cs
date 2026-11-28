@@ -128,6 +128,9 @@ public static class WebTests
         Assert(settings.Contains("AI services") && settings.Contains("What uses what") && !settings.Contains("action:job-model/"), "jobs are closed until Change is clicked");
         sites.Handle("job-open/writer", null);
         settings = sites.Render("settings.kb").Html;
+        Assert(settings.Contains("action:job-models/writer") && !settings.Contains("action:job-model/"), "the model drop-down starts closed");
+        sites.Handle("job-models/writer", null);
+        settings = sites.Render("settings.kb").Html;
         Assert(settings.Contains("action:job-model/writer/deepseek-chat") && settings.Contains("action:job-model/writer/deepseek-reasoner"), "model picker lists models");
         sites.Handle("job-open/writer", null);
         Eq("Not found", sites.Render("nowhere.kb").Title, "404");

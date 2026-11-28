@@ -40,13 +40,17 @@
       <label class="small">Service</label>
       <div class="providers">{{#picks}}{{#dead}}<span class="prov dead">{{label}}</span>{{/dead}}{{^dead}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/dead}}{{/picks}}</div>
       {{#isText}}<label class="small">Model for {{serviceName}}</label>
-      <div class="models">{{#modelPicks}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/modelPicks}}</div>
+      <div class="dd"><span class="current">{{modelNow}}</span> &nbsp;<a href="action:job-models/{{id}}">{{#listOpen}}Close the list{{/listOpen}}{{^listOpen}}Choose another{{/listOpen}}</a></div>
+      {{#listOpen}}<div class="ddlist">{{#hasGroups}}<p class="hint">Made by</p><div class="providers">{{#groups}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/groups}}</div>{{/hasGroups}}
+        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a></div>{{/modelPicks}}</div>{{/listOpen}}
       <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>
-      <p class="hint">{{sees}}</p>
-      <div class="btns"><a class="tg" href="action:job-fetch/{{id}}">Get the full model list from {{serviceName}}</a><a class="tg" href="action:job-test/{{id}}">Send one small test request</a></div>
+      <p class="hint">{{sees}} The list comes from {{serviceName}} itself and is refreshed every time the game starts, so new models show up on their own.</p>
+      <div class="btns"><a class="tg" href="action:job-fetch/{{id}}">Refresh the list now</a><a class="tg" href="action:job-test/{{id}}">Send one small test request</a></div>
       {{#jobResult}}<p class="msg {{#jobOk}}s-ok{{/jobOk}}{{^jobOk}}s-fail{{/jobOk}}">{{jobResult}}</p>{{/jobResult}}{{/isText}}
       {{#pickModel}}{{#serviceName}}<label class="small">Model for {{serviceName}}</label>
-      <div class="models">{{#modelPicks}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/modelPicks}}</div>
+      <div class="dd"><span class="current">{{modelNow}}</span> &nbsp;<a href="action:job-models/{{id}}">{{#listOpen}}Close the list{{/listOpen}}{{^listOpen}}Choose another{{/listOpen}}</a></div>
+      {{#listOpen}}<div class="ddlist">{{#hasGroups}}<p class="hint">Made by</p><div class="providers">{{#groups}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/groups}}</div>{{/hasGroups}}
+        {{#modelPicks}}<div class="opt{{#on}} on{{/on}}"><a href="action:{{action}}">{{label}}</a></div>{{/modelPicks}}</div>{{/listOpen}}
       <div class="keyrow"><div><input name="model-{{id}}" placeholder="or type any exact model name"></div><button class="btn" data-action="job-use/{{id}}">Use</button></div>{{/serviceName}}{{/pickModel}}
       {{/open}}
     </div></div>{{/jobs}}

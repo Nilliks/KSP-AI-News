@@ -86,6 +86,9 @@ namespace KerbalNews.KSP
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;
             Sites.AutoCheckKeys = true;
+            // Each game start: ask every service that has a key for its model list (a free request that also checks
+            // the key), so models released since the last session show up in Settings. Nothing is sent with the AI off.
+            try { Engine.CheckServices(SaveSettings); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Model lists not refreshed: " + e.Message); }
             Sites.RescanMods = () => ScanMods(false);
             Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.VesselExists = id =>

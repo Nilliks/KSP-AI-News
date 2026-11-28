@@ -61,3 +61,9 @@ h3 { margin-top: 12px; font-size: 16px; color: #3d3a33; }
 .pick { flex: 1; }
 .small { font-size: 12px; color: #6b665c; margin-top: 8px; }
 .prov.dead { color: #a39d8f; }
+.dd { background: #f1ede2; padding: 7px 10px; margin-top: 4px; border: 1px solid #b9b2a2; }
+.ddlist { background: #f1ede2; padding: 6px 10px 8px 10px; margin-bottom: 6px; border: 1px solid #b9b2a2; }
+.opt { padding: 4px 8px; font-family: mono; font-size: 14px; }
+.opt a { color: #1d1d1b; }
+.opt.on { background: #1f3b5a; }
+.opt.on a { color: #ffffff; }
