@@ -28,7 +28,8 @@ namespace UnityEngine
         public Rect rect;
     }
     public static class RectTransformUtility { public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) { return false; } public static bool ScreenPointToLocalPointInRectangle(RectTransform rt, Vector2 p, Camera c, out Vector2 local) { local = new Vector2(); return false; } }
-    public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public RenderTexture targetTexture; public void Render() { } public void CopyFrom(Camera other) { } }
+    [System.Flags] public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2, MotionVectors = 4 }
+    public class Camera : Behaviour { public static Camera[] allCameras; public float fieldOfView, depth; public DepthTextureMode depthTextureMode; public RenderTexture targetTexture; public void Render() { } public void CopyFrom(Camera other) { } }
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
     public sealed class Canvas : Behaviour { public RenderMode renderMode; public int sortingOrder; }
     public static class Resources { public static T[] FindObjectsOfTypeAll<T>() where T : Object { return new T[0]; } }
