@@ -51,6 +51,7 @@ namespace KerbalNews.KSP
         PageLayout layout;
         readonly List<GameObject> pageObjects = new List<GameObject>();
         readonly Dictionary<string, TMP_InputField> fields = new Dictionary<string, TMP_InputField>();
+        readonly List<TMP_InputField> unnamedFields = new List<TMP_InputField>();
         readonly Dictionary<int, List<KeyValuePair<Image, RectItem>>> linkRects = new Dictionary<int, List<KeyValuePair<Image, RectItem>>>();
         readonly Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>> linkTexts = new Dictionary<int, List<KeyValuePair<TextMeshProUGUI, TextItem>>>();
         int hoverLink = -1;
@@ -254,6 +255,7 @@ namespace KerbalNews.KSP
             if (wantRender && width > 10) { wantRender = false; Render(true); }
 
             foreach (var f in fields.Values.Concat(chromeFields)) ResetFieldScroll(f);
+            HideOffscreenFields();
 
             if (Time.realtimeSinceStartup > nextStatus) { nextStatus = Time.realtimeSinceStartup + 0.5f; UpdateStatus(); }
 
@@ -280,6 +282,26 @@ namespace KerbalNews.KSP
                 var rt = g.rectTransform;
                 if (rt.anchoredPosition.x * rt.anchoredPosition.x + rt.anchoredPosition.y * rt.anchoredPosition.y > 0.01f || rt.offsetMin.x != 0 || rt.offsetMax.x != 0)
                     Stretch(rt, 0, 0, 0, 0);
+            }
+        }
+
+        /// <summary>
+        /// Typing boxes scrolled out of the page view are switched off. TextMeshPro's input field opts its text out of
+        /// the scroll area's culling, so a box above or below the view still drew its text over the game, outside the
+        /// window (seen with the engineering page's Mission box after scrolling down the chat). A box being typed in stays.
+        /// </summary>
+        void HideOffscreenFields()
+        {
+            if (contentRt == null || viewportRt == null || zoom <= 0) return;
+            float top = contentRt.anchoredPosition.y / zoom, bottom = top + viewportRt.rect.height / zoom;
+            float left = -contentRt.anchoredPosition.x / zoom, right = left + viewportRt.rect.width / zoom;
+            foreach (var f in fields.Values.Concat(unnamedFields))
+            {
+                if (f == null || f.isFocused) continue;
+                var rt = (RectTransform)f.transform;
+                float fy = -rt.anchoredPosition.y, fx = rt.anchoredPosition.x;
+                bool onScreen = fy + rt.sizeDelta.y > top && fy < bottom && fx + rt.sizeDelta.x > left && fx < right;
+                if (f.gameObject.activeSelf != onScreen) f.gameObject.SetActive(onScreen);
             }
         }
 
@@ -1207,6 +1229,7 @@ namespace KerbalNews.KSP
             pageObjects.Clear();
             drawnTexts.Clear();
             fields.Clear();
+            unnamedFields.Clear();
             linkRects.Clear();
             linkTexts.Clear();
             hoverLink = -1;
@@ -1326,7 +1349,7 @@ namespace KerbalNews.KSP
                 f.textComponent.font = Font(inp.Family);
                 f.text = inp.Value ?? "";
                 f.MoveTextStart(false);
-                if (inp.Name != "") fields[inp.Name] = f;
+                if (inp.Name != "") fields[inp.Name] = f; else unnamedFields.Add(f);
                 if (!inp.Multiline)
                 {
                     var me = inp;
