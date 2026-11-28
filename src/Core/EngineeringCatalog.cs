@@ -23,17 +23,26 @@ namespace KerbalNews
         static bool IsRtg(CraftModule m) { return m.Is("ModuleRadioisotopeGenerator") || m.Is("ModuleDecayingRTG") || m.Name.IndexOf("RTG", StringComparison.Ordinal) >= 0; }
         static double RtgPower(CraftModule m) { return m.Any("BasePower", "basePower", "PowerOutput", "power"); }
 
+        /// <summary>A life support mod's process that exists to make power: electric charge out, none in.</summary>
+        static bool PowerProcess(CraftModule m) { return m.Kind == "process" && m.Rates.Any(r => r.Res == CraftSheet.EC && r.PerSec > 0) && !m.Rates.Any(r => r.Res == CraftSheet.EC && r.PerSec < 0); }
+        static double ProcessEc(CraftModule m) { return m.Rates.Where(r => r.Res == CraftSheet.EC && r.PerSec > 0).Sum(r => r.PerSec); }
+
         /// <summary>EC per second the part can make at its best: panels in full sun at home, generators, fuel cells and
         /// a life support mod's generator processes running, reactors at full power, RTGs when new.</summary>
         public static double EcMade(CraftPart p)
         {
             double v = p.Of("solar").Sum(m => m.N("rate"));
+            var procs = p.Modules.Where(PowerProcess).Select(ProcessEc).ToList();
+            // Setups picked in the part's menu are alternatives: only one runs, so the best one counts, not the sum.
+            double proc = procs.Count == 0 ? 0 : p.Modules.Any(m => m.Name == "Configure") ? procs.Max() : procs.Sum();
+            v += proc;
             foreach (var m in p.Modules)
             {
-                if (m.Kind == "solar") continue;
+                if (m.Kind == "solar" || m.Kind == "process") continue;
                 if (ModKnowledge.IsReactor(m)) v += ModKnowledge.ReactorPower(m);
-                else if (IsRtg(m) && RtgPower(m) > 0) v += RtgPower(m);
-                else if (m.Kind == "generator" || m.Kind == "converter" || m.Kind == "process") v += Math.Max(0, m.Rate(CraftSheet.EC));
+                // Where the life support mod runs the RTG as its own process, that is the figure that applies.
+                else if (IsRtg(m) && RtgPower(m) > 0) { if (proc <= 0) v += RtgPower(m); }
+                else if (m.Kind == "generator" || m.Kind == "converter") v += Math.Max(0, m.Rate(CraftSheet.EC));
             }
             return v;
         }
@@ -44,7 +53,8 @@ namespace KerbalNews
         {
             new Topic { Key = "power", Title = "POWER SOURCES (solar panels, generators, RTGs, reactors, fuel cells)", Words = new[] { "power", "electric", "solar", "panel", "rtg", "reactor", "generator", "fuel cell", "charge", " ec" },
                 // A reactor whose output the game does not expose still belongs on the list; its mass stands in for its size.
-                Is = p => (EcMade(p) > 0 || p.Modules.Any(ModKnowledge.IsReactor)) && !p.Has("engine") && !p.Has("command"), Rank = p => EcMade(p) > 0 ? EcMade(p) : p.DryMass * 10 },
+                // Pods and habitats trickle a little charge too; they are crew parts, not what anyone fits for power.
+                Is = p => (EcMade(p) >= 0.05 || p.Modules.Any(ModKnowledge.IsReactor)) && !p.Has("engine") && !p.Has("command") && p.Crew == 0, Rank = p => EcMade(p) > 0 ? EcMade(p) : p.DryMass * 10 },
             new Topic { Key = "battery", Title = "BATTERIES", Words = new[] { "power", "electric", "batter", "charge", "storage", " ec" }, Is = Battery, Rank = p => p.Max(CraftSheet.EC) },
             new Topic { Key = "engine", Title = "ENGINES", Words = new[] { "engine", "motor", "thrust", "isp", "booster", "propulsion", "twr", "delta-v", "delta v", "nuclear", "ion " },
                 Is = p => p.Has("engine"), Rank = p => p.Of("engine").Sum(m => m.N("thrust")) },
@@ -83,8 +93,19 @@ namespace KerbalNews
             double made = EcMade(p);
             if (made > 0 && !p.Has("solar")) extra.Add("makes up to " + CraftSheet.Ec(made));
             foreach (var m in p.Modules.Where(ModKnowledge.IsReactor)) { double ec = ModKnowledge.ReactorPower(m); extra.Add(ec > 0 ? "reactor " + CraftSheet.Ec(ec) + " at full power (constant, needs radiators)" : "reactor, output not read from the game (see its info in the builder)"); }
-            foreach (var m in p.Modules.Where(m => IsRtg(m) && RtgPower(m) > 0)) extra.Add("RTG " + CraftSheet.Ec(RtgPower(m)) + (m.Any("HalfLife", "halfLife") > 0 ? ", halves every " + EngMath.N(m.Any("HalfLife", "halfLife"), "0.#") + " years" : ", constant"));
-            foreach (var m in p.Modules.Where(m => m.Kind == "process")) extra.Add((m.Label != "" ? m.Label : "process") + ": " + CraftSheet.RatesText(m.Rates));
+            bool procPower = p.Modules.Any(PowerProcess);
+            foreach (var m in p.Modules.Where(m => IsRtg(m) && RtgPower(m) > 0))
+                extra.Add("RTG" + (procPower ? "" : " " + CraftSheet.Ec(RtgPower(m))) + (m.Any("HalfLife", "halfLife") > 0 ? ", halves every " + EngMath.N(m.Any("HalfLife", "halfLife"), "0.#") + " years" : ", constant"));
+            bool choose = p.Modules.Any(m => m.Name == "Configure") && p.Modules.Count(PowerProcess) > 1;
+            foreach (var m in p.Modules.Where(PowerProcess).OrderByDescending(ProcessEc))
+            {
+                // Hidden bookkeeping resources and rates too small to print are left out.
+                var shown = m.Rates.Where(r => !CraftSheet.Hidden(r.Res) && Math.Abs(r.PerSec) >= 5e-5).ToList();
+                extra.Add((choose ? "setup " : "") + (m.Label != "" ? "\"" + m.Label + "\"" : "process") + ": " + CraftSheet.RatesText(shown));
+            }
+            if (choose) extra.Add("one setup at a time, picked in the builder");
+            var others = p.Modules.Where(m => m.Kind == "process" && !PowerProcess(m) && m.Label != "").Select(m => m.Label).Distinct().ToList();
+            if (others.Count > 0) extra.Add("runs: " + string.Join(", ", others.Take(5).ToArray()));
             if (p.ChuteArea > 0) extra.Add(EngMath.N(p.ChuteArea) + " m² of canopy");
             var holds = p.Res.Where(r => r.Max > 0 && !CraftSheet.Hidden(r.Name)).Take(4).Select(r => r.Name + " " + EngMath.N(r.Max, "0.#")).ToArray();
             if (holds.Length > 0) extra.Add("holds " + string.Join(", ", holds));

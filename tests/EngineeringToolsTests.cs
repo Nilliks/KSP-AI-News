@@ -188,8 +188,22 @@ public static class EngineeringToolsTests
         var more = new List<CraftPart> { panel, reactor, rtg, cell };
         string mixed = EngCatalog.Text(more, "what should I use for power?");
         Assert(mixed.Contains("MX-0 Garnet Fission Reactor [NearFutureElectrical]") && mixed.Contains("reactor 60.0 EC/s at full power") && !mixed.Contains("MinimumThrottle"), "a reactor is listed in plain words with its output: " + mixed);
-        Assert(mixed.Contains("RTG 1.50 EC/s, halves every 20 years") && mixed.Contains("fuel cell: uses 0.002 Hydrogen/s, makes 2.25 EC/s"), "RTGs and process fuel cells too: " + mixed);
+        Assert(mixed.Contains("RTG 1.50 EC/s, halves every 20 years") && mixed.Contains("\"fuel cell\": uses 0.002 Hydrogen/s, makes 2.25 EC/s"), "RTGs and process fuel cells too: " + mixed);
         Assert(mixed.IndexOf("Garnet") < mixed.IndexOf("Fuel Cell") && mixed.IndexOf("Fuel Cell [") < 0 && mixed.IndexOf("- Fuel Cell") < mixed.IndexOf("PB-AS-NUK") && mixed.IndexOf("PB-AS-NUK") < mixed.IndexOf("OX-STAT"), "ranked by what they make");
+
+        // Setups chosen in the part's menu are alternatives; an RTG the life support mod runs is not counted twice;
+        // a habitat's trickle of charge does not make it a power source.
+        var array = Part("FuelCellArray", "Fuel Cell Array", 0.24, 4500); array.Modules.Add(new CraftModule { Name = "Configure", Kind = "other" });
+        foreach (var kv in new[] { new KeyValuePair<string, double>("fuel cell", 14.4), new KeyValuePair<string, double>("monoprop fuel cell", 3) })
+        { var x = new CraftModule { Name = "Process", Kind = "process", Label = kv.Key }; x.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = kv.Value }); array.Modules.Add(x); }
+        var nuk = Part("rtg", "PB-NUK", 0.08, 11650); var nm = new CraftModule { Name = "ModuleRadioisotopeGenerator", Kind = "other" }; nm.Num["BasePower"] = 3; nuk.Modules.Add(nm);
+        var np = new CraftModule { Name = "Process", Kind = "process", Label = "radioisotope generator" }; np.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = 6 }); np.Rates.Add(new CraftRate { Res = "_RTG", PerSec = -1e-9 }); nuk.Modules.Add(np);
+        var hab = Part("hab", "Access Tube", 0.5, 900); hab.Crew = 2;
+        var hp = new CraftModule { Name = "Process", Kind = "process", Label = "ec gen" }; hp.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = 0.17 }); hab.Modules.Add(hp);
+        var scrub = new CraftModule { Name = "Process", Kind = "process", Label = "scrubber" }; scrub.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = -0.04 }); hab.Modules.Add(scrub);
+        Assert(Math.Abs(EngCatalog.EcMade(array) - 14.4) < 1e-9 && Math.Abs(EngCatalog.EcMade(nuk) - 6) < 1e-9, "best setup, not the sum; the mod's RTG figure, not both: " + EngCatalog.EcMade(array) + " " + EngCatalog.EcMade(nuk));
+        string third = EngCatalog.Text(new List<CraftPart> { array, nuk, hab }, "power?");
+        Assert(third.Contains("By kind: power 2") && !third.Contains("- Access Tube") && third.Contains("one setup at a time") && !third.Contains("_RTG"), "habitats stay out, setups are alternatives, hidden resources are not shown: " + third);
 
         var eng = new NewsEngine(new NewsState(), CoreTests.OnlineSettings(), new CoreTests.FakeTransport(), new SimpleClock(100000));
         eng.EngineeringCatalog = () => list;
