@@ -246,6 +246,9 @@ namespace KerbalNews.KSP
             meshed.Clear();
         }
 
+        /// <summary>A text whose words were swapped in place must be measured again before a selection is drawn over it.</summary>
+        void ForgetMesh(TextMeshProUGUI tmp) { meshed.Remove(tmp); }
+
         void RedrawSelection()
         {
             foreach (var go in selectionObjects) if (go != null) Destroy(go);

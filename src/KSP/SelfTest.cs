@@ -625,6 +625,15 @@ namespace KerbalNews.KSP
 
         void Finish(bool quit)
         {
+            try
+            {
+                // How the speed fixes behaved in this run (not pass or fail: a short run may not use them all).
+                var br = Browser.Instance;
+                Log("  frame copies: " + FrameGrab.State);
+                if (br != null) Log("  page refreshes: " + br.SoftSkipped + " skipped (nothing changed), " + br.SoftPatched + " changed words only, " + br.SoftRebuilt + " rebuilt");
+                Log("  pictures: " + Browser.ImagesCached + " decoded in memory (" + (Browser.ImageBytesCached / (1024 * 1024)) + " MB), " + Browser.ImagesFreed + " freed");
+            }
+            catch (Exception e) { Log("  speed notes failed: " + e.Message); }
             Log(failures == 0 ? "ALL PASSED" : failures + " FAILED");
             try { File.WriteAllLines(Path.Combine(outDir, "results.txt"), log.ToArray()); }
             catch (Exception e) { Debug.LogError("[KerbalNews] Self-test results: " + e.Message); }
