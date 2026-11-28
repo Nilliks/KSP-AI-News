@@ -168,7 +168,14 @@ namespace KerbalNews
                     {
                         bool cryo = m.Name == "IFSCryostat", grow = m.Name == "Greenhouse";
                         double ec = (cryo ? m.Any("powerReqKW") : grow || m.Name.StartsWith("Harvester", StringComparison.Ordinal) ? m.Any("ec_rate") : m.Any("PowerCost")) * n;
-                        if (cryo && g.Sum(x => x.Res.Sum(q => q.Max)) <= 0) ec = 0;
+                        // A fuel-switch tank carries a cryostat for every fuel it could hold; only the one whose fuel is
+                        // actually in the tank draws power, and only on the tanks that hold some.
+                        if (cryo)
+                        {
+                            string fuel = m.T("resourceName");
+                            int holding = fuel == "" ? 0 : g.Count(x => x.Res.Any(q => q.Name == fuel && q.Max > 0));
+                            ec = m.Any("powerReqKW") * holding;
+                        }
                         if (ec > 0)
                         {
                             if (cryo || grow) { r.Always += ec; if (cryo) r.Cooling += ec; } else r.Working += ec;

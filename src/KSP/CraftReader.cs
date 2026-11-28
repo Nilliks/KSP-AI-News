@@ -122,7 +122,9 @@ namespace KerbalNews.KSP
                     {
                         // Anything that folds out says whether it is out.
                         object ds = Get(m, "deployState");
-                        if (ds != null) { string st = ds.ToString(); c.Deployed = st == "EXTENDED" || st == "EXTENDING" ? 1 : st == "RETRACTED" || st == "RETRACTING" ? 0 : c.Deployed; }
+                        // A fixed panel reports itself as extended for ever; with no fold animation it does not fold.
+                        object anim = ds != null ? Get(m, "animationName") : null;
+                        if (ds != null && !(anim is string && (string)anim == "")) { string st = ds.ToString(); c.Deployed = st == "EXTENDED" || st == "EXTENDING" ? 1 : st == "RETRACTED" || st == "RETRACTING" ? 0 : c.Deployed; }
                         var cm = ReadModule(m, engines > 1);
                         if (cm != null) c.Modules.Add(cm);
                     }
@@ -259,6 +261,8 @@ namespace KerbalNews.KSP
                         break;
                     }
                     Config(m, c, true);
+                    // Which resource the module is about (a cryostat's fuel, a harvester's ore) decides whether it runs at all.
+                    if (!c.Txt.ContainsKey("resourceName")) { string rn = Str(m, "resourceName"); if (rn != "" && rn.Length <= 40) c.Txt["resourceName"] = rn; }
                     if (c.Rates.Count == 0)
                         foreach (var pair in new[] { "inputs|outputs", "Inputs|Outputs", "inputList|outputList", "inputResources|outputResources" })
                         {

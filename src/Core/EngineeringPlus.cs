@@ -134,7 +134,8 @@ namespace KerbalNews
                 double oldDv = oldIsp * G0 * Math.Log(st.StartMass / st.EndMass);
                 double oldTwr = pad && st.TwrAsl > 0 ? st.TwrAsl : st.TwrVac;
                 double oldThrust = pad && om.N("ispAsl") > 0 ? om.N("thrust") * om.N("ispAsl") / om.N("ispVac") : om.N("thrust");
-                double floor = pad ? 1.25 : Math.Min(oldTwr, 0.35);
+                // In space a weaker engine is a fair trade, but not one that leaves the stage with less than half its push.
+                double floor = pad ? 1.25 : Math.Min(oldTwr, Math.Max(0.35, oldTwr * 0.5));
                 var props = Props(om);
                 CraftPart best = null, cheap = null; double bestDv = oldDv, bestTwr = 0, cheapDv = 0, cheapSave = 0;
                 foreach (var c in engines)
@@ -359,6 +360,8 @@ namespace KerbalNews
                     double wait = EngMath.TimeToWindow(star.Mu, planet.Sma, b.Sma, phase, ideal);
                     if (wait < 0) continue;
                     double flight = DvPlanner.HalfPeriod(star.Mu, planet.Sma, b.Sma);
+                    // Another star, or a body so far out that the coast runs to thousands of years, is not a transfer to plan a window for.
+                    if (double.IsNaN(flight) || double.IsInfinity(flight) || flight > 200 * 426 * day || b.Sma > planet.Sma * 500) continue;
                     double t1 = planet.Period > 0 ? planet.Period : 2 * Math.PI * Math.Sqrt(Math.Pow(planet.Sma, 3) / star.Mu), t2 = b.Period > 0 ? b.Period : 2 * Math.PI * Math.Sqrt(Math.Pow(b.Sma, 3) / star.Mu);
                     double synodic = Math.Abs(1 / (1 / t1 - 1 / t2));
                     // The way home: the window back opens when home sits the right angle ahead of the craft's planet.

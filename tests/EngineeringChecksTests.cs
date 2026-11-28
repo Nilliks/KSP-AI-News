@@ -285,6 +285,25 @@ public static class EngineeringChecksTests
         Assert(NewsEngine.EngChecksText(all, "give me a full design review").Contains("COST (computed"), "a review gets every check in full");
     }
 
+    public static void TestACryostatOnlyDrawsPowerForTheFuelInTheTank()
+    {
+        var bodies = Bodies();
+        var s = new CraftSheet();
+        var core = Part("probe", "Probe core", 0.1, "stock", -1, -1); core.With(Mod("command", "ModuleCommand", false)); core.Res.Add(new CraftRes { Name = CraftSheet.EC, Amount = 100, Max = 100 });
+        s.Parts.Add(core);
+        // A fuel-switch tank full of ordinary fuel, carrying cryostats for fuels it does not hold.
+        var tank = Part("fuelTank", "FL-T400 Fuel Tank", 0.25, "InterstellarFuelSwitch");
+        tank.Res.Add(new CraftRes { Name = "LiquidFuel", Amount = 180, Max = 180 });
+        tank.With(new CraftModule { Name = "IFSCryostat", Kind = "other" }.Set("powerReqKW", 10).Text("resourceName", "LqdHydrogen"))
+            .With(new CraftModule { Name = "IFSCryostat", Kind = "other" }.Set("powerReqKW", 20).Text("resourceName", "LqdMethane"));
+        s.Parts.Add(tank);
+        var warm = s.Power(bodies[1], bodies[1], bodies);
+        Assert(warm.Cooling == 0 && warm.Always < 1 && !warm.Demand.Any(l => l.Text.Contains("tank cold")), "no cooling power for fuels the tank does not hold: always " + warm.Always);
+        tank.Res.Add(new CraftRes { Name = "LqdHydrogen", Amount = 500, Max = 500 });
+        var cold = s.Power(bodies[1], bodies[1], bodies);
+        Assert(Math.Abs(cold.Cooling - 10) < 1e-9 && cold.Demand.Any(l => l.Text.Contains("tank cold")), "the hydrogen in the tank is kept cold, the methane cryostat stays off: " + cold.Cooling);
+    }
+
     public static void TestQuietPartLinesHideModBookkeeping()
     {
         var p = Part("fuelTank", "FL-T400 Fuel Tank", 0.25);
