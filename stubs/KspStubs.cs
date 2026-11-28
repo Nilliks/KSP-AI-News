@@ -182,7 +182,7 @@ public class ScenarioModule : UnityEngine.MonoBehaviour
 public class ConfigNode
 {
     public class Value { public string name, value; }
-    public class ValueList : IEnumerable<Value> { public IEnumerator<Value> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { yield break; } }
+    public class ValueList : System.Collections.IEnumerable { public System.Collections.IEnumerator GetEnumerator() { yield break; } }
     public class ConfigNodeList : IEnumerable<ConfigNode> { public IEnumerator<ConfigNode> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { yield break; } }
     public string name;
     public ValueList values;

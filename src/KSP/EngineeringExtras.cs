@@ -366,7 +366,7 @@ namespace KerbalNews.KSP
                 }
                 c.Parent = -1;
                 ids[id] = sheet.Parts.Count;
-                if (pn.values != null) foreach (var v in pn.values) if (v != null && v.name == "link") links.Add(new KeyValuePair<int, string>(sheet.Parts.Count, v.value));
+                if (pn.values != null) foreach (ConfigNode.Value v in pn.values) if (v != null && v.name == "link") links.Add(new KeyValuePair<int, string>(sheet.Parts.Count, v.value));
                 sheet.Parts.Add(c);
             }
             if (sheet.Parts.Count == 0) return null;
