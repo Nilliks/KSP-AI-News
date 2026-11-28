@@ -111,6 +111,12 @@ namespace KerbalNews
 
         public Story Ingest(NewsEvent e)
         {
+            string was = Crumb.Enter("event " + (e != null ? e.Type : ""));
+            try { return IngestInner(e); } finally { Crumb.Exit(was); }
+        }
+
+        Story IngestInner(NewsEvent e)
+        {
             if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream && !Stream.OnBooster && !InSide())
                 StreamMoment(StreamMomentText(e), lastRealTime);
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;

@@ -186,7 +186,7 @@ public class ScenarioModule : UnityEngine.MonoBehaviour
 public class ConfigNode
 {
     public class Value { public string name, value; }
-    public class ValueList : IEnumerable<Value> { public IEnumerator<Value> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { yield break; } }
+    public class ValueList : System.Collections.IEnumerable { public System.Collections.IEnumerator GetEnumerator() { yield break; } }
     public class ConfigNodeList : IEnumerable<ConfigNode> { public IEnumerator<ConfigNode> GetEnumerator() { yield break; } System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { yield break; } }
     public string name;
     public ValueList values;
@@ -222,6 +222,7 @@ public static class GameEvents
     public static EventData<HostedFromToAction<Vessel, CelestialBody>> onVesselSOIChanged;
     public static EventData<FromToAction<Part, Part>> onPartCouple;
     public static EventData<Vessel> onVesselWillDestroy;
+    public static EventData<ShipConstruct> onEditorShipModified = new EventData<ShipConstruct>();
     public static EventData<Part> onPartDie;
     public static EventData<int> onStageActivate;
     public static EventData<EventReport> onCrash, onCrashSplashdown, onOverheat;

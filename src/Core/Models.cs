@@ -774,6 +774,15 @@ namespace KerbalNews
         /// <summary>The mission the director last asked the team to plan, and every crash or failure with its investigation.</summary>
         public string EngMission = "";
         public List<Incident> Incidents = new List<Incident>();
+        /// <summary>Saved versions of craft, for the engineering team's compare, and the margin the director wants on budgets (percent).</summary>
+        public List<CraftSnap> EngSnaps = new List<CraftSnap>();
+        public int EngMargin = 10;
+        /// <summary>Everything the engineering team keeps on file, its meetings, rockets that have reached orbit, what flights were expected to do, and how much explaining the director wants.</summary>
+        public List<EngNote> EngNotes = new List<EngNote>();
+        public List<EngMeeting> EngMeetings = new List<EngMeeting>();
+        public List<ProvenRocket> EngProven = new List<ProvenRocket>();
+        public List<EngPrediction> EngPredictions = new List<EngPrediction>();
+        public string EngLevel = "normal";
         /// <summary>Contracts the news sparked.</summary>
         public List<TieIn> TieIns = new List<TieIn>();
         /// <summary>KTV news segments, newest last.</summary>
@@ -918,6 +927,13 @@ namespace KerbalNews
             foreach (var m in EngChat) m.Save(eng.AddNode("MSG"));
             eng.AddText("mission", EngMission);
             foreach (var inc in Incidents) inc.Save(eng.AddNode("INCIDENT"));
+            foreach (var sn in EngSnaps) sn.Save(eng.AddNode("SNAP"));
+            eng.Add("margin", EngMargin);
+            eng.Add("level", EngLevel);
+            foreach (var x in EngNotes) x.Save(eng.AddNode("NOTE"));
+            foreach (var x in EngMeetings) x.Save(eng.AddNode("MEETING"));
+            foreach (var x in EngProven) x.Save(eng.AddNode("PROVEN"));
+            foreach (var x in EngPredictions) x.Save(eng.AddNode("PREDICTION"));
             var tin = n.AddNode("TIEINS");
             foreach (var ti in TieIns) ti.Save(tin.AddNode("TIEIN"));
             var aps = n.AddNode("APPEARANCES");
@@ -1035,6 +1051,15 @@ namespace KerbalNews
                 foreach (var mn in engNode.GetNodes("MSG")) s.EngChat.Add(AssistantMessage.Load(mn));
                 s.EngMission = engNode.GetText("mission");
                 foreach (var inn in engNode.GetNodes("INCIDENT")) s.Incidents.Add(Incident.Load(inn));
+                foreach (var sn in engNode.GetNodes("SNAP")) s.EngSnaps.Add(CraftSnap.Load(sn));
+                int margin;
+                if (int.TryParse(engNode.Get("margin", "10"), out margin) && margin >= 0 && margin <= 100) s.EngMargin = margin;
+                string level = engNode.Get("level", "normal");
+                s.EngLevel = level == "short" || level == "teach" ? level : "normal";
+                foreach (var x in engNode.GetNodes("NOTE")) s.EngNotes.Add(EngNote.Load(x));
+                foreach (var x in engNode.GetNodes("MEETING")) s.EngMeetings.Add(EngMeeting.Load(x));
+                foreach (var x in engNode.GetNodes("PROVEN")) s.EngProven.Add(ProvenRocket.Load(x));
+                foreach (var x in engNode.GetNodes("PREDICTION")) s.EngPredictions.Add(EngPrediction.Load(x));
             }
             var tiNode = n.GetNode("TIEINS");
             if (tiNode != null) foreach (var tn in tiNode.GetNodes("TIEIN")) s.TieIns.Add(TieIn.Load(tn));

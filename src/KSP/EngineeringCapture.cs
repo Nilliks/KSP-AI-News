@@ -11,14 +11,31 @@ namespace KerbalNews.KSP
     /// </summary>
     static class EngineeringCapture
     {
-        public static EngSnapshot Snapshot()
+        public static EngSnapshot Snapshot() { return Snapshot(true); }
+
+        /// <summary><paramref name="sheet"/> false skips the full parts reading: the flight recorder samples every few
+        /// seconds and only needs the numbers.</summary>
+        public static EngSnapshot Snapshot(bool sheet)
+        {
+            string was = Crumb.Enter(sheet ? "craft reading" : "flight numbers");
+            try { return SnapshotInner(sheet); } finally { Crumb.Exit(was); }
+        }
+
+        static EngSnapshot SnapshotInner(bool sheet)
         {
             var s = new EngSnapshot();
             s.StockSystem = IsStock();
+            if (sheet) { try { s.Bodies = BodyList(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Bodies: " + e.Message); } }
             var scene = HighLogic.LoadedScene;
-            if (scene == GameScenes.EDITOR) { Editor(s); return s; }
-            if (scene == GameScenes.FLIGHT && FlightGlobals.ActiveVessel != null) { Flight(s, FlightGlobals.ActiveVessel); return s; }
+            if (scene == GameScenes.EDITOR) { Editor(s, sheet); if (sheet) EngineeringExtras.Fill(s); return s; }
+            if (scene == GameScenes.FLIGHT && FlightGlobals.ActiveVessel != null)
+            {
+                Flight(s, FlightGlobals.ActiveVessel, sheet);
+                if (sheet) { EngineeringExtras.Fill(s); s.RadarAlt = CraftReader.Num(FlightGlobals.ActiveVessel, "radarAltitude", -1); }
+                return s;
+            }
             s.Scene = scene == GameScenes.TRACKSTATION ? "tracking" : "spacecenter";
+            if (sheet) EngineeringExtras.Fill(s);
             Fleet(s);
             return s;
         }
@@ -31,7 +48,52 @@ namespace KerbalNews.KSP
             return kerbin != null && Math.Abs(kerbin.Radius - 600000) < 1 && bodies.Any(b => b != null && b.bodyName == "Duna");
         }
 
-        static void Editor(EngSnapshot s)
+        // ---- the live craft sheet -------------------------------------------------------------
+        // Reading every module of every part is too much to do on each page redraw, so the sheet is kept until the
+        // craft changes: the editor says so itself, and a part count or stage change (or a few seconds) catches the rest.
+        static CraftSheet cached;
+        static string cachedKey = "";
+        static bool editorDirty = true, hooked;
+        static List<EngBody> bodies;
+        static int bodiesFor = -1;
+        const float EditorMaxAge = 6f, FlightMaxAge = 8f;
+
+        static List<EngBody> BodyList()
+        {
+            int n = FlightGlobals.Bodies != null ? FlightGlobals.Bodies.Count : 0;
+            if (bodies == null || bodiesFor != n) { bodies = CraftReader.Bodies(); bodiesFor = n; }
+            return bodies;
+        }
+
+        /// <summary>The game's events read the handler's owner, so the handler has to be an instance method, not a static one.</summary>
+        sealed class EditorWatch { public void OnShipModified(ShipConstruct ship) { editorDirty = true; } }
+        static EditorWatch watch;
+
+        static void Hook()
+        {
+            if (hooked) return;
+            hooked = true;
+            try { watch = new EditorWatch(); GameEvents.onEditorShipModified.Add(watch.OnShipModified); }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Editor hook: " + e.Message); }
+        }
+
+        static CraftSheet Sheet(IList<Part> parts, Part root, bool flying, string key, bool dirty, float maxAge)
+        {
+            if (cached != null && cachedKey == key && !dirty && Time.realtimeSinceStartup - cached.BuiltAt < maxAge) return cached;
+            cached = Crumb.Run("parts sheet", () => CraftReader.Read(parts, root, flying));
+            cachedKey = key;
+            try
+            {
+                bool sph = !flying && EditorDriver.editorFacility == EditorFacility.SPH;
+                object ship = !flying && EditorLogic.fetch != null ? EditorLogic.fetch.ship : null;
+                CraftReader.Facts(cached, ship, sph);
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Craft facts: " + e.Message); }
+            ModProbe.Fill(cached);
+            return cached;
+        }
+
+        static void Editor(EngSnapshot s, bool sheet)
         {
             s.Scene = EditorDriver.editorFacility == EditorFacility.SPH ? "sph" : "vab";
             var ship = EditorLogic.fetch != null ? EditorLogic.fetch.ship : null;
@@ -45,6 +107,16 @@ namespace KerbalNews.KSP
             Parts(s, ship.parts);
             Home(s);
             Stages(s, ship.vesselDeltaV, false);
+            if (sheet)
+            {
+                Hook();
+                try
+                {
+                    s.Sheet = Sheet(ship.parts, ship.parts[0], false, "editor|" + ship.parts.Count, editorDirty, EditorMaxAge);
+                    editorDirty = false;
+                }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Craft sheet: " + e); }
+            }
         }
 
         static void Home(EngSnapshot s)
@@ -63,7 +135,7 @@ namespace KerbalNews.KSP
             s.BodySoi = double.IsInfinity(b.sphereOfInfluence) ? 0 : b.sphereOfInfluence;
         }
 
-        static void Flight(EngSnapshot s, Vessel v)
+        static void Flight(EngSnapshot s, Vessel v, bool sheet)
         {
             s.Scene = MapView.MapIsEnabled ? "map" : "flight";
             s.Vessel = Names.Of(v);
@@ -90,6 +162,11 @@ namespace KerbalNews.KSP
             Target(s, v);
             Stages(s, v.VesselDeltaV, true);
             Node(s, v);
+            if (sheet && v.parts != null && v.parts.Count > 0)
+            {
+                try { s.Sheet = Sheet(v.parts, v.rootPart, true, "flight|" + v.persistentId + "|" + v.parts.Count + "|" + v.currentStage, false, FlightMaxAge); }
+                catch (Exception e) { Debug.LogWarning("[KerbalNews] Craft sheet: " + e); }
+            }
         }
 
         /// <summary>Counts part modules and resource capacity for the design review.</summary>
@@ -191,7 +268,7 @@ namespace KerbalNews.KSP
 
         /// <summary>Phase angle with the target ahead, 0-360. The angle alone has no sign, so it checks a minute later whether
         /// the gap is closing (target ahead of a faster inner craft) or opening; that avoids any handedness confusion.</summary>
-        static double Phase(Orbit mine, Orbit target, double ut)
+        internal static double Phase(Orbit mine, Orbit target, double ut)
         {
             double a0 = Vector3d.Angle(mine.getRelativePositionAtUT(ut), target.getRelativePositionAtUT(ut));
             double a1 = Vector3d.Angle(mine.getRelativePositionAtUT(ut + 60), target.getRelativePositionAtUT(ut + 60));

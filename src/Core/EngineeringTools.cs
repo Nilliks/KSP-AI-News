@@ -35,7 +35,9 @@ namespace KerbalNews
         public bool Land, Return, Flyby;
         public List<EngLeg> Legs = new List<EngLeg>();
         public double Need, Have, Margin;
-        public bool Known;
+        public bool Known, Computed;
+        /// <summary>The margin the director wants on top of the budget, percent.</summary>
+        public double MarginPct = 10;
         public string Note = "";
         public double Total { get { return Legs.Sum(l => l.Dv); } }
     }
@@ -89,7 +91,7 @@ namespace KerbalNews
     {
         /// <summary>Stock delta-v legs from low Kerbin orbit (approximate, community map): transfer, capture to low orbit,
         /// landing, ascent, return to Kerbin (aerobraking at home), and surface gravity in m/s².</summary>
-        public class Dest { public string Name; public double Transfer, Capture, Land, Ascent, Return, Gravity; public bool Aero, NoSurface; }
+        public class Dest { public string Name; public double Transfer, Capture, Land, Ascent, Return, Gravity, Travel; public bool Aero, NoSurface, Computed; }
 
         public static readonly Dest[] Stock =
         {
@@ -116,33 +118,69 @@ namespace KerbalNews
             return null;
         }
 
+        /// <summary>The body a plain-English mission names, from the bodies in the save.</summary>
+        public static EngBody FindBody(string text, EngSnapshot s)
+        {
+            if (s == null || s.Bodies.Count == 0) return null;
+            string t = " " + (text ?? "").ToLowerInvariant() + " ";
+            var home = s.Home;
+            foreach (var b in s.Bodies.Where(x => !x.IsStar && (home == null || x.Name != home.Name)).OrderByDescending(x => x.Name.Length))
+                if (System.Text.RegularExpressions.Regex.IsMatch(t, @"(^|[^a-z0-9])(the )?" + System.Text.RegularExpressions.Regex.Escape(b.Name.ToLowerInvariant()) + @"($|[^a-z0-9])")) return b;
+            if (t.Contains(" moon") && home != null) return s.Bodies.Where(x => x.Parent == home.Name).OrderBy(x => x.Sma).FirstOrDefault();
+            return null;
+        }
+
+        /// <summary>The destination's legs: computed from the save's real bodies when the game reported them, else the stock table.</summary>
+        public static Dest Find(string text, EngSnapshot s)
+        {
+            var body = FindBody(text, s);
+            if (body != null)
+            {
+                var d = DvPlanner.Route(s.Bodies, s.Home, body);
+                if (d != null) return d;
+            }
+            if (s != null && s.Bodies.Count > 0 && !s.StockSystem) return null;
+            return Find(text);
+        }
+
         static bool Has(string t, params string[] words) { return words.Any(w => t.Contains(w)); }
 
         /// <summary>Budget for a plain-English mission against the craft's stages. Works only for the stock system.</summary>
-        public static EngPlan Plan(string mission, EngSnapshot s)
+        public static EngPlan Plan(string mission, EngSnapshot s, double marginPct = 10)
         {
-            var p = new EngPlan { Mission = (mission ?? "").Trim() };
+            var p = new EngPlan { Mission = (mission ?? "").Trim(), MarginPct = marginPct };
             string t = " " + p.Mission.ToLowerInvariant() + " ";
-            var d = Find(t);
-            if (d == null || (s != null && !s.StockSystem)) { p.Note = d == null ? "No stock destination named, so the team will work it out from the data." : "A planet pack is installed, so the stock budget does not apply."; return p; }
+            var d = Find(t, s);
+            bool bodies = s != null && s.Bodies.Count > 0 && s.Home != null;
+            if (d == null)
+            {
+                p.Note = bodies && FindBody(t, s) != null ? "The team has no simple route worked out for that body yet, so they will reason from the data."
+                    : bodies || s == null || s.StockSystem ? "No destination named, so the team will work it out from the data."
+                    : "A planet pack is installed, so the stock budget does not apply.";
+                return p;
+            }
             p.Known = true;
+            p.Computed = d.Computed;
             p.Body = d.Name;
+            string home = bodies ? s.Home.Name : "Kerbin";
             p.Flyby = Has(t, "flyby", "fly by", "fly-by", "slingshot");
             p.Land = !p.Flyby && !d.NoSurface && Has(t, "land", "surface", "touch down", "plant a flag", "walk on", "base", "rover");
             p.Return = Has(t, "back", "return", "home", "and come", "round trip", "round-trip", "rescue");
             bool onGround = s == null || s.Scene == "vab" || s.Scene == "sph" || s.Scene == "spacecenter" || s.Scene == "tracking"
-                || (s.Body == "Kerbin" && !s.HasOrbit);
-            bool inLko = s != null && s.Body == "Kerbin" && s.HasOrbit && s.PeA > 0;
-            if (onGround && !inLko) p.Legs.Add(new EngLeg { Name = "Launch to low Kerbin orbit", Dv = LaunchDv });
+                || (s.Body == home && !s.HasOrbit);
+            bool inLko = s != null && s.Body == home && s.HasOrbit && s.PeA > 0;
+            double launch = bodies ? DvPlanner.Ascent(s.Home) : LaunchDv;
+            bool chutes = d.Aero && (!d.Computed || d.Land < d.Ascent * 0.5);
+            if (onGround && !inLko) p.Legs.Add(new EngLeg { Name = "Launch to low " + home + " orbit", Dv = launch });
             p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Flyby of " : "Transfer to ") + d.Name, Dv = d.Transfer });
             if (!p.Flyby) p.Legs.Add(new EngLeg { Name = "Capture into low " + d.Name + " orbit" + (d.Aero ? " (aerobraking can save most of this)" : ""), Dv = d.Capture });
             if (p.Land)
             {
-                p.Legs.Add(new EngLeg { Name = "Land on " + d.Name + (d.Aero ? " (parachutes do most of the work)" : ""), Dv = d.Land });
+                p.Legs.Add(new EngLeg { Name = "Land on " + d.Name + (chutes ? " (parachutes do most of the work)" : ""), Dv = d.Land });
                 if (p.Return) p.Legs.Add(new EngLeg { Name = "Ascent back to " + d.Name + " orbit", Dv = d.Ascent });
             }
-            if (p.Return) p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Free-return correction" : "Return to Kerbin (aerobrake at home)"), Dv = p.Flyby ? 100 : d.Return });
-            p.Need = p.Total * 1.1;
+            if (p.Return) p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Free-return correction" : "Return to " + home + (bodies && s.Home.AtmoDepth <= 0 ? "" : " (aerobrake at home)")), Dv = p.Flyby ? 100 : d.Return });
+            p.Need = p.Total * (1 + p.MarginPct / 100);
             Allocate(p, s, d);
             return p;
         }
@@ -184,10 +222,10 @@ namespace KerbalNews
         {
             if (p == null || !p.Known) return p == null ? "" : "Mission: " + p.Mission + ". " + p.Note;
             var sb = new StringBuilder();
-            sb.AppendLine("Mission plan for \"" + p.Mission + "\" (stock delta-v map, approximate):");
+            sb.AppendLine("Mission plan for \"" + p.Mission + "\" (" + (p.Computed ? "computed from this system's real bodies" : "stock delta-v map") + ", approximate):");
             foreach (var l in p.Legs) sb.AppendLine("- " + l.Name + ": " + EngMath.N(l.Dv) + " m/s" + (l.Stages != "" ? " (" + l.Stages + ")" : ""));
-            sb.Append("Total " + EngMath.N(p.Total) + " m/s, about " + EngMath.N(p.Need) + " with a 10% margin.");
-            if (p.Have > 0) sb.Append(" The craft has " + EngMath.N(p.Have) + " m/s, so it is " + (p.Margin >= p.Total * 0.1 ? EngMath.N(p.Margin) + " m/s over the budget." : p.Margin >= 0 ? "just enough with almost no margin (" + EngMath.N(p.Margin) + " m/s spare)." : EngMath.N(-p.Margin) + " m/s short."));
+            sb.Append("Total " + EngMath.N(p.Total) + " m/s, about " + EngMath.N(p.Need) + " with the " + EngMath.N(p.MarginPct) + "% margin the director asked for.");
+            if (p.Have > 0) sb.Append(" The craft has " + EngMath.N(p.Have) + " m/s, so it is " + (p.Margin >= p.Total * p.MarginPct / 100 ? EngMath.N(p.Margin) + " m/s over the budget." : p.Margin >= 0 ? "just enough with almost no margin (" + EngMath.N(p.Margin) + " m/s spare)." : EngMath.N(-p.Margin) + " m/s short."));
             if (p.Note != "") sb.Append(" " + p.Note);
             return sb.ToString();
         }
@@ -260,7 +298,7 @@ namespace KerbalNews
                 }
                 if (plan != null && plan.Known && plan.Land)
                 {
-                    var d = EngMissions.Find(plan.Body);
+                    var d = EngMissions.Find(plan.Body, s);
                     var landLeg = plan.Legs.FirstOrDefault(l => l.Name.StartsWith("Land"));
                     int stg;
                     if (d != null && d.Gravity > 0 && landLeg != null && landLeg.Stages.StartsWith("stage ") && int.TryParse(landLeg.Stages.Substring(6).Split(',')[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out stg))
@@ -278,7 +316,7 @@ namespace KerbalNews
             if (plan != null && plan.Known && plan.Have > 0)
             {
                 if (plan.Margin < 0) r.Add("! Not enough delta-v for \"" + plan.Mission + "\": " + EngMath.N(-plan.Margin) + " m/s short of the " + EngMath.N(plan.Total) + " m/s budget.");
-                else if (plan.Margin < plan.Total * 0.1) r.Add("Delta-v for \"" + plan.Mission + "\" is just enough, with " + EngMath.N(plan.Margin) + " m/s spare; aim for 10% margin.");
+                else if (plan.Margin < plan.Total * plan.MarginPct / 100) r.Add("Delta-v for \"" + plan.Mission + "\" is just enough, with " + EngMath.N(plan.Margin) + " m/s spare; the margin asked for is " + EngMath.N(plan.MarginPct) + "%.");
             }
             bool far = plan != null && plan.Known && plan.Body != "Mun" && plan.Body != "Minmus";
             bool dre = mods.Any(h => h.StartsWith("Deadly Reentry"));
@@ -289,6 +327,17 @@ namespace KerbalNews
                 if (mods.Any(h => h.StartsWith("USI Life")) && Res(s, "Supplies") <= 0) r.Add("! USI Life Support is installed but the craft carries no Supplies.");
                 if (mods.Any(h => h.StartsWith("Snacks")) && Res(s, "Snacks") <= 0) r.Add("! Snacks is installed but there are no Snacks aboard.");
                 if (mods.Any(h => h.StartsWith("Kerbalism")) && Res(s, "Food", "Oxygen") <= 0) r.Add("! Kerbalism is installed but the craft carries no Food or Oxygen.");
+            }
+            if (s.Sheet != null && s.Sheet.Parts.Count > 0)
+            {
+                string mt = (State.EngMission ?? "").ToLowerInvariant();
+                bool docking = mt.Contains("dock") || mt.Contains("station") || mt.Contains("rendezvous");
+                r.AddRange(s.Sheet.Missing(crewed, plan != null && plan.Known && plan.Land, docking));
+                var pw = EngPower(s, plan);
+                if (pw != null && pw.Rating.StartsWith("short")) r.Add("! Power is " + pw.Rating + (pw.Where != "" ? " at " + pw.Where : "") + ": makes " + CraftSheet.Ec(pw.GenThere) + ", needs up to " + CraftSheet.Ec(pw.Coast + pw.Working) + ". See the power budget.");
+                else if (pw != null && pw.Rating == "oversized") r.Add("Power is oversized" + (pw.Where != "" ? " for " + pw.Where : "") + ": makes " + CraftSheet.Ec(pw.GenThere) + " against a peak of " + CraftSheet.Ec(pw.Coast + pw.Working) + ". Some panels could go.");
+                int stagingBad = s.Sheet.StagingIssues(s.Stages).Count(x => x.StartsWith("!"));
+                if (stagingBad > 0) r.Add("! " + stagingBad + " staging problem" + (stagingBad == 1 ? "" : "s") + ": see the staging check.");
             }
             if (r.Count == 0) r.Add("No obvious problems: control, power, comms" + (crewed ? ", parachutes" : "") + " and staging look fine.");
             return r;
@@ -334,7 +383,15 @@ namespace KerbalNews
 
         // ------------------------------------------------------------------ mission plans
 
-        public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s); }
+        /// <summary>Files the mission as it now stands in the craft's notebook.</summary>
+        public void EngNoteMission(double ut)
+        {
+            if (State.EngMission == "") return;
+            var s = EngLook();
+            EngRemember("plan", s != null ? s.Vessel : "", "Mission set" + (s != null && s.Vessel != "" ? " for " + s.Vessel : "") + ": " + State.EngMission + ".", ut);
+        }
+
+        public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s, State.EngMargin); }
 
         /// <summary>The director names a mission; the plan is computed here and the team is asked to go through it.</summary>
         public bool EngPlanMission(string mission, double ut)
@@ -342,6 +399,7 @@ namespace KerbalNews
             mission = (mission ?? "").Trim();
             if (mission == "" || !Settings.EngineeringOn) return false;
             State.EngMission = ResponseParser.Clip(mission, 200);
+            EngNoteMission(ut);
             return EngSend("Plan this mission: " + State.EngMission + ". Go through the delta-v budget leg by leg and say which stage does what.", ut);
         }
 
@@ -381,6 +439,7 @@ namespace KerbalNews
         public void EngRecord(EngSnapshot s, double ut)
         {
             if (s == null || s.VesselId == "") return;
+            try { EngTrackFlight(s, ut); } catch (Exception e) { LastError = "Flight tracking: " + e.Message; }
             List<string> l;
             if (!engTrack.TryGetValue(s.VesselId, out l)) { l = new List<string>(); engTrack[s.VesselId] = l; if (engTrack.Count > 20) engTrack.Remove(engTrack.Keys.First(k => k != s.VesselId)); }
             var cur = s.Stages.OrderByDescending(x => x.Stage).FirstOrDefault();
@@ -466,6 +525,7 @@ namespace KerbalNews
                 inc.Fixes = ResponseParser.Clip(Json.Str(root, "fixes", "").Trim(), 1200);
                 inc.PublicSummary = ResponseParser.Clip(Json.Str(root, "public_summary", "").Trim(), 800);
                 inc.Status = "done";
+                EngRemember("investigation", inc.VesselName, "Investigation of " + (inc.VesselName != "" ? inc.VesselName : "a craft") + ": " + inc.Cause + (inc.Fixes != "" ? " Next time: " + ResponseParser.Clip(inc.Fixes, 300) : ""), ut);
                 RaiseCommunity();
             });
             return true;
