@@ -97,13 +97,15 @@ namespace KerbalNews
             foreach (var m in p.Modules.Where(m => IsRtg(m) && RtgPower(m) > 0))
                 extra.Add("RTG" + (procPower ? "" : " " + CraftSheet.Ec(RtgPower(m))) + (m.Any("HalfLife", "halfLife") > 0 ? ", halves every " + EngMath.N(m.Any("HalfLife", "halfLife"), "0.#") + " years" : ", constant"));
             bool choose = p.Modules.Any(m => m.Name == "Configure") && p.Modules.Count(PowerProcess) > 1;
-            foreach (var m in p.Modules.Where(PowerProcess).OrderByDescending(ProcessEc))
+            var makers = p.Modules.Where(PowerProcess).OrderByDescending(ProcessEc).ToList();
+            // Setups picked in the builder: say so first, name each with its output, and spell out only the best one's inputs.
+            if (choose) extra.Add("one setup at a time, picked in the builder: " + string.Join(", ", makers.Take(5).Select(m => (m.Label != "" ? m.Label : "process") + " " + CraftSheet.Ec(ProcessEc(m))).ToArray()));
+            foreach (var m in choose ? makers.Take(1) : makers)
             {
                 // Hidden bookkeeping resources and rates too small to print are left out.
                 var shown = m.Rates.Where(r => !CraftSheet.Hidden(r.Res) && Math.Abs(r.PerSec) >= 5e-5).ToList();
-                extra.Add((choose ? "setup " : "") + (m.Label != "" ? "\"" + m.Label + "\"" : "process") + ": " + CraftSheet.RatesText(shown));
+                extra.Add((m.Label != "" ? "\"" + m.Label + "\"" : "process") + ": " + CraftSheet.RatesText(shown));
             }
-            if (choose) extra.Add("one setup at a time, picked in the builder");
             var others = p.Modules.Where(m => m.Kind == "process" && !PowerProcess(m) && m.Label != "").Select(m => m.Label).Distinct().ToList();
             if (others.Count > 0) extra.Add("runs: " + string.Join(", ", others.Take(5).ToArray()));
             if (p.ChuteArea > 0) extra.Add(EngMath.N(p.ChuteArea) + " m² of canopy");
