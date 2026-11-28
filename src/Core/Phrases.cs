@@ -17,6 +17,9 @@ namespace KerbalNews
         static readonly Queue<string> recent = new Queue<string>();
         static readonly HashSet<string> recentSet = new HashSet<string>();
 
+        /// <summary>Forgets the recent lines (a fresh game session). Tests use it so one test's draws don't depend on the ones before it.</summary>
+        public static void ForgetRecent() { recent.Clear(); recentSet.Clear(); }
+
         public static string Expand(string pattern, Dictionary<string, string> v, Random rng, int depth = 0)
         {
             if (string.IsNullOrEmpty(pattern) || depth > 12) return pattern ?? "";
@@ -292,6 +295,7 @@ namespace KerbalNews
             { "w_tech", new[] { "Experts are guessing what the agency will build next with it. The agency has not said.", "Engineers say it opens up new kinds of missions.", "It may not make headlines, but it changes what is possible." } },
             { "w_base", new[] { "It is a quiet kind of success: no launch, no fireworks, just the work going on day after day.", "Nobody cheers for a day of routine, but it is what a working program looks like." } },
             { "w_probe", new[] { "Far from home, it is a reminder of how big the system is, and how long the agency's machines keep working.", "Engineers still check on it every day.", "Its signal takes a while to come home, but it still comes." } },
+            { "w_market", new[] { "Traders say off-world ore is still a young market, and prices can swing on a single cargo.", "Analysts say the exchange is getting used to metal that comes from the sky.", "Buyers on Kerbin say they will take all the agency can bring home." } },
             { "w_mod", new[] { "Mission planners say they take space weather seriously, and crews have shelter plans.", "Forecasters will keep watching the Sun." } },
 
             // ---------------- Kmail (no AI) ----------------

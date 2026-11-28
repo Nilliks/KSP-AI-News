@@ -47,7 +47,7 @@ namespace KerbalNews
             var m = new OverlayModel();
             if (st == null) return m;
             var mem = st.Overlay;
-            m.Vessel = (st.VesselName ?? "").ToUpperInvariant();
+            m.Vessel = (st.OnBooster ? "BOOSTER: " + st.FocusName : st.VesselName ?? "").ToUpperInvariant();
             m.Camera = CameraLabel(st.Camera);
             bool lifted = st.Moments.Any(x => x.StartsWith("liftoff", StringComparison.Ordinal));
             if (n == null) n = new LiveNumbers();

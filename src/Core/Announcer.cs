@@ -126,6 +126,12 @@ namespace KerbalNews
             { "poll_go", new[] { "And the team is go for launch.", "All stations are go. We are go for launch.", "That's a go from everyone. We're go for launch." } },
             { "standby", new[] { "We're standing by for more information from the flight team.", "Stand by. We're waiting on word from mission control.", "We don't have any more information at this time. Please stand by." } },
             { "recap_loss", new[] { "The flight team will now begin looking into what happened. We'll share more as we learn it.", "An investigation will follow. We'll bring you more information when we have it." } },
+            // FMRS: the broadcast follows a dropped booster down, then returns to the main vessel.
+            { "b_cam", new[] { "We're going to the booster now, as it heads back for landing.", "Let's switch to the booster, on its way back down.", "Here's the booster, coming home." } },
+            { "b_land", new[] { "Touchdown! The booster has landed.", "And the booster is down, standing on its legs. Beautiful.", "The booster has landed. That stage will fly again." } },
+            { "b_splash", new[] { "The booster is down in the water.", "Booster splashdown confirmed." } },
+            { "b_lost", new[] { "It looks like we've lost the booster. The main vehicle is unaffected.", "The booster did not survive the landing attempt. The mission continues." } },
+            { "b_back", new[] { "Back now to the main vehicle, continuing its flight.", "And we return to {craft}.", "Let's get back to the main vehicle." } },
             { "signoff", new[] { "That concludes our live coverage. Thank you for watching.", "That's all from us. Thanks for joining the broadcast.", "And that wraps up today's coverage. Thanks for watching." } },
             { "lag", new[] { "The signal takes {lag} to reach us from {body}, so we're waiting on confirmation.", "It takes {lag} for the signal to get here from {body}. Stand by for confirmation." } },
             // The loop: Flight (the flight director, also the launch director in the count) and the stations. Calls follow
@@ -444,6 +450,8 @@ namespace KerbalNews
             string m = what.ToLowerInvariant();
             var x = new Dictionary<string, string>();
             string rule = null;
+            if (m.StartsWith("booster")) { AnnounceBooster(st, m, realTime); return; }
+            if (st.OnBooster) return;   // the launch commentary waits for the main vessel
             if (m.StartsWith("liftoff"))
             {
                 speech.RemoveAll(s => s.Count);
@@ -479,6 +487,20 @@ namespace KerbalNews
             if (rule == null) return;
             if (x.ContainsKey("body") && x["body"] == "") x["body"] = st.Last != null ? st.Last.Body : "Kerbin";
             CallMoment(st, rule, x, realTime);
+        }
+
+        /// <summary>FMRS: the commentator on the cut to a dropped booster, its landing or loss, and the cut back.</summary>
+        void AnnounceBooster(StreamSession st, string m, double realTime)
+        {
+            string rule = m.StartsWith("booster cam") ? "b_cam" : m.StartsWith("booster touchdown") ? "b_land" : m.StartsWith("booster splashdown") ? "b_splash"
+                : m.StartsWith("booster lost") ? "b_lost" : m.StartsWith("booster coverage over") ? "b_back" : null;
+            if (rule == null) return;
+            string text = AnnLine(rule, st);
+            if (text == "") return;
+            if (rule == "b_land") { SurgeTo(st, 1.6, 300); Say(st, text, realTime, realTime + Rand(1.0, 1.8), 14, false, "big", "host", 0, "", "cheer"); }
+            else if (rule == "b_splash") { SurgeTo(st, 1.3, 300); Say(st, text, realTime, realTime + Rand(1.0, 1.8), 14, false, "big", "host", 0, "", "applause"); }
+            else if (rule == "b_lost") { SurgeTo(st, 1.5, 300); PlaySfx(st, "gasp", realTime); Say(st, text, realTime, realTime + Rand(1.4, 2.2), 16, false, "tense"); }
+            else Say(st, text, realTime, realTime + 0.8, 15, false, "routine");
         }
 
         static string BodyFrom(string what, string after)

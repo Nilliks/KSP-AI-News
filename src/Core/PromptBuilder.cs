@@ -363,6 +363,9 @@ namespace KerbalNews
             var tv = eng.Tracked(st.VesselId);
             if (tv != null && tv.Craft != null)
                 sb.AppendLine("THE CRAFT (only these facts; viewers who guess other hardware are wrong and get corrected): " + tv.Craft.Parts + " parts, " + tv.Craft.Stages + " stages, " + tv.Craft.MassTons.ToString("0", Inv) + " t, engines: " + (tv.Craft.Engines != "" ? tv.Craft.Engines : "unknown") + (tv.Craft.Crew.Count > 0 ? ", crew: " + string.Join(", ", tv.Craft.Crew.ToArray()) : ", uncrewed") + ".");
+            if (st.OnBooster)
+                sb.AppendLine("ON SCREEN RIGHT NOW: not " + st.VesselName + " but " + st.FocusName + ", a booster stage it dropped, flying back to land so it can be reused. The broadcast cut to it the way real launch streams follow a booster down. All telemetry below is the BOOSTER's (it is coming down, so falling altitude is normal). " + st.VesselName + " is still flying, off screen. "
+                    + (st.BoosterEnd == "landed" ? "The booster has landed." : st.BoosterEnd == "splashed" ? "The booster came down in the water." : st.BoosterEnd == "lost" ? "The booster was destroyed; the main vessel is fine." : "Viewers are tense about whether the landing will work."));
             sb.AppendLine("Chat lines appear over the next half minute, so most viewers do not quote exact telemetry numbers; when they do, use the numbers below.");
             if (st.Previous != null) sb.AppendLine("Telemetry " + (st.Last.UT - st.Previous.UT).ToString("0", Inv) + " s ago: " + st.Previous.Describe());
             if (st.Last != null) sb.AppendLine("Telemetry now: " + st.Last.Describe());
@@ -468,6 +471,7 @@ namespace KerbalNews
                 case EventTypes.ContractDone: return "The agency completed a contract: " + e.Detail + ".";
                 case EventTypes.ContractFailed: return "The agency failed a contract: " + e.Detail + ".";
                 case EventTypes.ContractAccepted: return "The agency accepted a contract: " + e.Detail + ".";
+                case EventTypes.Mining: return "Mining and ore market news (all figures are exact, from the exchange): " + e.Detail;
                 default: return e.Type + ": " + v + " " + e.Detail;
             }
         }

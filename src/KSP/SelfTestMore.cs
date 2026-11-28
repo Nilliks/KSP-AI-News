@@ -523,6 +523,13 @@ namespace KerbalNews.KSP
             Check(m.Status == "accepted" && eng.State.Appearances.Any(a => a.Kerbal == kerbal.Name && a.Status == "scheduled"), "Kmail: accepting books " + kerbal.Name + ": " + m.Outcome);
             yield return Visit(br, Sites.MailUrl(m));
             yield return Shot("kmail-accepted");
+            // Delete from the open email, see it in Trash, then restore it.
+            br.Act("action:mail-delete/eselftest/open", null);
+            Check(m.Deleted, "Kmail: Delete moves the email to Trash");
+            yield return Visit(br, "kmail.kb/trash");
+            yield return Shot("kmail-trash");
+            br.Act("action:mail-restore/eselftest", null);
+            Check(!m.Deleted, "Kmail: Restore brings it back to the inbox");
         }
 
         IEnumerator WorldCheck(NewsSystem sys, Browser br, double now)

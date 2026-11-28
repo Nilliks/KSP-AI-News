@@ -29,6 +29,8 @@ namespace KerbalNews
         public string Outcome = "";
         /// <summary>A reply the director has sent and the sender still has to answer.</summary>
         public bool Waiting;
+        /// <summary>On the root mail: the director moved the conversation to Trash. It is kept (and saved) until the trash is emptied.</summary>
+        public bool Deleted;
 
         public bool IsRoot { get { return Thread == "" || Thread == Id; } }
         public bool Open { get { return Status == "open" || Status == "awaiting"; } }
@@ -41,6 +43,7 @@ namespace KerbalNews
             n.Add("read", Read); n.Add("out", Outgoing); n.Add("assistant", ByAssistant); n.Add("notified", Notified);
             n.Add("ask", Ask); n.AddText("kerbal", Kerbal); n.AddText("topic", Topic); n.Add("story", StoryId); n.Add("amount", Amount); n.Add("due", DueUT);
             n.Add("status", Status); n.AddText("outcome", Outcome); n.Add("waiting", Waiting);
+            if (Deleted) n.Add("deleted", true);
         }
 
         public static MailMsg Load(DataNode n)
@@ -51,7 +54,7 @@ namespace KerbalNews
                 Org = n.Get("org", ""), Kind = n.Get("kind", "press"), Subject = n.GetText("subject"), Body = n.GetText("body"), UT = n.GetDouble("ut"),
                 Read = n.GetBool("read"), Outgoing = n.GetBool("out"), ByAssistant = n.GetBool("assistant"), Notified = n.GetBool("notified"),
                 Ask = n.Get("ask", ""), Kerbal = n.GetText("kerbal"), Topic = n.GetText("topic"), StoryId = n.Get("story", ""), Amount = n.GetDouble("amount"), DueUT = n.GetDouble("due", -1),
-                Status = n.Get("status", ""), Outcome = n.GetText("outcome"), Waiting = n.GetBool("waiting"),
+                Status = n.Get("status", ""), Outcome = n.GetText("outcome"), Waiting = n.GetBool("waiting"), Deleted = n.GetBool("deleted"),
             };
         }
     }
@@ -95,8 +98,55 @@ namespace KerbalNews
         }
 
         public IEnumerable<MailMsg> VisibleMail(double ut) { return State.Mail.Where(m => m.UT <= ut); }
-        public int UnreadMail(double ut) { return State.Mail.Count(m => m.UT <= ut && !m.Read && !m.Outgoing); }
+        public int UnreadMail(double ut) { return State.Mail.Count(m => m.UT <= ut && !m.Read && !m.Outgoing && !InTrash(m)); }
         public MailMsg MailRoot(MailMsg m) { return m == null || m.IsRoot ? m : State.Mail.FirstOrDefault(x => x.Id == m.Thread) ?? m; }
+        /// <summary>True when the conversation this mail belongs to is in Trash.</summary>
+        public bool InTrash(MailMsg m) { var r = MailRoot(m); return r != null && r.Deleted; }
+
+        /// <summary>
+        /// Moves a conversation to Trash. Deleting is not answering: an open request keeps its deadline and,
+        /// if it passes, counts exactly as ignoring it. Restoring before then lets the director still reply.
+        /// </summary>
+        public string MailDelete(string id, double ut)
+        {
+            var m = FindMail(id, ut);
+            if (m == null) return "That email is gone.";
+            if (m.Deleted) return "That conversation is already in Trash.";
+            m.Deleted = true;
+            foreach (var x in MailThread(m)) if (x.UT <= ut) x.Read = true;
+            string what = "Moved \"" + ResponseParser.Clip(m.Subject, 60) + "\" to Trash.";
+            if (m.Status == "awaiting") return what + " The √" + Money(m.Amount) + " is not taken; restore it from Trash if you change your mind.";
+            if (m.Status == "open" && !m.Waiting && m.DueUT >= 0) return what + " " + m.From + " still expects an answer: deleting counts as ignoring it once the deadline (" + Clock.FormatDate(m.DueUT) + ") passes. Restore it from Trash before then to reply.";
+            if (m.Status == "open") return what + " " + m.From + " never got an answer; to them it is as if you ignored it.";
+            return what;
+        }
+
+        public string MailRestore(string id, double ut)
+        {
+            var m = FindMail(id, ut);
+            if (m == null) return "That email is gone.";
+            if (!m.Deleted) return "That conversation isn't in Trash.";
+            m.Deleted = false;
+            return "Moved \"" + ResponseParser.Clip(m.Subject, 60) + "\" back to the inbox.";
+        }
+
+        /// <summary>
+        /// Deletes every conversation in Trash for good. A request still waiting for an answer is settled first as ignored,
+        /// with the same consequences as letting its deadline pass. Mail that hasn't arrived yet in a trashed thread goes too.
+        /// </summary>
+        public string MailEmptyTrash(double ut)
+        {
+            var roots = State.Mail.Where(x => x.IsRoot && x.Deleted && x.UT <= ut).ToList();
+            if (roots.Count == 0) return "Trash is already empty.";
+            int ignored = 0;
+            foreach (var r in roots)
+            {
+                if (r.Status == "open") { MailExpire(r, ut); ignored++; }
+                var thread = MailThread(r);
+                foreach (var x in thread) State.Mail.Remove(x);
+            }
+            return "Deleted " + roots.Count + (roots.Count == 1 ? " conversation" : " conversations") + " for good." + (ignored > 0 ? " " + ignored + (ignored == 1 ? " request was" : " requests were") + " still unanswered and now count as ignored." : "");
+        }
         public List<MailMsg> MailThread(MailMsg root) { return State.Mail.Where(x => x.Id == root.Id || x.Thread == root.Id).OrderBy(x => x.UT).ToList(); }
 
         public MailMsg FindMail(string key, double ut)
@@ -362,7 +412,13 @@ namespace KerbalNews
             foreach (var m in State.Mail.Where(x => !x.Notified && x.UT <= ut).ToList())
             {
                 m.Notified = true;
-                if (!m.Outgoing && MailArrived != null) MailArrived(m);
+                if (!m.Outgoing)
+                {
+                    // A new message in a trashed conversation brings it back to the inbox.
+                    var root = MailRoot(m);
+                    if (root != null && root.Deleted && root != m && root.Status != "expired") root.Deleted = false;
+                    if (MailArrived != null) MailArrived(m);
+                }
             }
             if (ut < nextMailTickUT) return;
             nextMailTickUT = ut + 0.1 * Day;
@@ -731,7 +787,7 @@ namespace KerbalNews
 
         bool TickAutoReply(double ut)
         {
-            var due = State.Mail.Where(m => m.UT <= ut - 0.1 * Day && Routine(m) && !State.Mail.Any(x => x.Thread == m.Id && x.Outgoing)).Take(4).ToList();
+            var due = State.Mail.Where(m => m.UT <= ut - 0.1 * Day && Routine(m) && !m.Deleted && !State.Mail.Any(x => x.Thread == m.Id && x.Outgoing)).Take(4).ToList();
             if (due.Count == 0) return false;
             if (!Settings.AiWrites(GlobalSettings.AiMost))
             {
@@ -781,7 +837,7 @@ namespace KerbalNews
             foreach (var m in roots.Take(25))
             {
                 var last = MailThread(m).Where(x => x.UT <= ut).Last();
-                sb.AppendLine(m.Id + " | " + (m.Outgoing ? "to " + m.To : m.From) + " | " + m.Subject + " | " + MailStatusText(m, ut) + " | " + (last.Outgoing ? "we wrote last" : "they wrote last") + ", " + Clock.FormatDate(last.UT) + (MailThread(m).Any(x => !x.Read && !x.Outgoing && x.UT <= ut) ? ", UNREAD" : ""));
+                sb.AppendLine(m.Id + " | " + (m.Outgoing ? "to " + m.To : m.From) + " | " + m.Subject + " | " + MailStatusText(m, ut) + (m.Deleted ? " | in Trash (the director deleted it)" : "") + " | " + (last.Outgoing ? "we wrote last" : "they wrote last") + ", " + Clock.FormatDate(last.UT) + (MailThread(m).Any(x => !x.Read && !x.Outgoing && x.UT <= ut) ? ", UNREAD" : ""));
             }
             return sb.ToString();
         }
@@ -815,7 +871,7 @@ namespace KerbalNews
         string InboxText(double ut)
         {
             int unread = UnreadMail(ut);
-            var open = VisibleMail(ut).Where(m => m.IsRoot && m.Open).OrderBy(m => m.DueUT).Take(6).ToList();
+            var open = VisibleMail(ut).Where(m => m.IsRoot && m.Open && !m.Deleted).OrderBy(m => m.DueUT).Take(6).ToList();
             if (unread == 0 && open.Count == 0) return "";
             return "KMAIL: " + unread + " unread." + (open.Count > 0 ? " Open requests: " + string.Join("; ", open.Select(m => m.Id + " " + m.From + " \"" + m.Subject + "\" (" + MailStatusText(m, ut) + ")").ToArray()) : "") + (State.MailAuto ? " You answer routine mail on your own." : "");
         }
