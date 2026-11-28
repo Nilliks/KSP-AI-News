@@ -38,7 +38,19 @@ namespace KerbalNews.Web
             new[] { "overview", "Overview" }, new[] { "power", "Power" }, new[] { "heat", "Heat" }, new[] { "stages", "Stages" }, new[] { "parts", "Parts" },
             new[] { "comms", "Comms" }, new[] { "landing", "Landing" }, new[] { "balance", "Balance" }, new[] { "launch", "Launch" }, new[] { "crew", "Crew" }, new[] { "cost", "Cost" },
             new[] { "problems", "All problems" },
+            new[] { "gonogo", "Go / no-go" }, new[] { "flight", "In flight" }, new[] { "windows", "Windows" }, new[] { "contracts", "Contracts" }, new[] { "science", "Science" },
+            new[] { "efficiency", "Efficiency" }, new[] { "swaps", "Part swaps" }, new[] { "compare", "Compare" },
         };
+        /// <summary>The tabs in rows by what they are for.</summary>
+        static readonly string[][] EngTabGroups =
+        {
+            new[] { "Craft", "overview", "parts", "stages", "problems" },
+            new[] { "Checks", "power", "heat", "comms", "landing", "balance", "launch", "crew", "cost" },
+            new[] { "Mission", "gonogo", "flight", "windows", "contracts", "science" },
+            new[] { "Improve", "efficiency", "swaps", "compare" },
+        };
+        /// <summary>The saved version the Compare tab is set against ("" = the latest of this craft).</summary>
+        public string EngCompareId = "";
         /// <summary>Lines of the older design review that a dedicated check now covers in more detail.</summary>
         static readonly string[] Covered = { "See the power budget", "see the staging check", "The landing stage", "No landing legs", "No parachutes", "No heat shield", "Launch stage TWR", "No antenna" };
         static bool IsCovered(string line) { return Covered.Any(x => line.Contains(x)); }
@@ -74,6 +86,8 @@ namespace KerbalNews.Web
                 .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && goal == g[0] }, { "url", "action:eng-pick/goal/" + g[0] } }).ToList();
             m["trips"] = new[] { new[] { "oneway", "One-way" }, new[] { "return", "Return" } }
                 .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && ret == (g[0] == "return") }, { "url", "action:eng-pick/trip/" + g[0] } }).ToList();
+            m["margins"] = new[] { 5, 10, 20, 30 }
+                .Select(g => (object)new Dictionary<string, object> { { "name", g + "%" }, { "on", State.EngMargin == g }, { "url", "action:eng-margin/" + g } }).ToList();
         }
 
         /// <summary>Changes one choice of the mission picker and rewrites the mission text. No AI call.</summary>
@@ -105,17 +119,33 @@ namespace KerbalNews.Web
             int reviewBad = review.Count(x => x.StartsWith("!") && !IsCovered(x));
             var checks = has ? Engine.EngChecks(s, plan) : new List<CheckReport>();
             int checksBad = checks.Sum(x => x.Problems);
-            m["tabs"] = EngTabs.Select(t =>
+            // The parts catalogue is slow to read the first time, so only the tabs that need it ask for it.
+            var tools = has ? Engine.EngToolReports(s, plan, checks, EngTab == "swaps" || EngTab == "efficiency", EngCompareId) : new List<CheckReport>();
+            bool flyingNow = s != null && (s.Scene == "flight" || s.Scene == "map");
+            if (EngTab == "flight" && !flyingNow) EngTab = "overview";
+            Func<string[], object> tabOf = t =>
             {
-                var ck = checks.FirstOrDefault(x => x.Key == t[0]);
-                return (object)new Dictionary<string, object>
+                var ck = checks.FirstOrDefault(x => x.Key == t[0]) ?? tools.FirstOrDefault(x => x.Key == t[0]);
+                return new Dictionary<string, object>
                 {
                     { "label", t[1] }, { "on", EngTab == t[0] }, { "url", "action:eng-tab/" + t[0] },
-                    { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad + checksBad : ck != null ? ck.Problems : 0 },
+                    { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad + checksBad : ck != null && t[0] != "compare" && t[0] != "contracts" ? ck.Problems : 0 },
                 };
+            };
+            m["tabGroups"] = EngTabGroups.Select(g => (object)new Dictionary<string, object>
+            {
+                { "name", g[0] },
+                { "tabs", g.Skip(1).Where(k => k != "flight" || flyingNow).Select(k => tabOf(EngTabs.First(t => t[0] == k))).ToList() },
             }).ToList();
             foreach (var t in EngTabs) m["tab_" + t[0]] = EngTab == t[0];
-            var shown = checks.FirstOrDefault(x => x.Key == EngTab);
+            var shown = checks.FirstOrDefault(x => x.Key == EngTab) ?? tools.FirstOrDefault(x => x.Key == EngTab);
+            if (EngTab == "swaps" && shown == null) shown = new CheckReport { Title = "Part swaps", Rating = "no craft" };
+            m["snaps"] = State.EngSnaps.AsEnumerable().Reverse().Take(12).Select(x => (object)new Dictionary<string, object>
+            {
+                { "name", x.Name }, { "meta", EngMath.N(x.Mass, "0.0") + " t · " + EngMath.N(x.Dv) + " m/s · " + x.Parts + " parts · " + Date(x.UT) },
+                { "on", x.Id == EngCompareId }, { "url", "action:eng-compare/" + x.Id }, { "del", "action:eng-snap-del/" + x.Id },
+            }).ToList();
+            m["hasSnaps"] = State.EngSnaps.Count > 0;
             m["tab_check"] = shown != null;
             if (shown != null)
             {
@@ -129,6 +159,13 @@ namespace KerbalNews.Web
             if (power != null) row("power", "Power", power.Rating, power.Problems > 0 || power.Rating.StartsWith("short"));
             row("stages", "Staging", stagingBad > 0 ? stagingBad + " problem" + (stagingBad == 1 ? "" : "s") : staging.Count > 0 ? "check" : "ok", stagingBad > 0);
             foreach (var ck in checks) row(ck.Key, ck.Title, ck.Rating, ck.Bad);
+            var poll = tools.FirstOrDefault(x => x.Key == "gonogo");
+            if (poll != null) { m["goRating"] = poll.Rating; m["goBad"] = poll.Bad; }
+            var live = tools.FirstOrDefault(x => x.Key == "flight");
+            if (live != null && live.Rating != "nominal") row("flight", "In flight", live.Rating, live.Bad);
+            var lessons = tools.FirstOrDefault(x => x.Key == "lessons");
+            m["lessons"] = lessons == null ? new List<object>() : lessons.Lines.Select(l => (object)l.Text).ToList();
+            m["hasLessons"] = lessons != null;
             m["score"] = score;
             m["hasScore"] = score.Count > 0;
             double age = Math.Max(0, EngClock() - sheet.BuiltAt);
@@ -261,7 +298,8 @@ namespace KerbalNews.Web
                 m["legs"] = plan.Legs.Select(l => (object)new Dictionary<string, object> { { "name", l.Name }, { "dv", EngMath.N(l.Dv) + " m/s" }, { "stages", l.Stages }, { "short", l.Short } }).ToList();
                 m["total"] = EngMath.N(plan.Total) + " m/s";
                 m["need"] = EngMath.N(plan.Need) + " m/s";
-                m["verdict"] = plan.Have <= 0 ? "" : plan.Margin >= plan.Total * 0.1 ? EngMath.N(plan.Margin) + " m/s spare" : plan.Margin >= 0 ? "tight: " + EngMath.N(plan.Margin) + " m/s spare" : EngMath.N(-plan.Margin) + " m/s short";
+                m["marginPct"] = EngMath.N(plan.MarginPct);
+                m["verdict"] = plan.Have <= 0 ? "" : plan.Margin >= plan.Total * plan.MarginPct / 100 ? EngMath.N(plan.Margin) + " m/s spare" : plan.Margin >= 0 ? "tight: " + EngMath.N(plan.Margin) + " m/s spare" : EngMath.N(-plan.Margin) + " m/s short";
             }
             var incs = State.Incidents.AsEnumerable().Reverse().Take(5).ToList();
             m["hasIncidents"] = incs.Count > 0;

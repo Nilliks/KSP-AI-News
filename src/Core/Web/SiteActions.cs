@@ -180,6 +180,10 @@ namespace KerbalNews.Web
                 case "eng-ask": Engine.EngSend(arg, Now()); break;
                 case "eng-clear": Engine.EngClear(); break;
                 case "eng-tab": EngTab = arg; break;
+                case "eng-snap": { var snap = Engine.EngTakeSnapshot(Get(form, "snapname")); if (snap != null) { EngCompareId = snap.Id; EngTab = "compare"; } break; }
+                case "eng-snap-del": State.EngSnaps.RemoveAll(x => x.Id == arg); if (EngCompareId == arg) EngCompareId = ""; break;
+                case "eng-compare": EngCompareId = arg; EngTab = "compare"; break;
+                case "eng-margin": { int pct; if (int.TryParse(arg, out pct) && pct >= 0 && pct <= 100) State.EngMargin = pct; break; }
                 case "eng-pick": { int cut = arg.IndexOf('/'); if (cut > 0) EngPick(arg.Substring(0, cut), Uri.UnescapeDataString(arg.Substring(cut + 1))); break; }
                 case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
                 case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;

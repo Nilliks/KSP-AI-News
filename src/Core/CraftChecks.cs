@@ -228,7 +228,7 @@ namespace KerbalNews
             }
             r.Add("What lands is the last stage: " + stay.Count + " parts, " + N(dry, "0.0#") + " t empty, " + N(wet, "0.0#") + " t with everything full.");
             var weak = stay.Where(p => p.CrashTol > 0 && p.Mass > 0.02 && !p.Has("chute")).OrderBy(p => p.CrashTol).FirstOrDefault();
-            bool bad = false, marginal = false, over = false;
+            bool bad = false, marginal = false, over = false; int shielded = 0, warmEntries = 0; double spare = 0;
             foreach (var b in targets)
             {
                 bool home = c.Home != null && b.Name == c.Home.Name;
@@ -247,7 +247,7 @@ namespace KerbalNews
                         hot ? "hot" : warm ? "warm" : "gentle", noShield && hot && crewed);
                     if (noShield && hot) { bad |= crewed; r.Fix("Add a heat shield under the part that comes down at " + b.Name + ": " + N(vEntry) + " m/s is too fast to trust bare parts."); }
                     else if (noShield && warm) r.Add("No heat shield: at this speed a pod usually survives a shallow entry, but a shield is cheap insurance.");
-                    else if (!noShield && !warm && ablator > 150) r.Fix("The entry is gentle: most of the ablator will come home unused. Lowering it in the builder saves weight.", "up to " + N(ablator * 0.001 * 0.7, "0.##") + " t");
+                    if (!noShield) { shielded++; if (warm) warmEntries++; spare = ablator; }
 
                     if (realChute && area <= 0) { r.Add("Parachutes on this craft are RealChute: their landing speed is set in the part's own window and is not summed here."); continue; }
                     if (area <= 0)
@@ -312,6 +312,7 @@ namespace KerbalNews
                     else Tipping(r, stay, legs, sheet);
                 }
             }
+            if (shielded > 0 && warmEntries == 0 && spare > 150) r.Fix("Every entry is gentle: most of the ablator will come home unused. Lowering it in the builder saves weight.", "up to " + N(spare * 0.001 * 0.7, "0.##") + " t");
             if (!planned) r.Note = "No mission is set, so this assumes a return to " + (c.Home != null ? c.Home.Name : "home") + ". Pick where it lands in the mission row.";
             r.Rating = bad ? "problem" : marginal ? "marginal" : over ? "oversized" : "safe";
             return r;
@@ -433,7 +434,8 @@ namespace KerbalNews
             // Fins: behind the centre of mass is stable, ahead of it flips the rocket.
             bool air = c.Home != null && c.Home.AtmoDepth > 0;
             var atLaunch = sheet.Parts;
-            var fins = atLaunch.Where(p => p.HasPos && p.Of("wing").Any(m => m.N("lift") > 0)).ToList();
+            // Pods and heat shields have body lift too; only real fins and wings steer the rocket in the air.
+            var fins = atLaunch.Where(p => p.HasPos && p.Of("wing").Any(m => m.N("lift") > 0) && !p.Has("command") && !p.Has("ablator") && !p.Has("chute") && p.Crew == 0).ToList();
             if (air && fins.Count > 0 && !c.Sph && !sheet.Flying)
             {
                 var com = Centre(atLaunch, false);
@@ -709,7 +711,7 @@ namespace KerbalNews
             double kept = stay.Sum(p => p.Cost);
             foreach (var g in sheet.Parts.Where(p => p.DropStage >= 0).GroupBy(p => p.DropStage).OrderByDescending(g => g.Key))
                 r.Add("Thrown away in stage " + g.Key + " (" + g.Count() + " parts)", N(g.Sum(p => p.Cost)) + " funds");
-            r.Add("Stays to the end (" + stay.Count + " parts): what recovery can pay back", N(kept) + " funds");
+            r.Add("Kept to the end (" + stay.Count + " parts): what recovery can pay back", N(kept) + " funds");
             foreach (var g in sheet.Parts.GroupBy(p => p.Name).OrderByDescending(g => g.Sum(p => p.Cost)).Take(5))
             {
                 double cost = g.Sum(p => p.Cost);

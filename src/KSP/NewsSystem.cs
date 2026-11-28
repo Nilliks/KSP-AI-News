@@ -38,6 +38,7 @@ namespace KerbalNews.KSP
             Engine.StreamFrameJpeg = GalleryStore.StreamFrame;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
+            Engine.EngineeringCatalog = EngineeringExtras.Catalog;
             KerbalNews.Web.Sites.EngClock = () => Time.realtimeSinceStartup;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
             Engine.SuppressEvent = e => e != null && e.VesselId != "" && ModCompat.VesselMoverBusy(e.VesselId);

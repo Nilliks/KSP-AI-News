@@ -99,10 +99,48 @@ namespace KerbalNews.KSP
                     foreach (var c in farChecks.Where(c => c.Key == "comms" || c.Key == "landing" || c.Key == "crew")) foreach (var line in c.Text().Split('\n')) Log("      " + line);
                     sys.Engine.State.EngMission = keep;
                 }
+                // Part 3: the tools on top of the checks, and the catalogue of unlocked parts behind the swap finder.
+                try
+                {
+                    float c0 = Time.realtimeSinceStartup;
+                    var catalog = EngineeringExtras.Catalog();
+                    Log("    parts catalogue: " + catalog.Count + " unlocked parts in " + ((Time.realtimeSinceStartup - c0) * 1000).ToString("0") + " ms (" + string.Join(", ", catalog.GroupBy(x => x.Mod).OrderByDescending(x => x.Count()).Take(8).Select(x => x.Key + " " + x.Count()).ToArray()) + ")");
+                    Check(catalog.Count > 20, "eng: the swap finder sees the unlocked parts (" + catalog.Count + ")");
+                    float t1 = Time.realtimeSinceStartup;
+                    var tools = sys.Engine.EngToolReports(s, plan, checks, true);
+                    Log("    tools took " + ((Time.realtimeSinceStartup - t1) * 1000).ToString("0") + " ms");
+                    Check(tools.Count >= 6 && tools.All(c => c.Rating != "not computed"), "eng: the tools ran (" + string.Join(", ", tools.Select(c => c.Key + "=" + c.Rating).ToArray()) + ")");
+                    foreach (var c in tools) foreach (var line in c.Text().Split('\n').Take(30)) Log("    " + line);
+                    Log("    contracts read: " + s.Contracts.Count + ", experiments aboard: " + s.Experiments.Count + ", phases: " + s.Phases.Count);
+                    var shot = sys.Engine.EngTakeSnapshot("self-test version");
+                    Check(shot != null && sys.Engine.State.EngSnaps.Contains(shot), "eng: a snapshot of the craft is kept");
+                    string keepM = sys.Engine.State.EngMission;
+                    sys.Engine.State.EngMission = "Land on Duna and return";
+                    var farPlan = sys.Engine.EngCurrentPlan(s);
+                    foreach (var c in sys.Engine.EngToolReports(s, farPlan, sys.Engine.EngChecks(s, farPlan), false).Where(c => c.Key == "windows" || c.Key == "gonogo" || c.Key == "science")) foreach (var line in c.Text().Split('\n').Take(20)) Log("      (Duna) " + line);
+                    sys.Engine.State.EngMission = keepM;
+                }
+                catch (Exception e) { Check(false, "eng: tools threw " + e); }
                 Check(sheet.Parts.All(p => p.HasPos) && sheet.All("engine").All(m => m.N("aimed") > 0), "eng: part positions and engine thrust directions read");
                 Check(sheet.Parts.Sum(p => p.Cost) > 1000 && sheet.Parts.Any(p => p.CrashTol > 0), "eng: part costs and crash tolerances read (" + sheet.Parts.Sum(p => p.Cost).ToString("0") + " funds)");
                 foreach (var p in sheet.Parts.Where(p => p.Has("chute"))) Log("    parachute " + p.Title + ": drag area " + p.ChuteArea.ToString("0.0") + " m2, min pressure " + p.Of("chute").First().N("minPressure").ToString("0.###"));
-                Check(sheet.Parts.Where(p => p.Has("chute")).All(p => p.ChuteArea > 10), "eng: parachute drag areas read from the game");
+                Check(sheet.Parts.Where(p => p.Has("chute")).All(p => p.ChuteArea > 10 && p.ChuteArea < 20000), "eng: parachute drag areas read from the game");
+                try
+                {
+                    foreach (Part part in EditorLogic.fetch.ship.parts)
+                    {
+                        bool isChute = false; if (part.Modules != null) foreach (PartModule pm0 in part.Modules) if (pm0 != null && pm0.GetType().Name.Contains("Parachute")) isChute = true;
+                        if (!isChute) continue;
+                        foreach (PartModule pm in part.Modules) if (pm != null && pm.GetType().Name == "ModuleDragModifier") Log("    chute raw " + part.partInfo.name + ": modifier " + CraftReader.Str(pm, "dragCubeName") + " = " + CraftReader.Num(pm, "dragModifier"));
+                        var cubes = CraftReader.Get(CraftReader.Get(part, "DragCubes"), "Cubes") as System.Collections.IEnumerable;
+                        if (cubes != null) foreach (var cube in cubes)
+                        {
+                            var ar = CraftReader.Get(cube, "Area") as float[]; var dr = CraftReader.Get(cube, "Drag") as float[]; var dm = CraftReader.Get(cube, "DragModifiers") as float[];
+                            Log("    chute raw " + part.partInfo.name + ": cube " + CraftReader.Str(cube, "Name") + " area " + (ar != null ? string.Join(",", ar.Select(x => x.ToString("0.##")).ToArray()) : "?") + " drag " + (dr != null ? string.Join(",", dr.Select(x => x.ToString("0.###")).ToArray()) : "?") + " modifiers " + (dm != null ? string.Join(",", dm.Select(x => x.ToString("0.##")).ToArray()) : "?"));
+                        }
+                    }
+                }
+                catch (Exception e) { Log("    chute raw: " + e.Message); }
                 Log("    facts: " + string.Join(", ", sheet.Facts.Select(f => f.Key + "=" + f.Value.ToString("0.###")).ToArray()));
                 Check(sheet.HasFact("day") && sheet.HasFact("commnet"), "eng: save facts read (day length, CommNet)");
                 Log("    mod facts: " + string.Join(", ", sheet.ModFacts.Select(f => f.Key + "=" + f.Value).ToArray()));
@@ -123,7 +161,7 @@ namespace KerbalNews.KSP
             }
             yield return Go(Sites.EngineeringHost);
             yield return Shot("eng-vab");
-            foreach (var tab in new[] { "power", "stages", "parts", "problems", "heat", "comms", "landing", "balance", "launch", "crew", "cost" })
+            foreach (var tab in new[] { "power", "stages", "parts", "problems", "heat", "comms", "landing", "balance", "launch", "crew", "cost", "gonogo", "windows", "contracts", "science", "efficiency", "swaps", "compare" })
             {
                 sys.Sites.Handle("action:eng-tab/" + tab, null);
                 yield return Go(Sites.EngineeringHost);

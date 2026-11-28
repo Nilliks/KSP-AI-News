@@ -69,6 +69,17 @@ namespace KerbalNews
         /// <summary>The bodies in the save, so budgets hold for rescaled systems and planet packs.</summary>
         public List<EngBody> Bodies = new List<EngBody>();
         public EngBody Home { get { return Bodies.FirstOrDefault(b => b.IsHome); } }
+        /// <summary>Game time of the reading, and how far ahead of the home planet each other planet is right now (degrees, 0-360).</summary>
+        public double UT;
+        public Dictionary<string, double> Phases = new Dictionary<string, double>();
+        /// <summary>Height above the ground in flight, metres (-1 when not known).</summary>
+        public double RadarAlt = -1;
+        public List<EngContract> Contracts = new List<EngContract>();
+        public List<EngExperiment> Experiments = new List<EngExperiment>();
+        /// <summary>Science already gathered, by subject id ("temperatureScan@DunaInSpaceLow"), as a share of what the subject can give.</summary>
+        public Dictionary<string, double> ScienceDone = new Dictionary<string, double>();
+        /// <summary>Titles of every part the game has loaded, to spot a part named in a contract.</summary>
+        public List<string> PartTitles = new List<string>();
         public EngBody BodyNamed(string name) { return DvPlanner.Find(Bodies, name); }
     }
 
@@ -148,6 +159,8 @@ namespace KerbalNews
         public const int EngChatKeep = 60;
         /// <summary>The KSP layer fills this with what the team can see right now.</summary>
         public Func<EngSnapshot> EngineeringData = () => null;
+        /// <summary>Every unlocked part that could stand in for one on a craft, from the KSP layer. Slow the first time, so only asked for when needed.</summary>
+        public Func<List<CraftPart>> EngineeringCatalog = () => null;
         public bool EngBusy;
         int engRun;
 
@@ -272,7 +285,18 @@ namespace KerbalNews
                 if (power != null) sb.AppendLine(CraftSheet.PowerText(power));
                 var staging = snap.Sheet.StagingIssues(snap.Stages);
                 sb.AppendLine("STAGING CHECK (computed):\n- " + (staging.Count > 0 ? string.Join("\n- ", staging.ToArray()) : "No staging problems found."));
-                string checks = EngChecksText(EngChecks(snap, plan), question);
+                var checkList = EngChecks(snap, plan);
+                string ql = question.ToLowerInvariant();
+                bool wantSwaps = CheckWords["swaps"].Concat(CheckWords["efficiency"]).Any(w => ql.Contains(w)) || EverythingWords.Any(w => ql.Contains(w));
+                var tools = EngToolReports(snap, plan, checkList, wantSwaps);
+                // Tools the question is not about stay off the prompt, apart from a no-go, a live warning in flight, and lessons.
+                var send = tools.Where(t =>
+                {
+                    string[] words;
+                    bool asked = CheckWords.TryGetValue(t.Key, out words) && words.Any(w => ql.Contains(w)) || EverythingWords.Any(w => ql.Contains(w)) && t.Key != "compare";
+                    return asked || t.Key == "lessons" || t.Key == "flight" && t.Rating != "nominal" || t.Key == "gonogo" && t.Bad;
+                }).ToList();
+                string checks = EngChecksText(checkList.Concat(send).ToList(), question);
                 if (checks != "") sb.AppendLine(checks);
                 string books = ModKnowledge.BooksText(snap.Sheet);
                 if (books != "") sb.AppendLine(books);
@@ -366,8 +390,75 @@ namespace KerbalNews
             return CraftChecks.All(c);
         }
 
+        /// <summary>The tools on top of the checks: go/no-go, windows, contracts, science, the in-flight watch, efficiency, swaps.
+        /// <paramref name="catalog"/> true reads the unlocked parts list (slow the first time) for swaps.</summary>
+        public List<CheckReport> EngToolReports(EngSnapshot snap, EngPlan plan, List<CheckReport> checks, bool catalog, string compareId = "")
+        {
+            var list = new List<CheckReport>();
+            if (snap == null || snap.Sheet == null || snap.Sheet.Parts.Count == 0) return list;
+            Func<string, string, Func<CheckReport>, CheckReport> run = (key, title, f) =>
+            {
+                try { var r = f(); r.Key = key; r.Title = title; return r; }
+                catch (Exception e) { var r = new CheckReport { Key = key, Title = title, Rating = "not computed" }; r.Add("This could not be worked out (" + e.GetType().Name + ")."); return r; }
+            };
+            bool flying = snap.Scene == "flight" || snap.Scene == "map";
+            var power = EngPower(snap, plan);
+            var staging = snap.Sheet.StagingIssues(snap.Stages);
+            var lessons = EngTools.Lessons(State.Incidents, snap);
+            list.Add(run("gonogo", "Go / no-go", () => EngTools.GoNoGo(snap, plan, power, staging, checks, lessons)));
+            if (flying) list.Add(run("flight", "In flight", () => EngTools.Flight(snap, power)));
+            list.Add(run("windows", "Windows", () => EngTools.Windows(snap, plan != null && plan.Known ? plan.Body : "", ut => Clock.FormatDate(ut))));
+            list.Add(run("contracts", "Contracts", () => EngTools.Contracts(snap)));
+            list.Add(run("science", "Science", () => EngTools.Science(snap, plan)));
+            CheckReport swaps = null;
+            if (catalog)
+            {
+                List<CraftPart> parts = null;
+                try { parts = EngineeringCatalog(); } catch (Exception e) { LastError = "Parts catalogue: " + e.Message; }
+                bool air = snap.Home != null && snap.Home.AtmoDepth > 0 && !flying;
+                swaps = run("swaps", "Part swaps", () => EngTools.Swaps(snap.Sheet, parts, snap.Stages, air));
+            }
+            list.Add(run("efficiency", "Efficiency", () => EngTools.Efficiency(power, checks, swaps)));
+            if (swaps != null) list.Add(swaps);
+            list.Add(run("compare", "Compare", () =>
+            {
+                var then = State.EngSnaps.FirstOrDefault(x => x.Id == compareId) ?? State.EngSnaps.LastOrDefault(x => x.Craft == snap.Vessel) ?? State.EngSnaps.LastOrDefault();
+                return EngTools.Compare(then, EngTools.Snap("", "now", snap, power, staging, checks));
+            }));
+            if (lessons.Count > 0)
+            {
+                var l = new CheckReport { Key = "lessons", Title = "Lessons", Rating = lessons.Count + " from earlier flights" };
+                foreach (var x in lessons) l.Add(x);
+                list.Add(l);
+            }
+            return list;
+        }
+
+        /// <summary>Saves the craft's numbers as they stand, to compare a later version against.</summary>
+        public CraftSnap EngTakeSnapshot(string name)
+        {
+            EngSnapshot snap = null;
+            try { snap = EngineeringData(); } catch { }
+            if (snap == null || snap.Sheet == null || snap.Sheet.Parts.Count == 0) return null;
+            var plan = EngCurrentPlan(snap);
+            int n = State.EngSnaps.Count(x => x.Craft == snap.Vessel) + 1;
+            var s = EngTools.Snap(State.NewId("v"), string.IsNullOrEmpty(name) ? snap.Vessel + " version " + n : ResponseParser.Clip(name, 60), snap, EngPower(snap, plan), snap.Sheet.StagingIssues(snap.Stages), EngChecks(snap, plan));
+            State.EngSnaps.Add(s);
+            if (State.EngSnaps.Count > 40) State.EngSnaps.RemoveRange(0, State.EngSnaps.Count - 40);
+            return s;
+        }
+
         static readonly Dictionary<string, string[]> CheckWords = new Dictionary<string, string[]>
         {
+            { "gonogo", new[] { "ready", "go/no", "go no", "good to launch", "can i launch", "safe to launch" } },
+            { "flight", new[] { "now", "right now", "burn", "descent", "landing" } },
+            { "windows", new[] { "window", "when should", "when do", "when can", "phase angle", "depart", "leave for" } },
+            { "contracts", new[] { "contract" } },
+            { "science", new[] { "science", "experiment" } },
+            { "efficiency", new[] { "efficien", "oversized", "trim", "lighter", "too much", "too many", "overbuilt", "save weight", "save mass" } },
+            { "swaps", new[] { "swap", "better engine", "better motor", "cheaper", "alternative", "upgrade", "replace", "better part", "which engine" } },
+            { "compare", new[] { "compare", "snapshot", "version", "changed", "last time" } },
+            { "lessons", new[] { "lesson", "last time", "crash", "failed", "before" } },
             { "heat", new[] { "heat", "radiator", "cool", "reactor", "loop", "thermal", "overheat", "temperature" } },
             { "comms", new[] { "antenna", "signal", "comm", "relay", "range", "link", "transmit", "dish" } },
             { "landing", new[] { "land", "chute", "parachute", "reentry", "re-entry", "shield", "touchdown", "touch down", "splash", "legs" } },
@@ -376,6 +467,7 @@ namespace KerbalNews
             { "crew", new[] { "crew", "kerbal", "food", "oxygen", "water", "supplies", "life support", "seat", "sas", "pilot", "radiation", "habitat" } },
             { "cost", new[] { "cost", "price", "funds", "cheap", "expensive", "money", "budget" } },
         };
+        static readonly string[] ToolKeys = { "gonogo", "flight", "windows", "contracts", "science", "efficiency", "swaps", "compare", "lessons" };
         static readonly string[] EverythingWords = { "review", "everything", "oversized", "efficien", "overbuilt", "too much", "missing", "all checks", "ready", "go/no" };
 
         /// <summary>The checks as prompt text: in full where there is a problem or the question is about them, one line otherwise.</summary>
@@ -389,7 +481,7 @@ namespace KerbalNews
             foreach (var r in checks)
             {
                 string[] words;
-                bool asked = all || CheckWords.TryGetValue(r.Key, out words) && words.Any(w => q.Contains(w));
+                bool asked = all || CheckWords.TryGetValue(r.Key, out words) && words.Any(w => q.Contains(w)) || ToolKeys.Contains(r.Key);
                 if (asked || r.Bad) sb.AppendLine(r.Text());
                 else brief.Add(r.Title + ": " + r.Rating + (r.Fixes.Count > 0 ? " (" + r.Fixes.Count + " suggestion" + (r.Fixes.Count == 1 ? "" : "s") + ")" : ""));
             }

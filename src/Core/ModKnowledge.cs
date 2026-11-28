@@ -159,6 +159,23 @@ namespace KerbalNews
                 bool declares = p0.Modules.Any(m => m.Kind != "solar" && m.Rate(CraftSheet.EC) > 0);
                 foreach (var m in p0.Modules)
                 {
+                    if (m.Is("ModuleChargeableEngine") || m.Is("ModuleFusionEngine") || m.Is("FusionReactor"))
+                    {
+                        double rate = m.Any("ChargeRate", "chargeRate") * n, goal = m.Any("ChargeGoal", "chargeGoal");
+                        if (rate > 0) { r.Working += rate; r.Demand.Add(new SheetLine(label + ", charging up before it starts" + (goal > 0 ? " (" + N(goal) + " EC to start)" : ""), CraftSheet.Ec(rate), false, p0.Mod)); }
+                    }
+                    if (m.Name == "IFSCryostat" || m.Name == "Greenhouse" || m.Name == "Harvester" || m.Name == "HarvesterSystemHeat" || m.Is("ModuleSpaceDust"))
+                    {
+                        bool cryo = m.Name == "IFSCryostat", grow = m.Name == "Greenhouse";
+                        double ec = (cryo ? m.Any("powerReqKW") : grow || m.Name.StartsWith("Harvester", StringComparison.Ordinal) ? m.Any("ec_rate") : m.Any("PowerCost")) * n;
+                        if (cryo && g.Sum(x => x.Res.Sum(q => q.Max)) <= 0) ec = 0;
+                        if (ec > 0)
+                        {
+                            if (cryo || grow) { r.Always += ec; if (cryo) r.Cooling += ec; } else r.Working += ec;
+                            r.Demand.Add(new SheetLine(label + (cryo ? ", keeping its tank cold" : grow ? ", greenhouse lamps" : ", while it is working"), CraftSheet.Ec(ec), false, p0.Mod));
+                        }
+                        continue;
+                    }
                     if (IsReactor(m) && !(declares && m.Rate(CraftSheet.EC) > 0))
                     {
                         double ec = ReactorPower(m) * n;
@@ -203,11 +220,6 @@ namespace KerbalNews
                         if (ec <= 0) continue;
                         r.Always += ec; r.Critical += ec;
                         r.Demand.Add(new SheetLine(label + ", antimatter containment (must never lose power)", CraftSheet.Ec(ec), false, p0.Mod));
-                    }
-                    else if (m.Is("ModuleChargeableEngine"))
-                    {
-                        double rate = m.Any("ChargeRate", "chargeRate") * n, goal = m.Any("ChargeGoal", "chargeGoal");
-                        if (rate > 0) { r.Working += rate; r.Demand.Add(new SheetLine(label + ", charging up before ignition" + (goal > 0 ? " (" + N(goal) + " EC to start)" : ""), CraftSheet.Ec(rate), false, p0.Mod)); }
                     }
                     else if (m.Kind == "engine" && m.N("ec") > 0)
                     {
@@ -263,7 +275,7 @@ namespace KerbalNews
 
         static int LoopOf(CraftPart p, CraftModule m)
         {
-            string id = m.T("systemHeatModuleID");
+            string id = m.T("systemHeatModuleID"); if (id == "") id = m.T("HeatModuleID");
             var heat = p.Modules.Where(x => x.Name == "ModuleSystemHeat").ToList();
             var mine = heat.FirstOrDefault(x => id != "" && x.T("moduleID") == id) ?? heat.FirstOrDefault();
             return mine == null ? 0 : (int)Math.Round(mine.Any("currentLoopID", "loopID", "LoopID"));
@@ -285,13 +297,13 @@ namespace KerbalNews
                     if (m.Name == "ModuleSystemHeat") continue;
                     if (m.Is("ModuleSystemHeatRadiator") || m.Kind == "radiator" && m.T("temperatureCurve") != "") { loop(LoopOf(p, m)).Radiators.Add(new KeyValuePair<CraftPart, CraftModule>(p, m)); continue; }
                     double kw = m.CurveMax("HeatGeneration");
-                    if (kw <= 0) kw = m.Any("systemPower", "HeatGeneration", "heatGeneration");
-                    if (kw <= 0 || !m.Name.StartsWith("Module", StringComparison.Ordinal) && !m.Num.ContainsKey("systemPower")) continue;
+                    if (kw <= 0) kw = m.Any("systemPower", "SystemPower", "HeatGeneration", "heatGeneration");
+                    if (kw <= 0 || !m.Name.StartsWith("Module", StringComparison.Ordinal) && !m.Num.ContainsKey("systemPower") && !m.Num.ContainsKey("SystemPower")) continue;
                     if (!p.Modules.Any(x => x.Name == "ModuleSystemHeat")) continue;
                     double temp = m.Any("NominalTemperature", "systemOutletTemperature", "nominalTemperature");
                     if (temp <= 0) temp = 500;
                     var l = loop(LoopOf(p, m));
-                    bool burst = m.Kind == "engine" || m.Is("ModuleSystemHeatEngine") || m.Is("ModuleSystemHeatFissionEngine") || m.Is("ModuleFusionEngine");
+                    bool burst = m.Kind == "engine" || m.Is("ModuleSystemHeatEngine") || m.Is("ModuleSystemHeatFissionEngine") || m.Is("ModuleFusionEngine") || m.Is("ModuleSpaceDust") || m.Name.StartsWith("Harvester", StringComparison.Ordinal);
                     if (burst) { l.BurstTemp = (l.BurstTemp * l.Burst + temp * kw) / (l.Burst + kw); l.Burst += kw; }
                     else { l.SteadyTemp = (l.SteadyTemp * l.Steady + temp * kw) / (l.Steady + kw); l.Steady += kw; }
                     l.Makers.Add(p.Title + (burst ? " (while burning)" : "") + " " + N(kw) + " kW at " + N(temp) + " K");

@@ -36,6 +36,8 @@ namespace KerbalNews
         public List<EngLeg> Legs = new List<EngLeg>();
         public double Need, Have, Margin;
         public bool Known, Computed;
+        /// <summary>The margin the director wants on top of the budget, percent.</summary>
+        public double MarginPct = 10;
         public string Note = "";
         public double Total { get { return Legs.Sum(l => l.Dv); } }
     }
@@ -144,9 +146,9 @@ namespace KerbalNews
         static bool Has(string t, params string[] words) { return words.Any(w => t.Contains(w)); }
 
         /// <summary>Budget for a plain-English mission against the craft's stages. Works only for the stock system.</summary>
-        public static EngPlan Plan(string mission, EngSnapshot s)
+        public static EngPlan Plan(string mission, EngSnapshot s, double marginPct = 10)
         {
-            var p = new EngPlan { Mission = (mission ?? "").Trim() };
+            var p = new EngPlan { Mission = (mission ?? "").Trim(), MarginPct = marginPct };
             string t = " " + p.Mission.ToLowerInvariant() + " ";
             var d = Find(t, s);
             bool bodies = s != null && s.Bodies.Count > 0 && s.Home != null;
@@ -178,7 +180,7 @@ namespace KerbalNews
                 if (p.Return) p.Legs.Add(new EngLeg { Name = "Ascent back to " + d.Name + " orbit", Dv = d.Ascent });
             }
             if (p.Return) p.Legs.Add(new EngLeg { Name = (p.Flyby ? "Free-return correction" : "Return to " + home + (bodies && s.Home.AtmoDepth <= 0 ? "" : " (aerobrake at home)")), Dv = p.Flyby ? 100 : d.Return });
-            p.Need = p.Total * 1.1;
+            p.Need = p.Total * (1 + p.MarginPct / 100);
             Allocate(p, s, d);
             return p;
         }
@@ -222,8 +224,8 @@ namespace KerbalNews
             var sb = new StringBuilder();
             sb.AppendLine("Mission plan for \"" + p.Mission + "\" (" + (p.Computed ? "computed from this system's real bodies" : "stock delta-v map") + ", approximate):");
             foreach (var l in p.Legs) sb.AppendLine("- " + l.Name + ": " + EngMath.N(l.Dv) + " m/s" + (l.Stages != "" ? " (" + l.Stages + ")" : ""));
-            sb.Append("Total " + EngMath.N(p.Total) + " m/s, about " + EngMath.N(p.Need) + " with a 10% margin.");
-            if (p.Have > 0) sb.Append(" The craft has " + EngMath.N(p.Have) + " m/s, so it is " + (p.Margin >= p.Total * 0.1 ? EngMath.N(p.Margin) + " m/s over the budget." : p.Margin >= 0 ? "just enough with almost no margin (" + EngMath.N(p.Margin) + " m/s spare)." : EngMath.N(-p.Margin) + " m/s short."));
+            sb.Append("Total " + EngMath.N(p.Total) + " m/s, about " + EngMath.N(p.Need) + " with the " + EngMath.N(p.MarginPct) + "% margin the director asked for.");
+            if (p.Have > 0) sb.Append(" The craft has " + EngMath.N(p.Have) + " m/s, so it is " + (p.Margin >= p.Total * p.MarginPct / 100 ? EngMath.N(p.Margin) + " m/s over the budget." : p.Margin >= 0 ? "just enough with almost no margin (" + EngMath.N(p.Margin) + " m/s spare)." : EngMath.N(-p.Margin) + " m/s short."));
             if (p.Note != "") sb.Append(" " + p.Note);
             return sb.ToString();
         }
@@ -314,7 +316,7 @@ namespace KerbalNews
             if (plan != null && plan.Known && plan.Have > 0)
             {
                 if (plan.Margin < 0) r.Add("! Not enough delta-v for \"" + plan.Mission + "\": " + EngMath.N(-plan.Margin) + " m/s short of the " + EngMath.N(plan.Total) + " m/s budget.");
-                else if (plan.Margin < plan.Total * 0.1) r.Add("Delta-v for \"" + plan.Mission + "\" is just enough, with " + EngMath.N(plan.Margin) + " m/s spare; aim for 10% margin.");
+                else if (plan.Margin < plan.Total * plan.MarginPct / 100) r.Add("Delta-v for \"" + plan.Mission + "\" is just enough, with " + EngMath.N(plan.Margin) + " m/s spare; the margin asked for is " + EngMath.N(plan.MarginPct) + "%.");
             }
             bool far = plan != null && plan.Known && plan.Body != "Mun" && plan.Body != "Minmus";
             bool dre = mods.Any(h => h.StartsWith("Deadly Reentry"));
@@ -381,7 +383,7 @@ namespace KerbalNews
 
         // ------------------------------------------------------------------ mission plans
 
-        public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s); }
+        public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s, State.EngMargin); }
 
         /// <summary>The director names a mission; the plan is computed here and the team is asked to go through it.</summary>
         public bool EngPlanMission(string mission, double ut)

@@ -9,7 +9,13 @@
     <div class="meta">{{situation}}{{#crewText}} · {{crewText}}{{/crewText}} · {{mass}}{{#liveNote}} · <span class="live">{{liveNote}}</span>{{/liveNote}}</div>
     {{#cells.0}}<div class="grid">{{#cells}}<div class="cell"><span>{{label}}</span> <b>{{value}}</b></div>{{/cells}}</div>{{/cells.0}}
   </div>{{/hasVessel}}
-  {{#hasSheet}}<div class="tabs">{{#tabs}}<a class="tab{{#on}} on{{/on}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}}</a>{{/tabs}}</div>{{/hasSheet}}
+  {{#hasSheet}}{{#tabGroups}}<div class="tabs"><span class="tg">{{name}}</span>{{#tabs}}<a class="tab{{#on}} on{{/on}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}}</a>{{/tabs}}</div>{{/tabGroups}}{{/hasSheet}}
+  {{#tab_compare}}
+    <div class="box"><div class="btitle">Snapshots</div>
+      <div class="sendrow"><input name="snapname" value="" placeholder="Name this version (optional)"><button class="btn" data-action="eng-snap">Snapshot</button></div>
+      {{#snaps}}<div class="row"><span class="rt"><a class="{{#on}}snapon{{/on}}" href="{{url}}">{{name}}</a> <span class="dim">{{meta}}</span></span><a class="small" href="{{del}}">Delete</a></div>{{/snaps}}
+      {{^hasSnaps}}<div class="meta">Take a snapshot, change the craft, and this tab shows what changed: mass, delta-v, cost, parts and every check.</div>{{/hasSnaps}}</div>
+  {{/tab_compare}}
   {{#tab_power}}
     <div class="box"><div class="btitle">Power{{#powerWhere}} at {{powerWhere}}{{/powerWhere}}: <span class="{{#powerBad}}bad{{/powerBad}}{{^powerBad}}rate{{/powerBad}}">{{powerRating}}</span></div>
       {{#pThere}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pThere}}
@@ -42,7 +48,7 @@
     <div class="box"><div class="btitle">Everything the checks found</div>{{#allProblems}}<div class="chk{{#bad}} bad{{/bad}}{{#fix}} fix{{/fix}}">{{text}}</div>{{/allProblems}}</div>
   {{/tab_problems}}
   {{#tab_overview}}
-  {{#hasScore}}<div class="box"><div class="btitle">All checks</div>
+  {{#hasScore}}<div class="box"><div class="btitle">All checks{{#goRating}} · <a href="action:eng-tab/gonogo"><span class="{{#goBad}}bad{{/goBad}}{{^goBad}}rate{{/goBad}}">{{goRating}}</span></a>{{/goRating}}</div>
     {{#score}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt"><a href="{{url}}">{{label}}</a></span><b>{{rating}}</b></div>{{/score}}</div>{{/hasScore}}
   {{#hasStages}}<div class="box">
     <div class="btitle">Delta-v by stage ({{dvKind}})</div>
@@ -52,6 +58,7 @@
   </div>{{/hasStages}}
   {{#noDv}}<div class="box meta">The game's delta-v readout is not ready yet. It appears once the craft has engines and staging.</div>{{/noDv}}
   {{#facts}}<div class="fact">{{.}}</div>{{/facts}}
+  {{#hasLessons}}<div class="box"><div class="btitle">Lessons from earlier flights</div>{{#lessons}}<div class="chk fix">{{.}}</div>{{/lessons}}</div>{{/hasLessons}}
   {{#hasNode}}<div class="box"><div class="btitle">Maneuver node check</div>{{#node}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/node}}</div>{{/hasNode}}
   {{#hasReview}}<div class="box"><div class="btitle">Design review</div>{{#review}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/review}}</div>{{/hasReview}}
   {{#hasFleet}}<div class="box"><div class="btitle">Active vessels</div>{{#fleet}}<div class="fl">{{.}}</div>{{/fleet}}</div>{{/hasFleet}}
@@ -72,9 +79,9 @@
   <div class="team">{{#team}}<span class="chipt{{#spoke}} on{{/spoke}}">{{name}}</span>{{/team}}<span class="spacer"></span><a class="small" href="action:eng-clear">Clear chat</a></div>
   <div class="plan"><div class="sendrow"><span class="meta">Mission</span><input name="mission" value="{{mission}}" placeholder="e.g. land on Minmus and come back"><button class="btn" data-action="eng-plan">Plan</button></div>
   {{#hasPicker}}<div class="pick"><span class="meta pl">Go to</span>{{#dests}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/dests}}</div>
-  <div class="pick"><span class="meta pl">And</span>{{#goals}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/goals}}<span class="gap"></span>{{#trips}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/trips}}</div>{{/hasPicker}}
+  <div class="pick"><span class="meta pl">And</span>{{#goals}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/goals}}<span class="gap"></span>{{#trips}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/trips}}<span class="gap"></span><span class="meta">Margin</span>{{#margins}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/margins}}</div>{{/hasPicker}}
   {{#hasPlan}}<div class="legs">{{#legs}}<div class="leg{{#short}} bad{{/short}}"><span class="ln">{{name}}</span><span class="ld">{{dv}}</span><span class="ls">{{stages}}</span></div>{{/legs}}
-    <div class="leg tot"><span class="ln">Total (10% margin: {{need}})</span><span class="ld">{{total}}</span><span class="ls">{{verdict}}</span></div></div>{{/hasPlan}}
+    <div class="leg tot"><span class="ln">Total ({{marginPct}}% margin: {{need}})</span><span class="ld">{{total}}</span><span class="ls">{{verdict}}</span></div></div>{{/hasPlan}}
   {{#planNote}}<p class="meta">{{planNote}}</p>{{/planNote}}</div>
   {{#offline}}<p class="warn">Offline, the team can only give the computed numbers. Turn off offline mode in <a href="settings.kb">Settings</a> to talk to them.</p>{{/offline}}
   {{#empty}}<p class="meta">Ask anything about the craft, its power, delta-v, staging or the mission. The team sees every part on it, read live, and will ask you if something is unclear.</p>{{/empty}}

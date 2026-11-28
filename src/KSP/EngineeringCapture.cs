@@ -21,9 +21,15 @@ namespace KerbalNews.KSP
             s.StockSystem = IsStock();
             if (sheet) { try { s.Bodies = BodyList(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Bodies: " + e.Message); } }
             var scene = HighLogic.LoadedScene;
-            if (scene == GameScenes.EDITOR) { Editor(s, sheet); return s; }
-            if (scene == GameScenes.FLIGHT && FlightGlobals.ActiveVessel != null) { Flight(s, FlightGlobals.ActiveVessel, sheet); return s; }
+            if (scene == GameScenes.EDITOR) { Editor(s, sheet); if (sheet) EngineeringExtras.Fill(s); return s; }
+            if (scene == GameScenes.FLIGHT && FlightGlobals.ActiveVessel != null)
+            {
+                Flight(s, FlightGlobals.ActiveVessel, sheet);
+                if (sheet) { EngineeringExtras.Fill(s); s.RadarAlt = CraftReader.Num(FlightGlobals.ActiveVessel, "radarAltitude", -1); }
+                return s;
+            }
             s.Scene = scene == GameScenes.TRACKSTATION ? "tracking" : "spacecenter";
+            if (sheet) EngineeringExtras.Fill(s);
             Fleet(s);
             return s;
         }
@@ -256,7 +262,7 @@ namespace KerbalNews.KSP
 
         /// <summary>Phase angle with the target ahead, 0-360. The angle alone has no sign, so it checks a minute later whether
         /// the gap is closing (target ahead of a faster inner craft) or opening; that avoids any handedness confusion.</summary>
-        static double Phase(Orbit mine, Orbit target, double ut)
+        internal static double Phase(Orbit mine, Orbit target, double ut)
         {
             double a0 = Vector3d.Angle(mine.getRelativePositionAtUT(ut), target.getRelativePositionAtUT(ut));
             double a1 = Vector3d.Angle(mine.getRelativePositionAtUT(ut + 60), target.getRelativePositionAtUT(ut + 60));

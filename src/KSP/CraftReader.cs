@@ -71,6 +71,19 @@ namespace KerbalNews.KSP
             return sheet;
         }
 
+        public static string KindOfType(Type t) { return Kind(t); }
+
+        /// <summary>One part on its own (a part from the parts list, not on a craft).</summary>
+        public static CraftPart ReadLoose(Part p)
+        {
+            var c = new CraftPart();
+            var keep = rootT; rootT = null;
+            try { ReadPart(p, c, new Dictionary<Part, int>()); } finally { rootT = keep; }
+            if (c.Title == "") c.Title = c.Name;
+            c.Stage = -1;
+            return c;
+        }
+
         static void ReadPart(Part p, CraftPart c, Dictionary<Part, int> index)
         {
             var info = p.partInfo;
@@ -81,6 +94,7 @@ namespace KerbalNews.KSP
             c.ResMass = p.GetResourceMass();
             c.Cost = Cost(p, info);
             c.CrashTol = Num(p, "crashTolerance");
+            c.Bulkhead = Str(info, "bulkheadProfiles");
             c.MaxTemp = Num(p, "maxTemp");
             try { Place(p, c); } catch { }
             try { c.ChuteArea = ChuteArea(p); } catch { }
@@ -106,6 +120,9 @@ namespace KerbalNews.KSP
                     if (m == null) continue;
                     try
                     {
+                        // Anything that folds out says whether it is out.
+                        object ds = Get(m, "deployState");
+                        if (ds != null) { string st = ds.ToString(); c.Deployed = st == "EXTENDED" || st == "EXTENDING" ? 1 : st == "RETRACTED" || st == "RETRACTING" ? 0 : c.Deployed; }
                         var cm = ReadModule(m, engines > 1);
                         if (cm != null) c.Modules.Add(cm);
                     }
@@ -196,6 +213,8 @@ namespace KerbalNews.KSP
                 case "chute":
                     c.Num["minPressure"] = Num(m, "minAirPressureToOpen");
                     c.Num["deployAlt"] = Num(m, "deployAltitude");
+                    c.Txt["state"] = Str(m, "deploymentState");
+                    c.Txt["safe"] = Str(m, "deploymentSafeState");
                     break;
                 case "ablator":
                     c.Txt["res"] = Str(m, "ablativeResource");
@@ -466,6 +485,8 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>Drag area of the part's parachute once fully open, from the game's own drag cubes.</summary>
+        public const double ChuteScale = 0.0156;
+
         static double ChuteArea(Part p)
         {
             bool chute = false;
@@ -486,7 +507,9 @@ namespace KerbalNews.KSP
                 if (area == null || drag == null) continue;
                 for (int i = 0; i < area.Length && i < drag.Length; i++) best = Math.Max(best, area[i] * drag[i]);
             }
-            return best * modifier;
+            // Calibrated against measured landings: one Mk16-XL (64112 by this sum) brings 3.65 t down at about 8 m/s
+            // at Kerbin sea level. CraftChecks.ChuteK expects the area on that scale.
+            return best * modifier * ChuteScale;
         }
 
         static readonly Dictionary<string, MethodInfo> methods = new Dictionary<string, MethodInfo>();
@@ -747,7 +770,7 @@ namespace KerbalNews.KSP
                     var parent = Get(b, "referenceBody") as CelestialBody;
                     object orbit = Get(b, "orbit");
                     e.IsStar = orbit == null || parent == null || parent == b;
-                    if (!e.IsStar) { e.Parent = parent.bodyName; e.Sma = Num(orbit, "semiMajorAxis"); }
+                    if (!e.IsStar) { e.Parent = parent.bodyName; e.Sma = Num(orbit, "semiMajorAxis"); e.Period = Num(orbit, "period"); }
                     list.Add(e);
                 }
                 catch (Exception ex) { Debug.LogWarning("[KerbalNews] Body read: " + ex.Message); }

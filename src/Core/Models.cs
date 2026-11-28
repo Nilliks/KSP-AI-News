@@ -762,6 +762,9 @@ namespace KerbalNews
         /// <summary>The mission the director last asked the team to plan, and every crash or failure with its investigation.</summary>
         public string EngMission = "";
         public List<Incident> Incidents = new List<Incident>();
+        /// <summary>Saved versions of craft, for the engineering team's compare, and the margin the director wants on budgets (percent).</summary>
+        public List<CraftSnap> EngSnaps = new List<CraftSnap>();
+        public int EngMargin = 10;
         /// <summary>Contracts the news sparked.</summary>
         public List<TieIn> TieIns = new List<TieIn>();
         /// <summary>KTV news segments, newest last.</summary>
@@ -905,6 +908,8 @@ namespace KerbalNews
             foreach (var m in EngChat) m.Save(eng.AddNode("MSG"));
             eng.AddText("mission", EngMission);
             foreach (var inc in Incidents) inc.Save(eng.AddNode("INCIDENT"));
+            foreach (var sn in EngSnaps) sn.Save(eng.AddNode("SNAP"));
+            eng.Add("margin", EngMargin);
             var tin = n.AddNode("TIEINS");
             foreach (var ti in TieIns) ti.Save(tin.AddNode("TIEIN"));
             var aps = n.AddNode("APPEARANCES");
@@ -1021,6 +1026,9 @@ namespace KerbalNews
                 foreach (var mn in engNode.GetNodes("MSG")) s.EngChat.Add(AssistantMessage.Load(mn));
                 s.EngMission = engNode.GetText("mission");
                 foreach (var inn in engNode.GetNodes("INCIDENT")) s.Incidents.Add(Incident.Load(inn));
+                foreach (var sn in engNode.GetNodes("SNAP")) s.EngSnaps.Add(CraftSnap.Load(sn));
+                int margin;
+                if (int.TryParse(engNode.Get("margin", "10"), out margin) && margin >= 0 && margin <= 100) s.EngMargin = margin;
             }
             var tiNode = n.GetNode("TIEINS");
             if (tiNode != null) foreach (var tn in tiNode.GetNodes("TIEIN")) s.TieIns.Add(TieIn.Load(tn));

@@ -86,6 +86,10 @@ namespace KerbalNews
         public bool HasPos;
         /// <summary>Impact speed the part survives (m/s), hottest it can get (K), and the drag area of its opened parachute (m², raw from the game's drag cube).</summary>
         public double CrashTol, MaxTemp, ChuteArea;
+        /// <summary>For parts that fold out (panels, antennas, radiators): 1 extended, 0 retracted, -1 does not fold.</summary>
+        public int Deployed = -1;
+        /// <summary>The stack sizes the part fits ("size1, srf"), as the part file declares them.</summary>
+        public string Bulkhead = "";
         public double Mass { get { return DryMass + ResMass; } }
 
         public bool Has(string kind) { return Modules.Any(m => m.Kind == kind); }
@@ -100,6 +104,8 @@ namespace KerbalNews
         public double Mu, Radius, Gravity, AtmoDepth, AtmoPressure, Sma, Soi, RotPeriod, SunDistance;
         /// <summary>Air density at the surface, kg/m³ (Kerbin 1.225).</summary>
         public double AtmoDensity;
+        /// <summary>Orbital period around the parent, seconds.</summary>
+        public double Period;
         public bool HasSurface = true, IsHome, IsStar, Oxygen;
     }
 
@@ -158,6 +164,8 @@ namespace KerbalNews
         public List<CrewRule> CrewRules = new List<CrewRule>();
         /// <summary>Parts lying loose in the builder, not attached to the craft.</summary>
         public int Loose;
+        /// <summary>True for a what-if copy of the craft, so a trial does not start trials of its own.</summary>
+        public bool Trial;
 
         public double Fact(string key, double def = 0) { double v; return Facts.TryGetValue(key, out v) ? v : def; }
         public bool HasFact(string key) { return Facts.ContainsKey(key); }
@@ -293,7 +301,7 @@ namespace KerbalNews
                     case "lab": bits.Add("science lab"); break;
                     case "radiator": bits.Add("radiator" + (m.N("kw") > 0 ? " " + N(m.N("kw")) + " kW" : "") + (m.Rate(EC) < 0 ? ", " + Ec(-m.Rate(EC)) : "")); break;
                     case "intake": bits.Add("air intake"); break;
-                    case "wing": if (!bits.Contains("wing or control surface")) bits.Add("wing or control surface"); break;
+                    case "wing": if (!bits.Contains("wing or control surface") && !p.Has("command") && !p.Has("ablator") && p.Crew == 0) bits.Add("wing or control surface"); break;
                     case "other":
                         if (brief && m.Rates.Count == 0) { if (!Bookkeeping.Any(b => m.Name.StartsWith(b, StringComparison.Ordinal)) && !also.Contains(m.Name)) also.Add(m.Name); break; }
                         var o = new StringBuilder(m.Name);
@@ -482,11 +490,18 @@ namespace KerbalNews
             else if (gen > worst * 3 && gen - worst > 0.5) r.Rating = "oversized";
             else r.Rating = "right-sized";
 
-            Fixes(r, home, there, sunScale, worst);
+            Fixes(r, home, there, sunScale, worst, crew);
             return r;
         }
 
-        void Fixes(PowerReport r, EngBody home, EngBody there, double sunScale, double worst)
+        /// <summary>What the power rating becomes with some copies of a part added or removed.</summary>
+        string Then(string partName, int delta, EngBody home, EngBody there, int crew)
+        {
+            if (Trial) return "";
+            try { return ", then: " + EngTools.With(this, partName, delta).Power(home, there, null, crew).Rating; } catch { return ""; }
+        }
+
+        void Fixes(PowerReport r, EngBody home, EngBody there, double sunScale, double worst, int crew)
         {
             var panel = Parts.Where(p => p.Has("solar")).GroupBy(p => p.Name).OrderByDescending(g => g.Count()).Select(g => g.First()).FirstOrDefault();
             double gen = r.GenThere;
@@ -497,7 +512,7 @@ namespace KerbalNews
                 if (panel != null)
                 {
                     double one = panel.Of("solar").Sum(m => m.N("rate")) * sunScale;
-                    if (one > 0) { int k = (int)Math.Ceiling(need / one); r.Fixes.Add(new SheetLine("Add " + k + " more " + panel.Title, "+" + Ec(k * one) + at) { Fix = true }); }
+                    if (one > 0) { int k = (int)Math.Ceiling(need / one); r.Fixes.Add(new SheetLine("Add " + k + " more " + panel.Title, "+" + Ec(k * one) + at + Then(panel.Name, k, home, there, crew)) { Fix = true }); }
                 }
                 else r.Fixes.Add(new SheetLine("Add a power source making at least", Ec(worst * 1.2) + at) { Fix = true });
                 if (sunScale < 0.15 && r.SolarHome > 0) r.Fixes.Add(new SheetLine("Sunlight" + at + " is " + N(sunScale * 100, "0.#") + "% of home. An RTG or reactor is the better source this far out.", "") { Fix = true });
@@ -506,7 +521,7 @@ namespace KerbalNews
             {
                 double want = r.ShadowNeed * 1.3;
                 var bat = Parts.Where(p => p.Max(EC) > 0 && !p.Has("command")).GroupBy(p => p.Name).OrderByDescending(g => g.Count()).Select(g => g.First()).FirstOrDefault();
-                if (bat != null) { int k = (int)Math.Ceiling((want - r.Battery) / bat.Max(EC)); if (k > 0) r.Fixes.Add(new SheetLine("Add " + k + " more " + bat.Title, "shadow needs " + N(r.ShadowNeed) + " of " + N(r.Battery + k * bat.Max(EC)) + " EC") { Fix = true }); }
+                if (bat != null) { int k = (int)Math.Ceiling((want - r.Battery) / bat.Max(EC)); if (k > 0) r.Fixes.Add(new SheetLine("Add " + k + " more " + bat.Title, "shadow needs " + N(r.ShadowNeed) + " of " + N(r.Battery + k * bat.Max(EC)) + " EC" + Then(bat.Name, k, home, there, crew)) { Fix = true }); }
                 else r.Fixes.Add(new SheetLine("Add batteries to reach", N(want) + " EC") { Fix = true });
             }
             if (r.Rating == "oversized" && panel != null)

@@ -277,7 +277,7 @@ public static class EngineeringChecksTests
         var tank = Part("tank", "Tank", 5, "stock", -1, 1); tank.Cost = 3000; s.Parts.Add(tank);
         var c = Ctx(s);
         var cost = CraftChecks.Cost(c);
-        Assert(cost.Rating == "3650 funds" && cost.Lines.Any(l => l.Text.StartsWith("Thrown away in stage 1 (2 parts)") && l.Value == "3200 funds") && cost.Lines.Any(l => l.Text.StartsWith("Stays to the end") && l.Value == "450 funds"), "cost splits by what is dropped: " + cost.Text());
+        Assert(cost.Rating == "3650 funds" && cost.Lines.Any(l => l.Text.StartsWith("Thrown away in stage 1 (2 parts)") && l.Value == "3200 funds") && cost.Lines.Any(l => l.Text.StartsWith("Kept to the end") && l.Value == "450 funds"), "cost splits by what is dropped: " + cost.Text());
         var all = CraftChecks.All(c);
         Assert(all.Count == 7 && all.All(x => x.Rating != "" && x.Title != "" && x.Rating != "not computed"), "every check runs and gives a rating: " + string.Join(", ", all.Select(x => x.Key + "=" + x.Rating).ToArray()));
         string text = NewsEngine.EngChecksText(all, "is my antenna strong enough?");
