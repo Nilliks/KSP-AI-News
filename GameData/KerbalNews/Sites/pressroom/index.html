@@ -15,7 +15,7 @@
     <label>Attach photos (optional)</label>
     {{#hasShots}}<div class="shots">{{#shots}}<a class="shot{{#on}} on{{/on}}" href="{{url}}"><img src="{{src}}" style="width: 100%; aspect-ratio: 16/9"><div class="cap">{{caption}}{{^public}} (private){{/public}}</div></a>{{/shots}}</div>
     <p class="hint">Attaching a private photo releases it to the public.</p>{{/hasShots}}
-    {{^hasShots}}<p class="hint">No photos yet. Press F8 in flight to take a gallery screenshot.</p>{{/hasShots}}
+    {{^hasShots}}<p class="hint">No photos yet. Press {{galleryKey}} in flight to take a gallery screenshot.</p>{{/hasShots}}
     <div class="actions"><button class="btn" data-action="press-publish">Publish release</button></div>
     {{#result}}<p class="result">{{result}}</p>{{/result}}
   </div>

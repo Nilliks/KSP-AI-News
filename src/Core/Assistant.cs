@@ -66,7 +66,7 @@ namespace KerbalNews
 
         void AssistantStep(int run, int step, List<string> notes, double ut, int failures)
         {
-            AskJson(Settings.WriterModel, AssistantSystem(), AssistantUser(step, notes, ut), 4000, 0, (root, err, text, res) =>
+            AskJson("Assistant", Settings.Writer, AssistantSystem(), AssistantUser(step, notes, ut), 4000, 0, (root, err, text, res) =>
             {
                 if (run != assistantRun) return; // a reload or a newer request replaced this one
                 if (root == null)

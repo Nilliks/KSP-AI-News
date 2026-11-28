@@ -77,6 +77,7 @@ namespace KerbalNews.KSP
             Engine.PlayReplayVoice = ReplayStore.PlayVoice;
             Engine.StopReplayVoice = AnnouncerAudio.Stop;
             Engine.ReplayDiskUse = ReplayStore.DiskUse;
+            try { ReplayStore.DiskUse(); } catch (Exception) { }   // start the first count now, so Settings has it when opened
             Engine.ReplayFolders = ReplayStore.Folders;
             Engine.StreamEnded += a => ReplayStore.Prune(Settings.ReplayMaxGb, "");
             Engine.PressShotRemoved += file =>
@@ -95,6 +96,11 @@ namespace KerbalNews.KSP
             Sites.Digest = () => HasGame ? Snapshots.Digest(Engine.State) : null;
             Sites.UiScale = () => Browser.Scale;
             Sites.SaveSettings = SaveSettings;
+            Sites.AutoCheckKeys = true;
+            // Each game start: ask every service that has a key for its model list (a free request that also checks
+            // the key), so models released since the last session show up in Settings. Nothing is sent with the AI off.
+            try { Engine.RefreshPrices(SaveSettings); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Prices not refreshed: " + e.Message); }
+            try { Engine.CheckServices(SaveSettings); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Model lists not refreshed: " + e.Message); }
             Sites.RescanMods = () => ScanMods(false);
             Sites.ImportScreenshots = GalleryStore.ImportStock;
             Sites.VesselExists = id =>
@@ -186,6 +192,29 @@ namespace KerbalNews.KSP
             }
         }
 
+        string galleryKeyName;
+        KeyCode galleryKey;
+        bool galleryKeyOk;
+
+        /// <summary>The gallery screenshot key from Settings (F8 unless changed; none when turned off).</summary>
+        bool GalleryKeyDown()
+        {
+            string k = Settings.GalleryKey;
+            if (k != galleryKeyName)
+            {
+                galleryKeyName = k; galleryKeyOk = false;
+                if (!string.IsNullOrEmpty(k)) try { galleryKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), k); galleryKeyOk = true; } catch (System.Exception) { }
+            }
+            return galleryKeyOk && Input.GetKeyDown(galleryKey);
+        }
+
+        void OnApplicationQuit()
+        {
+            if (Instance == this && Settings != null && Settings.UsageDirty) SaveSettings();
+        }
+
+        float lastUsageSave;
+
         static readonly System.Diagnostics.Stopwatch wall = System.Diagnostics.Stopwatch.StartNew();
         static System.Threading.Thread watchdog;
         static long stallFrom;
@@ -233,8 +262,10 @@ namespace KerbalNews.KSP
         void UpdateInner()
         {
             transport.Poll();
+            // The spending count changes with every call and every minute played; write it now and then, not each time.
+            if (Settings != null && Settings.UsageDirty && Time.realtimeSinceStartup - lastUsageSave > 300) { lastUsageSave = Time.realtimeSinceStartup; SaveSettings(); }
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
-            if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
+            if (GalleryKeyDown()) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
             Engine.SetRealTime(StreamDriver.Now);
             StreamAfterFmrs();
