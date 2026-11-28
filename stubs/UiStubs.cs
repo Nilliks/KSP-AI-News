@@ -44,6 +44,7 @@ namespace UnityEngine.UI
         public enum ScrollbarVisibility { Permanent, AutoHide, AutoHideAndExpandViewport }
         public bool horizontal, vertical, inertia; public MovementType movementType; public float scrollSensitivity; public RectTransform viewport, content;
         public Scrollbar verticalScrollbar, horizontalScrollbar; public ScrollbarVisibility verticalScrollbarVisibility, horizontalScrollbarVisibility; public float verticalScrollbarSpacing, horizontalScrollbarSpacing;
+        public virtual void OnBeginDrag(EventSystems.PointerEventData e) { } public virtual void OnDrag(EventSystems.PointerEventData e) { } public virtual void OnEndDrag(EventSystems.PointerEventData e) { }
     }
     public struct ColorBlock { public Color normalColor, highlightedColor, pressedColor; }
     public class Selectable : EventSystems.UIBehaviour { public Graphic targetGraphic; public ColorBlock colors; }
@@ -58,8 +59,9 @@ namespace TMPro
     public class TMP_FontAsset : UnityEngine.Object { public bool HasCharacter(int c) { return true; } }
     public static class TMP_Settings { public static TMP_FontAsset defaultFontAsset; }
     public struct TMP_LinkInfo { public string GetLinkID() { return ""; } }
-    public struct TMP_LineInfo { public float ascender, descender, maxAdvance, width; }
-    public class TMP_TextInfo { public int linkCount, lineCount; public TMP_LinkInfo[] linkInfo; public TMP_LineInfo[] lineInfo; }
+    public struct TMP_LineInfo { public float ascender, descender, maxAdvance, width; public int firstCharacterIndex, lastCharacterIndex; }
+    public struct TMP_CharacterInfo { public char character; public float origin, xAdvance, ascender, descender; public int lineNumber; public bool isVisible; }
+    public class TMP_TextInfo { public int linkCount, lineCount, characterCount; public TMP_LinkInfo[] linkInfo; public TMP_LineInfo[] lineInfo; public TMP_CharacterInfo[] characterInfo; }
     public class TMP_Text : UnityEngine.UI.MaskableGraphic
     {
         public float preferredWidth;
