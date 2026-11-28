@@ -112,7 +112,7 @@ namespace KerbalNews.KSP
         {
             if (spellMenu == null || Time.frameCount == spellMenuFrame) return;   // the right-click that opened it is not a click away
             bool overMenu = RectTransformUtility.RectangleContainsScreenPoint(Rt(spellMenu), Input.mousePosition, null);
-            if (Input.GetKeyDown(KeyCode.Escape) || Math.Abs(Input.mouseScrollDelta.y) > 0.01f
+            if (Input.GetKeyDown("escape") || Math.Abs(Input.mouseScrollDelta.y) > 0.01f
                 || ((Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) && !overMenu)) CloseSpellMenu();
         }
 
