@@ -60,7 +60,7 @@ public static class EngineeringToolsTests
         var r = EngTools.Swaps(snap.Sheet, catalog, snap.Stages, false);
         Assert(r.Fixes.Any(f => f.Text.Contains("swap LV-909 Terrier for LV-N2 Efficient [NearFuturePropulsion]") && f.Value.Contains("m/s") && f.Value.StartsWith("+")), "a higher Isp engine on the same fuel and size is offered with its gain: " + r.Text());
         Assert(!r.Text().Contains("Nerv") && !r.Text().Contains("Poodle"), "engines on another fuel or stack size are not offered: " + r.Text());
-        Assert(r.Fixes.Any(f => f.Text.StartsWith("Stage 0: 48-7S Spark") && f.Value.StartsWith("saves 150 funds")), "a cheaper engine that does nearly the same is offered: " + r.Text());
+        Assert(r.Fixes.Any(f => f.Text.Contains("Stage 0: 48-7S Spark") && f.Value.StartsWith("saves 150 funds")), "a cheaper engine that does nearly the same is offered: " + r.Text());
         Assert(r.Fixes.Any(f => f.Text.StartsWith("Lighter: 3 × SP-L Blanket") && f.Value.Contains("saves")), "three better panels replace six: " + r.Text());
         Assert(!r.Text().Contains("Gigantor"), "a panel far bigger than needed is not a swap");
         var eff = EngTools.Efficiency(null, new List<CheckReport>(), r);

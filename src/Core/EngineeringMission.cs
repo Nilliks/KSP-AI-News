@@ -256,8 +256,8 @@ namespace KerbalNews
                 if (home != null && there.SunDistance > 0 && home.SunDistance > 0)
                 {
                     double share = Math.Pow(home.SunDistance / there.SunDistance, 2);
-                    string advice = share < 0.1 ? ": too weak for panels, bring an RTG or a reactor" : share < 0.5 ? ": bring about " + N(1 / share, "0.#") + " times the panel area" : share > 2 ? ": fewer panels do, and radiators matter more" : "";
-                    need("Power at " + there.Name + ": sunlight is " + N(share * 100) + "% of what it is at " + home.Name + advice, power != null ? power.Rating : "", power != null && power.Problems > 0);
+                    string advice = share < 0.1 ? ": too weak for panels, bring an RTG or a reactor" : share < 0.5 ? ": a panel makes " + N(share * 100) + "% of its rated output, so the same power takes about " + N(1 / share, "0.#") + " times the panel area" : share > 2 ? ": fewer panels do, and radiators matter more" : "";
+                    need("Power at " + there.Name + ": sunlight is " + N(share * 100) + "% of what it is at " + home.Name + advice + (power != null && power.Problems == 0 && share < 0.5 && share >= 0.1 ? "; this craft's panels still cover it" : ""), power != null ? power.Rating : "", power != null && power.Problems > 0);
                     if (plan.Land && there.RotPeriod > 0 && there.HasSurface)
                     {
                         double night = there.RotPeriod / 2;

@@ -163,8 +163,9 @@ namespace KerbalNews
                 }
                 if (cheap != null && cheap != best)
                 {
+                    string or = best != null ? "Or, to save money instead: " : "";
                     found++;
-                    r.Fix("Stage " + st.Stage + ": " + Count(n, cheap.Title) + (cheap.Mod != "" && cheap.Mod != "stock" ? " [" + cheap.Mod + "]" : "") + " does nearly the same job as " + Count(n, old.Title) + " for less",
+                    r.Fix(or + "Stage " + st.Stage + ": " + Count(n, cheap.Title) + (cheap.Mod != "" && cheap.Mod != "stock" ? " [" + cheap.Mod + "]" : "") + " does nearly the same job as " + Count(n, old.Title) + " for less",
                         "saves " + N(cheapSave) + " funds, " + Signed(cheapDv - oldDv) + " m/s");
                 }
                 if (best == null && cheap == null) r.Add("Stage " + st.Stage + ": " + Count(n, old.Title) + " is already the best unlocked engine for this fuel and size.", "keep");
@@ -452,7 +453,8 @@ namespace KerbalNews
             var r = new CheckReport { Key = "science", Title = "Science" };
             if (s.Experiments.Count == 0)
             {
-                bool any = s.Sheet != null && (s.Sheet.Count("science") > 0 || s.Sheet.HasModule("Experiment"));
+                // Kerbalism puts an empty "Experiment" slot on pods; only one set up with an experiment counts.
+                bool any = s.Sheet != null && (s.Sheet.Count("science") > 0 || s.Sheet.Parts.Any(p => p.Modules.Any(m => m.Name == "Experiment" && (m.T("experiment_id") != "" || m.T("experimentID") != ""))));
                 r.Rating = any ? "not read" : "none aboard";
                 r.Add(any ? "Experiments are aboard, but the science archive is not available here (sandbox game, or a mod replaces it)." : "No science experiments aboard.");
                 return r;
