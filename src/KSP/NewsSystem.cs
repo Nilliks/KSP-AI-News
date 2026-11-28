@@ -234,6 +234,12 @@ namespace KerbalNews.KSP
             if (Input.GetKeyDown(KeyCode.F8)) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
             Engine.SetRealTime(Time.realtimeSinceStartup);
+            // The team's list of unlocked parts is read in the background after each scene loads.
+            if (Settings.EngineeringOn && HighLogic.LoadedScene != warmedScene)
+            {
+                warmedScene = HighLogic.LoadedScene;
+                if (warmedScene == GameScenes.EDITOR || warmedScene == GameScenes.FLIGHT || warmedScene == GameScenes.SPACECENTER || warmedScene == GameScenes.TRACKSTATION) StartCoroutine(EngineeringExtras.Warm());
+            }
             TickReplay();
             if (HighLogic.LoadedSceneIsFlight && blackBox != null) Crumb.Run("black box", () => blackBox.Update());
             try
@@ -256,6 +262,7 @@ namespace KerbalNews.KSP
         }
 
         float nextCrewSync, nextTick, nextEngRecord;
+        GameScenes warmedScene = GameScenes.LOADING;
 
         /// <summary>A stream replay being watched: moves it along every frame, shows its frame, and pauses it when its page closes.</summary>
         void TickReplay()

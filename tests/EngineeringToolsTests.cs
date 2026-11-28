@@ -160,6 +160,29 @@ public static class EngineeringToolsTests
         Assert(EngTools.Flight(snap, null).Lines.Any(x => x.Bad && x.Value == "burn now"), "too low to wait");
     }
 
+    public static void TestTheTeamIsToldWhatIsUnlocked()
+    {
+        var panel = Part("solarPanels5", "OX-STAT Photovoltaic Panels", 0.005, 75); panel.Modules.Add(Solar(0.35));
+        var big = Part("nfs-panel", "K0x7 Imager Panels", 0.02, 300, "NearFutureSolar"); big.Modules.Add(Solar(4.2));
+        var bat = Part("batteryBank", "Z-1k Rechargeable Battery Bank", 0.05, 880); bat.Res.Add(new CraftRes { Name = CraftSheet.EC, Amount = 1000, Max = 1000 });
+        var terrier = Part("liquidEngine3", "LV-909 Terrier", 0.5, 390); terrier.Modules.Add(Engine(60, 345, 85));
+        var list = new List<CraftPart> { panel, big, bat, terrier };
+
+        string power = EngCatalog.Text(list, "what part do you recommend for power?");
+        Assert(power.Contains("UNLOCKED PARTS") && power.Contains("4 parts") && power.Contains("NearFutureSolar 1"), "the count and the mods are stated: " + power);
+        Assert(power.Contains("K0x7 Imager Panels [NearFutureSolar]") && power.Contains("4.20 EC/s") && power.Contains("OX-STAT") && power.Contains("Z-1k") && power.Contains("ElectricCharge 1000"), "a power question lists every power part with its numbers: " + power);
+        Assert(power.IndexOf("K0x7") < power.IndexOf("OX-STAT") && !power.Contains("Terrier"), "strongest first, and engines stay off a power question");
+        string plain = EngCatalog.Text(list, "how do I do a gravity turn?");
+        Assert(plain.Contains("By kind: power 2, battery 1, engine 1") && !plain.Contains("OX-STAT"), "other questions get the counts only: " + plain);
+        string general = EngCatalog.Text(list, "what should I add from what I have unlocked?");
+        Assert(general.Contains("OX-STAT") && general.Contains("Terrier"), "a general 'what do I have' question gets the main kinds: " + general);
+        Assert(EngCatalog.Text(null, "power") == "" && EngCatalog.Text(new List<CraftPart>(), "power") == "", "no list, no claim");
+
+        var eng = new NewsEngine(new NewsState(), CoreTests.OnlineSettings(), new CoreTests.FakeTransport(), new SimpleClock(100000));
+        eng.EngineeringCatalog = () => list;
+        Assert(eng.EngPartsText("which engine?", 50).Contains("LV-909 Terrier") && eng.EngPartsText("which engine?", 50).Contains("60 kN"), "the engine hands the list to the prompt");
+    }
+
     public static void TestTheToolTabsShowOnThePage()
     {
         var st = new NewsState();

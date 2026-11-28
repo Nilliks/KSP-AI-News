@@ -161,43 +161,91 @@ namespace KerbalNews.KSP
 
         static List<CraftPart> CatalogInner()
         {
-            var loaded = PartLoader.LoadedPartsList;
-            if (loaded == null) return new List<CraftPart>();
-            var rnd = CraftReader.FindType("ResearchAndDevelopment");
-            bool sandbox = HighLogic.CurrentGame == null || HighLogic.CurrentGame.Mode == Game.Modes.SANDBOX || CraftReader.Static(rnd, "Instance") == null;
-            Func<AvailablePart, bool> unlocked = ap =>
-            {
-                if (sandbox) return true;
-                object ok = CraftReader.Call(rnd, "PartModelPurchased", ap);
-                return !(ok is bool) || (bool)ok;
-            };
-            int count = 0;
-            foreach (var ap in loaded) if (ap != null && unlocked(ap)) count++;
-            string key = loaded.Count + "|" + count + "|" + sandbox;
+            string key; var open = Unlocked(out key);
             if (catalog != null && catalogKey == key) return catalog;
-            var list = new List<CraftPart>();
-            var none = new Dictionary<Part, int>();
+            if (pending == null || pendingKey != key) Begin(open, key);
+            Step(int.MaxValue);
+            return catalog ?? new List<CraftPart>();
+        }
+
+        // Reading a part from its prefab does not depend on what is unlocked, so each is read once per game session.
+        static readonly Dictionary<string, CraftPart> readParts = new Dictionary<string, CraftPart>();
+        static List<AvailablePart> pending;
+        static List<CraftPart> building;
+        static string pendingKey = "";
+        static int pendingAt;
+
+        /// <summary>Every part the player can pick in the builder right now: unlocked (and bought, where the save asks for that),
+        /// not hidden. The key changes when that set does.</summary>
+        static List<AvailablePart> Unlocked(out string key)
+        {
+            var open = new List<AvailablePart>();
+            var loaded = PartLoader.LoadedPartsList;
+            key = "";
+            if (loaded == null) return open;
+            var rnd = CraftReader.FindType("ResearchAndDevelopment");
+            bool sandbox = HighLogic.CurrentGame == null || HighLogic.CurrentGame.Mode == Game.Modes.SANDBOX;
+            // A career whose tech tree is not loaded in this scene: keep the last reading rather than call everything unlocked.
+            if (!sandbox && CraftReader.Static(rnd, "Instance") == null) { key = catalog != null ? catalogKey : "tech tree not loaded"; return open; }
             foreach (var ap in loaded)
             {
-                if (ap == null || !unlocked(ap)) continue;
+                if (ap == null) continue;
+                if (!sandbox) { object ok = CraftReader.Call(rnd, "PartModelPurchased", ap); if (ok is bool && !(bool)ok) continue; }
                 string cat = CraftReader.Str(ap, "category");
                 if (cat == "none" || CraftReader.Str(ap, "TechHidden") == "True") continue;
-                var prefab = CraftReader.Get(ap, "partPrefab") as Part;
-                if (prefab == null || prefab.Modules == null) continue;
-                bool useful = false;
-                foreach (PartModule m in prefab.Modules) if (m != null && SwapKinds.Contains(CraftReader.KindOfType(m.GetType()))) { useful = true; break; }
-                if (!useful && prefab.Resources != null)
-                    foreach (PartResource r in prefab.Resources) if (r != null && r.resourceName == CraftSheet.EC && r.maxAmount >= 50) { useful = true; break; }
-                if (!useful) continue;
-                try
-                {
-                    var c = CraftReader.ReadLoose(prefab);
-                    if (c != null) list.Add(c);
-                }
-                catch { }
+                open.Add(ap);
             }
-            catalog = list; catalogKey = key;
-            return list;
+            key = loaded.Count + "|" + open.Count + "|" + sandbox;
+            return open;
+        }
+
+        static void Begin(List<AvailablePart> open, string key) { pending = open; pendingKey = key; pendingAt = 0; building = new List<CraftPart>(); }
+
+        /// <summary>Reads up to <paramref name="fresh"/> parts not read before; true when the catalogue is complete.</summary>
+        static bool Step(int fresh)
+        {
+            if (pending == null) return true;
+            while (pendingAt < pending.Count)
+            {
+                var ap = pending[pendingAt];
+                CraftPart c;
+                if (!readParts.TryGetValue(ap.name, out c))
+                {
+                    if (fresh-- <= 0) return false;
+                    c = null;
+                    try
+                    {
+                        var prefab = CraftReader.Get(ap, "partPrefab") as Part;
+                        if (prefab != null && prefab.Modules != null) c = CraftReader.ReadLoose(prefab);
+                    }
+                    catch { }
+                    readParts[ap.name] = c;
+                }
+                if (c != null) building.Add(c);
+                pendingAt++;
+            }
+            catalog = building; catalogKey = pendingKey; pending = null; building = null;
+            catalogAt = Time.realtimeSinceStartup; catalogScene = HighLogic.LoadedScene;
+            return true;
+        }
+
+        /// <summary>Builds the catalogue a few parts a frame after a scene loads, so the first question to the team does not
+        /// stop the game while thousands of modded parts are read.</summary>
+        public static IEnumerator Warm()
+        {
+            yield return new WaitForSeconds(4f);
+            string key; List<AvailablePart> open;
+            try { open = Unlocked(out key); } catch { yield break; }
+            if (catalog != null && catalogKey == key) yield break;
+            if (pending == null || pendingKey != key) Begin(open, key);
+            float t0 = Time.realtimeSinceStartup; int n = open.Count;
+            while (pending != null && pendingKey == key)
+            {
+                string was = Crumb.Enter("parts catalogue (background)");
+                try { if (Step(15)) break; } catch { break; } finally { Crumb.Exit(was); }
+                yield return null;
+            }
+            if (catalog != null && catalogKey == key) Debug.Log("[KerbalNews] Parts catalogue ready: " + catalog.Count + " of " + n + " unlocked parts read in the background over " + (Time.realtimeSinceStartup - t0).ToString("0.0") + " s");
         }
     
         // ---- part 4: locked parts, science in hand, relays, saved craft ---------------------------------

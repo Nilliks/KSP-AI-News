@@ -106,6 +106,11 @@ namespace KerbalNews.KSP
                     var catalog = EngineeringExtras.Catalog();
                     Log("    parts catalogue: " + catalog.Count + " unlocked parts in " + ((Time.realtimeSinceStartup - c0) * 1000).ToString("0") + " ms (" + string.Join(", ", catalog.GroupBy(x => x.Mod).OrderByDescending(x => x.Count()).Take(8).Select(x => x.Key + " " + x.Count()).ToArray()) + ")");
                     Check(catalog.Count > 20, "eng: the swap finder sees the unlocked parts (" + catalog.Count + ")");
+                    string told = sys.Engine.EngPartsText("what part do you recommend for power?", 120);
+                    Log("    what the team is told about unlocked parts for a power question (" + told.Length + " characters):");
+                    foreach (var line in told.Split('\n').Take(40)) Log("      " + line);
+                    Check(told.Contains("UNLOCKED PARTS") && told.Contains("POWER SOURCES") && told.Contains("BATTERIES"), "eng: the team is told which power parts are unlocked");
+                    Log("    for a question about no kind of part: " + sys.Engine.EngPartsText("how do I do a gravity turn?", 120).Replace("\n", " | "));
                     float t1 = Time.realtimeSinceStartup;
                     var tools = sys.Engine.EngToolReports(s, plan, checks, true);
                     Log("    tools took " + ((Time.realtimeSinceStartup - t1) * 1000).ToString("0") + " ms");

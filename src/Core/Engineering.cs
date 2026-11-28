@@ -267,6 +267,7 @@ namespace KerbalNews
             else if (snap == null || snap.StockSystem) sb.AppendLine(StockDvMap);
             else sb.AppendLine("A planet pack or rescale is installed, so stock delta-v maps do not apply: work from the bodies' real numbers given in the data.");
             sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene|maxwell|irma|mortimer\", \"text\": \"...\"}], \"ask\": {\"question\": \"...\", \"options\": [\"...\", \"...\"]}}. Leave \"ask\" out unless you need an answer from the director before you can advise; when you use it, the reply text should say what you need and why, and options are two to five short likely answers.");
+            sb.AppendLine("UNLOCKED PARTS is read from the game: it is exactly what the director can build with right now, modded parts included, with what each part does. NEVER ask the director what they have unlocked or which mods they have; you already know. When asked what to fit or which part is best, recommend specific parts by their exact name from that list, with the number that matters (EC/s, kN, Isp, kW, mass, cost), and say how many to fit. Only recommend a part that is on the list. If the list for the kind you need is not shown, say which kind you would look at and give the answer from what is shown.");
             sb.AppendLine("TEAM MEMORY, when given, is what the team has on file from earlier: answers, decisions, meeting minutes, flight results and the director's stated preferences. Use it: do not ask again for something on file, keep to the director's preferences, and say \"as we found last time\" when you lean on it. If the director asks what was said or decided before, answer from it and say plainly when nothing is on file.");
             string level = EngLevelText();
             if (level != "") sb.AppendLine(level);
@@ -278,6 +279,14 @@ namespace KerbalNews
             return sb.ToString();
         }
 
+        /// <summary>The unlocked parts as prompt text, with the kinds <paramref name="about"/> names listed in full.</summary>
+        public string EngPartsText(string about, int maxLines)
+        {
+            List<CraftPart> parts = null;
+            try { parts = EngineeringCatalog(); } catch (Exception e) { LastError = "Parts catalogue: " + e.Message; }
+            return EngCatalog.Text(parts, about, maxLines);
+        }
+
         string EngUser(EngSnapshot snap, double ut)
         {
             var sb = new StringBuilder();
@@ -287,6 +296,10 @@ namespace KerbalNews
             var plan = EngCurrentPlan(snap);
             if (plan != null) sb.AppendLine(EngMissions.PlanText(plan));
             string question = State.EngChat.Where(m => m.Role == "player").Select(m => m.Text).LastOrDefault() ?? "";
+            // The parts the question is about: the one before it counts too, so a short follow-up keeps its list.
+            var lastTwo = State.EngChat.Where(m => m.Role == "player").Select(m => m.Text).ToList();
+            string partsText = EngPartsText(string.Join(" ", lastTwo.Skip(Math.Max(0, lastTwo.Count - 2)).ToArray()), 120);
+            if (partsText != "") sb.AppendLine(partsText);
             if (snap != null && snap.Sheet != null && snap.Sheet.Parts.Count > 0)
             {
                 sb.AppendLine(snap.Sheet.Text(snap.Stages, question));

@@ -458,6 +458,11 @@ namespace KerbalNews
                 if (who == "maxwell" || who == "team") { var power = EngPower(snap, plan); if (power != null) sb.AppendLine(CraftSheet.PowerText(power)); }
                 if (who == "wernher" || who == "gene" || who == "team") { var staging = snap.Sheet.StagingIssues(snap.Stages); if (staging.Count > 0) sb.AppendLine("STAGING CHECK (computed):\n- " + string.Join("\n- ", staging.ToArray())); }
             }
+            // The unlocked parts for this desk and for what the meeting is about, so proposals name real parts.
+            var now = EngMeetingNow;
+            string deskParts = who == "maxwell" ? " power radiator batter" : who == "wernher" ? " engine tank" : who == "linus" ? " antenna parachute" : who == "irma" ? " crew probe science" : "";
+            string partsText = EngPartsText((now != null ? now.Objective : "") + deskParts, 45);
+            if (partsText != "") sb.AppendLine(partsText + "\nPropose only parts on this list, by their exact name.");
             string[] desk;
             if (!EngDesk.TryGetValue(who, out desk)) desk = new string[0];
             var mine = all.Where(r => who == "team" ? r.Bad : desk.Contains(r.Key)).ToList();
