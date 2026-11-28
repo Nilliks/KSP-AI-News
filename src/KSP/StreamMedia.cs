@@ -171,10 +171,12 @@ namespace KerbalNews.KSP
             catch (Exception) { return null; }
         }
 
-        static IEnumerable<DirectoryInfo> AllReplays()
+        static IEnumerable<DirectoryInfo> AllReplays() { return AllReplays(SavesRoot); }
+
+        static IEnumerable<DirectoryInfo> AllReplays(string savesRoot)
         {
-            if (!Directory.Exists(SavesRoot)) yield break;
-            foreach (var save in new DirectoryInfo(SavesRoot).GetDirectories())
+            if (!Directory.Exists(savesRoot)) yield break;
+            foreach (var save in new DirectoryInfo(savesRoot).GetDirectories())
             {
                 var r = new DirectoryInfo(Path.Combine(save.FullName, "KerbalNews/replays"));
                 if (!r.Exists) continue;
@@ -190,11 +192,25 @@ namespace KerbalNews.KSP
         static long used;
         static float usedAt = -100;
 
+        static volatile bool counting;
+
+        /// <summary>
+        /// The space every replay takes, as last counted. Counting reads the size of every frame file, which took most
+        /// of a second on the Settings page, so it runs off the game's thread and the page shows the last answer.
+        /// </summary>
         public static long DiskUse()
         {
-            if (Time.realtimeSinceStartup - usedAt < 10) return used;
+            if (counting || Time.realtimeSinceStartup - usedAt < 30) return used;
             usedAt = Time.realtimeSinceStartup;
-            try { used = AllReplays().Sum(Size); } catch (Exception) { used = 0; }
+            counting = true;
+            string root = SavesRoot;   // read here: game paths belong to the game's thread
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                long n = 0;
+                try { n = AllReplays(root).Sum(Size); } catch (Exception) { n = used; }
+                used = n;
+                counting = false;
+            });
             return used;
         }
 
