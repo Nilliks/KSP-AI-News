@@ -31,7 +31,7 @@ namespace KerbalNews.KSP
             P("ModuleAnchoredDecoupler", "decoupler"), P("LaunchClamp", "clamp"), P("ModuleDockingNode", "dock"), P("ModuleLight", "light"),
             P("ModuleWheelBase", "leg"), P("ModuleAblator", "ablator"), P("ModuleProceduralFairing", "fairing"), P("ModuleScienceExperiment", "science"),
             P("ModuleScienceLab", "lab"), P("ModuleActiveRadiator", "radiator"), P("ModuleGimbal", "gimbal"), P("ModuleSAS", "sas"),
-            P("ModuleResourceIntake", "intake"), P("ModuleControlSurface", "wing"), P("ModuleLiftingSurface", "wing"), P("ModuleCargoBay", "cargo"),
+            P("ModuleResourceIntake", "intake"), P("ModuleCoreHeat", "coreheat"), P("ModuleControlSurface", "wing"), P("ModuleLiftingSurface", "wing"), P("ModuleCargoBay", "cargo"),
         };
         static KeyValuePair<string, string> P(string a, string b) { return new KeyValuePair<string, string>(a, b); }
 
@@ -41,7 +41,7 @@ namespace KerbalNews.KSP
             "FX", "Waterfall", "ModulePartVariants", "ModuleColorChanger", "FlagDecal", "ModuleAnimat", "ModuleJettison", "ModuleTestSubject",
             "ModuleCargoPart", "ModuleTripLogger", "RSE", "ModuleB9PartInfo", "ModuleB9DisableTransform", "TextureSwitch", "ModuleConductionMultiplier",
             "ModuleRestock", "ModuleStatusLight", "CModule", "ModuleDragModifier", "ModuleDeployableAntenna", "ModuleDeployableRadiator", "ModuleDeployablePart",
-            "ModuleInventoryPart", "ModuleKISItem", "TweakScaleDisable", "ModuleSeeThroughObject", "InternalModule", "ModuleStockShabby", "Decal", "ModuleCoreHeat",
+            "ModuleInventoryPart", "ModuleKISItem", "TweakScaleDisable", "ModuleSeeThroughObject", "InternalModule", "ModuleStockShabby", "Decal",
             "ModuleOverheatDisplay", "ModuleGroundPart", "ModuleCenterFollowTransform", "ModuleDockingNodeNamed", "ModuleLadder", "RetractableLadder", "ModuleTechColor",
             "FMRS_PM", "KOSNameTag", "ShipEffects", "ModuleFreeIva", "ModuleToggleCrossfeed",
         };
@@ -55,6 +55,8 @@ namespace KerbalNews.KSP
             var index = new Dictionary<Part, int>();
             var live = parts.Where(p => p != null).ToList();
             for (int i = 0; i < live.Count; i++) index[live[i]] = i;
+            rootT = null;
+            try { rootT = Get(root ?? (live.Count > 0 ? live[0] : null), "transform"); } catch { }
             foreach (var p in live)
             {
                 var c = new CraftPart();
@@ -77,7 +79,11 @@ namespace KerbalNews.KSP
             c.Mod = ModOf(Str(info, "partUrl"));
             c.DryMass = p.mass;
             c.ResMass = p.GetResourceMass();
-            c.Cost = Num(info, "cost");
+            c.Cost = Cost(p, info);
+            c.CrashTol = Num(p, "crashTolerance");
+            c.MaxTemp = Num(p, "maxTemp");
+            try { Place(p, c); } catch { }
+            try { c.ChuteArea = ChuteArea(p); } catch { }
             c.Stage = p.inverseStage;
             c.Crew = p.CrewCapacity;
             c.Surface = p.attachMode == AttachModes.SRF_ATTACH;
@@ -141,6 +147,7 @@ namespace KerbalNews.KSP
                     c.Num["limit"] = Num(m, "thrustPercentage", 100);
                     if (manyEngines) c.Label = Str(m, "engineID");
                     c.Rates.Clear();   // an engine's propellants are not a steady draw
+                    try { EngineExtras(m, c); } catch { }
                     break;
                 case "rcs":
                     c.Num["thrust"] = Num(m, "thrusterPower");
@@ -168,11 +175,40 @@ namespace KerbalNews.KSP
                 case "command":
                     c.Num["crewMin"] = Num(m, "minimumCrew");
                     break;
+                case "sas":
+                    c.Num["level"] = Num(m, "SASServiceLevel");
+                    break;
+                case "gimbal":
+                    c.Num["range"] = Num(m, "gimbalRange");
+                    break;
+                case "radiator":
+                    c.Num["kw"] = Num(m, "maxEnergyTransfer") / 50;
+                    break;
+                case "coreheat":
+                    c.Num["maxCoolant"] = Num(m, "MaxCoolant");
+                    c.Num["goal"] = Num(m, "CoreTempGoal");
+                    c.Num["shutdown"] = Num(m, "CoreShutdownTemp");
+                    break;
+                case "wing":
+                    c.Num["lift"] = Num(m, "deflectionLiftCoeff");
+                    if (Num(m, "ctrlSurfaceArea") > 0) c.Num["control"] = Num(m, "ctrlSurfaceArea");
+                    break;
+                case "chute":
+                    c.Num["minPressure"] = Num(m, "minAirPressureToOpen");
+                    c.Num["deployAlt"] = Num(m, "deployAltitude");
+                    break;
+                case "ablator":
+                    c.Txt["res"] = Str(m, "ablativeResource");
+                    break;
+                case "decoupler":
+                    c.Num["force"] = Num(m, "ejectionForce");
+                    break;
                 case "wheel":
                     c.Num["torque"] = Math.Max(Num(m, "PitchTorque"), Math.Max(Num(m, "YawTorque"), Num(m, "RollTorque")));
                     break;
                 case "antenna":
                     c.Num["power"] = Num(m, "antennaPower");
+                    if (Bool(m, "antennaCombinable")) { c.Num["combinable"] = 1; c.Num["exponent"] = Num(m, "antennaCombinableExponent", 0.75); }
                     object at = Get(m, "antennaType");
                     if (at != null) c.Txt["type"] = at.ToString().ToLowerInvariant();
                     double interval = Num(m, "packetInterval");
@@ -202,9 +238,18 @@ namespace KerbalNews.KSP
                         c.Num["scale"] = now; c.Num["normalScale"] = def;
                         break;
                     }
-                    Config(m, c);
+                    Config(m, c, true);
+                    if (c.Rates.Count == 0)
+                        foreach (var pair in new[] { "inputs|outputs", "Inputs|Outputs", "inputList|outputList", "inputResources|outputResources" })
+                        {
+                            var io = pair.Split('|');
+                            Ratios(Get(m, io[0]), c, -1); Ratios(Get(m, io[1]), c, 1);
+                            if (c.Rates.Count > 0) break;
+                        }
                     break;
             }
+            // A mod's own subclass of a stock module (a heat-loop radiator, a fusion engine): its extra config fields.
+            if (kind != "other" && type.Assembly != typeof(PartModule).Assembly) Config(m, c, false);
             return c;
         }
 
@@ -278,44 +323,352 @@ namespace KerbalNews.KSP
             catch { return 0; }
         }
 
-        /// <summary>A module nobody taught the reader about: its config values (the fields the game loads from the part file).</summary>
-        static void Config(PartModule m, CraftModule c)
+        /// <summary>A module's config values (the fields the game loads from the part file). With <paramref name="all"/> every
+        /// class level is read; without it only the levels a mod added on top of a stock module.</summary>
+        static void Config(PartModule m, CraftModule c, bool all)
         {
             var type = m.GetType();
+            var stock = typeof(PartModule).Assembly;
             FieldInfo[] fields;
             if (!configFields.TryGetValue(type, out fields))
             {
                 var list = new List<FieldInfo>();
                 for (var at = type; at != null && at.Name != "PartModule" && at != typeof(object); at = at.BaseType)
+                {
+                    if (!all && at.Assembly == stock) break;
                     foreach (var f in at.GetFields(Any))
                     {
                         var ft = f.FieldType;
-                        if (ft != typeof(float) && ft != typeof(double) && ft != typeof(int) && ft != typeof(bool) && ft != typeof(string)) continue;
+                        bool curve = ft.Name == "FloatCurve";
+                        if (!curve && ft != typeof(float) && ft != typeof(double) && ft != typeof(int) && ft != typeof(bool) && ft != typeof(string)) continue;
                         string lower = f.Name.ToLowerInvariant();
                         if (NoisyField.Any(x => lower.Contains(x))) continue;
-                        if (!f.GetCustomAttributes(true).Any(a => a.GetType().Name == "KSPField")) continue;
+                        if (!curve && !f.GetCustomAttributes(true).Any(a => a.GetType().Name == "KSPField")) continue;
                         list.Add(f);
                     }
+                }
                 fields = list.ToArray();
                 configFields[type] = fields;
             }
+            bool mod = type.Assembly != stock;
+            int maxNum = mod ? 28 : 10, maxTxt = mod ? 6 : 4, nums = 0, txts = 0, curves = 0;
             foreach (var f in fields)
             {
                 object v;
                 try { v = f.GetValue(m); } catch { continue; }
-                if (v == null) continue;
-                if (v is string)
+                if (v == null || c.Num.ContainsKey(f.Name) || c.Txt.ContainsKey(f.Name)) continue;
+                if (f.FieldType.Name == "FloatCurve")
+                {
+                    if (curves >= 4) continue;
+                    double max; string pts = CurvePoints(v, out max);
+                    if (pts == "") continue;
+                    c.Txt[f.Name] = pts; c.Num[f.Name + ".max"] = max; curves++;
+                    if (!all) c.Cfg.Add(f.Name + ".max");
+                }
+                else if (v is string)
                 {
                     string s = Clean((string)v);
-                    if (s != "" && s.Length <= 40 && c.Txt.Count < 4 && !s.StartsWith("#")) c.Txt[f.Name] = s;
+                    if (s != "" && s.Length <= 40 && txts < maxTxt && !s.StartsWith("#") && s.IndexOf(';') < 0) { c.Txt[f.Name] = s; txts++; if (!all) c.Cfg.Add(f.Name); }
                 }
-                else if (v is bool) { if ((bool)v && c.Num.Count < 10) c.Num[f.Name] = 1; }
+                else if (v is bool) { if ((bool)v && nums < maxNum) { c.Num[f.Name] = 1; nums++; if (!all) c.Cfg.Add(f.Name); } }
                 else
                 {
                     double d = Convert.ToDouble(v);
-                    if (d != 0 && !double.IsNaN(d) && !double.IsInfinity(d) && c.Num.Count < 10) c.Num[f.Name] = d;
+                    if (d != 0 && !double.IsNaN(d) && !double.IsInfinity(d) && nums < maxNum) { c.Num[f.Name] = d; nums++; if (!all) c.Cfg.Add(f.Name); }
                 }
             }
+        }
+
+        /// <summary>A curve from a part file as "x:y;x:y" (at most ten points) and its highest value.</summary>
+        static string CurvePoints(object floatCurve, out double max)
+        {
+            max = 0;
+            var keys = Get(Get(floatCurve, "Curve"), "keys") as IEnumerable;
+            if (keys == null) return "";
+            var pts = new List<string>();
+            foreach (var k in keys)
+            {
+                double x = Num(k, "time"), y = Num(k, "value");
+                if (pts.Count == 0 || y > max) max = y;
+                if (pts.Count < 10) pts.Add(x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + ":" + y.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            return string.Join(";", pts.ToArray());
+        }
+
+        // ------------------------------------------------------------ geometry, cost and the rest
+
+        static object rootT;
+
+        static double[] Vec(object v) { return v == null ? null : new[] { Num(v, "x"), Num(v, "y"), Num(v, "z") }; }
+
+        /// <summary>The part's centre of mass in the root part's frame.</summary>
+        static void Place(Part p, CraftPart c)
+        {
+            if (rootT == null) return;
+            object t = Get(p, "transform"), off = Get(p, "CoMOffset");
+            if (t == null) return;
+            object world = off != null ? Call(t, "TransformPoint", off) : Get(t, "position");
+            var v = Vec(Call(rootT, "InverseTransformPoint", world));
+            if (v == null) return;
+            c.X = v[0]; c.Y = v[1]; c.Z = v[2]; c.HasPos = true;
+        }
+
+        /// <summary>Where the engine pushes from and which way its exhaust points (root frame), and the electric charge it
+        /// burns per second at full thrust when charge is one of its propellants.</summary>
+        static void EngineExtras(PartModule m, CraftModule c)
+        {
+            var tts = Get(m, "thrustTransforms") as IEnumerable;
+            if (tts != null && rootT != null)
+            {
+                double[] pos = new double[3], dir = new double[3]; int n = 0;
+                foreach (var tt in tts)
+                {
+                    if (tt == null) continue;
+                    var a = Vec(Call(rootT, "InverseTransformPoint", Get(tt, "position")));
+                    var d = Vec(Call(rootT, "InverseTransformDirection", Get(tt, "forward")));
+                    if (a == null || d == null) continue;
+                    for (int i = 0; i < 3; i++) { pos[i] += a[i]; dir[i] += d[i]; }
+                    n++;
+                }
+                if (n > 0)
+                {
+                    double len = Math.Sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+                    c.Num["px"] = pos[0] / n; c.Num["py"] = pos[1] / n; c.Num["pz"] = pos[2] / n;
+                    if (len > 1e-6) { c.Num["dx"] = dir[0] / len; c.Num["dy"] = dir[1] / len; c.Num["dz"] = dir[2] / len; c.Num["aimed"] = 1; }
+                }
+            }
+            var props = Get(m, "propellants") as IEnumerable;
+            double thrust = c.N("thrust"), isp = c.N("ispVac");
+            if (props == null || thrust <= 0 || isp <= 0) return;
+            double mix = 0, ec = 0;
+            foreach (var p in props)
+            {
+                double ratio = Num(p, "ratio"), density = Num(Get(p, "resourceDef"), "density");
+                mix += ratio * density;
+                if (Str(p, "name") == CraftSheet.EC) ec = ratio;
+            }
+            if (ec > 0 && mix > 0) c.Num["ec"] = ec * (thrust / (isp * 9.80665)) / mix;
+        }
+
+        /// <summary>What the part costs as it stands: its price with full tanks, any module extras, less the fuel left out.</summary>
+        static double Cost(Part p, AvailablePart info)
+        {
+            double list = Num(info, "cost"), cost = list;
+            try { object extra = Call(p, "GetModuleCosts", (float)list); if (extra != null) cost += Convert.ToDouble(extra); } catch { }
+            try
+            {
+                if (p.Resources != null)
+                    foreach (PartResource r in p.Resources)
+                        if (r != null) cost -= Math.Max(0, r.maxAmount - r.amount) * Num(Get(r, "info"), "unitCost");
+            }
+            catch { }
+            return Math.Max(0, cost);
+        }
+
+        /// <summary>Drag area of the part's parachute once fully open, from the game's own drag cubes.</summary>
+        static double ChuteArea(Part p)
+        {
+            bool chute = false;
+            if (p.Modules != null) foreach (PartModule m in p.Modules) if (m != null && Kind(m.GetType()) == "chute") { chute = true; break; }
+            if (!chute) return 0;
+            var cubes = Get(Get(p, "DragCubes"), "Cubes") as IEnumerable;
+            if (cubes == null) return 0;
+            // Stock parachutes multiply the open canopy's drag with a ModuleDragModifier on the same part.
+            double modifier = 1;
+            foreach (PartModule m in p.Modules)
+                if (m != null && m.GetType().Name == "ModuleDragModifier" && string.Equals(Str(m, "dragCubeName"), "DEPLOYED", StringComparison.OrdinalIgnoreCase))
+                { double d = Num(m, "dragModifier"); if (d > 0) modifier = d; }
+            double best = 0;
+            foreach (var cube in cubes)
+            {
+                if (!string.Equals(Str(cube, "Name"), "DEPLOYED", StringComparison.OrdinalIgnoreCase)) continue;
+                var area = Get(cube, "Area") as float[]; var drag = Get(cube, "Drag") as float[];
+                if (area == null || drag == null) continue;
+                for (int i = 0; i < area.Length && i < drag.Length; i++) best = Math.Max(best, area[i] * drag[i]);
+            }
+            return best * modifier;
+        }
+
+        static readonly Dictionary<string, MethodInfo> methods = new Dictionary<string, MethodInfo>();
+        const BindingFlags AnyMethod = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;
+
+        /// <summary>Calls a method by name (the overload with this many arguments whose types fit). Null when it is not there.</summary>
+        public static object Call(object o, string name, params object[] args)
+        {
+            if (o == null) return null;
+            var type = o as Type ?? o.GetType();
+            string key = type.FullName + "." + name + "/" + args.Length + "/" + string.Join(",", args.Select(a => a == null ? "?" : a.GetType().Name).ToArray());
+            MethodInfo mi;
+            if (!methods.TryGetValue(key, out mi))
+            {
+                for (var at = type; at != null && mi == null; at = at.BaseType)
+                    mi = at.GetMethods(AnyMethod).FirstOrDefault(x => x.Name == name && !x.IsGenericMethodDefinition && x.GetParameters().Length >= args.Length
+                        && x.GetParameters().Select((pi, i) => i >= args.Length ? pi.IsOptional : args[i] == null || pi.ParameterType.IsInstanceOfType(args[i])).All(ok => ok));
+                methods[key] = mi;
+            }
+            if (mi == null) return null;
+            try
+            {
+                var ps = mi.GetParameters();
+                var full = ps.Length == args.Length ? args : args.Concat(ps.Skip(args.Length).Select(pi => pi.DefaultValue)).ToArray();
+                return mi.Invoke(mi.IsStatic ? null : o, full);
+            }
+            catch { return null; }
+        }
+
+        static readonly Dictionary<string, Type> types = new Dictionary<string, Type>();
+        /// <summary>A type by full name from any loaded assembly (a mod's, or the game's), or null.</summary>
+        public static Type FindType(string full)
+        {
+            Type t;
+            if (types.TryGetValue(full, out t)) return t;
+            foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try { t = a.GetType(full, false); } catch { t = null; }
+                if (t != null) break;
+            }
+            types[full] = t;
+            return t;
+        }
+
+        /// <summary>A static field or property by name.</summary>
+        public static object Static(Type t, string name)
+        {
+            if (t == null) return null;
+            const BindingFlags f = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;
+            try
+            {
+                var fi = t.GetField(name, f);
+                if (fi != null) return fi.GetValue(null);
+                var pi = t.GetProperty(name, f);
+                if (pi != null && pi.CanRead && pi.GetIndexParameters().Length == 0) return pi.GetValue(null, null);
+            }
+            catch { }
+            return null;
+        }
+
+        static double ToNum(object v, double def = 0)
+        {
+            if (v == null || v is string || v is bool) return def;
+            try { double d = Convert.ToDouble(v); return double.IsNaN(d) || double.IsInfinity(d) ? def : d; } catch { return def; }
+        }
+
+        /// <summary>A difficulty setting from one of the game's settings pages, by the page's type name.</summary>
+        static object GameParam(string typeName, string field)
+        {
+            var t = FindType(typeName);
+            var game = HighLogic.CurrentGame;
+            if (t == null || game == null) return null;
+            object pars = Get(game, "Parameters");
+            if (pars == null) return null;
+            var mi = pars.GetType().GetMethods().FirstOrDefault(x => x.Name == "CustomParams" && x.IsGenericMethodDefinition && x.GetParameters().Length == 0);
+            if (mi == null) return null;
+            try { return Get(mi.MakeGenericMethod(t).Invoke(pars, null), field); } catch { return null; }
+        }
+
+        /// <summary>Facts about the save that the checks need. Each is read on its own, so one that is missing costs only itself.</summary>
+        public static void Facts(CraftSheet sheet, object ship, bool sph)
+        {
+            var f = sheet.Facts;
+            Action<string, Func<double>> put = (key, get) => { try { double v = get(); if (!double.IsNaN(v) && !double.IsInfinity(v)) f[key] = v; } catch { } };
+            put("day", () => ToNum(Get(Static(FindType("KSPUtil"), "dateTimeFormatter"), "Day"), 21600));
+            put("year", () => ToNum(Get(Static(FindType("KSPUtil"), "dateTimeFormatter"), "Year"), 9203400));
+            var career = HighLogic.CurrentGame != null && HighLogic.CurrentGame.Mode == Game.Modes.CAREER;
+            f["career"] = career ? 1 : 0;
+
+            // CommNet: is it on, how far the tracking station reaches, and whether a probe needs a link to be flown.
+            var cn = FindType("CommNet.CommNetScenario");
+            object on = Static(cn, "CommNetEnabled");
+            if (on is bool) f["commnet"] = (bool)on ? 1 : 0;
+            put("rangeMod", () => ToNum(Static(cn, "RangeModifier"), 1));
+            object need = GameParam("CommNet.CommNetParams", "requireSignalForControl");
+            if (need is bool) f["signalForControl"] = (bool)need ? 1 : 0;
+            put("dsnMod", () => ToNum(GameParam("CommNet.CommNetParams", "DSNModifier"), 1));
+            var vars = Static(FindType("GameVariables"), "Instance");
+            var suf = FindType("ScenarioUpgradeableFacilities");
+            var fac = FindType("SpaceCenterFacility");
+            Func<string, double> level = name =>
+            {
+                if (suf == null || fac == null) return -1;
+                object lv = Call(suf, "GetFacilityLevel", Enum.Parse(fac, name));
+                return lv == null ? -1 : ToNum(lv, -1);
+            };
+            double ts = level("TrackingStation");
+            if (vars != null && ts >= 0)
+            {
+                put("dsnPower", () => ToNum(Call(vars, "GetDSNRange", (float)ts), 0));
+                f["trackingLevel"] = Math.Round(ts * 2) + 1;
+            }
+
+            // What the launch site and the building can take, in a career.
+            if (vars != null && career && !sheet.Flying)
+            {
+                double site = level(sph ? "Runway" : "LaunchPad"), hall = level(sph ? "SpaceplaneHangar" : "VehicleAssemblyBuilding");
+                if (site >= 0)
+                {
+                    put("massLimit", () => ToNum(Call(vars, "GetCraftMassLimit", (float)site, !sph), 0));
+                    var size = Vec(Call(vars, "GetCraftSizeLimit", (float)site, !sph));
+                    if (size != null) { f["limitX"] = size[0]; f["limitY"] = size[1]; f["limitZ"] = size[2]; }
+                    f["siteLevel"] = Math.Round(site * 2) + 1;
+                }
+                if (hall >= 0) { put("partLimit", () => ToNum(Call(vars, "GetPartCountLimit", (float)hall, !sph), 0)); f["hallLevel"] = Math.Round(hall * 2) + 1; }
+            }
+            if (ship != null)
+            {
+                var sz = Vec(Call(ship, "CalculateCraftSize")) ?? Vec(Get(ship, "shipSize"));
+                if (sz != null && sz[0] + sz[1] + sz[2] > 0) { f["sizeX"] = sz[0]; f["sizeY"] = sz[1]; f["sizeZ"] = sz[2]; }
+            }
+            f["sph"] = sph ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Every kind of module that mods add to the parts in this install, with its class line and config values: written to
+        /// a file by the self-test so the mod calculators can be checked against what is really installed.
+        /// </summary>
+        public static string Census()
+        {
+            var sb = new System.Text.StringBuilder();
+            var stock = typeof(PartModule).Assembly;
+            var seen = new Dictionary<Type, int>();
+            var sample = new Dictionary<Type, string>();
+            var loaded = PartLoader.LoadedPartsList;
+            if (loaded == null) return "";
+            foreach (var ap in loaded)
+            {
+                var prefab = Get(ap, "partPrefab") as Part;
+                if (prefab == null || prefab.Modules == null) continue;
+                foreach (PartModule m in prefab.Modules)
+                {
+                    if (m == null) continue;
+                    var t = m.GetType();
+                    if (t.Assembly == stock) continue;
+                    int n; seen.TryGetValue(t, out n); seen[t] = n + 1;
+                    if (sample.ContainsKey(t)) continue;
+                    var line = new System.Text.StringBuilder();
+                    for (var at = t.BaseType; at != null && at.Name != "PartModule" && at != typeof(object); at = at.BaseType) line.Append(" : " + at.Name);
+                    line.Append(" [" + t.Assembly.GetName().Name + "] e.g. " + ap.name + " {");
+                    try
+                    {
+                        for (var at = t; at != null && at.Assembly != stock && at != typeof(object); at = at.BaseType)
+                            foreach (var fi in at.GetFields(Any))
+                            {
+                                if (!fi.GetCustomAttributes(true).Any(a => a.GetType().Name == "KSPField") && fi.FieldType.Name != "FloatCurve") continue;
+                                object v = null; try { v = fi.GetValue(m); } catch { }
+                                string text;
+                                if (fi.FieldType.Name == "FloatCurve") { double mx; text = "curve(" + CurvePoints(v, out mx) + ")"; }
+                                else text = v == null ? "null" : Clean(v.ToString());
+                                if (text.Length > 60) text = text.Substring(0, 60) + "...";
+                                line.Append(" " + fi.Name + "=" + text + ";");
+                            }
+                    }
+                    catch (Exception e) { line.Append(" (" + e.GetType().Name + ")"); }
+                    line.Append(" }");
+                    sample[t] = line.ToString();
+                }
+            }
+            foreach (var kv in seen.OrderBy(k => k.Key.Assembly.GetName().Name).ThenBy(k => k.Key.Name))
+                sb.AppendLine(kv.Key.Name + " x" + kv.Value + " kind=" + Kind(kv.Key) + sample[kv.Key]);
+            return sb.ToString();
         }
 
         static string ModOf(string partUrl)
@@ -386,6 +739,7 @@ namespace KerbalNews.KSP
                     e.AtmoDepth = b.atmosphere ? b.atmosphereDepth : 0;
                     e.AtmoPressure = b.atmosphere ? Num(b, "atmospherePressureSeaLevel") / 101.325 : 0;
                     e.Oxygen = Bool(b, "atmosphereContainsOxygen");
+                    e.AtmoDensity = b.atmosphere ? Num(b, "atmDensityASL") : 0;
                     e.Soi = double.IsInfinity(b.sphereOfInfluence) ? 0 : b.sphereOfInfluence;
                     e.RotPeriod = Num(b, "rotationPeriod");
                     object solid = Get(b, "hasSolidSurface");

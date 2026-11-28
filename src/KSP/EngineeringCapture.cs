@@ -70,6 +70,14 @@ namespace KerbalNews.KSP
             if (cached != null && cachedKey == key && !dirty && Time.realtimeSinceStartup - cached.BuiltAt < maxAge) return cached;
             cached = CraftReader.Read(parts, root, flying);
             cachedKey = key;
+            try
+            {
+                bool sph = !flying && EditorDriver.editorFacility == EditorFacility.SPH;
+                object ship = !flying && EditorLogic.fetch != null ? EditorLogic.fetch.ship : null;
+                CraftReader.Facts(cached, ship, sph);
+            }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Craft facts: " + e.Message); }
+            ModProbe.Fill(cached);
             return cached;
         }
 

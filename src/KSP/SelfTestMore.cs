@@ -84,14 +84,46 @@ namespace KerbalNews.KSP
                 foreach (var ev in sheet.Stages(s.Stages)) Log("    stage " + ev.Stage + ": " + string.Join(", ", ev.Fires.ToArray()));
                 string text = sheet.Text(s.Stages, "");
                 Log("    sheet text: " + text.Length + " characters for " + sheet.Parts.Count + " parts");
-                foreach (var line in text.Split('\n').Take(40)) Log("      " + line);
+                foreach (var line in text.Split('\n').Take(70)) Log("      " + line);
+                // Part 2: the computed checks, what the mods reported, and the parachute numbers behind the landing sums.
+                var checks = sys.Engine.EngChecks(s, plan);
+                Check(checks.Count == 7 && checks.All(c => c.Rating != "" && c.Rating != "not computed"), "eng: all seven checks ran (" + string.Join(", ", checks.Select(c => c.Key + "=" + c.Rating).ToArray()) + ")");
+                foreach (var c in checks) foreach (var line in c.Text().Split('\n')) Log("    " + line);
+                {
+                    // The same craft judged for a far destination: power, comms, landing and supplies there.
+                    string keep = sys.Engine.State.EngMission;
+                    sys.Engine.State.EngMission = "Land on Duna and return";
+                    var far = sys.Engine.EngCurrentPlan(s);
+                    var farChecks = sys.Engine.EngChecks(s, far);
+                    Log("    with the mission \"Land on Duna and return\" (plan known: " + (far != null && far.Known) + "): " + string.Join(", ", farChecks.Select(c => c.Key + "=" + c.Rating).ToArray()));
+                    foreach (var c in farChecks.Where(c => c.Key == "comms" || c.Key == "landing" || c.Key == "crew")) foreach (var line in c.Text().Split('\n')) Log("      " + line);
+                    sys.Engine.State.EngMission = keep;
+                }
+                Check(sheet.Parts.All(p => p.HasPos) && sheet.All("engine").All(m => m.N("aimed") > 0), "eng: part positions and engine thrust directions read");
+                Check(sheet.Parts.Sum(p => p.Cost) > 1000 && sheet.Parts.Any(p => p.CrashTol > 0), "eng: part costs and crash tolerances read (" + sheet.Parts.Sum(p => p.Cost).ToString("0") + " funds)");
+                foreach (var p in sheet.Parts.Where(p => p.Has("chute"))) Log("    parachute " + p.Title + ": drag area " + p.ChuteArea.ToString("0.0") + " m2, min pressure " + p.Of("chute").First().N("minPressure").ToString("0.###"));
+                Check(sheet.Parts.Where(p => p.Has("chute")).All(p => p.ChuteArea > 10), "eng: parachute drag areas read from the game");
+                Log("    facts: " + string.Join(", ", sheet.Facts.Select(f => f.Key + "=" + f.Value.ToString("0.###")).ToArray()));
+                Check(sheet.HasFact("day") && sheet.HasFact("commnet"), "eng: save facts read (day length, CommNet)");
+                Log("    mod facts: " + string.Join(", ", sheet.ModFacts.Select(f => f.Key + "=" + f.Value).ToArray()));
+                foreach (var pr in sheet.Processes) Log("    process " + pr.Title + " [" + pr.Name + "] capacity " + pr.Capacity.ToString("0.###") + ": " + CraftSheet.RatesText(pr.Rates));
+                foreach (var cr in sheet.CrewRules) Log("    crew rule " + cr.Name + ": " + cr.Input + " " + cr.PerSec.ToString("0.########") + "/s" + (cr.Varies ? " (varies)" : "") + (cr.Output != "" ? " -> " + cr.Output : ""));
+                Log("    handbooks: " + string.Join(", ", ModKnowledge.BooksFor(sheet).Select(x => x.Title).ToArray()));
+                try
+                {
+                    string census = CraftReader.Census();
+                    string file = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData/KerbalNews/PluginData/module-census.txt");
+                    System.IO.File.WriteAllText(file, census);
+                    Check(census.Length > 100, "eng: module census written (" + census.Split('\n').Length + " kinds of mod module)");
+                }
+                catch (Exception e) { Check(false, "eng: module census: " + e.Message); }
                 float r0 = Time.realtimeSinceStartup;
                 for (int i = 0; i < 5; i++) CraftReader.Read(EditorLogic.fetch.ship.parts, EditorLogic.fetch.ship.parts[0], false);
                 Log("    reading the craft takes " + ((Time.realtimeSinceStartup - r0) / 5 * 1000).ToString("0.0") + " ms");
             }
             yield return Go(Sites.EngineeringHost);
             yield return Shot("eng-vab");
-            foreach (var tab in new[] { "power", "stages", "parts", "problems" })
+            foreach (var tab in new[] { "power", "stages", "parts", "problems", "heat", "comms", "landing", "balance", "launch", "crew", "cost" })
             {
                 sys.Sites.Handle("action:eng-tab/" + tab, null);
                 yield return Go(Sites.EngineeringHost);

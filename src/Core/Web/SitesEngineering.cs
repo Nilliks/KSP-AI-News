@@ -33,7 +33,15 @@ namespace KerbalNews.Web
 
         /// <summary>Which report the left side shows. Not saved: it is where the director is looking, not game state.</summary>
         public string EngTab = "overview";
-        static readonly string[][] EngTabs = { new[] { "overview", "Overview" }, new[] { "power", "Power" }, new[] { "stages", "Stages" }, new[] { "parts", "Parts" }, new[] { "problems", "All problems" } };
+        static readonly string[][] EngTabs =
+        {
+            new[] { "overview", "Overview" }, new[] { "power", "Power" }, new[] { "heat", "Heat" }, new[] { "stages", "Stages" }, new[] { "parts", "Parts" },
+            new[] { "comms", "Comms" }, new[] { "landing", "Landing" }, new[] { "balance", "Balance" }, new[] { "launch", "Launch" }, new[] { "crew", "Crew" }, new[] { "cost", "Cost" },
+            new[] { "problems", "All problems" },
+        };
+        /// <summary>Lines of the older design review that a dedicated check now covers in more detail.</summary>
+        static readonly string[] Covered = { "See the power budget", "see the staging check", "The landing stage", "No landing legs", "No parachutes", "No heat shield", "Launch stage TWR", "No antenna" };
+        static bool IsCovered(string line) { return Covered.Any(x => line.Contains(x)); }
 
         static object Line(string text, string value = "", bool bad = false, string tag = "", bool fix = false)
         {
@@ -94,14 +102,35 @@ namespace KerbalNews.Web
             var power = has ? Engine.EngPower(s, plan) : null;
             var staging = has ? sheet.StagingIssues(s.Stages) : new List<string>();
             int powerBad = power != null ? power.Problems : 0, stagingBad = staging.Count(x => x.StartsWith("!"));
-            int reviewBad = review.Count(x => x.StartsWith("!") && !x.Contains("See the power budget") && !x.Contains("see the staging check"));
-            m["tabs"] = EngTabs.Select(t => (object)new Dictionary<string, object>
+            int reviewBad = review.Count(x => x.StartsWith("!") && !IsCovered(x));
+            var checks = has ? Engine.EngChecks(s, plan) : new List<CheckReport>();
+            int checksBad = checks.Sum(x => x.Problems);
+            m["tabs"] = EngTabs.Select(t =>
             {
-                { "label", t[1] }, { "on", EngTab == t[0] }, { "url", "action:eng-tab/" + t[0] },
-                { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad : 0 },
+                var ck = checks.FirstOrDefault(x => x.Key == t[0]);
+                return (object)new Dictionary<string, object>
+                {
+                    { "label", t[1] }, { "on", EngTab == t[0] }, { "url", "action:eng-tab/" + t[0] },
+                    { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad + checksBad : ck != null ? ck.Problems : 0 },
+                };
             }).ToList();
             foreach (var t in EngTabs) m["tab_" + t[0]] = EngTab == t[0];
+            var shown = checks.FirstOrDefault(x => x.Key == EngTab);
+            m["tab_check"] = shown != null;
+            if (shown != null)
+            {
+                m["ckTitle"] = shown.Title; m["ckRating"] = shown.Rating; m["ckBad"] = shown.Bad; m["ckNote"] = shown.Note;
+                m["ckLines"] = shown.Lines.Select(Line).ToList(); m["ckFixes"] = shown.Fixes.Select(Line).ToList(); m["hasCkFixes"] = shown.Fixes.Count > 0;
+            }
             if (!has) return;
+            // The scorecard: every check with its verdict, one click from its tab.
+            var score = new List<object>();
+            Action<string, string, string, bool> row = (key, label, rating, bad) => score.Add(new Dictionary<string, object> { { "label", label }, { "rating", rating }, { "bad", bad }, { "url", "action:eng-tab/" + key } });
+            if (power != null) row("power", "Power", power.Rating, power.Problems > 0 || power.Rating.StartsWith("short"));
+            row("stages", "Staging", stagingBad > 0 ? stagingBad + " problem" + (stagingBad == 1 ? "" : "s") : staging.Count > 0 ? "check" : "ok", stagingBad > 0);
+            foreach (var ck in checks) row(ck.Key, ck.Title, ck.Rating, ck.Bad);
+            m["score"] = score;
+            m["hasScore"] = score.Count > 0;
             double age = Math.Max(0, EngClock() - sheet.BuiltAt);
             m["liveNote"] = "live from the " + (sheet.Flying ? "craft" : "builder") + (age < 1.5 ? ", just read" : ", read " + EngMath.N(age) + " s ago");
 
@@ -143,10 +172,13 @@ namespace KerbalNews.Web
             var all = new List<object>();
             if (power != null) foreach (var l in power.There.Where(x => x.Bad)) all.Add(Line("Power: " + l.Text + (l.Value != "" ? " " + l.Value : ""), "", true));
             foreach (var x in staging.Where(x => x.StartsWith("!"))) all.Add(Line("Staging: " + x.Substring(2), "", true));
-            foreach (var x in review.Where(x => x.StartsWith("!") && !x.Contains("See the power budget") && !x.Contains("see the staging check"))) all.Add(Line(x.Substring(2), "", true));
+            foreach (var ck in checks) foreach (var l in ck.Lines.Where(x => x.Bad)) all.Add(Line(ck.Title + ": " + l.Text + (l.Value != "" ? " (" + l.Value + ")" : ""), "", true));
+            foreach (var x in review.Where(x => x.StartsWith("!") && !IsCovered(x))) all.Add(Line(x.Substring(2), "", true));
             foreach (var x in staging.Where(x => !x.StartsWith("!"))) all.Add(Line("Staging: " + x));
-            foreach (var x in review.Where(x => !x.StartsWith("!"))) all.Add(Line(x));
+            foreach (var x in review.Where(x => !x.StartsWith("!") && !IsCovered(x))) all.Add(Line(x));
             if (power != null) foreach (var l in power.Fixes) all.Add(Line("Power: " + l.Text + (l.Value != "" ? " (" + l.Value + ")" : ""), "", false, "", true));
+            foreach (var ck in checks) foreach (var l in ck.Fixes) all.Add(Line(ck.Title + ": " + l.Text + (l.Value != "" ? " (" + l.Value + ")" : ""), "", false, "", true));
+            if (all.Count == 0) all.Add(Line("Nothing found: every check passes."));
             m["allProblems"] = all;
         }
 

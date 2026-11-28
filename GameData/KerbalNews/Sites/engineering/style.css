@@ -63,7 +63,7 @@ a { color: #8ab4ff; }
 .tab.on { border: 1px solid #4fc3f7; color: #ffffff; }
 .cnt { color: #ffb4a8; font-weight: bold; }
 .row { display: flex; gap: 8px; font-size: 13px; padding-top: 2px; padding-bottom: 2px; }
-.row b { color: #ffffff; text-align: right; }
+.row b { color: #ffffff; }
 .row.bad { color: #ffb4a8; }
 .row.bad b { color: #ffb4a8; }
 .rt { flex: 1; }
@@ -83,3 +83,5 @@ a { color: #8ab4ff; }
 .gap { width: 14px; }
 .opts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .ans { border: 1px solid #4fc3f7; color: #ffffff; }
+.fixr { color: #ffd27f; }
+.fixr b { color: #ffd27f; }

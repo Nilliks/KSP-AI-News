@@ -14,11 +14,17 @@
     <div class="box"><div class="btitle">Power{{#powerWhere}} at {{powerWhere}}{{/powerWhere}}: <span class="{{#powerBad}}bad{{/powerBad}}{{^powerBad}}rate{{/powerBad}}">{{powerRating}}</span></div>
       {{#pThere}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pThere}}
       {{^hasThere}}<div class="meta">Nothing on this craft draws power.</div>{{/hasThere}}</div>
-    {{#hasFixes}}<div class="box"><div class="btitle">Try a fix</div>{{#pFixes}}<div class="row"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pFixes}}</div>{{/hasFixes}}
+    {{#hasFixes}}<div class="box"><div class="btitle">Try a fix</div>{{#pFixes}}<div class="row fixr"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pFixes}}</div>{{/hasFixes}}
     {{#hasSources}}<div class="box"><div class="btitle">Generation and storage</div>{{#pSources}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</span><b>{{value}}</b></div>{{/pSources}}</div>{{/hasSources}}
     {{#hasDemand}}<div class="box"><div class="btitle">Demand</div>{{#pDemand}}<div class="row"><span class="rt">{{text}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</span><b>{{value}}</b></div>{{/pDemand}}</div>{{/hasDemand}}
     <div class="note">Solar output is scaled to the destination's distance from the sun. Reaction wheels count at 15% of full power while coasting. Pick a destination in the mission row to see power there.</div>
   {{/tab_power}}
+  {{#tab_check}}
+    <div class="box"><div class="btitle">{{ckTitle}}: <span class="{{#ckBad}}bad{{/ckBad}}{{^ckBad}}rate{{/ckBad}}">{{ckRating}}</span></div>
+      {{#ckLines}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</span><b>{{value}}</b></div>{{/ckLines}}</div>
+    {{#hasCkFixes}}<div class="box"><div class="btitle">Try a fix</div>{{#ckFixes}}<div class="row fixr"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/ckFixes}}</div>{{/hasCkFixes}}
+    {{#ckNote}}<div class="note">{{ckNote}}</div>{{/ckNote}}
+  {{/tab_check}}
   {{#tab_stages}}
     <div class="box"><div class="btitle">Staging check</div>
       {{#stagingIssues}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/stagingIssues}}
@@ -36,6 +42,8 @@
     <div class="box"><div class="btitle">Everything the checks found</div>{{#allProblems}}<div class="chk{{#bad}} bad{{/bad}}{{#fix}} fix{{/fix}}">{{text}}</div>{{/allProblems}}</div>
   {{/tab_problems}}
   {{#tab_overview}}
+  {{#hasScore}}<div class="box"><div class="btitle">All checks</div>
+    {{#score}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt"><a href="{{url}}">{{label}}</a></span><b>{{rating}}</b></div>{{/score}}</div>{{/hasScore}}
   {{#hasStages}}<div class="box">
     <div class="btitle">Delta-v by stage ({{dvKind}})</div>
     {{#stages}}<div class="stage"><span class="sl">Stage {{n}}</span><div class="bar"><div style="width: {{pct}}"></div></div><span class="sv">{{dv}}</span></div>

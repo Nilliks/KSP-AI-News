@@ -27,11 +27,40 @@ namespace KerbalNews
         public Dictionary<string, double> Num = new Dictionary<string, double>();
         public Dictionary<string, string> Txt = new Dictionary<string, string>();
         public List<CraftRate> Rates = new List<CraftRate>();
+        /// <summary>Keys in Num and Txt that came straight from a mod's own config fields on a module of a known kind.</summary>
+        public List<string> Cfg = new List<string>();
+
+        /// <summary>The first of several possible field names that is present: mods rename things between versions.</summary>
+        public double Any(params string[] keys) { foreach (var k in keys) { double v; if (Num.TryGetValue(k, out v)) return v; } return 0; }
+        public bool Is(string prefix) { return Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase); }
+        /// <summary>A curve the reader stored as "x:y;x:y", read at x by straight lines between the points.</summary>
+        public double Curve(string key, double x)
+        {
+            string t = T(key);
+            if (t == "") return 0;
+            double px = 0, py = 0; bool first = true;
+            foreach (var pair in t.Split(';'))
+            {
+                var xy = pair.Split(':');
+                double cx, cy;
+                if (xy.Length != 2 || !double.TryParse(xy[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out cx) || !double.TryParse(xy[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out cy)) continue;
+                if (x <= cx) return first || cx == px ? cy : py + (cy - py) * (x - px) / (cx - px);
+                px = cx; py = cy; first = false;
+            }
+            return py;
+        }
+        public double CurveMax(string key) { return N(key + ".max"); }
 
         public double N(string key, double def = 0) { double v; return Num.TryGetValue(key, out v) ? v : def; }
         public string T(string key) { string v; return Txt.TryGetValue(key, out v) ? v : ""; }
         public double Rate(string res) { return Rates.Where(r => r.Res == res).Sum(r => r.PerSec); }
     }
+
+    /// <summary>A process a mod runs in the background, scaled to what this craft carries.</summary>
+    public class CraftProcess { public string Name = "", Title = "", Mod = ""; public double Capacity; public List<CraftRate> Rates = new List<CraftRate>(); }
+
+    /// <summary>A per-kerbal need from a life support mod: uses Input (and makes Output) at PerSec for each crew member.</summary>
+    public class CrewRule { public string Name = "", Input = "", Output = "", Mod = ""; public double PerSec; public bool Varies; }
 
     /// <summary>One part on the craft.</summary>
     public class CraftPart
@@ -52,6 +81,13 @@ namespace KerbalNews
         public int DropStage = -1;
         public List<int> Children = new List<int>();
 
+        /// <summary>Centre of mass in the root part's frame (metres), when the reader could get it.</summary>
+        public double X, Y, Z;
+        public bool HasPos;
+        /// <summary>Impact speed the part survives (m/s), hottest it can get (K), and the drag area of its opened parachute (m², raw from the game's drag cube).</summary>
+        public double CrashTol, MaxTemp, ChuteArea;
+        public double Mass { get { return DryMass + ResMass; } }
+
         public bool Has(string kind) { return Modules.Any(m => m.Kind == kind); }
         public IEnumerable<CraftModule> Of(string kind) { return Modules.Where(m => m.Kind == kind); }
         public double Max(string res) { return Res.Where(r => r.Name == res).Sum(r => r.Max); }
@@ -62,6 +98,8 @@ namespace KerbalNews
     {
         public string Name = "", Parent = "";
         public double Mu, Radius, Gravity, AtmoDepth, AtmoPressure, Sma, Soi, RotPeriod, SunDistance;
+        /// <summary>Air density at the surface, kg/m³ (Kerbin 1.225).</summary>
+        public double AtmoDensity;
         public bool HasSurface = true, IsHome, IsStar, Oxygen;
     }
 
@@ -80,6 +118,9 @@ namespace KerbalNews
         public List<SheetLine> Sources = new List<SheetLine>(), Demand = new List<SheetLine>(), There = new List<SheetLine>(), Fixes = new List<SheetLine>();
         public double Battery, SolarHome, SolarThere, Steady, FuelCell, Alternator, Always, Wheels, Working, Transmit;
         public double ShadowSeconds, ShadowNeed;
+        /// <summary>From mods: electric engines at full thrust, capacitor burst rate and store, tank cooling, and loads that must never lose power.</summary>
+        public double Engines, Burst, BurstStore, Cooling, Critical;
+        public List<string> Notes = new List<string>();
         public string Where = "", Rating = "";
         public bool Unknown;
         public double GenThere { get { return SolarThere + Steady; } }
@@ -107,6 +148,22 @@ namespace KerbalNews
         /// <summary>Real time (seconds) the sheet was read, for the "updated N s ago" note.</summary>
         public double BuiltAt;
         public bool Flying;
+        /// <summary>Numbers about the save the checks need: tracking station range, launch site limits, craft size, day length.</summary>
+        public Dictionary<string, double> Facts = new Dictionary<string, double>();
+        /// <summary>Which features of installed mods are switched on in this save ("Kerbalism.Reliability" = "on").</summary>
+        public Dictionary<string, string> ModFacts = new Dictionary<string, string>();
+        /// <summary>Background processes a mod runs on this craft (Kerbalism's scrubbers, fuel cells and the like), with their rates.</summary>
+        public List<CraftProcess> Processes = new List<CraftProcess>();
+        /// <summary>What each crew member uses, per second, as the life support mod defines it.</summary>
+        public List<CrewRule> CrewRules = new List<CrewRule>();
+        /// <summary>Parts lying loose in the builder, not attached to the craft.</summary>
+        public int Loose;
+
+        public double Fact(string key, double def = 0) { double v; return Facts.TryGetValue(key, out v) ? v : def; }
+        public bool HasFact(string key) { return Facts.ContainsKey(key); }
+        public string ModFact(string key) { string v; return ModFacts.TryGetValue(key, out v) ? v : ""; }
+        public bool HasModule(string prefix) { return Parts.Any(p => p.Modules.Any(m => m.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))); }
+        public IEnumerable<CraftModule> Named(string prefix) { return Parts.SelectMany(p => p.Modules.Where(m => m.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))); }
 
         /// <summary>Share of full reaction wheel power used to hold attitude while coasting.</summary>
         public const double WheelHold = 0.15;
@@ -193,7 +250,10 @@ namespace KerbalNews
             return list.OrderByDescending(g => g.First.DropStage).ThenByDescending(g => g.Mass).ToList();
         }
 
-        static readonly string[] QuietKinds = { "gimbal", "sas", "cargo" };
+        /// <summary>Modules a mod hangs on parts for its own records. Named in full only when the director asks about the part.</summary>
+        static readonly string[] Bookkeeping = { "InterstellarFuelSwitch", "IFSCryostat", "PersistentEngine", "ProcessController", "PlannerController", "Reliability", "SolarPanelFixer", "ModuleG3", "ModuleWheel", "TweakScale", "ModuleB9PartSwitch", "ModuleFuelJettison", "GeometryPartModule", "FARPartModule", "ModuleSystemHeat" };
+
+        static readonly string[] QuietKinds = { "gimbal", "sas", "cargo", "coreheat" };
 
         /// <summary>What a part does, in a few words, from its modules.</summary>
         public static string Does(CraftPart p) { return Does(p, null, false); }
@@ -203,6 +263,7 @@ namespace KerbalNews
         public static string Does(CraftPart p, ICollection<string> skip, bool brief)
         {
             var bits = new List<string>();
+            var also = new List<string>();
             foreach (var m in p.Modules)
             {
                 if (skip != null && m.Kind == "other" && skip.Contains(m.Name)) continue;
@@ -234,18 +295,23 @@ namespace KerbalNews
                     case "intake": bits.Add("air intake"); break;
                     case "wing": if (!bits.Contains("wing or control surface")) bits.Add("wing or control surface"); break;
                     case "other":
+                        if (brief && m.Rates.Count == 0) { if (!Bookkeeping.Any(b => m.Name.StartsWith(b, StringComparison.Ordinal)) && !also.Contains(m.Name)) also.Add(m.Name); break; }
                         var o = new StringBuilder(m.Name);
                         if (m.Label != "") o.Append(" \"" + m.Label + "\"");
                         var kv = new List<string>();
                         if (m.Rates.Count > 0) kv.Add(RatesText(m.Rates));
-                        foreach (var t in m.Txt.Take(brief ? 1 : 4)) kv.Add(t.Key + "=" + t.Value);
+                        foreach (var t in m.Txt.Where(x => x.Value.IndexOf(';') < 0).Take(brief ? 1 : 4)) kv.Add(t.Key + "=" + t.Value);
                         foreach (var t in m.Num.Take(brief ? 3 : 10 - Math.Min(4, m.Txt.Count))) kv.Add(t.Key + "=" + N(t.Value, "0.###"));
                         if (kv.Count > 0) o.Append(" (" + string.Join(", ", kv.ToArray()) + ")");
                         bits.Add(o.ToString());
                         break;
                     default: if (!QuietKinds.Contains(m.Kind)) bits.Add(m.Kind); break;
                 }
+                // What a mod's own version of a stock module adds (a heat loop, a reactor curve): shown when the part is asked about.
+                if (!brief && m.Kind != "other" && m.Cfg.Count > 0)
+                    bits.Add(m.Name + " {" + string.Join(", ", m.Cfg.Take(12).Select(k => k + "=" + (m.Num.ContainsKey(k) ? N(m.Num[k], "0.###") : m.T(k))).ToArray()) + "}");
             }
+            if (also.Count > 0) bits.Add("mod modules: " + string.Join(", ", also.Take(5).ToArray()) + (also.Count > 5 ? " and " + (also.Count - 5) + " more" : ""));
             if (p.Crew > 0) bits.Insert(0, p.Crew + " seat" + (p.Crew == 1 ? "" : "s"));
             return string.Join("; ", bits.ToArray());
         }
@@ -280,7 +346,10 @@ namespace KerbalNews
         // ---------------------------------------------------------------- power
 
         /// <summary>The power budget at <paramref name="there"/> (the destination), judged in both directions.</summary>
-        public PowerReport Power(EngBody home, EngBody there, IList<EngBody> bodies)
+        public PowerReport Power(EngBody home, EngBody there, IList<EngBody> bodies) { return Power(home, there, bodies, -1); }
+
+        /// <summary><paramref name="crew"/> is how many are aboard, or -1 to count every seat as filled.</summary>
+        public PowerReport Power(EngBody home, EngBody there, IList<EngBody> bodies, int crew)
         {
             var r = new PowerReport();
             r.Battery = Max(EC);
@@ -349,8 +418,9 @@ namespace KerbalNews
                 }
             }
             r.Transmit = biggestTx;
+            ModKnowledge.AddPower(this, r, crew >= 0 ? crew : Parts.Sum(p => p.Crew));
             // A mod that keeps its own hidden resources (Kerbalism does) runs processes whose draw is not declared to the game.
-            r.Unknown = Parts.Any(p => p.Res.Any(x => Hidden(x.Name)));
+            r.Unknown = Processes.Count == 0 && Parts.Any(p => p.Res.Any(x => Hidden(x.Name)));
 
             // The verdict at the destination.
             var b = there ?? home;
@@ -364,6 +434,7 @@ namespace KerbalNews
             double gen = r.GenThere, coast = r.Coast, work = r.Coast + r.Working;
             bool anyControl = Count("command") > 0;
             if (!anyControl && r.Demand.Count == 0) { r.Rating = "nothing draws power"; return r; }
+            foreach (var note in r.Notes) r.There.Add(new SheetLine(note));
 
             r.There.Add(new SheetLine("Coasting" + at + ": makes " + Ec(gen).Replace(" EC/s", "") + ", uses " + Ec(coast).Replace(" EC/s", ""), Signed(gen - coast), gen < coast));
             if (r.Working > 0) r.There.Add(new SheetLine("Everything running: makes " + Ec(gen).Replace(" EC/s", "") + ", uses " + Ec(work).Replace(" EC/s", ""), Signed(gen - work), gen < work));
@@ -385,6 +456,19 @@ namespace KerbalNews
                 r.There.Add(new SheetLine("Sending science with the " + txName + " (" + Ec(r.Transmit) + ")", net < 0 ? mits : "covered", net < 0 && r.Battery < r.Transmit * 5));
             }
             if (r.FuelCell > 0) r.There.Add(new SheetLine("Fuel cells can add (while their fuel lasts)", Ec(r.FuelCell)));
+            bool enginesShort = false;
+            if (r.Engines > 0)
+            {
+                // Electric engines burn charge as propellant: what generation cannot cover comes out of thrust.
+                double spare = Math.Max(0, gen - coast), share = Math.Min(1, spare / r.Engines);
+                double store = r.Battery + r.BurstStore, gap = r.Engines - spare;
+                string how = share >= 0.999 ? "covered at full thrust" : "generation covers " + N(share * 100) + "% of full thrust" + (store > 0 && gap > 0 ? "; stored charge carries a full-thrust burn for " + EngMath.Dur(store / gap) : "");
+                enginesShort = share < 0.5 && (store <= 0 || store / Math.Max(gap, 1e-9) < 120);
+                r.There.Add(new SheetLine("Electric engines at full thrust need " + Ec(r.Engines), how, enginesShort));
+                if (share < 0.999) r.Fixes.Add(new SheetLine("To run the electric engines flat out, generation" + at + " has to reach", Ec(coast + r.Engines)) { Fix = true });
+            }
+            if (r.Critical > 0 && r.SolarThere > 0 && r.Steady < r.Critical)
+                r.There.Add(new SheetLine("Antimatter containment (" + Ec(r.Critical) + ") depends on batteries in shadow: if they run flat the antimatter is lost. A constant source (RTG or reactor) covering it is far safer.", "", r.ShadowSeconds > 0 && r.Battery < r.Critical * r.ShadowSeconds * 2));
             if (r.Unknown) r.There.Add(new SheetLine("A mod on this craft runs its own processes (life support and the like) whose power draw is not read yet, so real demand is higher than shown.", "", false));
 
             // Rating, both ways.
@@ -392,6 +476,7 @@ namespace KerbalNews
             else if (gen < coast) r.Rating = "short";
             else if (gen < worst) r.Rating = "short when everything runs";
             else if (r.ShadowNeed > r.Battery) r.Rating = "short in shadow";
+            else if (enginesShort) r.Rating = "short for the electric engines";
             else if (gen < worst * 1.2) r.Rating = "tight";
             else if (r.Unknown) r.Rating = "enough for what could be read";
             else if (gen > worst * 3 && gen - worst > 0.5) r.Rating = "oversized";
@@ -717,7 +802,10 @@ namespace KerbalNews
             return Math.Sqrt(vInf * vInf + 2 * b.Mu / r) - Math.Sqrt(b.Mu / r);
         }
 
-        public static EngBody Find(IList<EngBody> bodies, string name) { return bodies == null ? null : bodies.FirstOrDefault(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase)); }
+        /// <summary>Seconds a Hohmann transfer takes between two circular orbits.</summary>
+        public static double HalfPeriod(double mu, double r1, double r2) { double a = (r1 + r2) / 2; return mu > 0 ? Math.PI * Math.Sqrt(a * a * a / mu) : 0; }
+
+                public static EngBody Find(IList<EngBody> bodies, string name) { return bodies == null ? null : bodies.FirstOrDefault(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase)); }
 
         /// <summary>Legs from low orbit at home to low orbit at the target and back, or null when the route is not one this handles.</summary>
         public static EngMissions.Dest Route(IList<EngBody> bodies, EngBody home, EngBody target)
@@ -730,6 +818,7 @@ namespace KerbalNews
                 double dv1, dv2;
                 EngMath.Hohmann(home.Mu, LowR(home), target.Sma, out dv1, out dv2);
                 d.Transfer = dv1;
+                d.Travel = HalfPeriod(home.Mu, LowR(home), target.Sma);
                 d.Capture = Eject(target, dv2);
                 d.Return = d.Capture + (homeAir ? 0 : dv1);
             }
@@ -741,6 +830,7 @@ namespace KerbalNews
                 double v1, v2;
                 EngMath.Hohmann(parent.Mu, home.Sma, planet.Sma, out v1, out v2);
                 d.Transfer = Eject(home, v1);
+                d.Travel = HalfPeriod(parent.Mu, home.Sma, planet.Sma);
                 double back;
                 if (planet == target) { d.Capture = Eject(target, v2); back = d.Capture; }
                 else

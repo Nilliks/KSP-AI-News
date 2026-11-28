@@ -89,7 +89,7 @@ namespace KerbalNews
     {
         /// <summary>Stock delta-v legs from low Kerbin orbit (approximate, community map): transfer, capture to low orbit,
         /// landing, ascent, return to Kerbin (aerobraking at home), and surface gravity in m/s².</summary>
-        public class Dest { public string Name; public double Transfer, Capture, Land, Ascent, Return, Gravity; public bool Aero, NoSurface, Computed; }
+        public class Dest { public string Name; public double Transfer, Capture, Land, Ascent, Return, Gravity, Travel; public bool Aero, NoSurface, Computed; }
 
         public static readonly Dest[] Stock =
         {

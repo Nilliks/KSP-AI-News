@@ -241,7 +241,7 @@ namespace KerbalNews
             sb.AppendLine("- wernher: Wernher, propulsion and structures. Engines, staging, TWR, Isp, fuel, mass, aerodynamics, wobble, part choice and craft design.");
             sb.AppendLine("- gene: Gene, mission planning. Whole-mission delta-v budgets, margins, contracts, crew safety, what to do next.");
             sb.AppendLine("Answer like real, friendly flight engineers: practical, concrete, step by step when asked how to do something, with numbers. Use the live data and the computed numbers you are given; do not invent craft data you were not given. If a number is missing, say what you would need (for example a target set, or staging set up). Explain orbital mechanics simply when the director seems new to it.");
-            sb.AppendLine("You can see the whole craft. The CRAFT SHEET is the complete, live parts list read from the game: every part, which mod it is from, its stage, what it holds and what its modules do, including modded parts. Never say you cannot see the parts list. Modules you do not recognise are listed by their class name with their config values and resource rates: reason from those and from the mod's name. The POWER BUDGET, STAGING CHECK and DESIGN REVIEW are computed from that sheet: quote their numbers rather than redoing the sums. Judge in both directions: say when something is short, and also when the craft carries far more than the mission needs, with what trimming it would save.");
+            sb.AppendLine("You can see the whole craft. The CRAFT SHEET is the complete, live parts list read from the game: every part, which mod it is from, its stage, what it holds and what its modules do, including modded parts. Never say you cannot see the parts list. Modules you do not recognise are listed by their class name with their config values and resource rates: reason from those and from the mod's name. The POWER BUDGET, STAGING CHECK, COMPUTED CHECKS (heat, comms, landing, balance, launch, crew, cost) and DESIGN REVIEW are computed from that sheet: quote their numbers rather than redoing the sums, and point the director to the matching tab on the left when it helps. The MOD HANDBOOKS say how the mods on this craft behave and which of their features are switched on in this save: follow them, never advise about a mod feature that is off, and say so plainly when a modded part does something neither the handbooks nor its listed values explain. Judge in both directions: say when something is short, and also when the craft carries far more than the mission needs, with what trimming it would save.");
             sb.AppendLine("ASK BEFORE YOU GUESS. If the answer depends on something you were not told (where it is landing, where it is going, whether crew are aboard, whether it comes home, what will be running), do not assume: ask the director, at most two short questions, and offer likely answers as options. Only ask when the answer would change your advice. If the gap is minor, state the assumption in one clause and answer.");
             sb.AppendLine("Usually one specialist answers; add a second only when they add something real (at most three). Keep each reply short: two to six sentences, or a short numbered list for procedures. Name KSP parts and features by their stock names (Terrier, Poodle, maneuver node, SAS prograde) unless the mods list says otherwise.");
             if (snap != null && snap.Bodies.Count > 0 && snap.Home != null) sb.AppendLine(DvPlanner.Table(snap.Bodies, snap.Home) + " These are worked out from the real bodies in this save, so they hold even if the system is rescaled or has extra planets. Add 10-20% margin.");
@@ -272,6 +272,10 @@ namespace KerbalNews
                 if (power != null) sb.AppendLine(CraftSheet.PowerText(power));
                 var staging = snap.Sheet.StagingIssues(snap.Stages);
                 sb.AppendLine("STAGING CHECK (computed):\n- " + (staging.Count > 0 ? string.Join("\n- ", staging.ToArray()) : "No staging problems found."));
+                string checks = EngChecksText(EngChecks(snap, plan), question);
+                if (checks != "") sb.AppendLine(checks);
+                string books = ModKnowledge.BooksText(snap.Sheet);
+                if (books != "") sb.AppendLine(books);
             }
             var review = EngReview(snap, plan);
             if (review.Count > 0) sb.AppendLine("DESIGN REVIEW (computed from the craft sheet):\n- " + string.Join("\n- ", review.ToArray()));
@@ -342,7 +346,55 @@ namespace KerbalNews
             var home = snap.Home;
             EngBody there = plan != null && plan.Known ? snap.BodyNamed(plan.Body) : null;
             if (there == null && (snap.Scene == "flight" || snap.Scene == "map")) there = snap.BodyNamed(snap.Body);
-            return snap.Sheet.Power(home, there ?? home, snap.Bodies);
+            bool flying = snap.Scene == "flight" || snap.Scene == "map";
+            return snap.Sheet.Power(home, there ?? home, snap.Bodies, flying ? snap.Crew : -1);
+        }
+
+        /// <summary>Every computed check on the craft as it stands, for where it is going. No AI call.</summary>
+        public List<CheckReport> EngChecks(EngSnapshot snap, EngPlan plan)
+        {
+            if (snap == null || snap.Sheet == null || snap.Sheet.Parts.Count == 0) return new List<CheckReport>();
+            bool flying = snap.Scene == "flight" || snap.Scene == "map";
+            var c = new CheckContext
+            {
+                Sheet = snap.Sheet, Home = snap.Home, Bodies = snap.Bodies, Plan = plan, Stages = snap.Stages,
+                Editor = snap.Scene == "vab" || snap.Scene == "sph", Sph = snap.Scene == "sph",
+                Crew = flying ? snap.Crew : snap.Sheet.Parts.Sum(p => p.Crew),
+            };
+            if (plan != null && plan.Known) { c.There = snap.BodyNamed(plan.Body); c.Dest = EngMissions.Find(plan.Body, snap); }
+            else if (flying) c.There = snap.BodyNamed(snap.Body);
+            return CraftChecks.All(c);
+        }
+
+        static readonly Dictionary<string, string[]> CheckWords = new Dictionary<string, string[]>
+        {
+            { "heat", new[] { "heat", "radiator", "cool", "reactor", "loop", "thermal", "overheat", "temperature" } },
+            { "comms", new[] { "antenna", "signal", "comm", "relay", "range", "link", "transmit", "dish" } },
+            { "landing", new[] { "land", "chute", "parachute", "reentry", "re-entry", "shield", "touchdown", "touch down", "splash", "legs" } },
+            { "balance", new[] { "balance", "wobble", "flip", "torque", "stable", "stability", "tumble", "of mass", "spin", "steer", "control", "reaction wheel", "fins" } },
+            { "launch", new[] { "launch", "twr", "pad", "lift", "structure", "strut", "limit", "too big", "too heavy", "thrust", "engine", "motor" } },
+            { "crew", new[] { "crew", "kerbal", "food", "oxygen", "water", "supplies", "life support", "seat", "sas", "pilot", "radiation", "habitat" } },
+            { "cost", new[] { "cost", "price", "funds", "cheap", "expensive", "money", "budget" } },
+        };
+        static readonly string[] EverythingWords = { "review", "everything", "oversized", "efficien", "overbuilt", "too much", "missing", "all checks", "ready", "go/no" };
+
+        /// <summary>The checks as prompt text: in full where there is a problem or the question is about them, one line otherwise.</summary>
+        public static string EngChecksText(List<CheckReport> checks, string question)
+        {
+            if (checks == null || checks.Count == 0) return "";
+            string q = (question ?? "").ToLowerInvariant();
+            bool all = EverythingWords.Any(w => q.Contains(w));
+            var sb = new StringBuilder("COMPUTED CHECKS (worked out by the team's tools from the craft sheet; quote these numbers, do not redo them):\n");
+            var brief = new List<string>();
+            foreach (var r in checks)
+            {
+                string[] words;
+                bool asked = all || CheckWords.TryGetValue(r.Key, out words) && words.Any(w => q.Contains(w));
+                if (asked || r.Bad) sb.AppendLine(r.Text());
+                else brief.Add(r.Title + ": " + r.Rating + (r.Fixes.Count > 0 ? " (" + r.Fixes.Count + " suggestion" + (r.Fixes.Count == 1 ? "" : "s") + ")" : ""));
+            }
+            if (brief.Count > 0) sb.AppendLine("Other checks, in brief: " + string.Join("; ", brief.ToArray()) + ".");
+            return sb.ToString().TrimEnd();
         }
 
         void EngStep(int run, EngSnapshot snap, double ut, int failures)

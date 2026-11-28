@@ -237,6 +237,18 @@ public static class EngineeringSheetTests
         Assert(sites.Render("engineering.kb").Html.Contains("Staging check"), "stages tab");
         sites.Handle("action:eng-tab/problems", null);
         Assert(sites.Render("engineering.kb").Html.Contains("Everything the checks found"), "problems tab");
+        foreach (var tab in new[] { "heat", "comms", "landing", "balance", "launch", "crew", "cost" })
+        {
+            sites.Handle("action:eng-tab/" + tab, null);
+            page = sites.Render("engineering.kb").Html;
+            Assert(page.Contains("class=\"btitle\">" + char.ToUpperInvariant(tab[0]) + tab.Substring(1) + ":") && page.Contains("class=\"row"), "the " + tab + " tab shows its report: " + (page.Length > 300 ? "" : page));
+        }
+        sites.Handle("action:eng-tab/comms", null);
+        Assert(sites.Render("engineering.kb").Html.Contains("At Duna when it is farthest"), "comms are judged at the mission's destination");
+        sites.Handle("action:eng-tab/overview", null);
+        page = sites.Render("engineering.kb").Html;
+        Assert(page.Contains("All checks") && page.Contains("action:eng-tab/landing\">Landing</a>"), "the overview has the scorecard with a link to each check");
+        Assert(body.Contains("COMPUTED CHECKS") && body.Contains("Other checks, in brief"), "the prompt carries the computed checks");
 
         int sent = t.Sent.Count;
         sites.Handle("action:eng-pick/dest/Mun", null);
