@@ -135,6 +135,20 @@ namespace KerbalNews.KSP
                 yield return Shot("settings-what-uses-what-" + (int)(at * 100));
             }
             br.Act("action:job-open/writer", null);
+            // "What the AI has cost" is further down. A sample row in this session's count only (taken out again
+            // below) shows the table even when the test runs with the AI off; the saved counts are not touched.
+            const string sample = "Self-test sample";
+            g.UsageSession.By[sample] = new UsageStats { Calls = 3, InTokens = 18000, OutTokens = 9000, Cost = 0.0162 };
+            br.Open("settings.kb");
+            foreach (var at in new[] { 0.3f, 0.38f, 0.46f })
+            {
+                yield return new WaitForSeconds(0.3f);
+                br.ScrollTo(at);
+                yield return new WaitForSeconds(0.2f);
+                yield return Shot("settings-ai-cost-" + (int)(at * 100));
+            }
+            g.UsageSession.By.Remove(sample);
+            br.Open("settings.kb");
             yield return new WaitForSeconds(0.3f);
             br.ScrollTo(0);
             float scaleBefore = Browser.Scale, zoomBefore = g.PageZoom;
