@@ -121,6 +121,47 @@ namespace KerbalNews.KSP
                     sys.Engine.State.EngMission = keepM;
                 }
                 catch (Exception e) { Check(false, "eng: tools threw " + e); }
+                // Part 4: the mission tools, the game-side reads behind them, the team's memory and a saved craft.
+                try
+                {
+                    float m0 = Time.realtimeSinceStartup;
+                    var mission = sys.Engine.EngMissionReports(s, plan, checks, true);
+                    Log("    mission tools took " + ((Time.realtimeSinceStartup - m0) * 1000).ToString("0") + " ms");
+                    Check(mission.Count >= 9 && mission.All(c => c.Rating != "not computed"), "eng: the mission tools ran (" + string.Join(", ", mission.Select(c => c.Key + "=" + c.Rating).ToArray()) + ")");
+                    foreach (var c in mission) foreach (var line in c.Text().Split('\n').Take(24)) Log("    " + line);
+                    int withActions = sheet.Parts.Count(p => p.Modules.Any(x => x.Num.ContainsKey("actions")));
+                    Log("    action groups: " + withActions + " parts have actions; on a group: " + string.Join(" | ", sheet.Parts.SelectMany(p => p.Modules.Select(x => x.T("groups")).Where(g => g != "").Select(g => p.Title + ": " + g)).Take(12).ToArray()));
+                    Check(withActions > 5, "eng: action groups read from the builder (" + withActions + " parts)");
+                    var est = SheetDv.Solve(sheet);
+                    Log("    delta-v from the sheet alone: " + string.Join(", ", est.Select(x => "stage " + x.Stage + " " + x.DvVac.ToString("0")).ToArray()) + " = " + est.Sum(x => x.DvVac).ToString("0") + " m/s; the game says " + s.TotalDvVac.ToString("0"));
+                    Check(est.Count >= 2 && Math.Abs(est.Sum(x => x.DvVac) - s.TotalDvVac) < s.TotalDvVac * 0.15, "eng: the team's own delta-v estimate is within 15% of the game's (" + est.Sum(x => x.DvVac).ToString("0") + " against " + s.TotalDvVac.ToString("0") + ")");
+                    var lockedParts = EngineeringExtras.Locked();
+                    Log("    tech tree: " + lockedParts.Count + " useful parts still locked, science in hand " + EngineeringExtras.SciencePoints().ToString("0.#") + (lockedParts.Count > 0 ? "; e.g. " + lockedParts[0].Title + " in " + lockedParts[0].TechTitle + " (" + lockedParts[0].TechCost.ToString("0") + ")" : ""));
+                    var relayList = EngineeringExtras.Relays();
+                    Log("    relays flying: " + relayList.Count + (relayList.Count > 0 ? ": " + string.Join(", ", relayList.Take(6).Select(x => x.Name + " at " + x.Body + " " + x.Power.ToString("0.##e0")).ToArray()) : ""));
+                    string keepM = sys.Engine.State.EngMission;
+                    sys.Engine.State.EngMission = "Land on Duna and return";
+                    var farPlan = sys.Engine.EngCurrentPlan(s);
+                    foreach (var c in sys.Engine.EngMissionReports(s, farPlan, sys.Engine.EngChecks(s, farPlan), false).Where(c => c.Key == "timeline" || c.Key == "needs" || c.Key == "aerobrake" || c.Key == "relays" || c.Key == "reliability")) foreach (var line in c.Text().Split('\n').Take(24)) Log("      (Duna) " + line);
+                    sys.Engine.State.EngMission = keepM;
+                    // A saved craft read from its file. The test save may have none, so the stock craft folder stands in.
+                    var saved = EngineeringExtras.Saved();
+                    Log("    saved craft in this save: " + saved.Count);
+                    string file = saved.Count > 0 ? saved[0][2] : System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "Ships/VAB/Kerbal X.craft");
+                    if (System.IO.File.Exists(file))
+                    {
+                        float f0 = Time.realtimeSinceStartup;
+                        bool opened = sys.Engine.EngOpenSaved(file);
+                        var look = sys.Engine.EngPinned;
+                        Log("    saved craft " + file + ": " + (look != null ? look.Vessel + ", " + look.Parts + " parts, " + look.Mass.ToString("0.0") + " t, " + look.Stages.Count + " stages, " + look.TotalDvVac.ToString("0") + " m/s (estimate), " + look.Situation : "not read") + " in " + ((Time.realtimeSinceStartup - f0) * 1000).ToString("0") + " ms");
+                        Check(opened && look != null && look.Parts > 5 && look.Stages.Count > 0 && look.Sheet.Parts.Any(p => p.DropStage >= 0), "eng: a saved craft file is read for review (" + (look != null ? look.Parts + " parts" : "none") + ")");
+                        sys.Engine.EngPinned = null;
+                    }
+                    var note = sys.Engine.EngRemember("note", s.Vessel, "Self-test note: the team keeps this on file.", Planetarium.GetUniversalTime());
+                    Check(note != null && sys.Engine.EngMemoryText(s, "what is on file about the self-test note?").Contains("Self-test note"), "eng: the team's memory files a note and finds it again");
+                    sys.Engine.State.EngNotes.Remove(note);
+                }
+                catch (Exception e) { Check(false, "eng: mission tools threw " + e); }
                 Check(sheet.Parts.All(p => p.HasPos) && sheet.All("engine").All(m => m.N("aimed") > 0), "eng: part positions and engine thrust directions read");
                 Check(sheet.Parts.Sum(p => p.Cost) > 1000 && sheet.Parts.Any(p => p.CrashTol > 0), "eng: part costs and crash tolerances read (" + sheet.Parts.Sum(p => p.Cost).ToString("0") + " funds)");
                 foreach (var p in sheet.Parts.Where(p => p.Has("chute"))) Log("    parachute " + p.Title + ": drag area " + p.ChuteArea.ToString("0.0") + " m2, min pressure " + p.Of("chute").First().N("minPressure").ToString("0.###"));
@@ -167,6 +208,20 @@ namespace KerbalNews.KSP
                 yield return Go(Sites.EngineeringHost);
                 yield return Shot("eng-vab-" + tab);
             }
+            foreach (var tab in new[] { "needs", "timeline", "ascent", "aerobrake", "relays", "setup", "reliability", "launcher", "docking", "predicted", "meeting", "notes", "saved" })
+            {
+                sys.Sites.Handle("action:eng-tab/" + tab, null);
+                yield return Go(Sites.EngineeringHost);
+                yield return Shot("eng-vab-" + tab);
+            }
+            sys.Sites.Handle("action:eng-tab/overview", null);
+            sys.Sites.Handle("action:eng-menu/tabs:Mission", null);
+            yield return Go(Sites.EngineeringHost);
+            yield return Shot("eng-vab-menu-mission");
+            sys.Sites.Handle("action:eng-menu/dest", null);
+            yield return Go(Sites.EngineeringHost);
+            yield return Shot("eng-vab-menu-goto");
+            sys.Sites.Handle("action:eng-menu/dest", null);
             sys.Sites.Handle("action:eng-tab/overview", null);
             HighLogic.LoadScene(GameScenes.SPACECENTER);
             t0 = Time.realtimeSinceStartup;

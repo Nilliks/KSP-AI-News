@@ -383,6 +383,14 @@ namespace KerbalNews
 
         // ------------------------------------------------------------------ mission plans
 
+        /// <summary>Files the mission as it now stands in the craft's notebook.</summary>
+        public void EngNoteMission(double ut)
+        {
+            if (State.EngMission == "") return;
+            var s = EngLook();
+            EngRemember("plan", s != null ? s.Vessel : "", "Mission set" + (s != null && s.Vessel != "" ? " for " + s.Vessel : "") + ": " + State.EngMission + ".", ut);
+        }
+
         public EngPlan EngCurrentPlan(EngSnapshot s) { return State.EngMission == "" ? null : EngMissions.Plan(State.EngMission, s, State.EngMargin); }
 
         /// <summary>The director names a mission; the plan is computed here and the team is asked to go through it.</summary>
@@ -391,6 +399,7 @@ namespace KerbalNews
             mission = (mission ?? "").Trim();
             if (mission == "" || !Settings.EngineeringOn) return false;
             State.EngMission = ResponseParser.Clip(mission, 200);
+            EngNoteMission(ut);
             return EngSend("Plan this mission: " + State.EngMission + ". Go through the delta-v budget leg by leg and say which stage does what.", ut);
         }
 
@@ -430,6 +439,7 @@ namespace KerbalNews
         public void EngRecord(EngSnapshot s, double ut)
         {
             if (s == null || s.VesselId == "") return;
+            try { EngTrackFlight(s, ut); } catch (Exception e) { LastError = "Flight tracking: " + e.Message; }
             List<string> l;
             if (!engTrack.TryGetValue(s.VesselId, out l)) { l = new List<string>(); engTrack[s.VesselId] = l; if (engTrack.Count > 20) engTrack.Remove(engTrack.Keys.First(k => k != s.VesselId)); }
             var cur = s.Stages.OrderByDescending(x => x.Stage).FirstOrDefault();
@@ -515,6 +525,7 @@ namespace KerbalNews
                 inc.Fixes = ResponseParser.Clip(Json.Str(root, "fixes", "").Trim(), 1200);
                 inc.PublicSummary = ResponseParser.Clip(Json.Str(root, "public_summary", "").Trim(), 800);
                 inc.Status = "done";
+                EngRemember("investigation", inc.VesselName, "Investigation of " + (inc.VesselName != "" ? inc.VesselName : "a craft") + ": " + inc.Cause + (inc.Fixes != "" ? " Next time: " + ResponseParser.Clip(inc.Fixes, 300) : ""), ut);
                 RaiseCommunity();
             });
             return true;

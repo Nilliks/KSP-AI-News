@@ -152,6 +152,7 @@ namespace KerbalNews.KSP
             object staging = Get(m, "stagingEnabled");
             c.Staged = StagedKinds.Contains(kind) && (!(staging is bool) || (bool)staging);
             Handler(m, c);
+            try { Groups(m, c); } catch { }
 
             switch (kind)
             {
@@ -291,6 +292,24 @@ namespace KerbalNews.KSP
         }
 
         /// <summary>The resources a module declares it uses and makes (the game's own resource handler), per second.</summary>
+        /// <summary>Which of the module's actions sit on an action group ("Toggle Panels>Custom01"), and how many actions it has.</summary>
+        static void Groups(PartModule m, CraftModule c)
+        {
+            var acts = Get(m, "Actions") as IEnumerable;
+            if (acts == null) return;
+            int n = 0; var on = new List<string>();
+            foreach (var a in acts)
+            {
+                if (a == null) continue;
+                n++;
+                object g = Get(a, "actionGroup");
+                string name = g == null ? "" : g.ToString();
+                if (name != "" && name != "None" && name != "0") on.Add(Clean(Str(a, "guiName")) + ">" + name.Replace(", ", "+"));
+            }
+            c.Num["actions"] = n;
+            if (on.Count > 0) c.Txt["groups"] = string.Join("; ", on.ToArray());
+        }
+
         static void Handler(PartModule m, CraftModule c)
         {
             object h = Get(m, "resHandler");

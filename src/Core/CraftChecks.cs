@@ -190,8 +190,8 @@ namespace KerbalNews
         /// <summary>Share of a parachute's drag-cube area that turns into drag (the game's own drag multipliers).</summary>
         public const double ChuteK = 0.8;
 
-        static double Density(EngBody b) { return b == null ? 0 : b.AtmoDensity > 0 ? b.AtmoDensity : b.AtmoPressure * 1.225; }
-        static double Grav(EngBody b) { return b.Gravity > 0 ? b.Gravity : b.Mu / (b.Radius * b.Radius); }
+        internal static double Density(EngBody b) { return b == null ? 0 : b.AtmoDensity > 0 ? b.AtmoDensity : b.AtmoPressure * 1.225; }
+        internal static double Grav(EngBody b) { return b.Gravity > 0 ? b.Gravity : b.Mu / (b.Radius * b.Radius); }
 
         /// <summary>Speed the craft settles at under its parachutes at the surface, m/s.</summary>
         public static double ChuteSpeed(double tonnes, double area, EngBody b)
@@ -335,14 +335,14 @@ namespace KerbalNews
 
         // ---------------------------------------------------------------- balance
 
-        static double[] Pos(CraftPart p) { return new[] { p.X, p.Y, p.Z }; }
-        static double[] Sub(double[] a, double[] b) { return new[] { a[0] - b[0], a[1] - b[1], a[2] - b[2] }; }
-        static double Dot(double[] a, double[] b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+        internal static double[] Pos(CraftPart p) { return new[] { p.X, p.Y, p.Z }; }
+        internal static double[] Sub(double[] a, double[] b) { return new[] { a[0] - b[0], a[1] - b[1], a[2] - b[2] }; }
+        internal static double Dot(double[] a, double[] b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
         static double[] Cross(double[] a, double[] b) { return new[] { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] }; }
-        static double Len(double[] a) { return Math.Sqrt(Dot(a, a)); }
-        static double Perp(double[] a, double[] axis) { double along = Dot(a, axis); return Math.Sqrt(Math.Max(0, Dot(a, a) - along * along)); }
+        internal static double Len(double[] a) { return Math.Sqrt(Dot(a, a)); }
+        internal static double Perp(double[] a, double[] axis) { double along = Dot(a, axis); return Math.Sqrt(Math.Max(0, Dot(a, a) - along * along)); }
 
-        static double[] Centre(IEnumerable<CraftPart> parts, bool dryOnly)
+        internal static double[] Centre(IEnumerable<CraftPart> parts, bool dryOnly)
         {
             double m = 0; var c = new double[3];
             foreach (var p in parts)
@@ -355,7 +355,7 @@ namespace KerbalNews
         }
 
         /// <summary>The way the craft points when it flies: opposite to the exhaust of the first engines to fire.</summary>
-        static double[] Axis(CraftSheet sheet)
+        internal static double[] Axis(CraftSheet sheet)
         {
             var engines = sheet.Parts.Where(p => p.Of("engine").Any(m => m.N("aimed") > 0)).ToList();
             if (engines.Count > 0)

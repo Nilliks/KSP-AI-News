@@ -39,6 +39,11 @@ namespace KerbalNews.KSP
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
             Engine.EngineeringCatalog = EngineeringExtras.Catalog;
+            Engine.EngineeringLocked = EngineeringExtras.Locked;
+            Engine.EngineeringRelays = EngineeringExtras.Relays;
+            Engine.EngineeringScience = EngineeringExtras.SciencePoints;
+            Engine.EngineeringSaved = EngineeringExtras.Saved;
+            Engine.EngineeringLoadSaved = EngineeringExtras.LoadSaved;
             KerbalNews.Web.Sites.EngClock = () => Time.realtimeSinceStartup;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
             Engine.SuppressEvent = e => e != null && e.VesselId != "" && ModCompat.VesselMoverBusy(e.VesselId);

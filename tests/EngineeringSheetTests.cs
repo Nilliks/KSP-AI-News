@@ -216,7 +216,14 @@ public static class EngineeringSheetTests
         sites.Now = () => 100000;
         string page = sites.Render("engineering.kb").Html;
         Assert(page.Contains("action:eng-ask/Duna") && page.Contains("Where is it landing?"), "quick-answer buttons show under the question");
-        Assert(page.Contains("live from the builder") && page.Contains("action:eng-tab/power") && page.Contains("action:eng-pick/dest/Duna"), "live note, tabs and the mission picker are on the page");
+        Assert(page.Contains("live from the builder") && page.Contains("action:eng-menu/tabs:Checks") && page.Contains("action:eng-menu/dest") && !page.Contains("action:eng-pick/dest/Duna"), "live note, and the tabs and mission picker as closed drop-downs");
+        sites.Handle("action:eng-menu/dest", null);
+        Assert(sites.Render("engineering.kb").Html.Contains("action:eng-pick/dest/Duna"), "the Go to drop-down opens to the list of worlds");
+        sites.Handle("action:eng-menu/tabs:Checks", null);
+        page = sites.Render("engineering.kb").Html;
+        Assert(page.Contains("action:eng-tab/power") && page.Contains("action:eng-tab/crew") && !page.Contains("action:eng-pick/dest/Duna"), "one drop-down is open at a time, and Checks lists its tabs");
+        sites.Handle("action:eng-menu/tabs:Checks", null);
+        Assert(sites.EngMenu == "", "clicking an open drop-down closes it");
 
         reply = "{\"replies\":[{\"who\":\"linus\",\"text\":\"On Duna the chutes alone will not stop it.\"}]}";
         sites.Handle("action:eng-ask/Duna", null);

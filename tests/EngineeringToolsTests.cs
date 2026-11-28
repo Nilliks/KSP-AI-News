@@ -9,19 +9,19 @@ public static class EngineeringToolsTests
 {
     static void Assert(bool c, string m) { if (!c) throw new Exception("Assertion failed: " + m); }
 
-    static CraftPart Part(string name, string title, double mass, double cost, string mod = "stock")
+    public static CraftPart Part(string name, string title, double mass, double cost, string mod = "stock")
     {
         return new CraftPart { Name = name, Title = title, Mod = mod, DryMass = mass, Cost = cost, HasPos = true, CrashTol = 12, Parent = 0, Bulkhead = "size1, srf" };
     }
-    static CraftModule Engine(double thrust, double ispVac, double ispAsl, string props = "LiquidFuel, Oxidizer")
+    public static CraftModule Engine(double thrust, double ispVac, double ispAsl, string props = "LiquidFuel, Oxidizer")
     {
         var m = new CraftModule { Name = "ModuleEngines", Kind = "engine", Staged = true };
         m.Num["thrust"] = thrust; m.Num["ispVac"] = ispVac; m.Num["ispAsl"] = ispAsl; m.Txt["props"] = props;
         return m;
     }
-    static CraftModule Solar(double rate) { var m = new CraftModule { Name = "ModuleDeployableSolarPanel", Kind = "solar" }; m.Num["rate"] = rate; return m; }
+    public static CraftModule Solar(double rate) { var m = new CraftModule { Name = "ModuleDeployableSolarPanel", Kind = "solar" }; m.Num["rate"] = rate; return m; }
 
-    static List<EngBody> Bodies()
+    public static List<EngBody> Bodies()
     {
         var sun = new EngBody { Name = "Sun", Mu = 1.1723328e18, Radius = 261600000, IsStar = true, HasSurface = false };
         var kerbin = new EngBody { Name = "Kerbin", Parent = "Sun", Mu = 3.5316e12, Radius = 600000, Gravity = 9.81, AtmoDepth = 70000, AtmoPressure = 1, AtmoDensity = 1.225, Sma = 13599840256, IsHome = true, SunDistance = 13599840256 };
@@ -30,7 +30,7 @@ public static class EngineeringToolsTests
         return new List<EngBody> { sun, kerbin, mun, duna };
     }
 
-    static EngSnapshot Craft()
+    public static EngSnapshot Craft()
     {
         var s = new CraftSheet();
         var core = Part("probeCoreOcto", "Probodobodyne OKTO", 0.1, 450); core.Parent = -1;

@@ -40,14 +40,27 @@ namespace KerbalNews.Web
             new[] { "problems", "All problems" },
             new[] { "gonogo", "Go / no-go" }, new[] { "flight", "In flight" }, new[] { "windows", "Windows" }, new[] { "contracts", "Contracts" }, new[] { "science", "Science" },
             new[] { "efficiency", "Efficiency" }, new[] { "swaps", "Part swaps" }, new[] { "compare", "Compare" },
+            new[] { "needs", "What it needs" }, new[] { "timeline", "Timeline" }, new[] { "ascent", "Ascent" }, new[] { "aerobrake", "Aerobraking" }, new[] { "relays", "Relays" },
+            new[] { "mining", "Mining" }, new[] { "docking", "Docking" }, new[] { "plane", "Plane" }, new[] { "rover", "Rover" }, new[] { "setup", "Setup" }, new[] { "reliability", "Reliability" },
+            new[] { "tech", "Tech advice" }, new[] { "launcher", "Launcher" }, new[] { "predicted", "Predicted vs actual" },
+            new[] { "meeting", "Meeting" }, new[] { "notes", "Team notes" }, new[] { "saved", "Saved craft" },
         };
+        /// <summary>Tabs that work with no craft open.</summary>
+        static readonly string[] NoCraftTabs = { "overview", "needs", "timeline", "relays", "predicted", "meeting", "notes", "saved" };
+        /// <summary>Tabs with their own layout, so they are always offered when there is a craft.</summary>
+        static readonly string[] OwnTabs = { "overview", "parts", "stages", "problems", "power", "compare", "swaps", "tech", "meeting", "notes", "saved" };
+        /// <summary>Which drop-down is open ("" = none): a tab group ("tabs:Checks") or a mission choice ("dest", "goal", "trip", "margin", "level").</summary>
+        public string EngMenu = "";
+        public string EngMeetView = "", EngNotesFilter = "all", EngNoteEdit = "";
+        public int EngMeetLen = 10;
         /// <summary>The tabs in rows by what they are for.</summary>
         static readonly string[][] EngTabGroups =
         {
             new[] { "Craft", "overview", "parts", "stages", "problems" },
-            new[] { "Checks", "power", "heat", "comms", "landing", "balance", "launch", "crew", "cost" },
-            new[] { "Mission", "gonogo", "flight", "windows", "contracts", "science" },
-            new[] { "Improve", "efficiency", "swaps", "compare" },
+            new[] { "Checks", "power", "heat", "comms", "landing", "balance", "launch", "crew", "cost", "setup", "reliability" },
+            new[] { "Mission", "needs", "timeline", "gonogo", "flight", "windows", "ascent", "aerobrake", "relays", "contracts", "science", "mining", "docking", "plane", "rover" },
+            new[] { "Improve", "efficiency", "swaps", "tech", "launcher", "compare", "predicted" },
+            new[] { "Team", "meeting", "notes", "saved" },
         };
         /// <summary>The saved version the Compare tab is set against ("" = the latest of this craft).</summary>
         public string EngCompareId = "";
@@ -82,19 +95,47 @@ namespace KerbalNews.Web
             m["hasPicker"] = dests.Count > 0;
             m["dests"] = dests;
             string goal = flyby ? "flyby" : land ? "land" : "orbit";
-            m["goals"] = new[] { new[] { "flyby", "Flyby" }, new[] { "orbit", "Orbit" }, new[] { "land", "Land" } }
+            var goals = new[] { new[] { "flyby", "Flyby" }, new[] { "orbit", "Orbit" }, new[] { "land", "Land" } }
                 .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && goal == g[0] }, { "url", "action:eng-pick/goal/" + g[0] } }).ToList();
-            m["trips"] = new[] { new[] { "oneway", "One-way" }, new[] { "return", "Return" } }
+            var trips = new[] { new[] { "oneway", "One-way" }, new[] { "return", "Return" } }
                 .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && ret == (g[0] == "return") }, { "url", "action:eng-pick/trip/" + g[0] } }).ToList();
-            m["margins"] = new[] { 5, 10, 20, 30 }
+            var margins = new[] { 5, 10, 20, 30 }
                 .Select(g => (object)new Dictionary<string, object> { { "name", g + "%" }, { "on", State.EngMargin == g }, { "url", "action:eng-margin/" + g } }).ToList();
+            var levels = new[] { new[] { "short", "Short" }, new[] { "normal", "Normal" }, new[] { "teach", "Teach me" } }
+                .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", State.EngLevel == g[0] }, { "url", "action:eng-level/" + g[0] } }).ToList();
+            // One row of drop-downs; the open one lists its choices underneath.
+            Func<string, string, string, object> menu = (key, label, value) => new Dictionary<string, object> { { "label", label + (value != "" ? ": " + value : "") }, { "open", EngMenu == key }, { "url", "action:eng-menu/" + key } };
+            var menus = new List<object>();
+            if (dests.Count > 0)
+            {
+                menus.Add(menu("dest", "Go to", body != null ? body.Name : "choose"));
+                menus.Add(menu("goal", "Do", body != null ? (goal == "flyby" ? "Flyby" : goal == "land" ? "Land" : "Orbit") : ""));
+                menus.Add(menu("trip", "Trip", body != null ? (ret ? "Return" : "One-way") : ""));
+                menus.Add(menu("margin", "Margin", State.EngMargin + "%"));
+            }
+            menus.Add(menu("level", "Answers", State.EngLevel == "short" ? "Short" : State.EngLevel == "teach" ? "Teach me" : "Normal"));
+            m["pickMenus"] = menus;
+            // The destination list, a line for each planet with its moons after it.
+            var destRows = new List<object>();
+            if (EngMenu == "dest" && s != null && s.Home != null)
+            {
+                var home = s.Home;
+                Func<EngBody, object> chip = b2 => new Dictionary<string, object> { { "name", b2.Name }, { "on", body != null && body.Name == b2.Name }, { "url", "action:eng-pick/dest/" + Uri.EscapeDataString(b2.Name) } };
+                var moons = s.Bodies.Where(b2 => b2.Parent == home.Name).OrderBy(b2 => b2.Sma).ToList();
+                if (moons.Count > 0) destRows.Add(new Dictionary<string, object> { { "head", "Near " + home.Name }, { "items", moons.Select(chip).ToList() } });
+                foreach (var planet in s.Bodies.Where(b2 => !b2.IsStar && b2.Parent == home.Parent && b2.Name != home.Name).OrderBy(b2 => b2.Sma))
+                    destRows.Add(new Dictionary<string, object> { { "head", "" }, { "items", new[] { planet }.Concat(s.Bodies.Where(b2 => b2.Parent == planet.Name).OrderBy(b2 => b2.Sma)).Select(chip).ToList() } });
+            }
+            m["destRows"] = destRows;
+            m["pickOpen"] = EngMenu == "dest" || EngMenu == "goal" || EngMenu == "trip" || EngMenu == "margin" || EngMenu == "level";
+            m["pickItems"] = EngMenu == "goal" ? goals : EngMenu == "trip" ? trips : EngMenu == "margin" ? margins : EngMenu == "level" ? levels : new List<object>();
         }
 
         /// <summary>Changes one choice of the mission picker and rewrites the mission text. No AI call.</summary>
         public void EngPick(string what, string value)
         {
             EngSnapshot s = null;
-            try { s = Engine.EngineeringData(); } catch { }
+            try { s = Engine.EngLook(); } catch { }
             string t = " " + (State.EngMission ?? "").ToLowerInvariant() + " ";
             var body = EngMissions.FindBody(t, s);
             string dest = body != null ? body.Name : "";
@@ -112,7 +153,7 @@ namespace KerbalNews.Web
             var sheet = s != null ? s.Sheet : null;
             bool has = sheet != null && sheet.Parts.Count > 0;
             m["hasSheet"] = has;
-            if (!has && EngTab != "overview") EngTab = "overview";
+            if (!has && !NoCraftTabs.Contains(EngTab)) EngTab = "overview";
             var power = has ? Engine.EngPower(s, plan) : null;
             var staging = has ? sheet.StagingIssues(s.Stages) : new List<string>();
             int powerBad = power != null ? power.Problems : 0, stagingBad = staging.Count(x => x.StartsWith("!"));
@@ -121,6 +162,7 @@ namespace KerbalNews.Web
             int checksBad = checks.Sum(x => x.Problems);
             // The parts catalogue is slow to read the first time, so only the tabs that need it ask for it.
             var tools = has ? Engine.EngToolReports(s, plan, checks, EngTab == "swaps" || EngTab == "efficiency", EngCompareId) : new List<CheckReport>();
+            tools.AddRange(Engine.EngMissionReports(s, plan, checks, EngTab == "tech"));
             bool flyingNow = s != null && (s.Scene == "flight" || s.Scene == "map");
             if (EngTab == "flight" && !flyingNow) EngTab = "overview";
             Func<string[], object> tabOf = t =>
@@ -132,14 +174,26 @@ namespace KerbalNews.Web
                     { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad + checksBad : ck != null && t[0] != "compare" && t[0] != "contracts" ? ck.Problems : 0 },
                 };
             };
-            m["tabGroups"] = EngTabGroups.Select(g => (object)new Dictionary<string, object>
+            // Each group is one drop-down: the bar shows the groups, and the open one lists its tabs underneath.
+            Func<string, bool> offered = k => (has || NoCraftTabs.Contains(k)) && (OwnTabs.Contains(k) && (has || NoCraftTabs.Contains(k)) || checks.Any(x => x.Key == k) || tools.Any(x => x.Key == k));
+            if (!offered(EngTab)) EngTab = "overview";
+            var groups = EngTabGroups.Select(g => new { name = g[0], keys = g.Skip(1).Where(offered).ToList() }).Where(g => g.keys.Count > 0).ToList();
+            m["tabGroups"] = groups.Select(g =>
             {
-                { "name", g[0] },
-                { "tabs", g.Skip(1).Where(k => k != "flight" || flyingNow).Select(k => tabOf(EngTabs.First(t => t[0] == k))).ToList() },
+                var tabs = g.keys.Select(k => (Dictionary<string, object>)tabOf(EngTabs.First(t => t[0] == k))).ToList();
+                var cur = tabs.FirstOrDefault(t => (bool)t["on"]);
+                return (object)new Dictionary<string, object>
+                {
+                    { "name", g.name }, { "label", cur != null ? g.name + ": " + cur["label"] : g.name }, { "on", cur != null }, { "open", EngMenu == "tabs:" + g.name },
+                    { "count", tabs.Sum(t => (int)t["count"]) }, { "url", "action:eng-menu/tabs:" + g.name },
+                };
             }).ToList();
+            var openGroup = groups.FirstOrDefault(g => EngMenu == "tabs:" + g.name);
+            m["tabMenu"] = openGroup == null ? new List<object>() : openGroup.keys.Select(k => tabOf(EngTabs.First(t => t[0] == k))).ToList();
+            m["hasTabMenu"] = openGroup != null;
             foreach (var t in EngTabs) m["tab_" + t[0]] = EngTab == t[0];
             var shown = checks.FirstOrDefault(x => x.Key == EngTab) ?? tools.FirstOrDefault(x => x.Key == EngTab);
-            if (EngTab == "swaps" && shown == null) shown = new CheckReport { Title = "Part swaps", Rating = "no craft" };
+            if ((EngTab == "swaps" || EngTab == "tech") && shown == null) shown = new CheckReport { Title = EngTab == "tech" ? "Tech advice" : "Part swaps", Rating = "no craft" };
             m["snaps"] = State.EngSnaps.AsEnumerable().Reverse().Take(12).Select(x => (object)new Dictionary<string, object>
             {
                 { "name", x.Name }, { "meta", EngMath.N(x.Mass, "0.0") + " t · " + EngMath.N(x.Dv) + " m/s · " + x.Parts + " parts · " + Date(x.UT) },
@@ -152,6 +206,7 @@ namespace KerbalNews.Web
                 m["ckTitle"] = shown.Title; m["ckRating"] = shown.Rating; m["ckBad"] = shown.Bad; m["ckNote"] = shown.Note;
                 m["ckLines"] = shown.Lines.Select(Line).ToList(); m["ckFixes"] = shown.Fixes.Select(Line).ToList(); m["hasCkFixes"] = shown.Fixes.Count > 0;
             }
+            TeamModel(m, s);
             if (!has) return;
             // The scorecard: every check with its verdict, one click from its tab.
             var score = new List<object>();
@@ -219,6 +274,87 @@ namespace KerbalNews.Web
             m["allProblems"] = all;
         }
 
+        /// <summary>The meeting, team notes and saved craft pages.</summary>
+        void TeamModel(Dictionary<string, object> m, EngSnapshot s)
+        {
+            m["reviewing"] = Engine.EngPinned != null;
+            m["reviewName"] = Engine.EngPinned != null ? Engine.EngPinned.Vessel : "";
+            m["dvEstimated"] = s != null && s.DvEstimated;
+            if (EngTab == "saved")
+            {
+                List<string[]> saved = null;
+                try { saved = Engine.EngineeringSaved(); } catch { }
+                saved = saved ?? new List<string[]>();
+                m["savedList"] = saved.Take(80).Select((x, i) => (object)new Dictionary<string, object> { { "name", x[0] }, { "where", x.Length > 1 ? x[1] : "" }, { "url", "action:eng-saved/" + i } }).ToList();
+                m["hasSaved"] = saved.Count > 0;
+            }
+            if (EngTab == "notes")
+            {
+                string craft = s != null ? s.Vessel : "";
+                IEnumerable<EngNote> list = State.EngNotes;
+                switch (EngNotesFilter)
+                {
+                    case "pinned": list = list.Where(n => n.Pinned); break;
+                    case "craft": list = list.Where(n => craft != "" && n.Craft == craft); break;
+                    case "all": break;
+                    default: list = list.Where(n => n.Kind == EngNotesFilter); break;
+                }
+                var filters = new List<string[]> { new[] { "all", "All" }, new[] { "pinned", "Pinned" }, new[] { "preference", "Your preferences" } };
+                if (craft != "") filters.Add(new[] { "craft", craft });
+                foreach (var k in new[] { "meeting", "qa", "review", "plan", "flight", "snapshot", "investigation", "note" }) if (State.EngNotes.Any(n => n.Kind == k)) filters.Add(new[] { k, char.ToUpperInvariant(NewsEngine.KindLabel(k)[0]) + NewsEngine.KindLabel(k).Substring(1) });
+                m["noteFilters"] = filters.Select(f => (object)new Dictionary<string, object> { { "name", f[1] }, { "on", EngNotesFilter == f[0] }, { "url", "action:eng-notes/" + Uri.EscapeDataString(f[0]) } }).ToList();
+                var shownNotes = list.Reverse().Take(80).ToList();
+                m["notes"] = shownNotes.Select(n => (object)new Dictionary<string, object>
+                {
+                    { "id", n.Id }, { "meta", Date(n.UT) + " · " + NewsEngine.KindLabel(n.Kind) + (n.Craft != "" ? " · " + n.Craft : "") }, { "text", n.Text }, { "pinned", n.Pinned },
+                    { "editing", EngNoteEdit == n.Id }, { "pin", "action:eng-note-pin/" + n.Id }, { "del", "action:eng-note-del/" + n.Id }, { "edit", "action:eng-note-edit/" + n.Id },
+                }).ToList();
+                m["noteCount"] = State.EngNotes.Count;
+                m["noNotes"] = shownNotes.Count == 0;
+            }
+            if (EngTab == "meeting")
+            {
+                var now = Engine.EngMeetingNow;
+                var view = EngMeetView == "new" && now == null ? null : now ?? State.EngMeetings.FirstOrDefault(x => x.Id == EngMeetView) ?? (EngMeetView == "new" ? null : State.EngMeetings.LastOrDefault());
+                m["mtForm"] = now == null;
+                m["mtOffline"] = !Engine.Settings.CanCallAi;
+                m["mtLen"] = EngMeetLen;
+                m["mtLens"] = new[] { 1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 75, 100 }.Select(n => (object)new Dictionary<string, object> { { "n", n }, { "on", n <= EngMeetLen }, { "at", n == EngMeetLen }, { "url", "action:eng-meet-len/" + n } }).ToList();
+                int ag, pr, tk, vt; NewsEngine.MeetingPlan(EngMeetLen, out ag, out pr, out tk, out vt);
+                m["mtShape"] = (ag > 0 ? "an agenda, " : "") + (pr == 5 ? "each specialist prepares a position, " : pr == 1 ? "opening positions, " : "") + (tk > 0 ? tk + " turn" + (tk == 1 ? "" : "s") + " of discussion, " : "") + (vt > 0 ? "a vote, " : "") + "then the minutes";
+                m["mtFollow"] = view != null && now == null && view.Status != "running";
+                m["mtPast"] = State.EngMeetings.AsEnumerable().Reverse().Take(12).Select(x => (object)new Dictionary<string, object> { { "title", x.Objective }, { "meta", Date(x.UT) + (x.Craft != "" ? " · " + x.Craft : "") + " · " + x.Used + " call" + (x.Used == 1 ? "" : "s") }, { "on", view == x }, { "url", "action:eng-meet-view/" + x.Id } }).ToList();
+                m["hasMtPast"] = State.EngMeetings.Count > 0;
+                m["mtHas"] = view != null;
+                if (view != null)
+                {
+                    string who; string next = NewsEngine.MeetingNext(view, out who);
+                    m["mtId"] = view.Id; m["mtObjective"] = view.Objective;
+                    m["mtRunning"] = view.Status == "running"; m["mtWaiting"] = view.Status == "waiting"; m["mtDone"] = view.Status == "done"; m["mtStopped"] = view.Status == "stopped";
+                    m["mtLive"] = view.Status == "running" || view.Status == "waiting";
+                    m["mtStatus"] = view.Status == "running" ? "Call " + (view.Used + 1) + " of " + view.Budget + ": " + (next == "minutes" ? "Gene is writing the minutes" : next == "agenda" ? "Gene is setting the agenda" : next == "prep" || next == "prep-all" ? "the specialists are preparing" : next == "vote" ? NewsEngine.EngShort(who) + " is voting" : NewsEngine.EngShort(who) + " is speaking") + "..."
+                        : view.Status == "waiting" ? "Waiting for your decision (" + view.Used + " of " + view.Budget + " calls used)" : view.Status == "done" ? "Finished, " + view.Used + " of " + view.Budget + " calls used" : "Stopped after " + view.Used + " calls";
+                    m["mtAgenda"] = view.Agenda.Cast<object>().ToList(); m["hasMtAgenda"] = view.Agenda.Count > 0;
+                    m["mtTurns"] = view.Turns.Select(t => (object)new Dictionary<string, object>
+                    {
+                        { "who", t.Kind == "test" ? "Tested live" : t.Who == "director" ? "You" : NewsEngine.EngName(t.Who) }, { "tag", t.Kind == "position" ? "opening position" : t.Kind == "vote" ? "vote" : "" },
+                        { "text", t.Text }, { "test", t.Kind == "test" }, { "you", t.Who == "director" },
+                    }).ToList();
+                    m["mtQuestion"] = view.Question; m["mtA"] = view.OptionA; m["mtB"] = view.OptionB;
+                    m["mtMinutes"] = view.Minutes.Split('\n').Where(l => l.Trim() != "").Cast<object>().ToList();
+                    m["mtDecisions"] = view.Decisions.Cast<object>().ToList(); m["hasMtDecisions"] = view.Decisions.Count > 0;
+                    m["mtOpen"] = view.Open.Cast<object>().ToList(); m["hasMtOpen"] = view.Open.Count > 0;
+                    m["mtActions"] = view.Actions.Select((a, i) =>
+                    {
+                        string al = a.ToLowerInvariant();
+                        string tab = NewsEngine.TabFor(al);
+                        return (object)new Dictionary<string, object> { { "text", a }, { "done", i < view.Done.Count && view.Done[i] }, { "url", "action:eng-meet-tick/" + view.Id + "/" + i }, { "show", tab != "" ? "action:eng-tab/" + tab : "" } };
+                    }).ToList();
+                    m["hasMtActions"] = view.Actions.Count > 0;
+                }
+            }
+        }
+
         /// <summary>Real time in seconds, for the "read N s ago" note. The KSP layer sets it; tests leave it at zero.</summary>
         public static Func<double> EngClock = () => 0;
 
@@ -227,7 +363,7 @@ namespace KerbalNews.Web
             var m = M();
             var g = Engine.Settings;
             EngSnapshot s = null;
-            try { s = Engine.EngineeringData(); } catch { }
+            try { s = Engine.EngLook(); } catch { }
             m["on"] = g.EngineeringOn;
             m["off"] = !g.EngineeringOn;
             m["offline"] = !g.CanCallAi;
@@ -317,7 +453,7 @@ namespace KerbalNews.Web
                 : "In the VAB and SPH the team sees the craft being built. In flight they see your orbit, target and stages.";
             var recent = State.EngChat.Skip(Math.Max(0, State.EngChat.Count - 14)).ToList();
             var lastSpoke = new HashSet<string>(State.EngChat.AsEnumerable().Reverse().TakeWhile(x => x.Role != "player").Select(x => x.Role));
-            m["team"] = NewsEngine.EngTeam.Select(k => (object)new Dictionary<string, object> { { "name", NewsEngine.EngName(k) }, { "spoke", lastSpoke.Contains(k) } }).ToList();
+            m["team"] = NewsEngine.EngSpecialists.Select(k => (object)new Dictionary<string, object> { { "name", NewsEngine.EngShort(k) }, { "spoke", lastSpoke.Contains(k) } }).ToList();
             m["messages"] = recent.Select(x => (object)new Dictionary<string, object>
             {
                 { "player", x.Role == "player" }, { "who", NewsEngine.EngName(x.Role) },

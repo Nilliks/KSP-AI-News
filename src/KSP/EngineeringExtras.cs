@@ -181,5 +181,188 @@ namespace KerbalNews.KSP
             catalog = list; catalogKey = key;
             return list;
         }
+    
+        // ---- part 4: locked parts, science in hand, relays, saved craft ---------------------------------
+
+        static List<CraftPart> locked;
+        static string lockedKey = "";
+
+        /// <summary>Parts still locked in the tech tree, each with the node that unlocks it. Empty in sandbox.</summary>
+        public static List<CraftPart> Locked()
+        {
+            var loaded = PartLoader.LoadedPartsList;
+            var rnd = CraftReader.FindType("ResearchAndDevelopment");
+            if (loaded == null || HighLogic.CurrentGame == null || HighLogic.CurrentGame.Mode == Game.Modes.SANDBOX || CraftReader.Static(rnd, "Instance") == null) return new List<CraftPart>();
+            var open = new List<AvailablePart>();
+            foreach (var ap in loaded)
+            {
+                if (ap == null) continue;
+                object ok = CraftReader.Call(rnd, "PartModelPurchased", ap);
+                if (ok is bool && !(bool)ok) open.Add(ap);
+            }
+            string key = loaded.Count + "|" + open.Count;
+            if (locked != null && lockedKey == key) return locked;
+            // Node titles and costs come from the tech tree file the game loaded.
+            var nodes = new Dictionary<string, KeyValuePair<string, double>>();
+            try
+            {
+                var assets = CraftReader.Static(CraftReader.FindType("AssetBase"), "RnDTechTree");
+                var techs = CraftReader.Call(assets, "GetTreeTechs") as IEnumerable;
+                if (techs != null)
+                    foreach (var t in techs)
+                        nodes[CraftReader.Str(t, "techID")] = new KeyValuePair<string, double>(CraftReader.Clean(CraftReader.Str(t, "title")), CraftReader.Num(t, "scienceCost"));
+            }
+            catch { }
+            var list = new List<CraftPart>();
+            foreach (var ap in open)
+            {
+                string cat = CraftReader.Str(ap, "category");
+                if (cat == "none" || CraftReader.Str(ap, "TechHidden") == "True") continue;
+                var prefab = CraftReader.Get(ap, "partPrefab") as Part;
+                if (prefab == null || prefab.Modules == null) continue;
+                bool useful = false;
+                foreach (PartModule m in prefab.Modules) if (m != null && SwapKinds.Contains(CraftReader.KindOfType(m.GetType()))) { useful = true; break; }
+                if (!useful && prefab.Resources != null)
+                    foreach (PartResource r in prefab.Resources) if (r != null && r.resourceName == CraftSheet.EC && r.maxAmount >= 50) { useful = true; break; }
+                if (!useful) continue;
+                try
+                {
+                    var c = CraftReader.ReadLoose(prefab);
+                    if (c == null) continue;
+                    c.Tech = CraftReader.Str(ap, "TechRequired");
+                    KeyValuePair<string, double> node;
+                    if (nodes.TryGetValue(c.Tech, out node)) { c.TechTitle = node.Key; c.TechCost = node.Value; }
+                    if (c.Tech != "") list.Add(c);
+                }
+                catch { }
+            }
+            locked = list; lockedKey = key;
+            return list;
+        }
+
+        public static double SciencePoints()
+        {
+            var rnd = CraftReader.Static(CraftReader.FindType("ResearchAndDevelopment"), "Instance");
+            return rnd == null ? -1 : CraftReader.Num(rnd, "Science", -1);
+        }
+
+        static List<EngRelay> relays;
+        static float relaysAt;
+
+        /// <summary>Craft already flying that carry relay antennas, with their combined relay power.</summary>
+        public static List<EngRelay> Relays()
+        {
+            // Going through every craft's parts is slow with a big fleet, and relays do not change by the second.
+            if (relays != null && Time.realtimeSinceStartup - relaysAt < 15f) return relays;
+            var list = new List<EngRelay>();
+            relays = list; relaysAt = Time.realtimeSinceStartup;
+            var vessels = FlightGlobals.Vessels;
+            if (vessels == null) return list;
+            foreach (var v in vessels)
+            {
+                if (v == null || v == FlightGlobals.ActiveVessel) continue;
+                string type = v.vesselType.ToString();
+                if (type == "Debris" || type == "SpaceObject" || type == "EVA" || type == "Flag" || type == "Unknown") continue;
+                var pv = CraftReader.Get(v, "protoVessel");
+                var parts = CraftReader.Get(pv, "protoPartSnapshots") as IEnumerable;
+                if (parts == null) continue;
+                var mods = new List<CraftModule>();
+                foreach (var pp in parts)
+                {
+                    var prefab = CraftReader.Get(CraftReader.Get(pp, "partInfo"), "partPrefab") as Part;
+                    if (prefab == null || prefab.Modules == null) continue;
+                    foreach (PartModule m in prefab.Modules)
+                    {
+                        if (m == null || CraftReader.KindOfType(m.GetType()) != "antenna") continue;
+                        object at = CraftReader.Get(m, "antennaType");
+                        if (at == null || at.ToString() != "RELAY") continue;
+                        var cm = new CraftModule { Name = m.GetType().Name, Kind = "antenna" };
+                        cm.Num["power"] = CraftReader.Num(m, "antennaPower");
+                        if (CraftReader.Bool(m, "antennaCombinable")) { cm.Num["combinable"] = 1; cm.Num["exponent"] = CraftReader.Num(m, "antennaCombinableExponent", 0.75); }
+                        mods.Add(cm);
+                    }
+                }
+                if (mods.Count == 0) continue;
+                var body = CraftReader.Get(v, "mainBody") as CelestialBody;
+                list.Add(new EngRelay { Name = Names.Of(v.vesselName), Body = body != null ? body.bodyName : "", Power = CraftChecks.Combine(mods), Altitude = CraftReader.Num(v, "altitude") });
+                if (list.Count >= 40) break;
+            }
+            return list;
+        }
+
+        /// <summary>Saved craft files of this save: {name, building, path}, newest first.</summary>
+        public static List<string[]> Saved()
+        {
+            var list = new List<KeyValuePair<DateTime, string[]>>();
+            string root = System.IO.Path.Combine(System.IO.Path.Combine(System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "saves"), HighLogic.SaveFolder ?? ""), "Ships");
+            foreach (string where in new[] { "VAB", "SPH" })
+            {
+                string dir = System.IO.Path.Combine(root, where);
+                if (!System.IO.Directory.Exists(dir)) continue;
+                foreach (string file in System.IO.Directory.GetFiles(dir, "*.craft"))
+                    list.Add(new KeyValuePair<DateTime, string[]>(System.IO.File.GetLastWriteTimeUtc(file), new[] { System.IO.Path.GetFileNameWithoutExtension(file), where, file }));
+            }
+            return list.OrderByDescending(x => x.Key).Select(x => x.Value).ToList();
+        }
+
+        static double V(string[] a, int i) { double d; return a != null && i < a.Length && double.TryParse(a[i].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out d) ? d : 0; }
+
+        /// <summary>Reads a saved craft file into a craft sheet: each part from its stock definition, with the file's staging,
+        /// resources, positions and joins. Changes a mod makes to a part after it is placed (resizing, fuel switching) are not in it.</summary>
+        public static EngSnapshot LoadSaved(string path)
+        {
+            var node = ConfigNode.Load(path);
+            if (node == null) return null;
+            var sheet = new CraftSheet { BuiltAt = Time.realtimeSinceStartup };
+            var ids = new Dictionary<string, int>();
+            var links = new List<KeyValuePair<int, string>>();
+            var loader = CraftReader.FindType("PartLoader");
+            var lib = CraftReader.Static(CraftReader.FindType("PartResourceLibrary"), "Instance");
+            int unknown = 0;
+            foreach (var pn in node.GetNodes("PART"))
+            {
+                string id = pn.GetValue("part") ?? "";
+                int cut = id.LastIndexOf('_');
+                string name = cut > 0 ? id.Substring(0, cut) : id;
+                var ap = CraftReader.Call(loader, "getPartInfoByName", name) as AvailablePart;
+                var prefab = ap != null ? CraftReader.Get(ap, "partPrefab") as Part : null;
+                CraftPart c = null;
+                if (prefab != null) { try { c = CraftReader.ReadLoose(prefab); } catch { } }
+                if (c == null) { c = new CraftPart { Name = name, Title = name + " (part not installed)", Mod = "unknown" }; unknown++; }
+                int stage; if (int.TryParse(pn.GetValue("istg") ?? "-1", out stage)) c.Stage = stage;
+                var pos = (pn.GetValue("pos") ?? "").Split(',');
+                if (pos.Length == 3) { c.X = V(pos, 0); c.Y = V(pos, 1); c.Z = V(pos, 2); c.HasPos = true; }
+                c.Surface = !string.IsNullOrEmpty(pn.GetValue("srfN")) && !(pn.GetValue("srfN") ?? "").Contains("Null");
+                var res = pn.GetNodes("RESOURCE");
+                if (res.Length > 0)
+                {
+                    c.Res.Clear(); double mass = 0;
+                    foreach (var rn in res)
+                    {
+                        string rname = rn.GetValue("name") ?? "";
+                        double amount = V(new[] { rn.GetValue("amount") ?? "0" }, 0), max = V(new[] { rn.GetValue("maxAmount") ?? "0" }, 0);
+                        c.Res.Add(new CraftRes { Name = rname, Amount = amount, Max = max });
+                        mass += amount * CraftReader.Num(CraftReader.Call(lib, "GetDefinition", rname), "density");
+                    }
+                    c.ResMass = mass;
+                }
+                c.Parent = -1;
+                ids[id] = sheet.Parts.Count;
+                if (pn.values != null) foreach (var v in pn.values) if (v != null && v.name == "link") links.Add(new KeyValuePair<int, string>(sheet.Parts.Count, v.value));
+                sheet.Parts.Add(c);
+            }
+            if (sheet.Parts.Count == 0) return null;
+            foreach (var l in links) { int child; if (ids.TryGetValue(l.Value, out child) && child != l.Key) sheet.Parts[child].Parent = l.Key; }
+            sheet.Root = 0;
+            try { sheet.Prepare(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Saved craft tree: " + e.Message); }
+            bool sph = (node.GetValue("type") ?? "") == "SPH" || path.Replace('\\', '/').Contains("/SPH/");
+            try { CraftReader.Facts(sheet, null, sph); } catch { }
+            try { ModProbe.Fill(sheet); } catch { }
+            var s = new EngSnapshot { Scene = sph ? "sph" : "vab", Vessel = Names.Of(node.GetValue("ship") ?? System.IO.Path.GetFileNameWithoutExtension(path)), Sheet = sheet };
+            s.Situation = "a saved craft file" + (unknown > 0 ? ", " + unknown + " part" + (unknown == 1 ? "" : "s") + " not installed" : "");
+            s.Parts = sheet.Parts.Count; s.Mass = sheet.Parts.Where(p => !p.Has("clamp")).Sum(p => p.Mass); s.CrewCapacity = sheet.Parts.Sum(p => p.Crew);
+            try { var live = EngineeringCapture.Snapshot(); s.Bodies = live.Bodies; s.StockSystem = live.StockSystem; s.UT = live.UT; s.Phases = live.Phases; s.Contracts = live.Contracts; s.PartTitles = live.PartTitles; } catch { }
+            return s;
+        }
     }
 }

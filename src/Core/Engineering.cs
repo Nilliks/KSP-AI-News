@@ -81,6 +81,9 @@ namespace KerbalNews
         /// <summary>Titles of every part the game has loaded, to spot a part named in a contract.</summary>
         public List<string> PartTitles = new List<string>();
         public EngBody BodyNamed(string name) { return DvPlanner.Find(Bodies, name); }
+        /// <summary>True when the stage figures are the sheet's own estimate, not the game's readout.</summary>
+        public bool DvEstimated;
+        public EngSnapshot WithSheet(CraftSheet sheet) { var c = (EngSnapshot)MemberwiseClone(); c.Sheet = sheet; c.Stages = new List<EngStage>(Stages); return c; }
     }
 
     /// <summary>Plain orbital mechanics, so the team quotes computed numbers instead of guessing.</summary>
@@ -156,7 +159,7 @@ namespace KerbalNews
 
     public partial class NewsEngine
     {
-        public const int EngChatKeep = 60;
+        public const int EngChatKeep = 2000;
         /// <summary>The KSP layer fills this with what the team can see right now.</summary>
         public Func<EngSnapshot> EngineeringData = () => null;
         /// <summary>Every unlocked part that could stand in for one on a craft, from the KSP layer. Slow the first time, so only asked for when needed.</summary>
@@ -164,10 +167,10 @@ namespace KerbalNews
         public bool EngBusy;
         int engRun;
 
-        public static readonly string[] EngTeam = { "linus", "wernher", "gene" };
+        public static readonly string[] EngTeam = { "linus", "wernher", "gene", "maxwell", "irma", "mortimer" };
         public static string EngName(string key)
         {
-            switch (key) { case "linus": return "Linus, flight dynamics"; case "wernher": return "Wernher, propulsion and structures"; case "gene": return "Gene, mission planning"; default: return "Engineering"; }
+            switch (key) { case "linus": return "Linus, flight dynamics"; case "wernher": return "Wernher, propulsion and structures"; case "gene": return "Gene, mission planning"; case "maxwell": return "Maxwell, power and thermal"; case "irma": return "Irma, systems and crew"; case "mortimer": return "Mortimer, cost"; default: return "Engineering"; }
         }
 
         /// <summary>Numbers the team works from, computed here rather than by the model. Also shown on the page.</summary>
@@ -253,6 +256,9 @@ namespace KerbalNews
             sb.AppendLine("- linus: Linus, flight dynamics. Orbits, transfers, phase angles, rendezvous, landings, maneuver nodes, aerobraking.");
             sb.AppendLine("- wernher: Wernher, propulsion and structures. Engines, staging, TWR, Isp, fuel, mass, aerodynamics, wobble, part choice and craft design.");
             sb.AppendLine("- gene: Gene, mission planning. Whole-mission delta-v budgets, margins, contracts, crew safety, what to do next.");
+            sb.AppendLine("- maxwell: Maxwell, power and thermal. Generation, batteries, what draws power where, reactors, radiators, heat loops.");
+            sb.AppendLine("- irma: Irma, systems and crew. Comms and relays, life support, habitat, science gear, action groups, docking hardware.");
+            sb.AppendLine("- mortimer: Mortimer, cost. Price of the craft and its stages, what is oversized or could be cheaper, cost per tonne to orbit.");
             sb.AppendLine("Answer like real, friendly flight engineers: practical, concrete, step by step when asked how to do something, with numbers. Use the live data and the computed numbers you are given; do not invent craft data you were not given. If a number is missing, say what you would need (for example a target set, or staging set up). Explain orbital mechanics simply when the director seems new to it.");
             sb.AppendLine("You can see the whole craft. The CRAFT SHEET is the complete, live parts list read from the game: every part, which mod it is from, its stage, what it holds and what its modules do, including modded parts. Never say you cannot see the parts list. Modules you do not recognise are listed by their class name with their config values and resource rates: reason from those and from the mod's name. The POWER BUDGET, STAGING CHECK, COMPUTED CHECKS (heat, comms, landing, balance, launch, crew, cost) and DESIGN REVIEW are computed from that sheet: quote their numbers rather than redoing the sums, and point the director to the matching tab on the left when it helps. The MOD HANDBOOKS say how the mods on this craft behave and which of their features are switched on in this save: follow them, never advise about a mod feature that is off, and say so plainly when a modded part does something neither the handbooks nor its listed values explain. Judge in both directions: say when something is short, and also when the craft carries far more than the mission needs, with what trimming it would save.");
             sb.AppendLine("ASK BEFORE YOU GUESS. If the answer depends on something you were not told (where it is landing, where it is going, whether crew are aboard, whether it comes home, what will be running), do not assume: ask the director, at most two short questions, and offer likely answers as options. Only ask when the answer would change your advice. If the gap is minor, state the assumption in one clause and answer.");
@@ -260,7 +266,10 @@ namespace KerbalNews
             if (snap != null && snap.Bodies.Count > 0 && snap.Home != null) sb.AppendLine(DvPlanner.Table(snap.Bodies, snap.Home) + " These are worked out from the real bodies in this save, so they hold even if the system is rescaled or has extra planets. Add 10-20% margin.");
             else if (snap == null || snap.StockSystem) sb.AppendLine(StockDvMap);
             else sb.AppendLine("A planet pack or rescale is installed, so stock delta-v maps do not apply: work from the bodies' real numbers given in the data.");
-            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene\", \"text\": \"...\"}], \"ask\": {\"question\": \"...\", \"options\": [\"...\", \"...\"]}}. Leave \"ask\" out unless you need an answer from the director before you can advise; when you use it, the reply text should say what you need and why, and options are two to five short likely answers.");
+            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene|maxwell|irma|mortimer\", \"text\": \"...\"}], \"ask\": {\"question\": \"...\", \"options\": [\"...\", \"...\"]}}. Leave \"ask\" out unless you need an answer from the director before you can advise; when you use it, the reply text should say what you need and why, and options are two to five short likely answers.");
+            sb.AppendLine("TEAM MEMORY, when given, is what the team has on file from earlier: answers, decisions, meeting minutes, flight results and the director's stated preferences. Use it: do not ask again for something on file, keep to the director's preferences, and say \"as we found last time\" when you lean on it. If the director asks what was said or decided before, answer from it and say plainly when nothing is on file.");
+            string level = EngLevelText();
+            if (level != "") sb.AppendLine(level);
             var hints = EngModHints(Settings.Mods);
             if (hints.Count > 0) sb.AppendLine("MODS THAT CHANGE THE ADVICE (use them: suggest their tools and respect their rules):\n- " + string.Join("\n- ", hints.ToArray()));
             string mods = Settings.ModsInContext ? Settings.ModsText : "";
@@ -288,7 +297,7 @@ namespace KerbalNews
                 var checkList = EngChecks(snap, plan);
                 string ql = question.ToLowerInvariant();
                 bool wantSwaps = CheckWords["swaps"].Concat(CheckWords["efficiency"]).Any(w => ql.Contains(w)) || EverythingWords.Any(w => ql.Contains(w));
-                var tools = EngToolReports(snap, plan, checkList, wantSwaps);
+                var tools = EngToolReports(snap, plan, checkList, wantSwaps).Concat(EngMissionReports(snap, plan, checkList, CheckWords["tech"].Any(w => ql.Contains(w)))).ToList();
                 // Tools the question is not about stay off the prompt, apart from a no-go, a live warning in flight, and lessons.
                 var send = tools.Where(t =>
                 {
@@ -307,6 +316,8 @@ namespace KerbalNews
                 sb.AppendLine("NO MISSION IS SET: the director has not said where this craft is going or what it will do there. If the question depends on that (landing, power far from the sun, delta-v, comms range, heat shield, supplies), ask first.");
             string inc = IncidentText();
             if (inc != "") sb.AppendLine("PAST INVESTIGATIONS:\n" + inc);
+            string memory = EngMemoryText(snap, question);
+            if (memory != "") sb.AppendLine(memory);
             sb.AppendLine();
             sb.AppendLine("The conversation so far (newest last):");
             foreach (var m in State.EngChat.Skip(Math.Max(0, State.EngChat.Count - 12)))
@@ -330,8 +341,9 @@ namespace KerbalNews
             text = (text ?? "").Trim();
             if (text == "" || !Settings.EngineeringOn) return false;
             EngSnapshot snap = null;
-            try { snap = EngineeringData(); } catch (Exception e) { LastError = "Engineering data: " + e.Message; }
+            snap = EngLook();
             EngLearnMission(text, snap);
+            EngLearnPreference(text, snap, ut);
             EngLine("player", ResponseParser.Clip(text, 1500), ut);
             if (!Settings.CanCallAi)
             {
@@ -438,12 +450,13 @@ namespace KerbalNews
         public CraftSnap EngTakeSnapshot(string name)
         {
             EngSnapshot snap = null;
-            try { snap = EngineeringData(); } catch { }
+            snap = EngLook();
             if (snap == null || snap.Sheet == null || snap.Sheet.Parts.Count == 0) return null;
             var plan = EngCurrentPlan(snap);
             int n = State.EngSnaps.Count(x => x.Craft == snap.Vessel) + 1;
             var s = EngTools.Snap(State.NewId("v"), string.IsNullOrEmpty(name) ? snap.Vessel + " version " + n : ResponseParser.Clip(name, 60), snap, EngPower(snap, plan), snap.Sheet.StagingIssues(snap.Stages), EngChecks(snap, plan));
             State.EngSnaps.Add(s);
+            EngRemember("snapshot", snap.Vessel, "Snapshot \"" + s.Name + "\": " + EngMath.N(s.Mass, "0.0") + " t, " + EngMath.N(s.Dv) + " m/s, " + s.Parts + " parts, " + EngMath.N(s.Cost) + " funds.", State.EngChat.Count > 0 ? State.EngChat.Last().UT : 0);
             if (State.EngSnaps.Count > 40) State.EngSnaps.RemoveRange(0, State.EngSnaps.Count - 40);
             return s;
         }
@@ -466,8 +479,34 @@ namespace KerbalNews
             { "launch", new[] { "launch", "twr", "pad", "lift", "structure", "strut", "limit", "too big", "too heavy", "thrust", "engine", "motor" } },
             { "crew", new[] { "crew", "kerbal", "food", "oxygen", "water", "supplies", "life support", "seat", "sas", "pilot", "radiation", "habitat" } },
             { "cost", new[] { "cost", "price", "funds", "cheap", "expensive", "money", "budget" } },
+            { "needs", new[] { "what do i need", "what does it need", "requirement", "need for", "needs for", "what would it take" } },
+            { "timeline", new[] { "timeline", "how long", "schedule", "duration", "trip take", "days" } },
+            { "reliability", new[] { "reliab", "fail", "ignition", "mtbf", "wear", "malfunction", "break" } },
+            { "setup", new[] { "action group", "setup", "set up", "abort", "hotkey", "forgot", "forget" } },
+            { "mining", new[] { "mining", "mine ", "drill", "ore", "isru", "refuel", "converter", "harvest" } },
+            { "ascent", new[] { "ascent", "gravity turn", "climb", "to orbit", "lift-off", "liftoff", "launch profile" } },
+            { "aerobrake", new[] { "aerobrak", "aerocapture", "periapsis", "atmosphere pass", "reentry", "re-entry" } },
+            { "plane", new[] { "plane", "wing", "lift", "jet", "runway", "take off", "takeoff", "spaceplane", "fly" } },
+            { "rover", new[] { "rover", "wheel", "drive", "driving" } },
+            { "docking", new[] { "dock", "rendezvous", "rcs", "station", "assembl", "port" } },
+            { "launcher", new[] { "launcher", "payload", "lifter", "proven", "to orbit", "how much can" } },
+            { "tech", new[] { "tech", "research", "unlock", "science points", "tree" } },
+            { "relays", new[] { "relay", "network", "coverage" } },
+            { "predicted", new[] { "predicted", "prediction", "actual", "how did it", "expected" } },
         };
-        static readonly string[] ToolKeys = { "gonogo", "flight", "windows", "contracts", "science", "efficiency", "swaps", "compare", "lessons" };
+        /// <summary>The tab that covers what a sentence is about ("" when none stands out): for a meeting's "Show me" links.</summary>
+        public static string TabFor(string lower)
+        {
+            string best = ""; int bestLen = 0;
+            foreach (var kv in CheckWords)
+                foreach (var w in kv.Value)
+                    if (w.Length > bestLen && w.Length >= 4 && lower.Contains(w)) { best = kv.Key; bestLen = w.Length; }
+            if (best == "lessons") best = "overview";
+            if (best == "") best = lower.Contains("power") || lower.Contains("solar") || lower.Contains("batter") ? "power" : lower.Contains("stag") ? "stages" : "";
+            return best;
+        }
+
+        static readonly string[] ToolKeys = { "gonogo", "flight", "windows", "contracts", "science", "efficiency", "swaps", "compare", "lessons", "needs", "timeline", "reliability", "setup", "mining", "ascent", "aerobrake", "plane", "rover", "docking", "launcher", "tech", "relays", "predicted" };
         static readonly string[] EverythingWords = { "review", "everything", "oversized", "efficien", "overbuilt", "too much", "missing", "all checks", "ready", "go/no" };
 
         /// <summary>The checks as prompt text: in full where there is a problem or the question is about them, one line otherwise.</summary>
@@ -505,6 +544,7 @@ namespace KerbalNews
                 }
                 EngBusy = false;
                 int n = 0;
+                int chatBefore = State.EngChat.Count;
                 var list = Json.Arr(Json.Obj(root) != null && Json.Obj(root).ContainsKey("replies") ? Json.Obj(root)["replies"] : null);
                 if (list != null)
                     foreach (var r in list.Take(3))
@@ -523,6 +563,7 @@ namespace KerbalNews
                     string single = Json.Str(root, "reply", "").Trim();
                     EngLine("linus", single == "" ? "..." : ResponseParser.Clip(single, 2000), ut);
                 }
+                if (State.EngChat.Count > chatBefore) EngFileAnswer(snap, ut);
                 // A clarifying question: its likely answers become one-click buttons under the last reply.
                 var ask = Json.Obj(root) != null && Json.Obj(root).ContainsKey("ask") ? Json.Obj(root)["ask"] : null;
                 if (ask != null && Json.Obj(ask) != null)

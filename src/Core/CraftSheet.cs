@@ -90,6 +90,9 @@ namespace KerbalNews
         public int Deployed = -1;
         /// <summary>The stack sizes the part fits ("size1, srf"), as the part file declares them.</summary>
         public string Bulkhead = "";
+        /// <summary>For a part still locked: the tech node that unlocks it, its title and its science cost.</summary>
+        public string Tech = "", TechTitle = "";
+        public double TechCost;
         public double Mass { get { return DryMass + ResMass; } }
 
         public bool Has(string kind) { return Modules.Any(m => m.Kind == kind); }

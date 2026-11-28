@@ -9,7 +9,49 @@
     <div class="meta">{{situation}}{{#crewText}} · {{crewText}}{{/crewText}} · {{mass}}{{#liveNote}} · <span class="live">{{liveNote}}</span>{{/liveNote}}</div>
     {{#cells.0}}<div class="grid">{{#cells}}<div class="cell"><span>{{label}}</span> <b>{{value}}</b></div>{{/cells}}</div>{{/cells.0}}
   </div>{{/hasVessel}}
-  {{#hasSheet}}{{#tabGroups}}<div class="tabs"><span class="tg">{{name}}</span>{{#tabs}}<a class="tab{{#on}} on{{/on}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}}</a>{{/tabs}}</div>{{/tabGroups}}{{/hasSheet}}
+  {{#reviewing}}<div class="box rev"><span class="rt">Reviewing the saved craft <b>{{reviewName}}</b>. The team is looking at this file, not the live craft.</span><a class="qa" href="action:eng-live">Back to live</a></div>{{/reviewing}}
+  <div class="tabs">{{#tabGroups}}<a class="dd{{#on}} on{{/on}}{{#open}} open{{/open}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}} <span class="ddm">{{#open}}-{{/open}}{{^open}}+{{/open}}</span></a>{{/tabGroups}}</div>
+  {{#hasTabMenu}}<div class="ddp">{{#tabMenu}}<a class="tab{{#on}} on{{/on}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}}</a>{{/tabMenu}}</div>{{/hasTabMenu}}
+  {{#tab_saved}}
+    <div class="box"><div class="btitle">Review a saved craft</div>
+      <div class="meta">Pick a craft file and the team reads it as if it were on the floor: every tab then shows that craft. Delta-v for a saved file is the team's own estimate.</div>
+      {{#savedList}}<div class="row"><span class="rt"><a href="{{url}}">{{name}}</a></span><b>{{where}}</b></div>{{/savedList}}
+      {{^hasSaved}}<div class="meta">No saved craft were found in this save.</div>{{/hasSaved}}</div>
+  {{/tab_saved}}
+  {{#tab_notes}}
+    <div class="box"><div class="btitle">Team notes: {{noteCount}} on file</div>
+      <div class="meta">Everything the team keeps: answers, reviews, meetings, plans, flight results and what you have told them you prefer. Pinned notes and your preferences go with every question. Edit or delete anything that is wrong.</div>
+      <div class="pick">{{#noteFilters}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/noteFilters}}</div>
+      <div class="sendrow"><input name="notetext" value="" placeholder="Tell the team something to keep in mind"><button class="btn" data-action="eng-note-add">Add note</button></div></div>
+    {{#notes}}<div class="part"><div class="meta">{{meta}}{{#pinned}} · <span class="live">pinned</span>{{/pinned}}</div>
+      {{^editing}}<div class="pd">{{text}}</div>{{/editing}}
+      {{#editing}}<div class="sendrow"><input name="noteedit" value="{{text}}"><button class="btn" data-action="eng-note-save/{{id}}">Save</button></div>{{/editing}}
+      <div class="nacts"><a class="small" href="{{pin}}">{{#pinned}}Unpin{{/pinned}}{{^pinned}}Pin{{/pinned}}</a><a class="small" href="{{edit}}">{{#editing}}Cancel{{/editing}}{{^editing}}Edit{{/editing}}</a><a class="small" href="{{del}}">Delete</a></div></div>{{/notes}}
+    {{#noNotes}}<div class="box meta">Nothing on file here yet.</div>{{/noNotes}}
+  {{/tab_notes}}
+  {{#tab_meeting}}
+    {{#mtForm}}<div class="box"><div class="btitle">Call a meeting</div>
+      <div class="meta">The six specialists talk it through in turn, each from their own desk, and Gene writes the minutes. Each turn is one AI call.</div>
+      {{#mtOffline}}<div class="chk bad">The AI is off, so the team cannot meet. Turn it on in Settings.</div>{{/mtOffline}}
+      <div class="sendrow"><input name="objective" value="" placeholder="What should the meeting settle? e.g. can this craft land on Duna and get home"></div>
+      <div class="meta">Length: {{mtLen}} AI calls</div>
+      <div class="slide">{{#mtLens}}<a class="sl{{#on}} on{{/on}}{{#at}} at{{/at}}" href="{{url}}">{{n}}</a>{{/mtLens}}</div>
+      <div class="sendrow"><span class="meta">or type 1 to 100</span><input name="calls" value="" placeholder="{{mtLen}}" style="width: 60px"><button class="btn" data-action="eng-meet-start">Start meeting</button>{{#mtFollow}}<button class="btn" data-action="eng-meet-follow">Start as follow-up</button>{{/mtFollow}}</div>
+      <div class="meta">With {{mtLen}} calls: {{mtShape}}.{{#mtFollow}} A follow-up starts from the minutes and action list of the meeting shown below.{{/mtFollow}}</div></div>{{/mtForm}}
+    {{#mtHas}}<div class="box"><div class="btitle">{{mtObjective}}</div><div class="meta">{{mtStatus}}</div>
+      {{#hasMtAgenda}}<div class="meta">Agenda</div>{{#mtAgenda}}<div class="chk">{{.}}</div>{{/mtAgenda}}{{/hasMtAgenda}}</div>
+    {{#mtTurns}}<div class="turn{{#test}} test{{/test}}{{#you}} you{{/you}}"><div class="who">{{who}}{{#tag}} <span class="dim">· {{tag}}</span>{{/tag}}</div><div class="pd">{{text}}</div></div>{{/mtTurns}}
+    {{#mtWaiting}}<div class="box"><div class="btitle">Your call</div><div class="pd">{{mtQuestion}}</div>
+      <div class="sendrow"><a class="qa ans" href="action:eng-meet-decide/a">{{mtA}}</a></div><div class="sendrow"><a class="qa ans" href="action:eng-meet-decide/b">{{mtB}}</a></div></div>{{/mtWaiting}}
+    {{#mtLive}}<div class="box"><div class="sendrow"><input name="meetsay" value="" placeholder="Say something to the meeting (no extra call)"><button class="btn" data-action="eng-meet-say">Say</button><a class="qa" href="action:eng-meet-stop">Wrap up now</a></div></div>{{/mtLive}}
+    {{#mtDone}}<div class="box"><div class="btitle">Minutes</div>{{#mtMinutes}}<div class="pd">{{.}}</div>{{/mtMinutes}}
+      {{#hasMtDecisions}}<div class="meta">Decided</div>{{#mtDecisions}}<div class="chk">{{.}}</div>{{/mtDecisions}}{{/hasMtDecisions}}
+      {{#hasMtOpen}}<div class="meta">Left open</div>{{#mtOpen}}<div class="chk fix">{{.}}</div>{{/mtOpen}}{{/hasMtOpen}}</div>
+    {{#hasMtActions}}<div class="box"><div class="btitle">To do</div>
+      {{#mtActions}}<div class="row"><span class="rt"><a class="{{#done}}tick{{/done}}{{^done}}untick{{/done}}" href="{{url}}">{{#done}}[x]{{/done}}{{^done}}[ ]{{/done}}</a> {{text}}</span>{{#show}}<a class="small" href="{{show}}">Show me</a>{{/show}}</div>{{/mtActions}}</div>{{/hasMtActions}}{{/mtDone}}
+    {{/mtHas}}
+    {{#hasMtPast}}<div class="box"><div class="btitle">Meetings</div>{{#mtPast}}<div class="row"><span class="rt"><a class="{{#on}}snapon{{/on}}" href="{{url}}">{{title}}</a> <span class="dim">{{meta}}</span></span></div>{{/mtPast}}</div>{{/hasMtPast}}
+  {{/tab_meeting}}
   {{#tab_compare}}
     <div class="box"><div class="btitle">Snapshots</div>
       <div class="sendrow"><input name="snapname" value="" placeholder="Name this version (optional)"><button class="btn" data-action="eng-snap">Snapshot</button></div>
@@ -51,7 +93,7 @@
   {{#hasScore}}<div class="box"><div class="btitle">All checks{{#goRating}} · <a href="action:eng-tab/gonogo"><span class="{{#goBad}}bad{{/goBad}}{{^goBad}}rate{{/goBad}}">{{goRating}}</span></a>{{/goRating}}</div>
     {{#score}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt"><a href="{{url}}">{{label}}</a></span><b>{{rating}}</b></div>{{/score}}</div>{{/hasScore}}
   {{#hasStages}}<div class="box">
-    <div class="btitle">Delta-v by stage ({{dvKind}})</div>
+    <div class="btitle">Delta-v by stage ({{dvKind}}{{#dvEstimated}}, the team's estimate{{/dvEstimated}})</div>
     {{#stages}}<div class="stage"><span class="sl">Stage {{n}}</span><div class="bar"><div style="width: {{pct}}"></div></div><span class="sv">{{dv}}</span></div>
     <div class="twr">TWR {{twr}} · burn {{burn}}</div>{{/stages}}
     <div class="total"><span>Total remaining</span><b>{{total}}</b></div>
@@ -78,8 +120,8 @@
   {{#on}}
   <div class="team">{{#team}}<span class="chipt{{#spoke}} on{{/spoke}}">{{name}}</span>{{/team}}<span class="spacer"></span><a class="small" href="action:eng-clear">Clear chat</a></div>
   <div class="plan"><div class="sendrow"><span class="meta">Mission</span><input name="mission" value="{{mission}}" placeholder="e.g. land on Minmus and come back"><button class="btn" data-action="eng-plan">Plan</button></div>
-  {{#hasPicker}}<div class="pick"><span class="meta pl">Go to</span>{{#dests}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/dests}}</div>
-  <div class="pick"><span class="meta pl">And</span>{{#goals}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/goals}}<span class="gap"></span>{{#trips}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/trips}}<span class="gap"></span><span class="meta">Margin</span>{{#margins}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/margins}}</div>{{/hasPicker}}
+  <div class="pick">{{#pickMenus}}<a class="dd{{#open}} open{{/open}}" href="{{url}}">{{label}} <span class="ddm">{{#open}}-{{/open}}{{^open}}+{{/open}}</span></a>{{/pickMenus}}</div>
+  {{#pickOpen}}<div class="ddp">{{#destRows}}<div class="pick">{{#head}}<span class="meta">{{head}}</span>{{/head}}{{#items}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/items}}</div>{{/destRows}}{{#pickItems}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/pickItems}}</div>{{/pickOpen}}
   {{#hasPlan}}<div class="legs">{{#legs}}<div class="leg{{#short}} bad{{/short}}"><span class="ln">{{name}}</span><span class="ld">{{dv}}</span><span class="ls">{{stages}}</span></div>{{/legs}}
     <div class="leg tot"><span class="ln">Total ({{marginPct}}% margin: {{need}})</span><span class="ld">{{total}}</span><span class="ls">{{verdict}}</span></div></div>{{/hasPlan}}
   {{#planNote}}<p class="meta">{{planNote}}</p>{{/planNote}}</div>
