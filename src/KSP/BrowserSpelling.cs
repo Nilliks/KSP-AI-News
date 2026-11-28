@@ -22,6 +22,7 @@ namespace KerbalNews.KSP
         float nextGameWords;
         GameObject spellMenu;
         int spellMenuFrame;
+        internal readonly HashSet<string> spellAwake = new HashSet<string>();
 
         /// <summary>The checker, once its word lists have loaded in the background (null until then, or when switched off).</summary>
         internal static SpellCheck Speller
@@ -61,7 +62,9 @@ namespace KerbalNews.KSP
         /// Names the game knows right now. Runs on the main thread (it reads the game), now and then while the browser
         /// is open, so a new kerbal or craft stops being flagged without a restart.
         /// </summary>
-        void AddGameWords()
+        static bool partsAdded;
+
+        internal void AddGameWords()
         {
             var sc = speller;
             if (sc == null || Time.realtimeSinceStartup < nextGameWords) return;
@@ -72,7 +75,8 @@ namespace KerbalNews.KSP
                 if (FlightGlobals.Vessels != null) foreach (var v in FlightGlobals.Vessels) if (v != null) sc.AddGameWord(v.vesselName);
                 if (HighLogic.CurrentGame != null && HighLogic.CurrentGame.CrewRoster != null && HighLogic.CurrentGame.CrewRoster.Crew != null)
                     foreach (var k in HighLogic.CurrentGame.CrewRoster.Crew) if (k != null) sc.AddGameWord(k.name);
-                if (PartLoader.LoadedPartsList != null)
+                // Parts never change during a game session: once is enough (with 140 mods that is thousands of titles).
+                if (!partsAdded && PartLoader.LoadedPartsList != null && (partsAdded = true))
                     foreach (var p in PartLoader.LoadedPartsList) if (p != null) { sc.AddGameWord(p.title); sc.AddGameWord(p.manufacturer); }
                 foreach (var o in Outlets.All) sc.AddGameWord(o.Name);
                 var g = NewsSystem.Settings;
@@ -94,15 +98,18 @@ namespace KerbalNews.KSP
         void AttachSpelling(TMP_InputField f, InputItem inp)
         {
             if (!inp.SpellCheck || inp.Password || f == null) return;
+            var g = NewsSystem.Settings;
+            if (g != null && !g.SpellCheck) return;
             var sf = f.gameObject.AddComponent<SpellField>();
             sf.Owner = this;
+            sf.Key = inp.Name != "" ? url + "#" + inp.Name : null;
+            sf.Awake0 = sf.Key != null && spellAwake.Contains(sf.Key);   // a box already typed in stays checked after a redraw
             sf.Field = f;
             sf.Size = inp.FontSize;
         }
 
         void SpellingUpdate()
         {
-            AddGameWords();
             if (spellMenu == null || Time.frameCount == spellMenuFrame) return;   // the right-click that opened it is not a click away
             bool overMenu = RectTransformUtility.RectangleContainsScreenPoint(Rt(spellMenu), Input.mousePosition, null);
             if (Input.GetKeyDown(KeyCode.Escape) || Math.Abs(Input.mouseScrollDelta.y) > 0.01f
@@ -204,6 +211,8 @@ namespace KerbalNews.KSP
         public Browser Owner;
         public TMP_InputField Field;
         public float Size = 16;
+        public string Key;
+        public bool Awake0;
 
         string checkedText;
         int checkedSkip = -2;
@@ -211,6 +220,7 @@ namespace KerbalNews.KSP
         float lastEdit;
         Vector2 drawnSize;
         int pendingCaret = -1;
+        bool awake;
         List<Misspelling> bad = new List<Misspelling>();
         readonly List<GameObject> marks = new List<GameObject>();
         // Each flagged word's boxes in the text's own coordinates, for the right-click test.
@@ -276,6 +286,16 @@ namespace KerbalNews.KSP
         void LateUpdate()
         {
             if (Field == null) return;
+            // Nothing at all happens for a box until the player clicks into it: no word list, no check, no underlines.
+            // A page with many boxes (Settings) costs nothing extra to show.
+            if (!awake)
+            {
+                if (!Field.isFocused && !Awake0) return;
+                awake = true;
+                if (Key != null && Owner != null) Owner.spellAwake.Add(Key);
+                if (Owner != null) Owner.AddGameWords();
+            }
+            else if (Field.isFocused && Owner != null) Owner.AddGameWords();   // throttled to every 30 s inside
             if (pendingCaret >= 0 && Field.isFocused)
             {
                 Field.caretPosition = Math.Min(pendingCaret, (Field.text ?? "").Length);
