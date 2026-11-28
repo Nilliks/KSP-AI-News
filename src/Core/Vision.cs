@@ -92,6 +92,7 @@ namespace KerbalNews
         void AskWith(ProviderPreset p, string baseUrl, string key, string model, string system, string user, int maxTokens, byte[] jpeg, Action<object, string, string, HttpResult> done)
         {
             var req = Providers.Build(p, baseUrl, key, model, system, user, Math.Min(Settings.MaxTokens, maxTokens), p.JsonMode, jpeg);
+            req.Feature = "Looking at photos";
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {

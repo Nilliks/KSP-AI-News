@@ -477,6 +477,7 @@ namespace KerbalNews.Web
             var g = Engine.Settings;
             var m = M();
             AddServiceSettings(m, g);
+            AddUsage(m, g);
             m["maxTokens"] = g.MaxTokens;
             m["notify"] = g.NotifyOnPublish;
             m["warp"] = g.GenerateDuringWarp;

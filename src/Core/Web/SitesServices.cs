@@ -44,6 +44,57 @@ namespace KerbalNews.Web
             m["jobOk"] = JobOk;
         }
 
+        /// <summary>Starting the spending count again asks once more first (this session only).</summary>
+        public bool ConfirmUsageClear;
+
+        /// <summary>
+        /// "What the AI has cost": dollars and requests per feature for this session, this save and all time, and what
+        /// that comes to per hour of play and per launch.
+        /// </summary>
+        void AddUsage(Dictionary<string, object> m, GlobalSettings g)
+        {
+            Func<UsageStats, string> cell = s => s.Calls == 0 ? "-" : Spent(s) + " · " + UsageMeter.Short(s.Calls);
+            var names = g.UsageAll.By.Keys.Concat(State.Usage.By.Keys).Concat(g.UsageSession.By.Keys).Distinct()
+                .OrderByDescending(n => g.UsageAll.Of(n).Cost).ThenByDescending(n => g.UsageAll.Of(n).Calls).ThenBy(n => n, StringComparer.Ordinal).ToList();
+            var rows = names.Select(n => (object)new Dictionary<string, object> {
+                { "name", n }, { "session", cell(g.UsageSession.Of(n)) }, { "save", cell(State.Usage.Of(n)) }, { "all", cell(g.UsageAll.Of(n)) }, { "total", false } }).ToList();
+            if (rows.Count > 0)
+                rows.Add(new Dictionary<string, object> { { "name", "Total" }, { "session", cell(g.UsageSession.Total) }, { "save", cell(State.Usage.Total) }, { "all", cell(g.UsageAll.Total) }, { "total", true } });
+            m["usageRows"] = rows;
+            m["usageAny"] = rows.Count > 0;
+            m["usageRates"] = new[] { Rate("This session", g.UsageSession), Rate("This save", State.Usage), Rate("All time", g.UsageAll) }.Where(x => x != "").Select(x => (object)new Dictionary<string, object> { { "text", x } }).ToList();
+            var t = g.UsageAll.Total;
+            var extra = new List<string>();
+            if (t.Letters > 0) extra.Add(UsageMeter.Short(t.Letters) + " letters spoken by ElevenLabs");
+            if (t.Pictures > 0) extra.Add(UsageMeter.Short(t.Pictures) + (t.Pictures == 1 ? " picture drawn" : " pictures drawn"));
+            if (t.Unpriced > 0) extra.Add(UsageMeter.Short(t.Unpriced) + (t.Unpriced == 1 ? " request" : " requests") + " on a model with no listed price");
+            m["usageExtra"] = extra.Count > 0 ? "Not in the dollars (all time): " + string.Join(", ", extra.ToArray()) + "." : "";
+            m["usageFailed"] = t.Failed > 0 ? UsageMeter.Short(t.Failed) + (t.Failed == 1 ? " request" : " requests") + " failed and cost nothing." : "";
+            m["usageSince"] = g.UsageAll.Since != "" ? "Counted since " + g.UsageAll.Since + "." : "";
+            m["confirmUsageClear"] = ConfirmUsageClear;
+        }
+
+        static string Spent(UsageStats s) { return s.Cost <= 0 ? "$0" : s.Cost < 0.01 ? "$" + s.Cost.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) : "$" + s.Cost.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture); }
+
+        /// <summary>"All time: $1.20 over 14.5 hours of play and 9 launches. About $0.08 an hour, $0.13 a launch."</summary>
+        static string Rate(string label, UsageBook b)
+        {
+            var t = b.Total;
+            if (t.Calls == 0) return "";
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            double hours = b.PlaySeconds / 3600;
+            string s = label + ": " + Spent(t) + " for " + UsageMeter.Short(t.Calls) + (t.Calls == 1 ? " request" : " requests");
+            if (hours >= 0.1) s += " over " + hours.ToString(hours < 10 ? "0.0" : "0", inv) + (hours == 1 ? " hour" : " hours") + " of play";
+            if (b.Launches > 0) s += (hours >= 0.1 ? " and " : " over ") + UsageMeter.Short(b.Launches) + (b.Launches == 1 ? " launch" : " launches");
+            s += ".";
+            var per = new List<string>();
+            // Under a quarter of an hour is too little play to turn into an hourly figure.
+            if (hours >= 0.25 && t.Cost > 0) per.Add(Pricing.Money(t.Cost / hours) + " an hour of play");
+            if (b.Launches > 0 && t.Cost > 0) per.Add(Pricing.Money(t.Cost / b.Launches) + " a launch");
+            if (per.Count > 0) s += " About " + string.Join(", ", per.ToArray()) + ".";
+            return s;
+        }
+
         static bool ServiceInUse(AiService s, GlobalSettings g)
         {
             return s.TextId != "" && (s.TextId == g.ProviderId || s.TextId == g.CheapServiceId) || s.ImageId != "" && s.ImageId == g.ImageProviderId;

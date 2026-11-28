@@ -79,6 +79,16 @@ namespace KerbalNews.Web
                     if (arg == "off") g.GalleryKey = ""; else if (GlobalSettings.GalleryKeys.Contains(arg)) g.GalleryKey = arg;
                     SaveSettings();
                     break;
+                case "usage-clear":
+                    if (arg == "cancel") { ConfirmUsageClear = false; break; }
+                    if (arg != "yes") { ConfirmUsageClear = true; break; }
+                    ConfirmUsageClear = false;
+                    {
+                        string since = DateTime.Now.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                        g.UsageAll.Clear(since); g.UsageSession.Clear(since); State.Usage.Clear(since);
+                    }
+                    SaveSettings();
+                    break;
                 case "reset-settings":
                     if (arg == "cancel") { ConfirmReset = false; break; }
                     if (!ConfirmReset) { ConfirmReset = true; break; }

@@ -682,6 +682,8 @@ namespace KerbalNews
     public class NewsState
     {
         public int NextId = 1;
+        /// <summary>What the AI has cost in this save (see UsageMeter).</summary>
+        public UsageBook Usage = new UsageBook();
         public List<Story> Stories = new List<Story>();
         public List<Article> Articles = new List<Article>();
         public List<SocialPost> Social = new List<SocialPost>();
@@ -841,6 +843,7 @@ namespace KerbalNews
             Prune();
             n.Add("version", 1);
             n.Add("nextId", NextId);
+            Usage.Save(n.AddNode("USAGE"));
             n.Add("lastStory", LastStoryUT);
             n.Add("lastFiller", LastFillerUT);
             n.Add("lastMoodDecay", LastMoodDecayUT);
@@ -943,6 +946,7 @@ namespace KerbalNews
             var s = new NewsState();
             if (n == null) return s;
             s.NextId = Math.Max(1, n.GetInt("nextId", 1));
+            s.Usage = UsageBook.Load(n.GetNode("USAGE"));
             s.LastStoryUT = n.GetDouble("lastStory", -1);
             s.LastFillerUT = n.GetDouble("lastFiller", -1);
             s.LastMoodDecayUT = n.GetDouble("lastMoodDecay", -1);

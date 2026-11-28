@@ -87,6 +87,16 @@
   <div class="row" style="margin-top: 8px; flex-wrap: wrap"><a class="toggle{{#warp}} on{{/warp}}" href="action:toggle-warp">Allow AI calls during time warp</a>
     <a class="toggle{{#modsInContext}} on{{/modsInContext}}" href="action:toggle-mods-context">Tell the AI about installed mods</a> <a href="agency.kb/mods">Mod list</a></div>
 
+  <h2>What the AI has cost</h2>
+  <p class="hint">Counted from the tokens each reply says it used, at that model's list price on the day. Dollars first, then the number of requests. It is a close estimate, not your bill: that is on each service's own site. {{usageSince}}</p>
+  {{#usageAny}}<div class="use head-use"><span class="usvc">Feature</span><span class="unum">This session</span><span class="unum">This save</span><span class="unum">All time</span></div>
+  {{#usageRows}}<div class="use{{#total}} total-use{{/total}}"><span class="usvc">{{name}}</span><span class="unum">{{session}}</span><span class="unum">{{save}}</span><span class="unum">{{all}}</span></div>{{/usageRows}}
+  {{#usageRates}}<p class="rate">{{text}}</p>{{/usageRates}}
+  {{#usageExtra}}<p class="hint">{{usageExtra}} {{usageFailed}}</p>{{/usageExtra}}{{^usageExtra}}{{#usageFailed}}<p class="hint">{{usageFailed}}</p>{{/usageFailed}}{{/usageExtra}}
+  {{^confirmUsageClear}}<div class="btns"><a class="tg" href="action:usage-clear">Start the count again from zero</a></div>{{/confirmUsageClear}}
+  {{#confirmUsageClear}}<div class="btns"><span class="bad">Clear every count, in this save too?</span><a class="tg" href="action:usage-clear/yes">Yes, clear</a><a class="tg" href="action:usage-clear/cancel">Cancel</a></div>{{/confirmUsageClear}}{{/usageAny}}
+  {{^usageAny}}<p class="hint">Nothing yet. Rows appear here after the first AI request.</p>{{/usageAny}}
+
   <h2>Pictures</h2>
   <label>Gallery screenshot key</label>
   <div class="providers">{{#galleryKeyOpts}}<a class="prov{{#on}} on{{/on}}" href="action:{{action}}">{{label}}</a>{{/galleryKeyOpts}}</div>

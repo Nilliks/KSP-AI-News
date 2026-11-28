@@ -455,7 +455,7 @@ namespace KerbalNews
             u.AppendLine(inc.Telemetry.Count > 0 ? "Slower flight data (every few seconds, oldest first):\n- " + string.Join("\n- ", inc.Telemetry.ToArray()) : "No slower flight data was recorded.");
             u.AppendLine(inc.Events.Count > 0 ? "What the game reported happening to the craft, in order:\n- " + string.Join("\n- ", inc.Events.ToArray()) : "No part events were reported.");
             if (inc.Samples.Count == 0 && inc.Telemetry.Count == 0) u.AppendLine("The recorder was not running for this vessel, so say the cause cannot be determined from data.");
-            AskJson(Settings.Writer, sb.ToString(), u.ToString(), 1600, 0, (root, err, text, res) =>
+            AskJson("Engineering team", Settings.Writer, sb.ToString(), u.ToString(), 1600, 0, (root, err, text, res) =>
             {
                 EngInvestigating = "";
                 if (root == null) { inc.Status = "open"; LastError = err ?? "No reply"; RaiseCommunity(); return; }

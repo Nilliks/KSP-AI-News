@@ -28,6 +28,8 @@ namespace KerbalNews
         public Dictionary<string, string> Headers = new Dictionary<string, string>();
         public string Body;
         public int TimeoutSeconds = 120;
+        /// <summary>For the spending count: the feature that asked, and the text provider and model asked (see UsageMeter).</summary>
+        public string Feature = "", ProviderId = "", Model = "";
     }
 
     public class HttpResult
@@ -270,7 +272,7 @@ namespace KerbalNews
             string system, string user, int maxTokens, bool jsonMode, byte[] jpeg)
         {
             string b64 = jpeg != null && jpeg.Length > 0 ? Convert.ToBase64String(jpeg) : null;
-            var req = new HttpRequestSpec();
+            var req = new HttpRequestSpec { ProviderId = p.Id, Model = model ?? "" };
             string root = (string.IsNullOrEmpty(baseUrl) ? p.BaseUrl : baseUrl).TrimEnd('/');
             req.Headers["Content-Type"] = "application/json";
             switch (p.Kind)

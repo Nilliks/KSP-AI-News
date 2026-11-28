@@ -195,9 +195,18 @@ namespace KerbalNews.KSP
             return galleryKeyOk && Input.GetKeyDown(galleryKey);
         }
 
+        void OnApplicationQuit()
+        {
+            if (Instance == this && Settings != null && Settings.UsageDirty) SaveSettings();
+        }
+
+        float lastUsageSave;
+
         void Update()
         {
             transport.Poll();
+            // The spending count changes with every call and every minute played; write it now and then, not each time.
+            if (Settings != null && Settings.UsageDirty && Time.realtimeSinceStartup - lastUsageSave > 300) { lastUsageSave = Time.realtimeSinceStartup; SaveSettings(); }
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
             if (GalleryKeyDown()) StartCoroutine(GalleryStore.Capture());
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.

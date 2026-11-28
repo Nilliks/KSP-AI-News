@@ -166,6 +166,11 @@ namespace KerbalNews
         public Dictionary<string, ServiceStatus> Status = new Dictionary<string, ServiceStatus>();
         /// <summary>Models fetched live from each provider (space-separated), kept between sessions.</summary>
         public Dictionary<string, string> FetchedModels = new Dictionary<string, string>();
+        // ---- What the AI has cost (UsageMeter). The all-time count is saved here; the session count is not.
+        public UsageBook UsageAll = new UsageBook();
+        public UsageBook UsageSession = new UsageBook();
+        /// <summary>Set when something was counted since the settings were last written.</summary>
+        public bool UsageDirty;
         public int MaxTokens = 6000;
         public int TimeoutSeconds = 120;
         /// <summary>Local model servers: context window asked of Ollama (tokens), and the longer time limit per request (seconds).</summary>
@@ -228,7 +233,7 @@ namespace KerbalNews
         {
             var keep = new HashSet<string> { "Keys", "Status", "ProviderId", "CheapProviderId", "VisionProviderId", "VisionModel", "OfflineMode",
                 "BaseUrls", "WriterModels", "CheapModels", "FetchedModels", "ImageProviderId", "ImageModels", "ImageBaseUrls", "FetchedVoices",
-                "Mods", "ModsScanned", "BrowserRect" };
+                "Mods", "ModsScanned", "BrowserRect", "UsageAll", "UsageSession", "UsageDirty" };
             var fresh = new GlobalSettings();
             foreach (var f in typeof(GlobalSettings).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 if (!keep.Contains(f.Name) && !f.IsInitOnly && !f.IsLiteral) f.SetValue(this, f.GetValue(fresh));
@@ -470,6 +475,8 @@ namespace KerbalNews
                 n.AddText("fetched", Lookup(FetchedModels, p.Id, ""));
             }
             if (Pricing.Count > 0) settings.AddText("prices", Pricing.Serialize());
+            UsageAll.Save(settings.AddNode("USAGE"));
+            UsageDirty = false;
             foreach (var kv in Keys)
                 if (!string.IsNullOrEmpty(kv.Value)) { var k = secrets.AddNode("KEY"); k.Add("id", kv.Key); k.AddText("key", kv.Value); }
         }
@@ -556,6 +563,7 @@ namespace KerbalNews
                     g.ImageBaseUrls[id] = n.GetText("baseUrl");
                 }
                 Pricing.Load(settings.GetText("prices"));
+                g.UsageAll = UsageBook.Load(settings.GetNode("USAGE"));
                 foreach (var n in settings.GetNodes("PROVIDER"))
                 {
                     string id = n.Get("id", "");

@@ -12,22 +12,34 @@ namespace KerbalNews
         /// </summary>
         void AskJson(AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, Action<object, string, string, HttpResult> done)
         {
-            AskJson(route, system, user, maxTokens, timeoutSeconds, null, done);
+            AskJson(UsageMeter.Other, route, system, user, maxTokens, timeoutSeconds, null, done);
+        }
+
+        /// <summary>As AskJson, naming the feature that asks, for the spending count in Settings.</summary>
+        void AskJson(string feature, AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, Action<object, string, string, HttpResult> done)
+        {
+            AskJson(feature, route, system, user, maxTokens, timeoutSeconds, null, done);
+        }
+
+        void AskJson(AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, byte[] jpeg, Action<object, string, string, HttpResult> done)
+        {
+            AskJson(UsageMeter.Other, route, system, user, maxTokens, timeoutSeconds, jpeg, done);
         }
 
         /// <summary>As AskJson, with a picture for a model that can see. If the provider refuses it, the model is marked blind and the request goes again without it.</summary>
-        void AskJson(AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, byte[] jpeg, Action<object, string, string, HttpResult> done)
+        void AskJson(string feature, AiRoute route, string system, string user, int maxTokens, int timeoutSeconds, byte[] jpeg, Action<object, string, string, HttpResult> done)
         {
             var preset = route.Preset;
             string model = route.Model;
             var req = Providers.Build(preset, route.BaseUrl, route.Key, model, system, user, Math.Min(Settings.MaxTokens, maxTokens), preset.JsonMode, jpeg);
+            req.Feature = feature;
             req.TimeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
                 if (jpeg != null && Providers.RefusedImage(res))
                 {
                     Providers.MarkBlind(preset, model);
-                    AskJson(route, system, user, maxTokens, timeoutSeconds, null, done);
+                    AskJson(feature, route, system, user, maxTokens, timeoutSeconds, null, done);
                     return;
                 }
                 string text, err;

@@ -220,6 +220,73 @@ public static class ServiceTests
         Pricing.Clear();
     }
 
+    public static void TestSpendingIsCountedFromWhatRepliesReport()
+    {
+        Pricing.Clear();
+        Pricing.Load("# 2030-01-02\ndeepseek|deepseek-chat 1 2\n");
+        var t = new CoreTests.FakeTransport();
+        var g = new GlobalSettings { ProviderId = "deepseek", OfflineMode = false };
+        g.Keys["deepseek"] = "sk-deepseek-key1";
+        g.WriterModels["deepseek"] = "deepseek-chat"; g.CheapModels["deepseek"] = "deepseek-chat";
+        var state = new NewsState();
+        var eng = new NewsEngine(state, g, t, new SimpleClock(Day));
+        var sites = MakeSites(eng);
+        Assert(sites.Render("settings.kb").Html.Contains("Nothing yet. Rows appear here after the first AI request."), "the table starts empty");
+
+        // A free request (a model list) is not counted; a paid one is, under the feature that sent it.
+        eng.FetchModels("deepseek", (ok, msg) => { });
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 200, Body = "{\"data\":[{\"id\":\"deepseek-chat\"}]}" });
+        Assert(g.UsageAll.Total.Calls == 0, "listing models is free and not counted");
+        string reply = "{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"}}],\"usage\":{\"prompt_tokens\":100000,\"completion_tokens\":50000}}";
+        eng.TestConnection(g.Writer, (ok, msg) => { });
+        Assert(t.Sent[t.Sent.Count - 1].Feature == "Test requests" && t.Sent[t.Sent.Count - 1].Model == "deepseek-chat", "a request carries the feature and model that sent it");
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 200, Body = reply });
+        // 100,000 in at $1 and 50,000 out at $2 per million: $0.20.
+        foreach (var b in new[] { g.UsageSession, g.UsageAll, state.Usage })
+        {
+            var u = b.Of("Test requests");
+            Assert(u.Calls == 1 && u.InTokens == 100000 && u.OutTokens == 50000 && Math.Abs(u.Cost - 0.2) < 1e-9 && u.Unpriced == 0, "session, save and all time each count the request and its cost");
+        }
+        eng.TestConnection(g.Writer, (ok, msg) => { });
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 500, Body = "{}" });
+        Assert(g.UsageAll.Total.Calls == 2 && g.UsageAll.Total.Failed == 1 && Math.Abs(g.UsageAll.Total.Cost - 0.2) < 1e-9, "a failed request is counted and costs nothing");
+        g.WriterModels["deepseek"] = "mystery-model";
+        eng.TestConnection(g.Writer, (ok, msg) => { });
+        t.Pending[t.Pending.Count - 1](new HttpResult { Status = 200, Body = reply });
+        Assert(g.UsageAll.Total.Unpriced == 1 && Math.Abs(g.UsageAll.Total.Cost - 0.2) < 1e-9, "a model with no listed price is counted apart, not guessed");
+
+        long i, o;
+        Assert(UsageMeter.ReadTokens("{\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"cache_read_input_tokens\":90}}", out i, out o) && i == 100 && o == 5, "Anthropic's cached input is part of the input");
+        Assert(UsageMeter.ReadTokens("{\"usageMetadata\":{\"promptTokenCount\":7,\"candidatesTokenCount\":3,\"thoughtsTokenCount\":20}}", out i, out o) && i == 7 && o == 23, "Gemini's thinking is part of the output");
+        Assert(UsageMeter.ReadTokens("{\"prompt_eval_count\":4,\"eval_count\":6}", out i, out o) && i == 4 && o == 6 && !UsageMeter.ReadTokens("audio bytes", out i, out o), "Ollama's counts are read; a reply with none gives none");
+
+        // Half an hour of play and two launches.
+        for (int k = 0; k <= 1800; k++) eng.Tick(Day + k, 1000 + k, false);
+        eng.Tick(Day + 1801, 99999, false);
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, Day + 10, "u1"));
+        eng.Ingest(CoreTests.Ev(EventTypes.Launch, Day + 20, "u2"));
+        Assert(Math.Abs(g.UsageAll.PlaySeconds - 1800) < 1 && state.Usage.Launches == 2, "play time and launches are counted; a long gap is not play");
+        string h = sites.Render("settings.kb").Html;
+        Assert(h.Contains("Test requests") && h.Contains("$0.20 · 3") && h.Contains("All time: $0.20 for 3 requests over 0.5 hours of play and 2 launches. About $0.40 an hour of play, $0.10 a launch."), "the page shows the totals and what they come to per hour and per launch");
+        Assert(h.Contains("1 request on a model with no listed price") && h.Contains("1 request failed and cost nothing."), "what is not in the dollars is said");
+
+        DataNode sn, kn;
+        g.Save(sn = new DataNode("S"), kn = new DataNode("K"));
+        var g2 = GlobalSettings.Load(sn, kn);
+        var saved = new DataNode("N"); state.Save(saved);
+        var state2 = NewsState.Load(saved);
+        Assert(Math.Abs(g2.UsageAll.Total.Cost - 0.2) < 1e-9 && g2.UsageAll.Launches == 2 && g2.UsageSession.Total.Calls == 0, "the all-time count is saved with the settings; the session count is not");
+        Assert(state2.Usage.Total.Calls == 3 && Math.Abs(state2.Usage.PlaySeconds - 1800) < 1, "this save's count is saved with the save");
+        g.ResetToDefaults();
+        Assert(g.UsageAll.Total.Calls == 3, "resetting the settings keeps the count");
+
+        sites.Handle("usage-clear", null);
+        Assert(g.UsageAll.Total.Calls == 3 && sites.Render("settings.kb").Html.Contains("action:usage-clear/yes"), "clearing asks first");
+        sites.Handle("usage-clear/yes", null);
+        Assert(g.UsageAll.Total.Calls == 0 && state.Usage.Total.Calls == 0 && g.UsageAll.Since != "", "then every count starts again");
+        Pricing.Clear();
+    }
+
     public static void TestEachJobUsesTheServicePickedForIt()
     {
         var t = new CoreTests.FakeTransport();

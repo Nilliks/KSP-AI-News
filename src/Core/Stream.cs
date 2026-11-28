@@ -432,7 +432,7 @@ namespace KerbalNews
             else StreamHelperLook(st, hype, realTime);
             bool wantAnn = Settings.Announcer >= 2 && st.Lifted && !st.FinalCountQueued;
             if (wantAnn) streamUser += "\nANNOUNCER: also write \"announcer\": one line (at most 25 words) the agency's professional launch commentator says next, in the calm, precise style of real launch broadcasts, about what the telemetry shows right now (altitude, speed, staging, the view). Use spoken numbers sparingly. No hype words, no chat slang. \"\" if nothing needs saying.";
-            AskJson(Settings.Cheap, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
+            AskJson("Livestream chat", Settings.Cheap, PromptBuilder.StreamSystem(State, AgencyName), streamUser, Math.Min(4000, 600 + n * 45), 40, frame, (root, err, text, res) =>
             {
                 streamBusy = false;
                 if (Stream != st) return;

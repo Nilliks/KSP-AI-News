@@ -69,3 +69,9 @@ h3 { margin-top: 12px; font-size: 16px; color: #3d3a33; }
 .opt.on a { color: #ffffff; }
 .price { font-size: 12px; color: #6b6558; }
 .opt.on .price { color: #d8e2ee; }
+.use { display: flex; gap: 8px; background: #ffffff; padding: 5px 12px; margin-top: 2px; font-size: 14px; align-items: center; }
+.use.head-use { background: #e6e0d2; font-weight: bold; font-size: 13px; margin-top: 6px; }
+.use.total-use { font-weight: bold; }
+.usvc { width: 220px; }
+.unum { width: 170px; text-align: right; font-family: mono; }
+.rate { margin-top: 6px; font-size: 14px; }

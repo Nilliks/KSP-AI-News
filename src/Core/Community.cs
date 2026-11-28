@@ -155,6 +155,7 @@ namespace KerbalNews
             byte[] jpeg = photo != null && photo.Look == "" && Sees(route) ? JpegOf(photo) : null;
             string cuser = PromptBuilder.Community(this, job, Clock, ut) + (jpeg != null ? "\nThe photo itself is attached: people react to what they can actually see in it." : "");
             var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model, PromptBuilder.System(State, Settings.ModsText, CommunityOutlet(job)), cuser, Math.Min(Settings.MaxTokens, 3000), preset.JsonMode, jpeg);
+            req.Feature = "Comments and forum";
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {

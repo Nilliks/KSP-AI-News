@@ -295,7 +295,7 @@ namespace KerbalNews
                 var f = batch[i];
                 u.AppendLine((i + 1) + ". For " + WorldOutlet(f) + " | kind: " + f.Kind + " | importance " + f.Sig + " of 5 | " + (f.Headline != "" ? "working title: " + f.Headline + " | " : "") + "facts: " + f.Text);
             }
-            AskJson(Settings.Writer, sb.ToString(), u.ToString(), Math.Min(4000, 300 + batch.Count * 450), 0, (root, err, text, res) =>
+            AskJson("World news", Settings.Writer, sb.ToString(), u.ToString(), Math.Min(4000, 300 + batch.Count * 450), 0, (root, err, text, res) =>
             {
                 WorldBusy = false;
                 var arr = root != null ? Json.Arr(Json.Get(root, "stories")) : null;

@@ -58,6 +58,8 @@ namespace KerbalNews
             State = state;
             Settings = settings;
             // Local model servers get one request at a time and a longer time limit.
+            // Every paid request is counted on its way out (see UsageMeter); the meter changes nothing.
+            if (transport != null && !(transport is LocalQueueTransport) && !(transport is UsageMeter)) transport = new UsageMeter(transport, CountUsage);
             Transport = transport is LocalQueueTransport ? transport : new LocalQueueTransport(transport, () => Settings.LocalRoot, () => Settings.LocalTimeoutSeconds);
             Clock = clock;
             Outlets.IsOn = id => Settings.SiteOn(id);
@@ -82,12 +84,38 @@ namespace KerbalNews
         }
 
         /// <summary>Record an event. Returns the story it joined.</summary>
+        /// <summary>
+        /// Adds one request to the three running counts: this game session, this save, and everything on this computer.
+        /// </summary>
+        public void CountUsage(string feature, UsageStats one)
+        {
+            if (string.IsNullOrEmpty(feature)) feature = UsageMeter.Other;
+            Settings.UsageSession.Count(feature, one);
+            Settings.UsageAll.Count(feature, one);
+            if (State != null) State.Usage.Count(feature, one);
+            Settings.UsageDirty = true;
+        }
+
+        IEnumerable<UsageBook> UsageBooks { get { yield return Settings.UsageSession; yield return Settings.UsageAll; if (State != null) yield return State.Usage; } }
+
+        double usageClock = -1;
+        /// <summary>Time spent in the game counts as play, for "per hour of play". A long gap (a pause, a loading screen) is not counted.</summary>
+        void CountPlay(double realTime)
+        {
+            double d = realTime - usageClock;
+            usageClock = realTime;
+            if (d <= 0 || d > 5) return;
+            foreach (var b in UsageBooks) b.PlaySeconds += d;
+            Settings.UsageDirty = true;
+        }
+
         public Story Ingest(NewsEvent e)
         {
             if (Stream != null && e != null && e.VesselId != "" && e.VesselId == Stream.VesselId && e.Type != EventTypes.Livestream)
                 StreamMoment(StreamMomentText(e), lastRealTime);
             if (e == null || string.IsNullOrEmpty(e.Type)) return null;
             if (HoldForSide(e)) return null;
+            if (e.Type == EventTypes.Launch) foreach (var b in UsageBooks) b.Launches++;
             try { if (SuppressEvent(e)) return null; } catch { }
             // A silent vessel only makes news through what anyone can see from the ground.
             if (State.IsSilent(e.VesselId) && !VisibleFromGround(e)) return null;
@@ -178,6 +206,7 @@ namespace KerbalNews
         /// </summary>
         public void Tick(double ut, double realTime, bool allowCalls)
         {
+            CountPlay(realTime);
             FillerQuietDays = Settings.QuietDays;
             Providers.LocalContext = Settings.LocalContext;
             StreamInterval = Settings.StreamSeconds;
@@ -311,6 +340,7 @@ namespace KerbalNews
             byte[] jpeg = mainShot != null && mainShot.Look == "" && Sees(route) ? JpegOf(mainShot) : null;
             if (jpeg != null) user += "\nPHOTO: the picture that runs with this story is attached. Writers may describe what it shows where it fits, and commenters may react to it. Also add a top-level field \"photo_look\": two or three plain sentences on what can actually be seen in it.\n";
             var req = Providers.Build(preset, route.BaseUrl, route.Key, model, system, user, Settings.MaxTokens, preset.JsonMode, jpeg);
+            req.Feature = "News articles";
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             Transport.Send(req, res =>
             {
@@ -613,6 +643,7 @@ namespace KerbalNews
             if (profile) { system = Compressor.ProfileSystemPrompt(); user = Compressor.ProfileUserPrompt(State); }
             else { system = Compressor.MemorySystemPrompt(); user = Compressor.MemoryUserPrompt(State, cut, Clock); }
             var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model, system, user, 2000, preset.JsonMode);
+            req.Feature = "News articles";
             req.TimeoutSeconds = Settings.TimeoutSeconds;
             compressing = true;
             Status = profile ? "Summarizing the agency profile" : "Compressing the news archive";
@@ -689,6 +720,7 @@ namespace KerbalNews
             if (!route.Ready) { done(false, "No API key saved for " + preset.Name + "."); return; }
             var req = Providers.Build(preset, route.BaseUrl, route.Key, route.Model,
                 "You are a connectivity check. Reply with JSON only.", "Reply with this JSON object exactly: {\"ok\":true,\"headline\":\"Kerbin Daily Herald online\"}", 200, preset.JsonMode);
+            req.Feature = "Test requests";
             req.TimeoutSeconds = Math.Min(60, Settings.TimeoutSeconds);
             Transport.Send(req, res =>
             {
