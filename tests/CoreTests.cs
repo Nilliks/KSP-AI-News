@@ -15,7 +15,7 @@ public static class CoreTests
     public static int Main()
     {
         int pass = 0, fail = 0;
-        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Concat(typeof(TabloidTests).GetMethods()).Concat(typeof(PressPhotoTests).GetMethods()).Concat(typeof(StreamTests).GetMethods()).Concat(typeof(PollTests).GetMethods()).Concat(typeof(AssistantTests).GetMethods()).Concat(typeof(FeatureTests).GetMethods()).Concat(typeof(MailTests).GetMethods()).Concat(typeof(VarietyTests).GetMethods()).Concat(typeof(VisionTests).GetMethods()).Concat(typeof(AnnouncerTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
+        foreach (var m in typeof(CoreTests).GetMethods().Concat(typeof(WebTests).GetMethods()).Concat(typeof(CommunityTests).GetMethods()).Concat(typeof(DemoTests).GetMethods()).Concat(typeof(PressTests).GetMethods()).Concat(typeof(TabloidTests).GetMethods()).Concat(typeof(PressPhotoTests).GetMethods()).Concat(typeof(StreamTests).GetMethods()).Concat(typeof(PollTests).GetMethods()).Concat(typeof(AssistantTests).GetMethods()).Concat(typeof(FeatureTests).GetMethods()).Concat(typeof(MailTests).GetMethods()).Concat(typeof(VarietyTests).GetMethods()).Concat(typeof(VisionTests).GetMethods()).Concat(typeof(AnnouncerTests).GetMethods()).Concat(typeof(EngineeringSheetTests).GetMethods()).Where(x => x.IsStatic && x.Name.StartsWith("Test")).OrderBy(x => x.Name))
         {
             try { m.Invoke(null, null); pass++; Console.WriteLine("PASS " + m.Name); }
             catch (Exception e)

@@ -67,8 +67,37 @@ namespace KerbalNews.KSP
             Check(s != null && s.DeltaVReady && s.Stages.Count >= 2 && s.TotalDvVac > 1000, "eng: VAB delta-v by stage (" + (s != null ? s.Stages.Count + " stages, " + s.TotalDvVac.ToString("0") + " m/s" : "none") + ")");
             var plan = sys.Engine.EngCurrentPlan(s);
             foreach (var r in sys.Engine.EngReview(s, plan)) Log("    review: " + r);
+            // The live craft sheet: every part read from the builder, nothing saved.
+            var sheet = s != null ? s.Sheet : null;
+            Check(sheet != null && sheet.Parts.Count == s.Parts, "eng: craft sheet lists every part in the builder (" + (sheet != null ? sheet.Parts.Count.ToString() : "none") + " of " + (s != null ? s.Parts : 0) + ")");
+            if (sheet != null)
+            {
+                int engines = sheet.Count("engine"), tanks = sheet.Parts.Count(p => p.Max("LiquidFuel") > 0), decouplers = sheet.Count("decoupler");
+                Check(engines >= 3 && tanks >= 3 && decouplers >= 1 && sheet.Count("command") >= 1, "eng: sheet recognises engines, tanks, decouplers and the pod (" + engines + " engines, " + tanks + " tanks, " + decouplers + " decouplers)");
+                Check(sheet.All("engine").All(m => m.N("thrust") > 0 && m.N("ispVac") > 100 && m.T("props") != ""), "eng: engines have thrust, Isp and propellants read");
+                Check(sheet.Parts.All(p => p.Title != "" && p.Mod != "") && sheet.Parts.Any(p => p.DropStage >= 0) && sheet.Parts.Any(p => p.DropStage < 0), "eng: parts have names, a source mod and a drop stage");
+                Check(s.Bodies.Count > 5 && s.Home != null && DvPlanner.Ascent(s.Home) > 1000, "eng: bodies read from the save (" + s.Bodies.Count + ", launch " + (s.Home != null ? DvPlanner.Ascent(s.Home).ToString("0") : "?") + " m/s)");
+                var power = sys.Engine.EngPower(s, plan);
+                Log("    power: " + (power != null ? power.Rating + ", battery " + power.Battery.ToString("0") + " EC, solar " + power.SolarHome.ToString("0.##") + ", always " + power.Always.ToString("0.###") + ", wheels " + power.Wheels.ToString("0.###") : "none"));
+                Check(power != null && power.Battery > 0 && power.Always + power.Wheels > 0, "eng: power budget has batteries and consumers");
+                foreach (var x in sheet.StagingIssues(s.Stages)) Log("    staging: " + x);
+                foreach (var ev in sheet.Stages(s.Stages)) Log("    stage " + ev.Stage + ": " + string.Join(", ", ev.Fires.ToArray()));
+                string text = sheet.Text(s.Stages, "");
+                Log("    sheet text: " + text.Length + " characters for " + sheet.Parts.Count + " parts");
+                foreach (var line in text.Split('\n').Take(40)) Log("      " + line);
+                float r0 = Time.realtimeSinceStartup;
+                for (int i = 0; i < 5; i++) CraftReader.Read(EditorLogic.fetch.ship.parts, EditorLogic.fetch.ship.parts[0], false);
+                Log("    reading the craft takes " + ((Time.realtimeSinceStartup - r0) / 5 * 1000).ToString("0.0") + " ms");
+            }
             yield return Go(Sites.EngineeringHost);
             yield return Shot("eng-vab");
+            foreach (var tab in new[] { "power", "stages", "parts", "problems" })
+            {
+                sys.Sites.Handle("action:eng-tab/" + tab, null);
+                yield return Go(Sites.EngineeringHost);
+                yield return Shot("eng-vab-" + tab);
+            }
+            sys.Sites.Handle("action:eng-tab/overview", null);
             HighLogic.LoadScene(GameScenes.SPACECENTER);
             t0 = Time.realtimeSinceStartup;
             while (HighLogic.LoadedScene != GameScenes.SPACECENTER && Time.realtimeSinceStartup - t0 < 90) yield return new WaitForSeconds(1);

@@ -63,6 +63,13 @@ namespace KerbalNews
         public List<string> Vessels = new List<string>();
         /// <summary>True when the bodies are the stock Kerbol system (the reference delta-v map only applies then).</summary>
         public bool StockSystem = true;
+
+        /// <summary>Every part on the craft with its modules and resources, read live. Null when there is no craft.</summary>
+        public CraftSheet Sheet;
+        /// <summary>The bodies in the save, so budgets hold for rescaled systems and planet packs.</summary>
+        public List<EngBody> Bodies = new List<EngBody>();
+        public EngBody Home { get { return Bodies.FirstOrDefault(b => b.IsHome); } }
+        public EngBody BodyNamed(string name) { return DvPlanner.Find(Bodies, name); }
     }
 
     /// <summary>Plain orbital mechanics, so the team quotes computed numbers instead of guessing.</summary>
@@ -234,10 +241,13 @@ namespace KerbalNews
             sb.AppendLine("- wernher: Wernher, propulsion and structures. Engines, staging, TWR, Isp, fuel, mass, aerodynamics, wobble, part choice and craft design.");
             sb.AppendLine("- gene: Gene, mission planning. Whole-mission delta-v budgets, margins, contracts, crew safety, what to do next.");
             sb.AppendLine("Answer like real, friendly flight engineers: practical, concrete, step by step when asked how to do something, with numbers. Use the live data and the computed numbers you are given; do not invent craft data you were not given. If a number is missing, say what you would need (for example a target set, or staging set up). Explain orbital mechanics simply when the director seems new to it.");
+            sb.AppendLine("You can see the whole craft. The CRAFT SHEET is the complete, live parts list read from the game: every part, which mod it is from, its stage, what it holds and what its modules do, including modded parts. Never say you cannot see the parts list. Modules you do not recognise are listed by their class name with their config values and resource rates: reason from those and from the mod's name. The POWER BUDGET, STAGING CHECK and DESIGN REVIEW are computed from that sheet: quote their numbers rather than redoing the sums. Judge in both directions: say when something is short, and also when the craft carries far more than the mission needs, with what trimming it would save.");
+            sb.AppendLine("ASK BEFORE YOU GUESS. If the answer depends on something you were not told (where it is landing, where it is going, whether crew are aboard, whether it comes home, what will be running), do not assume: ask the director, at most two short questions, and offer likely answers as options. Only ask when the answer would change your advice. If the gap is minor, state the assumption in one clause and answer.");
             sb.AppendLine("Usually one specialist answers; add a second only when they add something real (at most three). Keep each reply short: two to six sentences, or a short numbered list for procedures. Name KSP parts and features by their stock names (Terrier, Poodle, maneuver node, SAS prograde) unless the mods list says otherwise.");
-            if (snap == null || snap.StockSystem) sb.AppendLine(StockDvMap);
+            if (snap != null && snap.Bodies.Count > 0 && snap.Home != null) sb.AppendLine(DvPlanner.Table(snap.Bodies, snap.Home) + " These are worked out from the real bodies in this save, so they hold even if the system is rescaled or has extra planets. Add 10-20% margin.");
+            else if (snap == null || snap.StockSystem) sb.AppendLine(StockDvMap);
             else sb.AppendLine("A planet pack or rescale is installed, so stock delta-v maps do not apply: work from the bodies' real numbers given in the data.");
-            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene\", \"text\": \"...\"}]}.");
+            sb.AppendLine("Reply with one JSON object only: {\"replies\": [{\"who\": \"linus|wernher|gene\", \"text\": \"...\"}], \"ask\": {\"question\": \"...\", \"options\": [\"...\", \"...\"]}}. Leave \"ask\" out unless you need an answer from the director before you can advise; when you use it, the reply text should say what you need and why, and options are two to five short likely answers.");
             var hints = EngModHints(Settings.Mods);
             if (hints.Count > 0) sb.AppendLine("MODS THAT CHANGE THE ADVICE (use them: suggest their tools and respect their rules):\n- " + string.Join("\n- ", hints.ToArray()));
             string mods = Settings.ModsInContext ? Settings.ModsText : "";
@@ -254,8 +264,19 @@ namespace KerbalNews
             sb.AppendLine(EngDataText(snap));
             var plan = EngCurrentPlan(snap);
             if (plan != null) sb.AppendLine(EngMissions.PlanText(plan));
+            string question = State.EngChat.Where(m => m.Role == "player").Select(m => m.Text).LastOrDefault() ?? "";
+            if (snap != null && snap.Sheet != null && snap.Sheet.Parts.Count > 0)
+            {
+                sb.AppendLine(snap.Sheet.Text(snap.Stages, question));
+                var power = EngPower(snap, plan);
+                if (power != null) sb.AppendLine(CraftSheet.PowerText(power));
+                var staging = snap.Sheet.StagingIssues(snap.Stages);
+                sb.AppendLine("STAGING CHECK (computed):\n- " + (staging.Count > 0 ? string.Join("\n- ", staging.ToArray()) : "No staging problems found."));
+            }
             var review = EngReview(snap, plan);
-            if (review.Count > 0) sb.AppendLine("DESIGN REVIEW (from the parts list):\n- " + string.Join("\n- ", review.ToArray()));
+            if (review.Count > 0) sb.AppendLine("DESIGN REVIEW (computed from the craft sheet):\n- " + string.Join("\n- ", review.ToArray()));
+            if (snap != null && snap.Vessel != "" && State.EngMission == "")
+                sb.AppendLine("NO MISSION IS SET: the director has not said where this craft is going or what it will do there. If the question depends on that (landing, power far from the sun, delta-v, comms range, heat shield, supplies), ask first.");
             string inc = IncidentText();
             if (inc != "") sb.AppendLine("PAST INVESTIGATIONS:\n" + inc);
             sb.AppendLine();
@@ -280,9 +301,10 @@ namespace KerbalNews
         {
             text = (text ?? "").Trim();
             if (text == "" || !Settings.EngineeringOn) return false;
-            EngLine("player", ResponseParser.Clip(text, 1500), ut);
             EngSnapshot snap = null;
             try { snap = EngineeringData(); } catch (Exception e) { LastError = "Engineering data: " + e.Message; }
+            EngLearnMission(text, snap);
+            EngLine("player", ResponseParser.Clip(text, 1500), ut);
             if (!Settings.CanCallAi)
             {
                 var facts = EngFacts(snap);
@@ -293,6 +315,34 @@ namespace KerbalNews
             EngBusy = true;
             EngStep(run, snap, ut, 0);
             return true;
+        }
+
+        /// <summary>Picks the mission up from the chat: a destination named in a question, or the answer to "where is it going?".
+        /// The director then only has to say it once.</summary>
+        void EngLearnMission(string text, EngSnapshot snap)
+        {
+            if (text.StartsWith("Plan this mission:")) return;
+            bool named = EngMissions.FindBody(text, snap) != null || (snap == null || snap.Bodies.Count == 0) && EngMissions.Find(text) != null;
+            if (!named) return;
+            var last = State.EngChat.LastOrDefault();
+            bool answering = last != null && last.Role != "player" && last.Actions.StartsWith("opt:");
+            if (answering)
+            {
+                // "Will this land safely?" ... "Where?" ... "Duna": the question and the answer together are the mission.
+                string asked = State.EngChat.Where(m => m.Role == "player").Select(m => m.Text).LastOrDefault() ?? "";
+                State.EngMission = ResponseParser.Clip((asked + " " + text).Trim(), 200);
+            }
+            else if (State.EngMission == "") State.EngMission = ResponseParser.Clip(text, 200);
+        }
+
+        /// <summary>The power budget where the craft is going: the planned destination, else where it is now, else home.</summary>
+        public PowerReport EngPower(EngSnapshot snap, EngPlan plan)
+        {
+            if (snap == null || snap.Sheet == null || snap.Sheet.Parts.Count == 0) return null;
+            var home = snap.Home;
+            EngBody there = plan != null && plan.Known ? snap.BodyNamed(plan.Body) : null;
+            if (there == null && (snap.Scene == "flight" || snap.Scene == "map")) there = snap.BodyNamed(snap.Body);
+            return snap.Sheet.Power(home, there ?? home, snap.Bodies);
         }
 
         void EngStep(int run, EngSnapshot snap, double ut, int failures)
@@ -328,6 +378,21 @@ namespace KerbalNews
                 {
                     string single = Json.Str(root, "reply", "").Trim();
                     EngLine("linus", single == "" ? "..." : ResponseParser.Clip(single, 2000), ut);
+                }
+                // A clarifying question: its likely answers become one-click buttons under the last reply.
+                var ask = Json.Obj(root) != null && Json.Obj(root).ContainsKey("ask") ? Json.Obj(root)["ask"] : null;
+                if (ask != null && Json.Obj(ask) != null)
+                {
+                    var opts = Json.Arr(Json.Obj(ask).ContainsKey("options") ? Json.Obj(ask)["options"] : null);
+                    var clean = opts == null ? new List<string>() : opts.Select(o => (o == null ? "" : o.ToString()).Replace("|", "/").Trim()).Where(o => o != "" && o.Length <= 40).Take(5).ToList();
+                    string q = Json.Str(ask, "question", "").Trim();
+                    var lastMsg = State.EngChat.LastOrDefault();
+                    if (lastMsg != null && lastMsg.Role != "player" && (clean.Count > 0 || q != ""))
+                    {
+                        if (q != "" && !lastMsg.Text.Contains(q)) lastMsg.Text = (lastMsg.Text + "\n" + ResponseParser.Clip(q, 300)).Trim();
+                        lastMsg.Actions = "opt:" + string.Join("|", clean.ToArray());
+                        RaiseCommunity();
+                    }
                 }
             });
         }

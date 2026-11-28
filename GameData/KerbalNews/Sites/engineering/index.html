@@ -6,9 +6,36 @@
   <div class="cap">Live data the team can see</div>
   {{#hasVessel}}<div class="box">
     <div class="vname">{{vessel}}</div>
-    <div class="meta">{{situation}}{{#crewText}} · {{crewText}}{{/crewText}} · {{mass}}</div>
+    <div class="meta">{{situation}}{{#crewText}} · {{crewText}}{{/crewText}} · {{mass}}{{#liveNote}} · <span class="live">{{liveNote}}</span>{{/liveNote}}</div>
     {{#cells.0}}<div class="grid">{{#cells}}<div class="cell"><span>{{label}}</span> <b>{{value}}</b></div>{{/cells}}</div>{{/cells.0}}
   </div>{{/hasVessel}}
+  {{#hasSheet}}<div class="tabs">{{#tabs}}<a class="tab{{#on}} on{{/on}}" href="{{url}}">{{label}}{{#count}} <span class="cnt">{{count}}</span>{{/count}}</a>{{/tabs}}</div>{{/hasSheet}}
+  {{#tab_power}}
+    <div class="box"><div class="btitle">Power{{#powerWhere}} at {{powerWhere}}{{/powerWhere}}: <span class="{{#powerBad}}bad{{/powerBad}}{{^powerBad}}rate{{/powerBad}}">{{powerRating}}</span></div>
+      {{#pThere}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pThere}}
+      {{^hasThere}}<div class="meta">Nothing on this craft draws power.</div>{{/hasThere}}</div>
+    {{#hasFixes}}<div class="box"><div class="btitle">Try a fix</div>{{#pFixes}}<div class="row"><span class="rt">{{text}}</span><b>{{value}}</b></div>{{/pFixes}}</div>{{/hasFixes}}
+    {{#hasSources}}<div class="box"><div class="btitle">Generation and storage</div>{{#pSources}}<div class="row{{#bad}} bad{{/bad}}"><span class="rt">{{text}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</span><b>{{value}}</b></div>{{/pSources}}</div>{{/hasSources}}
+    {{#hasDemand}}<div class="box"><div class="btitle">Demand</div>{{#pDemand}}<div class="row"><span class="rt">{{text}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</span><b>{{value}}</b></div>{{/pDemand}}</div>{{/hasDemand}}
+    <div class="note">Solar output is scaled to the destination's distance from the sun. Reaction wheels count at 15% of full power while coasting. Pick a destination in the mission row to see power there.</div>
+  {{/tab_power}}
+  {{#tab_stages}}
+    <div class="box"><div class="btitle">Staging check</div>
+      {{#stagingIssues}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/stagingIssues}}
+      {{#stagingClean}}<div class="chk">No staging problems found.</div>{{/stagingClean}}</div>
+    <div class="box"><div class="btitle">What fires, in order</div>
+      {{#stageList}}<div class="st"><span class="sl">Stage {{n}}</span><span class="rt{{#empty}} dim{{/empty}}">{{fires}}</span></div>
+      <div class="twr">{{dv}}{{#drops}}{{#dv}} · {{/dv}}{{drops}}{{/drops}}</div>{{/stageList}}</div>
+  {{/tab_stages}}
+  {{#tab_parts}}
+    <div class="box"><div class="btitle">{{partCount}} parts, grouped</div>{{#partMods}}<div class="meta">{{partMods}}</div>{{/partMods}}</div>
+    {{#partList}}<div class="part"><div class="pt">{{title}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</div>
+      <div class="meta">{{mass}} · {{when}}{{#holds}} · {{holds}}{{/holds}}</div>{{#does}}<div class="pd">{{does}}</div>{{/does}}</div>{{/partList}}
+  {{/tab_parts}}
+  {{#tab_problems}}
+    <div class="box"><div class="btitle">Everything the checks found</div>{{#allProblems}}<div class="chk{{#bad}} bad{{/bad}}{{#fix}} fix{{/fix}}">{{text}}</div>{{/allProblems}}</div>
+  {{/tab_problems}}
+  {{#tab_overview}}
   {{#hasStages}}<div class="box">
     <div class="btitle">Delta-v by stage ({{dvKind}})</div>
     {{#stages}}<div class="stage"><span class="sl">Stage {{n}}</span><div class="bar"><div style="width: {{pct}}"></div></div><span class="sv">{{dv}}</span></div>
@@ -21,6 +48,7 @@
   {{#hasReview}}<div class="box"><div class="btitle">Design review</div>{{#review}}<div class="chk{{#bad}} bad{{/bad}}">{{text}}</div>{{/review}}</div>{{/hasReview}}
   {{#hasFleet}}<div class="box"><div class="btitle">Active vessels</div>{{#fleet}}<div class="fl">{{.}}</div>{{/fleet}}</div>{{/hasFleet}}
   <div class="note">{{sceneNote}}</div>
+  {{/tab_overview}}
   {{#hasIncidents}}<div class="cap" style="margin-top: 14px">Incidents</div>
   {{#incidents}}<div class="box"><div class="btitle">{{title}}</div><div class="meta">{{date}} · {{kind}}{{#crew}} · {{crew}}{{/crew}}</div>
     {{#open}}<div class="sendrow" style="margin-top: 6px"><a class="qa" href="action:eng-investigate/{{id}}">Investigate</a></div>{{/open}}
@@ -35,15 +63,17 @@
   {{#on}}
   <div class="team">{{#team}}<span class="chipt{{#spoke}} on{{/spoke}}">{{name}}</span>{{/team}}<span class="spacer"></span><a class="small" href="action:eng-clear">Clear chat</a></div>
   <div class="plan"><div class="sendrow"><span class="meta">Mission</span><input name="mission" value="{{mission}}" placeholder="e.g. land on Minmus and come back"><button class="btn" data-action="eng-plan">Plan</button></div>
+  {{#hasPicker}}<div class="pick"><span class="meta pl">Go to</span>{{#dests}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/dests}}</div>
+  <div class="pick"><span class="meta pl">And</span>{{#goals}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/goals}}<span class="gap"></span>{{#trips}}<a class="pk{{#on}} on{{/on}}" href="{{url}}">{{name}}</a>{{/trips}}</div>{{/hasPicker}}
   {{#hasPlan}}<div class="legs">{{#legs}}<div class="leg{{#short}} bad{{/short}}"><span class="ln">{{name}}</span><span class="ld">{{dv}}</span><span class="ls">{{stages}}</span></div>{{/legs}}
     <div class="leg tot"><span class="ln">Total (10% margin: {{need}})</span><span class="ld">{{total}}</span><span class="ls">{{verdict}}</span></div></div>{{/hasPlan}}
   {{#planNote}}<p class="meta">{{planNote}}</p>{{/planNote}}</div>
   {{#offline}}<p class="warn">Offline, the team can only give the computed numbers. Turn off offline mode in <a href="settings.kb">Settings</a> to talk to them.</p>{{/offline}}
-  {{#empty}}<p class="meta">Ask about your orbit, your delta-v budget, transfer windows, staging or craft design. The team sees the live data on the left.</p>{{/empty}}
+  {{#empty}}<p class="meta">Ask anything about the craft, its power, delta-v, staging or the mission. The team sees every part on it, read live, and will ask you if something is unclear.</p>{{/empty}}
   <div class="chat">
   {{#messages}}
     {{#player}}<div class="msg you">{{#lines}}<p>{{.}}</p>{{/lines}}</div>{{/player}}
-    {{^player}}<div class="msg eng"><div class="who">{{who}}</div>{{#lines}}<p>{{.}}</p>{{/lines}}</div>{{/player}}
+    {{^player}}<div class="msg eng"><div class="who">{{who}}</div>{{#lines}}<p>{{.}}</p>{{/lines}}{{#options.0}}<div class="opts">{{#options}}<a class="qa ans" href="{{url}}">{{text}}</a>{{/options}}</div>{{/options.0}}</div>{{/player}}
   {{/messages}}
   {{#busy}}<div class="status">The team is working it out...</div>{{/busy}}
   </div>

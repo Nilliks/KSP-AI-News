@@ -18,7 +18,7 @@ namespace KerbalNews.Web
         {
             string sc = s == null ? "spacecenter" : s.Scene;
             if (sc == "vab" || sc == "sph")
-                return new[] { "Review my design", "Is my TWR good for launch?", "Can this reach the Mun and come back?", "How should I stage this?" };
+                return new[] { "Full design review", "Do I have enough power?", "What am I missing?", "Check my staging", "Is my TWR good for launch?", "Is anything oversized?" };
             if (sc == "flight" || sc == "map")
             {
                 var l = new List<string> { "Check my delta-v budget" };
@@ -30,6 +30,126 @@ namespace KerbalNews.Web
             }
             return new[] { "What should we fly next?", "Explain a gravity turn", "How much delta-v for a Mun landing?", "How do transfer windows work?" };
         }
+
+        /// <summary>Which report the left side shows. Not saved: it is where the director is looking, not game state.</summary>
+        public string EngTab = "overview";
+        static readonly string[][] EngTabs = { new[] { "overview", "Overview" }, new[] { "power", "Power" }, new[] { "stages", "Stages" }, new[] { "parts", "Parts" }, new[] { "problems", "All problems" } };
+
+        static object Line(string text, string value = "", bool bad = false, string tag = "", bool fix = false)
+        {
+            return new Dictionary<string, object> { { "text", text }, { "value", value }, { "bad", bad }, { "mod", tag == "stock" ? "" : tag }, { "fix", fix } };
+        }
+        static object Line(SheetLine l) { return Line(l.Text, l.Value, l.Bad, l.Tag, l.Fix); }
+
+        /// <summary>The mission picker: the mission as three choices, read back from the plain-English mission text.</summary>
+        void MissionPicker(Dictionary<string, object> m, EngSnapshot s)
+        {
+            string t = " " + (State.EngMission ?? "").ToLowerInvariant() + " ";
+            var body = EngMissions.FindBody(t, s);
+            bool flyby = t.Contains("flyby") || t.Contains("fly by"), land = !flyby && (t.Contains("land") || t.Contains("surface") || t.Contains("base") || t.Contains("rover"));
+            bool ret = t.Contains("return") || t.Contains("back") || t.Contains("home") || t.Contains("round trip");
+            var dests = new List<object>();
+            if (s != null && s.Home != null)
+            {
+                var home = s.Home;
+                var order = s.Bodies.Where(b => !b.IsStar && b.Name != home.Name)
+                    .OrderBy(b => b.Parent == home.Name ? 0 : 1)
+                    .ThenBy(b => { var p = b.Parent == home.Parent ? b : s.BodyNamed(b.Parent); return p != null ? p.Sma : double.MaxValue; })
+                    .ThenBy(b => b.Parent == home.Parent ? 0 : b.Sma).Take(30);
+                foreach (var b in order)
+                    dests.Add(new Dictionary<string, object> { { "name", b.Name }, { "on", body != null && body.Name == b.Name }, { "url", "action:eng-pick/dest/" + Uri.EscapeDataString(b.Name) } });
+            }
+            m["hasPicker"] = dests.Count > 0;
+            m["dests"] = dests;
+            string goal = flyby ? "flyby" : land ? "land" : "orbit";
+            m["goals"] = new[] { new[] { "flyby", "Flyby" }, new[] { "orbit", "Orbit" }, new[] { "land", "Land" } }
+                .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && goal == g[0] }, { "url", "action:eng-pick/goal/" + g[0] } }).ToList();
+            m["trips"] = new[] { new[] { "oneway", "One-way" }, new[] { "return", "Return" } }
+                .Select(g => (object)new Dictionary<string, object> { { "name", g[1] }, { "on", body != null && ret == (g[0] == "return") }, { "url", "action:eng-pick/trip/" + g[0] } }).ToList();
+        }
+
+        /// <summary>Changes one choice of the mission picker and rewrites the mission text. No AI call.</summary>
+        public void EngPick(string what, string value)
+        {
+            EngSnapshot s = null;
+            try { s = Engine.EngineeringData(); } catch { }
+            string t = " " + (State.EngMission ?? "").ToLowerInvariant() + " ";
+            var body = EngMissions.FindBody(t, s);
+            string dest = body != null ? body.Name : "";
+            bool flyby = t.Contains("flyby") || t.Contains("fly by"), land = !flyby && (t.Contains("land") || t.Contains("surface") || t.Contains("base") || t.Contains("rover"));
+            bool ret = t.Contains("return") || t.Contains("back") || t.Contains("home") || t.Contains("round trip");
+            string goal = flyby ? "flyby" : land ? "land" : "orbit";
+            if (what == "dest") dest = value; else if (what == "goal") goal = value; else if (what == "trip") ret = value == "return";
+            if (dest == "") { if (s != null && s.Home != null) { var first = s.Bodies.Where(b => b.Parent == s.Home.Name).OrderBy(b => b.Sma).FirstOrDefault(); if (first != null) dest = first.Name; } }
+            if (dest == "") return;
+            State.EngMission = (goal == "flyby" ? "Flyby of " : goal == "land" ? "Land on " : "Orbit ") + dest + (ret ? " and return" : "");
+        }
+
+        void SheetModel(Dictionary<string, object> m, EngSnapshot s, EngPlan plan, List<string> review)
+        {
+            var sheet = s != null ? s.Sheet : null;
+            bool has = sheet != null && sheet.Parts.Count > 0;
+            m["hasSheet"] = has;
+            if (!has && EngTab != "overview") EngTab = "overview";
+            var power = has ? Engine.EngPower(s, plan) : null;
+            var staging = has ? sheet.StagingIssues(s.Stages) : new List<string>();
+            int powerBad = power != null ? power.Problems : 0, stagingBad = staging.Count(x => x.StartsWith("!"));
+            int reviewBad = review.Count(x => x.StartsWith("!") && !x.Contains("See the power budget") && !x.Contains("see the staging check"));
+            m["tabs"] = EngTabs.Select(t => (object)new Dictionary<string, object>
+            {
+                { "label", t[1] }, { "on", EngTab == t[0] }, { "url", "action:eng-tab/" + t[0] },
+                { "count", t[0] == "power" ? powerBad : t[0] == "stages" ? stagingBad : t[0] == "problems" ? powerBad + stagingBad + reviewBad : 0 },
+            }).ToList();
+            foreach (var t in EngTabs) m["tab_" + t[0]] = EngTab == t[0];
+            if (!has) return;
+            double age = Math.Max(0, EngClock() - sheet.BuiltAt);
+            m["liveNote"] = "live from the " + (sheet.Flying ? "craft" : "builder") + (age < 1.5 ? ", just read" : ", read " + EngMath.N(age) + " s ago");
+
+            if (power != null)
+            {
+                m["powerRating"] = power.Rating; m["powerWhere"] = power.Where;
+                m["powerBad"] = power.Rating.StartsWith("short");
+                m["pSources"] = power.Sources.Select(Line).ToList(); m["pDemand"] = power.Demand.Select(Line).ToList();
+                m["pThere"] = power.There.Select(Line).ToList(); m["pFixes"] = power.Fixes.Select(Line).ToList();
+                m["hasSources"] = power.Sources.Count > 0; m["hasDemand"] = power.Demand.Count > 0; m["hasThere"] = power.There.Count > 0; m["hasFixes"] = power.Fixes.Count > 0;
+            }
+            m["stageList"] = sheet.Stages(s.Stages).Select(ev =>
+            {
+                var dropped = sheet.Parts.Where(p => p.DropStage == ev.Stage).ToList();
+                bool editor = s.Scene == "vab" || s.Scene == "sph";
+                return (object)new Dictionary<string, object>
+                {
+                    { "n", ev.Stage }, { "fires", ev.Fires.Count > 0 ? string.Join(", ", ev.Fires.ToArray()) : "nothing staged" }, { "empty", ev.Fires.Count == 0 },
+                    { "dv", ev.Dv != null && ev.Dv.DvVac > 0.5 ? EngMath.N(ev.Dv.DvVac) + " m/s, TWR " + EngMath.N(editor ? (ev.Dv.TwrAsl > 0 && ev.Stage == sheet.MaxStage ? ev.Dv.TwrAsl : ev.Dv.TwrVac) : ev.Dv.TwrVac, "0.00") : "" },
+                    { "drops", dropped.Count > 0 ? "drops " + dropped.Count + " part" + (dropped.Count == 1 ? "" : "s") + ", " + EngMath.N(dropped.Sum(p => p.DryMass + p.ResMass), "0.0#") + " t" : "" },
+                };
+            }).ToList();
+            m["stagingIssues"] = staging.Select(x => Line(x.StartsWith("! ") ? x.Substring(2) : x, "", x.StartsWith("!"))).ToList();
+            m["stagingClean"] = staging.Count == 0;
+            m["partList"] = sheet.Groups().Take(120).Select(g => (object)new Dictionary<string, object>
+            {
+                { "title", (g.Count > 1 ? g.Count + " × " : "") + g.First.Title }, { "mod", g.First.Mod == "stock" ? "" : g.First.Mod },
+                { "mass", EngMath.N(g.Mass, "0.0##") + " t" },
+                { "when", (g.First.Modules.Any(x => x.Staged) ? "stage " + g.First.Stage + " · " : "") + (g.First.DropStage >= 0 ? "dropped in stage " + g.First.DropStage : "stays") },
+                { "holds", CraftSheet.ResText(g.First.Res, g.Count) }, { "does", CraftSheet.Does(g.First) },
+            }).ToList();
+            m["partCount"] = sheet.Parts.Count;
+            var mods = sheet.Parts.Where(p => p.Mod != "" && p.Mod != "stock").GroupBy(p => p.Mod).OrderByDescending(g => g.Count()).Select(g => g.Key + " (" + g.Count() + ")").ToArray();
+            m["partMods"] = mods.Length > 0 ? "Modded parts from: " + string.Join(", ", mods) + "." : "";
+
+            // Everything that is wrong, worst first, in one list.
+            var all = new List<object>();
+            if (power != null) foreach (var l in power.There.Where(x => x.Bad)) all.Add(Line("Power: " + l.Text + (l.Value != "" ? " " + l.Value : ""), "", true));
+            foreach (var x in staging.Where(x => x.StartsWith("!"))) all.Add(Line("Staging: " + x.Substring(2), "", true));
+            foreach (var x in review.Where(x => x.StartsWith("!") && !x.Contains("See the power budget") && !x.Contains("see the staging check"))) all.Add(Line(x.Substring(2), "", true));
+            foreach (var x in staging.Where(x => !x.StartsWith("!"))) all.Add(Line("Staging: " + x));
+            foreach (var x in review.Where(x => !x.StartsWith("!"))) all.Add(Line(x));
+            if (power != null) foreach (var l in power.Fixes) all.Add(Line("Power: " + l.Text + (l.Value != "" ? " (" + l.Value + ")" : ""), "", false, "", true));
+            m["allProblems"] = all;
+        }
+
+        /// <summary>Real time in seconds, for the "read N s ago" note. The KSP layer sets it; tests leave it at zero.</summary>
+        public static Func<double> EngClock = () => 0;
 
         Dictionary<string, object> EngineeringModel()
         {
@@ -95,6 +215,8 @@ namespace KerbalNews.Web
             m["node"] = node.Select(chk).ToList();
             var plan = Engine.EngCurrentPlan(s);
             var review = s != null && (editor || flying) ? Engine.EngReview(s, plan) : new List<string>();
+            SheetModel(m, s, plan, review);
+            MissionPicker(m, s);
             m["hasReview"] = review.Count > 0;
             m["review"] = review.Select(chk).ToList();
             m["mission"] = State.EngMission;
@@ -127,6 +249,9 @@ namespace KerbalNews.Web
             m["messages"] = recent.Select(x => (object)new Dictionary<string, object>
             {
                 { "player", x.Role == "player" }, { "who", NewsEngine.EngName(x.Role) },
+                { "options", x == State.EngChat.LastOrDefault() && x.Actions.StartsWith("opt:") && !Engine.EngBusy
+                    ? x.Actions.Substring(4).Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries).Select(o => (object)new Dictionary<string, object> { { "text", o }, { "url", "action:eng-ask/" + Uri.EscapeDataString(o) } }).ToList()
+                    : new List<object>() },
                 { "lines", x.Text.Split('\n').Where(l => l.Trim() != "").Select(l => (object)l).ToList() },
             }).ToList();
             m["empty"] = State.EngChat.Count == 0;

@@ -179,6 +179,8 @@ namespace KerbalNews.Web
                 case "eng-send": Engine.EngSend(Get(form, "ask"), Now()); break;
                 case "eng-ask": Engine.EngSend(arg, Now()); break;
                 case "eng-clear": Engine.EngClear(); break;
+                case "eng-tab": EngTab = arg; break;
+                case "eng-pick": { int cut = arg.IndexOf('/'); if (cut > 0) EngPick(arg.Substring(0, cut), Uri.UnescapeDataString(arg.Substring(cut + 1))); break; }
                 case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
                 case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;
                 case "eng-share": Engine.EngShareFindings(arg, Now()); break;

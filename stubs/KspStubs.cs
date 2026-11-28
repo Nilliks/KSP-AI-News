@@ -218,6 +218,7 @@ public static class GameEvents
     public static EventData<HostedFromToAction<Vessel, CelestialBody>> onVesselSOIChanged;
     public static EventData<FromToAction<Part, Part>> onPartCouple;
     public static EventData<Vessel> onVesselWillDestroy;
+    public static EventData<ShipConstruct> onEditorShipModified = new EventData<ShipConstruct>();
     public static EventData<Part> onPartDie;
     public static EventData<int> onStageActivate;
     public static EventData<EventReport> onCrash, onCrashSplashdown, onOverheat;

@@ -38,6 +38,7 @@ namespace KerbalNews.KSP
             Engine.StreamFrameJpeg = GalleryStore.StreamFrame;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
+            KerbalNews.Web.Sites.EngClock = () => Time.realtimeSinceStartup;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
             Engine.SuppressEvent = e => e != null && e.VesselId != "" && ModCompat.VesselMoverBusy(e.VesselId);
             Engine.PostContract = KnnContract.Post;
@@ -193,7 +194,7 @@ namespace KerbalNews.KSP
                 if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
                 // A few seconds of flight data for the engineering team, so a crash can be investigated afterwards.
                 if (HighLogic.LoadedSceneIsFlight && Settings.EngineeringOn && FlightGlobals.ActiveVessel != null && Time.realtimeSinceStartup > nextEngRecord)
-                { nextEngRecord = Time.realtimeSinceStartup + 4; Engine.EngRecord(EngineeringCapture.Snapshot(), Planetarium.GetUniversalTime()); }
+                { nextEngRecord = Time.realtimeSinceStartup + 4; Engine.EngRecord(EngineeringCapture.Snapshot(false), Planetarium.GetUniversalTime()); }
             }
             catch (Exception e)
             {
