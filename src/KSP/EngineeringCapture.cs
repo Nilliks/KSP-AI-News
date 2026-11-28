@@ -53,13 +53,17 @@ namespace KerbalNews.KSP
             return bodies;
         }
 
+        /// <summary>The game's events read the handler's owner, so the handler has to be an instance method, not a static one.</summary>
+        sealed class EditorWatch { public void OnShipModified(ShipConstruct ship) { editorDirty = true; } }
+        static EditorWatch watch;
+
         static void Hook()
         {
             if (hooked) return;
             hooked = true;
-            try { GameEvents.onEditorShipModified.Add(OnShipModified); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Editor hook: " + e.Message); }
+            try { watch = new EditorWatch(); GameEvents.onEditorShipModified.Add(watch.OnShipModified); }
+            catch (Exception e) { Debug.LogWarning("[KerbalNews] Editor hook: " + e.Message); }
         }
-        static void OnShipModified(ShipConstruct ship) { editorDirty = true; }
 
         static CraftSheet Sheet(IList<Part> parts, Part root, bool flying, string key, bool dirty, float maxAge)
         {

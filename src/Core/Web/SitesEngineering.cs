@@ -126,16 +126,18 @@ namespace KerbalNews.Web
             }).ToList();
             m["stagingIssues"] = staging.Select(x => Line(x.StartsWith("! ") ? x.Substring(2) : x, "", x.StartsWith("!"))).ToList();
             m["stagingClean"] = staging.Count == 0;
+            var everywhere = sheet.Everywhere();
             m["partList"] = sheet.Groups().Take(120).Select(g => (object)new Dictionary<string, object>
             {
                 { "title", (g.Count > 1 ? g.Count + " × " : "") + g.First.Title }, { "mod", g.First.Mod == "stock" ? "" : g.First.Mod },
                 { "mass", EngMath.N(g.Mass, "0.0##") + " t" },
                 { "when", (g.First.Modules.Any(x => x.Staged) ? "stage " + g.First.Stage + " · " : "") + (g.First.DropStage >= 0 ? "dropped in stage " + g.First.DropStage : "stays") },
-                { "holds", CraftSheet.ResText(g.First.Res, g.Count) }, { "does", CraftSheet.Does(g.First) },
+                { "holds", CraftSheet.ResText(g.First.Res, g.Count) }, { "does", CraftSheet.Does(g.First, everywhere, true) },
             }).ToList();
             m["partCount"] = sheet.Parts.Count;
             var mods = sheet.Parts.Where(p => p.Mod != "" && p.Mod != "stock").GroupBy(p => p.Mod).OrderByDescending(g => g.Count()).Select(g => g.Key + " (" + g.Count() + ")").ToArray();
             m["partMods"] = mods.Length > 0 ? "Modded parts from: " + string.Join(", ", mods) + "." : "";
+            m["partEverywhere"] = everywhere.Count > 0 ? "On most parts, so not repeated below: " + string.Join(", ", everywhere.ToArray()) + "." : "";
 
             // Everything that is wrong, worst first, in one list.
             var all = new List<object>();

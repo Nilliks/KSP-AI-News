@@ -28,7 +28,7 @@
       <div class="twr">{{dv}}{{#drops}}{{#dv}} · {{/dv}}{{drops}}{{/drops}}</div>{{/stageList}}</div>
   {{/tab_stages}}
   {{#tab_parts}}
-    <div class="box"><div class="btitle">{{partCount}} parts, grouped</div>{{#partMods}}<div class="meta">{{partMods}}</div>{{/partMods}}</div>
+    <div class="box"><div class="btitle">{{partCount}} parts, grouped</div>{{#partMods}}<div class="meta">{{partMods}}</div>{{/partMods}}{{#partEverywhere}}<div class="meta">{{partEverywhere}}</div>{{/partEverywhere}}</div>
     {{#partList}}<div class="part"><div class="pt">{{title}}{{#mod}} <span class="mod">{{mod}}</span>{{/mod}}</div>
       <div class="meta">{{mass}} · {{when}}{{#holds}} · {{holds}}{{/holds}}</div>{{#does}}<div class="pd">{{does}}</div>{{/does}}</div>{{/partList}}
   {{/tab_parts}}

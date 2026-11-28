@@ -43,6 +43,7 @@ namespace KerbalNews.KSP
             "ModuleRestock", "ModuleStatusLight", "CModule", "ModuleDragModifier", "ModuleDeployableAntenna", "ModuleDeployableRadiator", "ModuleDeployablePart",
             "ModuleInventoryPart", "ModuleKISItem", "TweakScaleDisable", "ModuleSeeThroughObject", "InternalModule", "ModuleStockShabby", "Decal", "ModuleCoreHeat",
             "ModuleOverheatDisplay", "ModuleGroundPart", "ModuleCenterFollowTransform", "ModuleDockingNodeNamed", "ModuleLadder", "RetractableLadder", "ModuleTechColor",
+            "FMRS_PM", "KOSNameTag", "ShipEffects", "ModuleFreeIva", "ModuleToggleCrossfeed",
         };
         static readonly string[] NoisyField = { "transform", "anim", "sound", "fx", "texture", "color", "gui", "debug", "url", "node", "layer", "persist", "localiz", "display", "menu", "icon", "mesh", "prefab", "shader" };
         static readonly string[] StagedKinds = { "engine", "decoupler", "clamp", "chute", "fairing" };
@@ -193,6 +194,14 @@ namespace KerbalNews.KSP
                     if (c.Rates.Count == 0) { double ec = Num(m, "resourceAmount"); if (ec > 0) c.Rates.Add(new CraftRate { Res = CraftSheet.EC, PerSec = -ec }); }
                     break;
                 case "other":
+                    if (name == "TweakScale")
+                    {
+                        // Only worth a word when the part has actually been resized.
+                        double now = Num(m, "currentScale"), def = Num(m, "defaultScale");
+                        if (now <= 0 || def <= 0 || Math.Abs(now - def) < 1e-4) return null;
+                        c.Num["scale"] = now; c.Num["normalScale"] = def;
+                        break;
+                    }
                     Config(m, c);
                     break;
             }

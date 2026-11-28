@@ -196,11 +196,16 @@ namespace KerbalNews
         static readonly string[] QuietKinds = { "gimbal", "sas", "cargo" };
 
         /// <summary>What a part does, in a few words, from its modules.</summary>
-        public static string Does(CraftPart p)
+        public static string Does(CraftPart p) { return Does(p, null, false); }
+
+        /// <summary><paramref name="skip"/> names modules left out (ones that sit on nearly every part); <paramref name="brief"/>
+        /// keeps unrecognised modules to their name, rates and a few values.</summary>
+        public static string Does(CraftPart p, ICollection<string> skip, bool brief)
         {
             var bits = new List<string>();
             foreach (var m in p.Modules)
             {
+                if (skip != null && m.Kind == "other" && skip.Contains(m.Name)) continue;
                 switch (m.Kind)
                 {
                     case "engine":
@@ -233,8 +238,8 @@ namespace KerbalNews
                         if (m.Label != "") o.Append(" \"" + m.Label + "\"");
                         var kv = new List<string>();
                         if (m.Rates.Count > 0) kv.Add(RatesText(m.Rates));
-                        foreach (var t in m.Txt.Take(4)) kv.Add(t.Key + "=" + t.Value);
-                        foreach (var t in m.Num.Take(10 - Math.Min(4, m.Txt.Count))) kv.Add(t.Key + "=" + N(t.Value, "0.###"));
+                        foreach (var t in m.Txt.Take(brief ? 1 : 4)) kv.Add(t.Key + "=" + t.Value);
+                        foreach (var t in m.Num.Take(brief ? 3 : 10 - Math.Min(4, m.Txt.Count))) kv.Add(t.Key + "=" + N(t.Value, "0.###"));
                         if (kv.Count > 0) o.Append(" (" + string.Join(", ", kv.ToArray()) + ")");
                         bits.Add(o.ToString());
                         break;
@@ -254,11 +259,22 @@ namespace KerbalNews
             return (use.Length > 0 ? "uses " + string.Join(" + ", use) : "") + (use.Length > 0 && make.Length > 0 ? ", " : "") + (make.Length > 0 ? "makes " + string.Join(" + ", make) : "");
         }
 
+        /// <summary>Resources a mod uses for its own bookkeeping (Kerbalism's start with an underscore): not cargo.</summary>
+        public static bool Hidden(string res) { return res.StartsWith("_"); }
+
+        /// <summary>Unrecognised modules that sit on most parts (a mod's per-part bookkeeping): named once, not on every line.</summary>
+        public List<string> Everywhere()
+        {
+            if (Parts.Count < 6) return new List<string>();
+            return Parts.SelectMany(p => p.Modules.Where(m => m.Kind == "other").Select(m => m.Name).Distinct()).GroupBy(n => n)
+                .Where(g => g.Count() > Parts.Count * 0.4).Select(g => g.Key).ToList();
+        }
+
         public static string Short(string res) { return res == EC ? "EC" : res; }
 
         public static string ResText(IEnumerable<CraftRes> res, int count = 1)
         {
-            return string.Join(", ", res.Where(r => r.Max > 0).Select(r => Short(r.Name) + " " + (Math.Abs(r.Amount - r.Max) < 0.01 * Math.Max(1, r.Max) ? N(r.Max * count, "0.#") : N(r.Amount * count, "0.#") + "/" + N(r.Max * count, "0.#"))).ToArray());
+            return string.Join(", ", res.Where(r => r.Max > 0 && !Hidden(r.Name)).Select(r => Short(r.Name) + " " + (Math.Abs(r.Amount - r.Max) < 0.01 * Math.Max(1, r.Max) ? N(r.Max * count, "0.#") : N(r.Amount * count, "0.#") + "/" + N(r.Max * count, "0.#"))).ToArray());
         }
 
         // ---------------------------------------------------------------- power
@@ -333,7 +349,8 @@ namespace KerbalNews
                 }
             }
             r.Transmit = biggestTx;
-            r.Unknown = Parts.Any(p => p.Modules.Any(m => m.Kind == "other" && m.N("drawUnknown") > 0));
+            // A mod that keeps its own hidden resources (Kerbalism does) runs processes whose draw is not declared to the game.
+            r.Unknown = Parts.Any(p => p.Res.Any(x => Hidden(x.Name)));
 
             // The verdict at the destination.
             var b = there ?? home;
@@ -368,7 +385,7 @@ namespace KerbalNews
                 r.There.Add(new SheetLine("Sending science with the " + txName + " (" + Ec(r.Transmit) + ")", net < 0 ? mits : "covered", net < 0 && r.Battery < r.Transmit * 5));
             }
             if (r.FuelCell > 0) r.There.Add(new SheetLine("Fuel cells can add (while their fuel lasts)", Ec(r.FuelCell)));
-            if (r.Unknown) r.There.Add(new SheetLine("Some modded parts draw power in a way that cannot be read, so real demand may be higher.", "", false));
+            if (r.Unknown) r.There.Add(new SheetLine("A mod on this craft runs its own processes (life support and the like) whose power draw is not read yet, so real demand is higher than shown.", "", false));
 
             // Rating, both ways.
             if (worst <= 0) r.Rating = "nothing draws power";
@@ -376,6 +393,7 @@ namespace KerbalNews
             else if (gen < worst) r.Rating = "short when everything runs";
             else if (r.ShadowNeed > r.Battery) r.Rating = "short in shadow";
             else if (gen < worst * 1.2) r.Rating = "tight";
+            else if (r.Unknown) r.Rating = "enough for what could be read";
             else if (gen > worst * 3 && gen - worst > 0.5) r.Rating = "oversized";
             else r.Rating = "right-sized";
 
@@ -576,6 +594,9 @@ namespace KerbalNews
                 if (carried.Count > 0) sb.Append(". Drops " + carried.Count + " part" + (carried.Count == 1 ? "" : "s") + ", " + N(carried.Sum(p => p.DryMass + p.ResMass), "0.0#") + " t");
                 sb.AppendLine(".");
             }
+            var everywhere = Everywhere();
+            var asked = Mentioned(question).Take(4).ToList();
+            if (everywhere.Count > 0) sb.AppendLine("Modules that sit on most parts and are left off the lines below: " + string.Join(", ", everywhere.ToArray()) + ".");
             sb.AppendLine("Parts (count × name [mod], stage it activates in if staged, when it is dropped; what it holds; what it does):");
             int shown = 0;
             foreach (var g in groups)
@@ -587,17 +608,18 @@ namespace KerbalNews
                 line.Append(", " + N(g.Mass, "0.0##") + " t");
                 string res = ResText(p.Res, g.Count);
                 if (res != "") line.Append("; holds " + res);
-                string does = Does(p);
-                if (does != "") line.Append("; " + (does.Length > 420 ? does.Substring(0, 420) + "..." : does));
+                bool wanted = asked.Any(a => a.Name == p.Name);
+                string does = Does(p, everywhere, !wanted);
+                int cap = wanted ? 700 : 300;
+                if (does != "") line.Append("; " + (does.Length > cap ? does.Substring(0, cap) + "..." : does));
                 if (sb.Length + line.Length > maxChars - 600) { sb.AppendLine("- ...and " + (groups.Count - shown) + " more lines of smaller parts (" + N(groups.Skip(shown).Sum(x => x.Mass), "0.0#") + " t in total)."); break; }
                 sb.AppendLine(line.ToString());
                 shown++;
             }
-            var totals = Parts.SelectMany(p => p.Res).Where(x => x.Max > 0).GroupBy(x => x.Name).Select(x => Short(x.Key) + " " + N(x.Sum(y => y.Amount), "0.#") + "/" + N(x.Sum(y => y.Max), "0.#")).ToArray();
+            var totals = Parts.SelectMany(p => p.Res).Where(x => x.Max > 0 && !Hidden(x.Name)).GroupBy(x => x.Name).Select(x => Short(x.Key) + " " + N(x.Sum(y => y.Amount), "0.#") + "/" + N(x.Sum(y => y.Max), "0.#")).ToArray();
             if (totals.Length > 0) sb.AppendLine("Resources aboard (amount/capacity): " + string.Join(", ", totals) + ".");
 
             // Tooltips for the parts the question is about.
-            var asked = Mentioned(question).Take(4).ToList();
             foreach (var p in asked)
             {
                 if (p.Info.Count == 0) continue;
