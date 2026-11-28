@@ -134,6 +134,7 @@ namespace KerbalNews
             RecordCrew(e);
             RecordIncident(e);
             AnnotateContractEvent(e);
+            AnnotateArrival(e);
 
             Story story = null;
             if (!string.IsNullOrEmpty(e.VesselId))

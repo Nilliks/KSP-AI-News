@@ -57,16 +57,16 @@ namespace KerbalNews.KSP
             return memo.TryGetValue(k, out v) && double.TryParse(v, NumberStyles.Float, Inv, out d) ? d : def;
         }
 
-        static string Id(Vessel v) { return v.persistentId.ToString(Inv); }
-        static string Name(Vessel v) { var n = Names.Of(v); return n != "" ? n : "an unnamed craft"; }
-        static CelestialBody Home() { var h = FlightGlobals.GetHomeBody(); return h ?? FlightGlobals.Bodies.FirstOrDefault(b => b.isHomeWorld); }
-        static CelestialBody Sun() { return Planetarium.fetch != null ? Planetarium.fetch.Sun : FlightGlobals.Bodies[0]; }
+        internal static string Id(Vessel v) { return v.persistentId.ToString(Inv); }
+        internal static string Name(Vessel v) { var n = Names.Of(v); return n != "" ? n : "an unnamed craft"; }
+        internal static CelestialBody Home() { var h = FlightGlobals.GetHomeBody(); return h ?? FlightGlobals.Bodies.FirstOrDefault(b => b.isHomeWorld); }
+        internal static CelestialBody Sun() { return Planetarium.fetch != null ? Planetarium.fetch.Sun : FlightGlobals.Bodies[0]; }
         static Vector3d Pos(CelestialBody b, double ut) { return b.orbit != null ? b.orbit.getPositionAtUT(ut) : b.position; }
-        static double[] A(Vector3d v) { return new[] { v.x, v.y, v.z }; }
+        internal static double[] A(Vector3d v) { return new[] { v.x, v.y, v.z }; }
         static string Km(double m) { return m >= 1e9 ? (m / 1e9).ToString("0.0", Inv) + " million km" : m >= 1e6 ? (m / 1e3).ToString("N0", Inv) + " km" : (m / 1e3).ToString("0", Inv) + " km"; }
         static string Days(double s, double day) { return NewsEngine.FmtDays(s / day); }
 
-        static List<string> CrewOf(Vessel v)
+        internal static List<string> CrewOf(Vessel v)
         {
             try
             {
@@ -76,7 +76,7 @@ namespace KerbalNews.KSP
             catch (Exception) { return new List<string>(); }
         }
 
-        static bool Agency(Vessel v)
+        internal static bool Agency(Vessel v)
         {
             return v != null && v.vesselType != VesselType.Debris && v.vesselType != VesselType.SpaceObject && v.vesselType != VesselType.Flag
                 && v.vesselType != VesselType.Unknown && v.vesselType != VesselType.EVA && v.vesselType != VesselType.DeployedScienceController
