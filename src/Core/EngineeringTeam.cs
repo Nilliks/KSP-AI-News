@@ -122,8 +122,10 @@ namespace KerbalNews
             if (snap == null) return list;
             Func<string, string, Func<CheckReport>, CheckReport> run = (key, title, f) =>
             {
+                string was = Crumb.Enter("mission tool " + key);
                 try { var r = f(); r.Key = key; r.Title = title; return r; }
                 catch (Exception e) { var r = new CheckReport { Key = key, Title = title, Rating = "not computed" }; r.Add("This could not be worked out (" + e.GetType().Name + ")."); return r; }
+                finally { Crumb.Exit(was); }
             };
             bool has = snap.Sheet != null && snap.Sheet.Parts.Count > 0;
             bool flying = snap.Scene == "flight" || snap.Scene == "map";

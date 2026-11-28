@@ -1058,14 +1058,18 @@ namespace KerbalNews.KSP
             var typed = keepForm && renderedUrl == url ? fields.Where(kv => kv.Value != null).ToDictionary(kv => kv.Key, kv => kv.Value.text) : null;
             try
             {
-                page = Sites.Render(url);
+                float r0 = Time.realtimeSinceStartup;
+                page = Crumb.Run("page " + url, () => Sites.Render(url));
+                float built = Time.realtimeSinceStartup - r0;
+                if (built > 0.5f) Debug.LogWarning("[KerbalNews] Slow page: " + url + " took " + built.ToString("0.0") + " s to build");
+                string crumb = Crumb.Enter("layout " + url);
                 var root = Html.Parse(page.Html);
                 Css.Apply(root, Css.Parse(page.Css));
                 lastWidth = viewportRt.rect.width;
                 if (Math.Abs(Zoom - zoom) > 0.001f) Debug.Log("[KerbalNews] Page zoom " + zoom.ToString("0.0") + " -> " + Zoom.ToString("0.0") + " on " + url + ", width " + lastWidth.ToString("0"));
                 zoom = Zoom;
                 float t0 = Time.realtimeSinceStartup;
-                layout = Layout.Run(root, lastWidth / zoom, Measure);
+                try { layout = Layout.Run(root, lastWidth / zoom, Measure); } finally { Crumb.Exit(crumb); }
                 float took = Time.realtimeSinceStartup - t0;
                 if (took > 0.5f) Debug.LogWarning("[KerbalNews] Slow page layout: " + url + " took " + took.ToString("0.0") + " s (" + layout.Texts.Count + " texts, zoom " + zoom.ToString("0.0") + ")");
             }

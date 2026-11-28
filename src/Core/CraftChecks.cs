@@ -39,8 +39,10 @@ namespace KerbalNews
             if (c == null || c.Sheet == null || c.Sheet.Parts.Count == 0) return list;
             Func<string, string, Func<CheckReport>, CheckReport> run = (key, title, f) =>
             {
+                string was = Crumb.Enter("check " + key);
                 try { var r = f(); r.Key = key; r.Title = title; return r; }
                 catch (Exception e) { var r = new CheckReport { Key = key, Title = title, Rating = "not computed" }; r.Add("This check could not be worked out (" + e.GetType().Name + ")."); return r; }
+                finally { Crumb.Exit(was); }
             };
             list.Add(run("heat", "Heat", () => ModKnowledge.Heat(c.Sheet)));
             list.Add(run("comms", "Comms", () => Comms(c)));

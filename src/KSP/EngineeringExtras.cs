@@ -33,7 +33,7 @@ namespace KerbalNews.KSP
         static string keptKey = "";
         static float keptAt;
 
-        static void Try(string what, Action a) { try { a(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Engineering " + what + ": " + e.Message); } }
+        static void Try(string what, Action a) { string was = Crumb.Enter(what); try { a(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Engineering " + what + ": " + e.Message); } finally { Crumb.Exit(was); } }
 
         static void Phases(EngSnapshot s)
         {
@@ -142,6 +142,24 @@ namespace KerbalNews.KSP
         /// <summary>Every unlocked part that could stand in for something on a craft: engines, panels, batteries, reaction
         /// wheels, antennas, radiators, parachutes. Read once and kept until the tech tree changes.</summary>
         public static List<CraftPart> Catalog()
+        {
+            // Checking what is unlocked walks every loaded part, so an open page does that twice a minute at most.
+            if (catalog != null && Time.realtimeSinceStartup - catalogAt < 30f && catalogScene == HighLogic.LoadedScene) return catalog;
+            string was = Crumb.Enter("parts catalogue");
+            float t0 = Time.realtimeSinceStartup;
+            try { return CatalogInner(); }
+            finally
+            {
+                Crumb.Exit(was);
+                catalogAt = Time.realtimeSinceStartup; catalogScene = HighLogic.LoadedScene;
+                if (catalogAt - t0 > 0.5f) Debug.LogWarning("[KerbalNews] Slow parts catalogue: " + (catalogAt - t0).ToString("0.0") + " s");
+            }
+        }
+
+        static float catalogAt;
+        static GameScenes catalogScene;
+
+        static List<CraftPart> CatalogInner()
         {
             var loaded = PartLoader.LoadedPartsList;
             if (loaded == null) return new List<CraftPart>();

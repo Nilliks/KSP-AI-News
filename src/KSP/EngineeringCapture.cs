@@ -17,6 +17,12 @@ namespace KerbalNews.KSP
         /// seconds and only needs the numbers.</summary>
         public static EngSnapshot Snapshot(bool sheet)
         {
+            string was = Crumb.Enter(sheet ? "craft reading" : "flight numbers");
+            try { return SnapshotInner(sheet); } finally { Crumb.Exit(was); }
+        }
+
+        static EngSnapshot SnapshotInner(bool sheet)
+        {
             var s = new EngSnapshot();
             s.StockSystem = IsStock();
             if (sheet) { try { s.Bodies = BodyList(); } catch (Exception e) { Debug.LogWarning("[KerbalNews] Bodies: " + e.Message); } }
@@ -74,7 +80,7 @@ namespace KerbalNews.KSP
         static CraftSheet Sheet(IList<Part> parts, Part root, bool flying, string key, bool dirty, float maxAge)
         {
             if (cached != null && cachedKey == key && !dirty && Time.realtimeSinceStartup - cached.BuiltAt < maxAge) return cached;
-            cached = CraftReader.Read(parts, root, flying);
+            cached = Crumb.Run("parts sheet", () => CraftReader.Read(parts, root, flying));
             cachedKey = key;
             try
             {
