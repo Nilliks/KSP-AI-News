@@ -38,6 +38,13 @@ namespace KerbalNews.KSP
             Engine.StreamFrameJpeg = GalleryStore.StreamFrame;
             Engine.WorldScan = ut => HasGame ? WorldScanner.Scan(Engine.State, ut, clock.DaySeconds) : new System.Collections.Generic.List<WorldFact>();
             Engine.EngineeringData = EngineeringCapture.Snapshot;
+            Engine.EngineeringCatalog = EngineeringExtras.Catalog;
+            Engine.EngineeringLocked = EngineeringExtras.Locked;
+            Engine.EngineeringRelays = EngineeringExtras.Relays;
+            Engine.EngineeringScience = EngineeringExtras.SciencePoints;
+            Engine.EngineeringSaved = EngineeringExtras.Saved;
+            Engine.EngineeringLoadSaved = EngineeringExtras.LoadSaved;
+            KerbalNews.Web.Sites.EngClock = () => Time.realtimeSinceStartup;
             Engine.SideTimeline = ModCompat.InFmrsSideFlight;
             Engine.SideVesselId = () => StreamDriver.SideBoosterId;
             Engine.SideMainName = () => { var m = ModCompat.FmrsMainVessel(); return m != null ? Names.Of(m) : null; };
@@ -116,6 +123,7 @@ namespace KerbalNews.KSP
             blackBox.Register();
             GameEvents.onGameSceneLoadRequested.Add(OnSceneRequested);
             ScanMods(true);
+            StartWatchdog();
             Debug.Log("[KerbalNews] Kerbal News Network loaded");
         }
 
@@ -125,6 +133,7 @@ namespace KerbalNews.KSP
             collector.Unregister();
             if (blackBox != null) blackBox.Unregister();
             GameEvents.onGameSceneLoadRequested.Remove(OnSceneRequested);
+            System.Threading.Interlocked.Exchange(ref Crumb.Beat, 0);
             Instance = null;
         }
 
@@ -177,7 +186,51 @@ namespace KerbalNews.KSP
             }
         }
 
+        static readonly System.Diagnostics.Stopwatch wall = System.Diagnostics.Stopwatch.StartNew();
+        static System.Threading.Thread watchdog;
+        static long stallFrom;
+
+        /// <summary>A background thread that notices when the game has not drawn a frame for ten seconds and logs what the
+        /// mod was doing at the time (or that it was doing nothing), so a freeze can be traced from KSP.log.</summary>
+        static void StartWatchdog()
+        {
+            if (watchdog != null) return;
+            watchdog = new System.Threading.Thread(() =>
+            {
+                long reported = 0;
+                while (true)
+                {
+                    System.Threading.Thread.Sleep(2000);
+                    try
+                    {
+                        long beat = System.Threading.Interlocked.Read(ref Crumb.Beat);
+                        if (beat == 0) { reported = 0; continue; }
+                        long now = wall.ElapsedMilliseconds, age = now - beat;
+                        if (age < 10000) { reported = 0; continue; }
+                        if (reported != 0 && now - reported < 60000) continue;
+                        reported = now;
+                        System.Threading.Interlocked.Exchange(ref stallFrom, beat);
+                        string at = Crumb.In;
+                        Debug.LogWarning("[KerbalNews] Freeze watch: no frame for " + (age / 1000) + " s. " + (string.IsNullOrEmpty(at) ? "KerbalNews is not running any of its code." : "KerbalNews is inside: " + at));
+                    }
+                    catch { }
+                }
+            });
+            watchdog.IsBackground = true;
+            watchdog.Name = "KerbalNews freeze watch";
+            watchdog.Start();
+        }
+
         void Update()
+        {
+            long from = System.Threading.Interlocked.Exchange(ref stallFrom, 0);
+            if (from != 0) Debug.LogWarning("[KerbalNews] Freeze watch: frames are back after " + ((wall.ElapsedMilliseconds - from) / 1000) + " s.");
+            System.Threading.Interlocked.Exchange(ref Crumb.Beat, wall.ElapsedMilliseconds);
+            string was = Crumb.Enter("update");
+            try { UpdateInner(); } finally { Crumb.Exit(was); }
+        }
+
+        void UpdateInner()
         {
             transport.Poll();
             if (!HasGame || !InGameScene || HighLogic.CurrentGame == null) return;
@@ -185,20 +238,26 @@ namespace KerbalNews.KSP
             // Pages start streams and countdowns with the engine's clock, so it must be current even before a stream is on.
             Engine.SetRealTime(StreamDriver.Now);
             StreamAfterFmrs();
+            // The team's list of unlocked parts is read in the background after each scene loads.
+            if (Settings.EngineeringOn && HighLogic.LoadedScene != warmedScene)
+            {
+                warmedScene = HighLogic.LoadedScene;
+                if (warmedScene == GameScenes.EDITOR || warmedScene == GameScenes.FLIGHT || warmedScene == GameScenes.SPACECENTER || warmedScene == GameScenes.TRACKSTATION) StartCoroutine(EngineeringExtras.Warm());
+            }
             TickReplay();
-            if (HighLogic.LoadedSceneIsFlight && blackBox != null) blackBox.Update();
+            if (HighLogic.LoadedSceneIsFlight && blackBox != null) Crumb.Run("black box", () => blackBox.Update());
             try
             {
                 // Four times a second is plenty for news; checking every frame only costs frame time.
                 if (Time.realtimeSinceStartup < nextTick) return;
                 nextTick = Time.realtimeSinceStartup + 0.25f;
                 bool warping = TimeWarp.CurrentRate > 1.01f;
-                Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping);
-                MiningLink.Update(Engine, Planetarium.GetUniversalTime(), clock.DaySeconds);
-                if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; SyncRoster(); }
+                Crumb.Run("engine tick", () => Engine.Tick(Planetarium.GetUniversalTime(), Time.realtimeSinceStartup, Settings.GenerateDuringWarp || !warping));
+                Crumb.Run("mining link", () => MiningLink.Update(Engine, Planetarium.GetUniversalTime(), clock.DaySeconds));
+                if (Time.realtimeSinceStartup > nextCrewSync) { nextCrewSync = Time.realtimeSinceStartup + 15; Crumb.Run("crew sync", SyncRoster); }
                 // A few seconds of flight data for the engineering team, so a crash can be investigated afterwards.
                 if (HighLogic.LoadedSceneIsFlight && Settings.EngineeringOn && FlightGlobals.ActiveVessel != null && Time.realtimeSinceStartup > nextEngRecord)
-                { nextEngRecord = Time.realtimeSinceStartup + 4; Engine.EngRecord(EngineeringCapture.Snapshot(), Planetarium.GetUniversalTime()); }
+                { nextEngRecord = Time.realtimeSinceStartup + 4; Crumb.Run("flight recorder", () => Engine.EngRecord(EngineeringCapture.Snapshot(false), Planetarium.GetUniversalTime())); }
             }
             catch (Exception e)
             {
@@ -208,6 +267,7 @@ namespace KerbalNews.KSP
         }
 
         float nextCrewSync, nextTick, nextEngRecord, streamOrphanSince = -1, nextSideTrack;
+        GameScenes warmedScene = GameScenes.LOADING;
 
         /// <summary>
         /// FMRS: a stream kept alive through a jump normally lands in a flight scene, where StreamDriver takes it up again.

@@ -181,6 +181,37 @@ namespace KerbalNews.Web
                 case "eng-send": Engine.EngSend(Get(form, "ask"), Now()); break;
                 case "eng-ask": Engine.EngSend(arg, Now()); break;
                 case "eng-clear": Engine.EngClear(); break;
+                case "eng-tab": EngTab = arg; EngMenu = ""; break;
+                case "eng-menu": EngMenu = EngMenu == arg ? "" : arg; break;
+                case "eng-level": if (arg == "short" || arg == "normal" || arg == "teach") State.EngLevel = arg; EngMenu = ""; break;
+                case "eng-saved": { List<string[]> saved = null; int at; try { saved = Engine.EngineeringSaved(); } catch { } if (saved != null && int.TryParse(arg, out at) && at >= 0 && at < saved.Count && Engine.EngOpenSaved(saved[at][2])) EngTab = "overview"; break; }
+                case "eng-live": Engine.EngPinned = null; break;
+                case "eng-notes": EngNotesFilter = Uri.UnescapeDataString(arg); EngNoteEdit = ""; break;
+                case "eng-note-add": Engine.EngRemember("note", "", Get(form, "notetext"), Now(), true); break;
+                case "eng-note-pin": { var note = State.EngNotes.FirstOrDefault(x => x.Id == arg); if (note != null) note.Pinned = !note.Pinned; break; }
+                case "eng-note-del": State.EngNotes.RemoveAll(x => x.Id == arg); break;
+                case "eng-note-edit": EngNoteEdit = EngNoteEdit == arg ? "" : arg; break;
+                case "eng-note-save": { var note = State.EngNotes.FirstOrDefault(x => x.Id == arg); string t = Get(form, "noteedit").Trim(); if (note != null && t != "") note.Text = ResponseParser.Clip(t, 700); EngNoteEdit = ""; break; }
+                case "eng-meet-len": { int n; if (int.TryParse(arg, out n)) EngMeetLen = Math.Max(1, Math.Min(100, n)); break; }
+                case "eng-meet-new": EngMeetView = "new"; break;
+                case "eng-meet-view": EngMeetView = arg; break;
+                case "eng-meet-start": case "eng-meet-follow":
+                {
+                    int n; if (int.TryParse(Get(form, "calls").Trim(), out n) && n >= 1) EngMeetLen = Math.Min(100, n);
+                    var prev = action == "eng-meet-follow" ? State.EngMeetings.FirstOrDefault(x => x.Id == EngMeetView) ?? State.EngMeetings.LastOrDefault() : null;
+                    var mt = Engine.EngMeetingStart(Get(form, "objective"), EngMeetLen, Now(), prev != null ? prev.Id : "");
+                    if (mt != null) EngMeetView = mt.Id;
+                    break;
+                }
+                case "eng-meet-say": Engine.EngMeetingSay(Get(form, "meetsay"), Now()); break;
+                case "eng-meet-stop": Engine.EngMeetingStop(Now()); break;
+                case "eng-meet-decide": Engine.EngMeetingDecide(arg, Now()); break;
+                case "eng-meet-tick": { int cut = arg.LastIndexOf('/'); int i; if (cut > 0 && int.TryParse(arg.Substring(cut + 1), out i)) Engine.EngMeetingTick(arg.Substring(0, cut), i); break; }
+                case "eng-snap": { var snap = Engine.EngTakeSnapshot(Get(form, "snapname")); if (snap != null) { EngCompareId = snap.Id; EngTab = "compare"; } break; }
+                case "eng-snap-del": State.EngSnaps.RemoveAll(x => x.Id == arg); if (EngCompareId == arg) EngCompareId = ""; break;
+                case "eng-compare": EngCompareId = arg; EngTab = "compare"; break;
+                case "eng-margin": { int pct; if (int.TryParse(arg, out pct) && pct >= 0 && pct <= 100) State.EngMargin = pct; EngMenu = ""; break; }
+                case "eng-pick": { int cut = arg.IndexOf('/'); if (cut > 0) EngPick(arg.Substring(0, cut), Uri.UnescapeDataString(arg.Substring(cut + 1))); EngMenu = ""; Engine.EngNoteMission(Now()); break; }
                 case "eng-plan": Engine.EngPlanMission(Get(form, "mission"), Now()); break;
                 case "eng-investigate": Engine.EngInvestigate(arg, Now()); break;
                 case "eng-share": Engine.EngShareFindings(arg, Now()); break;
